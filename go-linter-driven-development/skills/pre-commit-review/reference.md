@@ -440,75 +440,54 @@ Use @refactoring skill to separate abstraction layers
 
 ---
 
-## 5. Vertical Slice Architecture [Design Debt 🔴]
+## 5. Vertical Slice Architecture [Design Debt 🔴 - ADVISORY]
 
 ### Detection
 Look for:
 - [ ] Features split across domain/, services/, handlers/ directories
-- [ ] Organization by technical role instead of feature
-- [ ] Related code scattered across multiple packages
-- [ ] Horizontal layering (domain, services, repository, handlers)
+- [ ] Horizontal layering vs vertical slicing
+
+**Note**: This is Design Debt but ADVISORY only. Never blocks. User may have valid reasons (time, team decisions).
 
 ### Examples
 
-#### ❌ Design Debt (Horizontal Layers)
+#### ⚠️ Horizontal Layering
 ```
-project/
-├── domain/
-│   ├── user.go
-│   └── order.go
-├── services/
-│   ├── user_service.go
-│   └── order_service.go
-├── repository/
-│   ├── user_repo.go
-│   └── order_repo.go
-└── handlers/
-    ├── user_handler.go
-    └── order_handler.go
+internal/{handlers,services,domain}/feature.go
 ```
+Problems: Feature scattered, coupling, team conflicts
 
-Problems:
-- Feature changes touch multiple directories
-- Hard to see complete feature scope
-- Coupling between layers
-- Team conflicts on same directories
-
-#### ✅ No Debt (Vertical Slices)
+#### ✅ Vertical Slicing
 ```
-project/
-├── user/
-│   ├── user.go          # Domain type
-│   ├── service.go       # Business logic
-│   ├── repository.go    # Persistence
-│   ├── handler.go       # HTTP
-│   └── user_test.go
-└── order/
-    ├── order.go
-    ├── service.go
-    ├── repository.go
-    ├── handler.go
-    └── order_test.go
+internal/feature/{handler,service,repository,models}.go
+```
+Benefits: Colocated, easy to understand, parallel work
+
+### Advisory Messages
+
+**Horizontal pattern**:
+```
+🔴 Design Debt (Advisory): Horizontal Layering
+Vertical slicing preferred for: cohesion, maintainability, boundaries
+Consider: Start migration with docs/architecture/vertical-slice-migration.md
+Valid reasons to proceed: time constraints, team agreement
+Proceed or refactor?
 ```
 
-Benefits:
-- Feature changes localized
-- Easy to understand feature scope
-- Independent deployment/testing
-- Clear ownership
+**Mixed without docs**:
+```
+💡 Polish: Document migration in docs/architecture/vertical-slice-migration.md
+Helps team understand pattern and track progress.
+```
 
-### Principle
-**Group by feature and role, not technical layer**
-- Each slice has internal separation by responsibilities
-- Vertical slices over horizontal layers
-
-### Review Questions
-- Is code organized by feature or layer? → Should be feature
-- Are related files scattered? → Group together
-- Is it easy to find all code for a feature? → Should be
+**Vertical slice**:
+```
+✅ Architecture: Vertical Slice Pattern
+Follows recommended pattern, feature colocated
+```
 
 ### Fix
-Use @code-designing skill to restructure packages
+If user wants refactor: Use @code-designing skill
 
 ---
 

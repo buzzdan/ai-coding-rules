@@ -23,6 +23,37 @@ Design clean, self-validating types that:
 
 ## Workflow
 
+### 0. Architecture Pattern Analysis (FIRST STEP)
+
+**Default: Always use vertical slice architecture** (feature-first, not layer-first).
+
+Scan codebase structure:
+- **Vertical slicing**: `internal/feature/{handler,service,repository,models}.go` ✅
+- **Horizontal layering**: `internal/{handlers,services,domain}/feature.go` ⚠️
+
+**Decision Flow**:
+1. **Pure vertical** → Continue pattern, implement as `internal/[new-feature]/`
+2. **Pure horizontal** → Propose: Start migration with `docs/architecture/vertical-slice-migration.md`, implement new feature as first vertical slice
+3. **Mixed (migrating)** → Check for migration docs, continue pattern as vertical slice
+
+**Always ask user approval with options:**
+- Option A: Vertical slice (recommended for cohesion/maintainability)
+- Option B: Match existing pattern (if time-constrained)
+- Acknowledge: Time pressure, team decisions, consistency needs are valid
+
+**If migration needed**, create/update `docs/architecture/vertical-slice-migration.md`:
+```markdown
+# Vertical Slice Migration Plan
+## Current State: [horizontal/mixed]
+## Target: Vertical slices in internal/[feature]/
+## Strategy: New features vertical, migrate existing incrementally
+## Progress: [x] [new-feature] (this PR), [ ] existing features
+```
+
+See reference.md section #3 for detailed patterns.
+
+---
+
 ### 1. Understand Domain
 - What is the problem domain?
 - What are the main concepts/entities?

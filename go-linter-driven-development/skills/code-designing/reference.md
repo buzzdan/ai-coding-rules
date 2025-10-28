@@ -133,59 +133,46 @@ func (s *UserService) CreateUser(user User) error {
 ## 3. Vertical Slice Architecture
 
 ### Principle
-Group by feature and role, not technical layer.
+**Group by feature and behavior, not by technical layer.**
 
-### Bad: Horizontal Layers
+All code for a feature lives together in one directory.
+
+### Examples
+
+#### ❌ BAD: Horizontal Layers
 ```
-project/
-├── domain/
-│   ├── user.go
-│   └── order.go
-├── services/
-│   ├── user_service.go
-│   └── order_service.go
-└── repository/
-    ├── user_repo.go
-    └── order_repo.go
+internal/
+├── handlers/health_handler.go
+├── services/health_service.go
+└── models/health.go
+```
+Problems: Feature scattered, hard to understand complete behavior, team conflicts
+
+#### ✅ GOOD: Vertical Slice
+```
+internal/health/
+├── handler.go
+├── service.go
+├── repository.go
+└── models.go
+```
+Benefits: Feature colocated, easy to understand/extract, parallel work
+
+### Migration Strategy
+
+**New features**: Always implement as vertical slices
+**Existing horizontal code**: Refactor incrementally
+
+Create `docs/architecture/vertical-slice-migration.md`:
+```markdown
+# Vertical Slice Migration Plan
+## Current State: [horizontal/mixed description]
+## Target: Vertical slices in internal/[feature]/
+## Strategy: New features vertical, refactor existing incrementally
+## Progress: [x] new_feature (this PR), [ ] health, [ ] verification
 ```
 
-Problems:
-- Feature changes scattered across directories
-- Hard to see feature scope
-- Team conflicts on shared directories
-
-### Good: Vertical Slices
-```
-project/
-├── user/
-│   ├── user.go          # Domain type
-│   ├── service.go       # Business logic
-│   ├── repository.go    # Persistence
-│   └── handler.go       # HTTP
-└── order/
-    ├── order.go
-    ├── service.go
-    ├── repository.go
-    └── handler.go
-```
-
-Benefits:
-- All feature code in one place
-- Easy to understand scope
-- Independent testing/deployment
-- Clear ownership
-
-### Internal Separation by Role
-Each slice can have internal separation:
-```
-user/
-├── user.go          # Domain types (User, UserID, Email)
-├── service.go       # Business logic (UserService)
-├── repository.go    # Persistence (Repository interface)
-├── postgres.go      # Postgres implementation
-├── inmem.go         # In-memory implementation (for tests)
-└── handler.go       # HTTP handlers
-```
+**Never mix**: Don't have both `health/service.go` AND `services/health_service.go` for same feature.
 
 ---
 

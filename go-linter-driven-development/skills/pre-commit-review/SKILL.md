@@ -67,6 +67,34 @@ Impact: Low, but keeps codebase clean and consistent
 
 ## Review Workflow
 
+### 0. Architectural Pattern Validation (FIRST CHECK)
+
+**Expected: Vertical slice architecture. Design Debt (ADVISORY) - never blocks commit.**
+
+Check file patterns:
+- `internal/[feature]/{handler,service,models}.go` → ✅ Vertical slice
+- `internal/{handlers,services,domain}/[feature].go` → 🔴 Horizontal layers (Design Debt - advisory)
+
+**Advisory Categories**:
+1. **✅ Vertical slice** → Praise, note migration progress if applicable
+2. **🟢 Mixed without docs** → Suggest creating `docs/architecture/vertical-slice-migration.md`
+3. **🔴 Horizontal pattern (advisory)** → Suggest vertical slice alternative, respect constraints
+
+**Report Template**:
+```
+🔴 Design Debt (Advisory): [Pattern Name]
+- Current: [what code does]
+- Preferred: Vertical slice for better cohesion/maintainability
+- Alternative: Continue as-is (time constraints, team decision valid)
+- Offer: Create migration docs? Refactor? Proceed as-is?
+```
+
+**Always acknowledge**: Time pressure, consistency needs, team decisions are valid reasons to proceed.
+
+See reference.md section #5 for detailed patterns.
+
+---
+
 ### 1. Analyze Commit Scope
 ```bash
 # Identify what changed
