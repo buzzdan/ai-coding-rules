@@ -139,7 +139,7 @@ The key insight is:
 - NEVER use nolint directives on your own. instead, try to fix the code. if it looks like a false positive, add it to the `exclusions` section of the `.golangci.yaml` file. only use nolint when the rule genuinely doesn't make sense for the specific case (ALWAYS ask for approval before using nolint directives). fixing it can be as simple as logging an error instead of ignoring it (for example on tests we can use t.Log) or as elegant as solving it.
 
 #### Refactoring Reminders
-- ״an this be broken into smaller pieces?
+- Can this be broken into smaller pieces?
 - Does this function handle more than one responsibility?
 - Is this logic closer to business or to infrastructure?
 - does this logic run on a primitive? if so, is this primitive obsession? should i create a new type and put that logic in it ? or can i put some of the logic in another existing type?
@@ -301,3 +301,24 @@ Good: bypass the spancheck rule by creating only the span options instead of the
        ...
 }
 ```
+
+**ALWAYS use named struct fields in table-driven tests**: The linter's autofix feature reorders struct fields, which breaks unnamed field initialization. Always use named fields:
+  ```go
+  // ❌ BAD - breaks when linter reorders fields
+  tests := []struct {
+      name   string
+      input  int
+      want   string
+  }{
+      {"test1", 42, "result"},  // This breaks if linter reorders fields
+  }
+
+  // ✅ GOOD - works regardless of field order
+  tests := []struct {
+      name   string
+      input  int
+      want   string
+  }{
+      {name: "test1", input: 42, want: "result"},  // Always works
+  }
+  ```

@@ -28,31 +28,35 @@ Six specialized skills that work together to automate clean code practices:
 - [Claude Code](https://claude.ai/code) installed
 - Go development environment
 
-### Setup
+### Install the Plugin
 
-1. **Clone this repository:**
-```bash
-cd ~/dev
-git clone https://github.com/buzzdan/ai-coding-rules.git ai-coding-rules
+**Step 1: Add the marketplace**
+```
+/plugin marketplace add buzzdan/ai-coding-rules
 ```
 
-2. **Link skills to Claude Code:**
-```bash
-# Backup existing skills (if any)
-mv ~/.claude/skills ~/.claude/skills.backup 2>/dev/null || true
-
-# Create symlink
-ln -s ~/dev/ai-coding-rules/skills ~/.claude/skills
+**Step 2: Install the plugin**
+```
+/plugin install go-linter-driven-development@ai-coding-rules
 ```
 
-3. **Verify installation:**
-```bash
-ls ~/.claude/skills/
-# Should show: code-designing, documentation, linter-driven-development,
-#              pre-commit-review, refactoring, testing
+**Verify installation:**
 ```
+/plugin list
+```
+Should show: `go-linter-driven-development (enabled)`
 
-4. **Load in CLAUDE.md** (optional but recommended):
+That's it! All skills are now available:
+- `@linter-driven-development`
+- `@code-designing`
+- `@testing`
+- `@refactoring`
+- `@pre-commit-review`
+- `@documentation`
+
+### Optional: Load in CLAUDE.md
+
+For automatic context loading:
 ```markdown
 # Your Project CLAUDE.md
 
@@ -339,46 +343,90 @@ Don't always need the full orchestrator:
 
 ### For Team Members
 
-1. **Clone the repo:**
-```bash
-cd ~/dev
-git clone https://github.com/buzzdan/ai-coding-rules.git ai-coding-rules
+**Standard Installation:**
+
+1. Add the marketplace:
+```
+/plugin marketplace add buzzdan/ai-coding-rules
 ```
 
-2. **Set up symlink:**
-```bash
-mv ~/.claude/skills ~/.claude/skills.backup 2>/dev/null || true
-ln -s ~/dev/ai-coding-rules/skills ~/.claude/skills
+2. Install the plugin:
+```
+/plugin install go-linter-driven-development@ai-coding-rules
 ```
 
-3. **Pull updates regularly:**
-```bash
-cd ~/dev/ai-coding-rules
-git pull
+**Or** add to your project's `.claude/settings.json` for automatic team-wide marketplace availability:
+```json
+{
+  "extraKnownMarketplaces": [
+    "buzzdan/ai-coding-rules"
+  ]
+}
 ```
 
-Changes to skills are immediately available (symlink points to git repo).
+Then team members can:
+```
+/plugin marketplace add buzzdan/ai-coding-rules
+/plugin install go-linter-driven-development@ai-coding-rules
+```
+
+**Updates:**
+```
+/plugin update go-linter-driven-development@ai-coding-rules
+```
 
 ### For Skill Maintainers
 
-1. **Edit skills as needed:**
+**Development Workflow:**
+
+1. **Clone the repository:**
 ```bash
-cd ~/dev/ai-coding-rules/skills
-# Edit SKILL.md, reference.md, examples.md files
+cd ~/dev
+git clone https://github.com/buzzdan/ai-coding-rules.git
+cd ai-coding-rules
 ```
 
-2. **Test changes:**
-Invoke the skill in Claude Code to verify changes work as expected.
-
-3. **Commit and push:**
+2. **Edit skills:**
 ```bash
-git add skills/
+cd go-linter-driven-development/skills
+# Edit SKILL.md, reference.md, examples.md files in any skill directory
+```
+
+3. **Test changes locally:**
+```bash
+# Start Claude Code from parent directory
+cd ~/dev
+claude
+
+# Add local marketplace
+/plugin marketplace add ./ai-coding-rules
+
+# Install your development version
+/plugin install go-linter-driven-development@ai-coding-rules
+```
+
+After making changes:
+```
+# Uninstall current version
+/plugin uninstall go-linter-driven-development@ai-coding-rules
+
+# Reinstall to test changes
+/plugin install go-linter-driven-development@ai-coding-rules
+```
+
+4. **Commit and push:**
+```bash
+cd ~/dev/ai-coding-rules
+git add go-linter-driven-development/
 git commit -m "Improve refactoring patterns in @refactoring skill"
-git push
+git push origin main
 ```
 
-4. **Team gets updates:**
-Team members run `git pull` and get the latest skills.
+5. **Team gets updates:**
+Team members run:
+```
+/plugin update go-linter-driven-development@ai-coding-rules
+```
 
 ## Debt-Based Review Categories
 
@@ -500,31 +548,31 @@ Ready to implement?
 
 ## Troubleshooting
 
-### Skills not showing up
-```bash
-# Verify symlink
-ls -la ~/.claude/skills
-# Should show: skills -> /path/to/ai-coding-rules/skills
+### Plugin not showing up
+```
+# Check installed plugins
+/plugin list
 
-# Check skills directory
-ls ~/.claude/skills/
-# Should list: code-designing, documentation, etc.
+# If not listed, install it
+/plugin marketplace add buzzdan/ai-coding-rules
+/plugin install go-linter-driven-development@ai-coding-rules
 ```
 
-### Symlink broken after moving repo
-```bash
-# Remove old symlink
-rm ~/.claude/skills
+### Skills not available after installation
+```
+# Verify plugin is enabled
+/plugin list
 
-# Create new symlink
-ln -s ~/dev/ai-coding-rules/skills ~/.claude/skills
+# If disabled, enable it
+/plugin
+# Select "go-linter-driven-development" and choose "Enable"
 ```
 
-### Want to use different skills location
-```bash
-# Update symlink
-rm ~/.claude/skills
-ln -s /your/custom/path/ai-coding-rules/skills ~/.claude/skills
+### Plugin update not working
+```
+# Try uninstalling and reinstalling
+/plugin uninstall go-linter-driven-development@ai-coding-rules
+/plugin install go-linter-driven-development@ai-coding-rules
 ```
 
 ## Contributing

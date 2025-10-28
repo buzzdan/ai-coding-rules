@@ -1,0 +1,13 @@
+{
+  "name": "ai-coding-rules",
+  "owner": {
+    "name": "Dan Mordechay"
+  },
+  "plugins": [
+    {
+      "name": "go-linter-driven-development",
+      "source": "./go-linter-driven-development",
+      "description": "Linter-driven development workflow for Go with six specialized skills: design, testing, refactoring, review, and documentation"
+    }
+  ]
+}
