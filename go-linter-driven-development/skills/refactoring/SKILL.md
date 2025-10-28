@@ -1,3 +1,8 @@
+---
+name: refactoring
+description: Linter-driven refactoring patterns to reduce complexity and improve code quality. Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain. Applies storifying, type extraction, and function extraction patterns.
+---
+
 # Refactoring
 
 Linter-driven refactoring patterns to reduce complexity and improve code quality.

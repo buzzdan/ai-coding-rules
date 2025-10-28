@@ -7,7 +7,7 @@
     {
       "name": "go-linter-driven-development",
       "source": "./go-linter-driven-development",
-      "description": "Linter-driven development workflow for Go with six specialized skills: design, testing, refactoring, review, and documentation"
+      "description": "Linter-driven development workflow for Go with 6 specialized skills: meta orchestrator, design, testing, refactoring, review, and documentation"
     }
   ]
 }

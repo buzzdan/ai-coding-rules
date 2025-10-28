@@ -1,3 +1,8 @@
+---
+name: documentation
+description: Creates comprehensive feature documentation for humans and AI to understand features, resolve bugs, and extend functionality. Use after complete feature implementation (may span multiple commits). Generates feature docs, updates godoc, and creates testable examples.
+---
+
 # Feature Documentation
 
 Creates comprehensive feature documentation for humans and AI to use for

@@ -1,3 +1,8 @@
+---
+name: linter-driven-development
+description: META ORCHESTRATOR for complete implementation workflow - design, test, lint, refactor, review, commit. Use for any code change that should result in a commit (features, bug fixes, refactors). Ensures clean code with tests, linting passes, and design validation.
+---
+
 # Linter-Driven Development Workflow
 
 META ORCHESTRATOR for implementation workflow: design → test → lint → refactor → review → commit.

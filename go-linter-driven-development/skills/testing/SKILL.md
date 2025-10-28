@@ -1,3 +1,8 @@
+---
+name: testing
+description: Principles and patterns for writing effective Go tests. Use during implementation for test structure guidance, choosing between table-driven tests vs testify suites, or deciding between real implementations vs mocks. Emphasizes testing public API only with 100% coverage on leaf types.
+---
+
 # Testing Principles
 
 Principles and patterns for writing effective Go tests.
