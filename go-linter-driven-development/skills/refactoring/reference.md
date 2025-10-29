@@ -228,6 +228,8 @@ func ProcessOrder(order Order) error {
 - Easy to test
 - Easy to modify
 
+**Real-world example:** See [Example 1 in examples.md](./examples.md#example-1-storifying-mixed-abstractions-and-extracting-logic-into-leaf-types) for a production case of storifying mixed abstractions and extracting a leaf type for IP collection logic
+
 ### 2. Extract Type (Primitive Obsession)
 
 **Signal:**
@@ -305,6 +307,8 @@ func ConnectToServer(addr ServerAddress) error {
 - Type safety
 - Reduced complexity
 - Self-documenting
+
+**Real-world example:** See [Example 2 in examples.md](./examples.md#example-2-primitive-obsession-with-multiple-types-and-storifying-switch-statements) for extracting multiple types from a 60-line function with primitive obsession. Shows the Type Alias Pattern for creating config-friendly types and eliminating switch statement duplication.
 
 ### 3. Early Returns (Reduce Nesting)
 

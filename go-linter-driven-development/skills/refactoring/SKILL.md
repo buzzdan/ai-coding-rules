@@ -13,6 +13,15 @@ Linter-driven refactoring patterns to reduce complexity and improve code quality
 - Functions are too long or deeply nested
 - Automatically invoked by @linter-driven-development when linter fails
 
+## Learning Resources
+
+Choose your learning path:
+- **Quick Start**: Use the patterns below for common refactoring cases
+- **Complete Reference**: See [reference.md](./reference.md) for full decision tree and all patterns
+- **Real-World Examples**: See [examples.md](./examples.md) to learn the refactoring thought process
+  - [Example 1](./examples.md#example-1-storifying-mixed-abstractions-and-extracting-logic-into-leaf-types): Storifying and extracting a single leaf type
+  - [Example 2](./examples.md#example-2-primitive-obsession-with-multiple-types-and-storifying-switch-statements): Primitive obsession with multiple types and switch elimination
+
 ## Refactoring Signals
 
 ### Linter Failures
@@ -319,10 +328,27 @@ Next Steps:
 4. Proceed to @pre-commit-review phase
 ```
 
+## Learning from Examples
+
+For real-world refactoring case studies that show the complete thought process:
+
+**[Example 1: Storifying Mixed Abstractions](./examples.md#example-1-storifying-mixed-abstractions-and-extracting-logic-into-leaf-types)**
+- Transforms a 48-line fat function into lean orchestration + leaf type
+- Shows how to extract `IPConfig` type for collection and validation logic
+- Demonstrates achieving 100% unit test coverage without mocking
+
+**[Example 2: Primitive Obsession with Multiple Types](./examples.md#example-2-primitive-obsession-with-multiple-types-and-storifying-switch-statements)**
+- Transforms a 60-line function into a 7-line story by extracting 4 leaf types
+- Shows the Type Alias Pattern for config-friendly types
+- Demonstrates eliminating switch statement duplication
+- Fixed misleading function name (`validateCIDR` → `alignCIDRArgs`)
+
+See [examples.md](./examples.md) for complete case studies with thought process.
+
 ## Integration with Other Skills
 
 - **@code-designing**: When refactoring creates new types, validate design
 - **@testing**: Ensure refactored code maintains test coverage
 - **@pre-commit-review**: Final validation before commit
 
-See reference.md for complete refactoring patterns and decision tree.
+See [reference.md](./reference.md) for complete refactoring patterns and decision tree.
