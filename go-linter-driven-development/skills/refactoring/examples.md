@@ -330,7 +330,7 @@ Config (ORCHESTRATOR)
 
 This real-world example shows how to transform a 60-line function with nested switches and boolean flags into a 7-line story by extracting multiple leaf types. The original function was named `validateCIDR()` but actually mutated state - a classic naming smell that triggered deeper refactoring.
 
-## Key Learning: From Primitive Obsession to Type-Rich Design
+## Key Learning: From Primitive Obsession to Type-Rich Design (Without Over-Abstraction!)
 
 **Before**: All logic operates on raw `[]string` with manual parsing and boolean flags
 ```
@@ -344,10 +344,15 @@ K3SArgs (Leaf Type - string slice wrapper)
   ├─ ParseCIDRConfig() → returns domain model
   └─ AppendCIDRDefaults() → mutation with explicit dependencies
 
-CIDRConfig (Leaf Type - domain model)
-  ├─ ClusterCIDR: CIDRPresence
-  ├─ ServiceCIDR: CIDRPresence
+CIDRConfig (Leaf Type - domain model with private fields)
+  ├─ clusterCIDRSet (private bool - controlled mutation)
+  ├─ serviceCIDRSet (private bool - controlled mutation)
+  ├─ ClusterCIDRSet() → accessor (read-only)
+  ├─ ServiceCIDRSet() → accessor (read-only)
   └─ AreBothSet() → reads like English
+
+  Note: No CIDRPresence wrapper! Private fields achieve
+        same safety without wrapper ceremony.
 
 IPVersionConfig (Leaf Type - configuration)
   └─ DefaultCIDRs() → value generator
@@ -361,6 +366,7 @@ Main Function (Orchestrator - 7 lines)
 - Most complexity lives in 3 leaf types (100% testable)
 - Each type can be tested without mocking anything
 - Code reads like English: "append CIDR defaults based on IP config"
+- **Avoided over-abstraction**: Rejected `CIDRPresence` wrapper, used private fields instead
 
 ## Code Smells Identified
 
@@ -434,7 +440,84 @@ func (c *Config) alignCIDRArgs() {
 }
 ```
 
-## After Refactoring
+## First Refactoring Attempt: The Over-Abstraction Trap
+
+Before showing the final solution, let's see a common mistake: **over-abstracting booleans**.
+
+### What We Tried (Over-Abstraction ❌)
+
+```go
+// CIDRPresence - A wrapper that adds NO value
+type CIDRPresence bool
+
+const (
+	cidrPresent CIDRPresence = true
+)
+
+func (p CIDRPresence) IsSet() bool {
+	return bool(p)  // Just unwraps the bool!
+}
+
+type CIDRConfig struct {
+	ClusterCIDR CIDRPresence  // Wrapped bool
+	ServiceCIDR CIDRPresence  // Wrapped bool
+}
+
+func (c CIDRConfig) AreBothSet() bool {
+	return c.ClusterCIDR.IsSet() && c.ServiceCIDR.IsSet()
+}
+```
+
+### Why This Is Over-Abstraction
+
+**Problems with CIDRPresence**:
+1. ❌ **8 lines of code** for a trivial wrapper
+2. ❌ **One method** that just unwraps: `return bool(p)`
+3. ❌ **No type safety** - still just a bool underneath
+4. ❌ **Not more readable** - compare:
+   - `config.ClusterCIDR.IsSet()` (with wrapper)
+   - `config.ClusterCIDRSet` (with good naming)
+5. ❌ **No validation, no logic, no invariants** - pure ceremony
+6. ❌ **Increases cognitive load** - one more type to understand
+
+**The Honest Question**: Is `config.ClusterCIDR.IsSet()` **significantly** clearer than `config.ClusterCIDRSet`?
+
+**Answer**: No! Good naming achieves the same clarity.
+
+**The Real Need**: We DO need controlled mutation (only parser should set these values), but we don't need a wrapper type to achieve it.
+
+### The Better Solution: Private Fields
+
+Instead of wrapping with `CIDRPresence`, use **private fields with accessor methods**:
+
+```go
+// ✅ Simple, safe, clear
+type CIDRConfig struct {
+	clusterCIDRSet bool  // Private: can only be set by ParseCIDRConfig
+	serviceCIDRSet bool  // Private: can only be set by ParseCIDRConfig
+}
+
+// Read-only accessors
+func (c CIDRConfig) ClusterCIDRSet() bool { return c.clusterCIDRSet }
+func (c CIDRConfig) ServiceCIDRSet() bool { return c.serviceCIDRSet }
+
+func (c CIDRConfig) AreBothSet() bool {
+	return c.clusterCIDRSet && c.serviceCIDRSet
+}
+```
+
+**Why This Is Better**:
+- ✅ **4 lines** vs 8 lines for CIDRPresence wrapper
+- ✅ **Same safety** - compiler enforces that only parser can set values
+- ✅ **Same readability** - `ClusterCIDRSet()` is just as clear
+- ✅ **No wrapper ceremony** - fields are what they are: bools
+- ✅ **Controlled mutation** - private fields can't be set externally
+
+**Key Lesson**: Not every primitive needs a type. Use private fields when you need controlled mutation without wrapper overhead.
+
+---
+
+## After Refactoring (Final Solution)
 
 ```go
 // Main function: Now a 7-line story!
@@ -459,6 +542,7 @@ func (c *Config) alignCIDRArgs() {
 type K3SArgs []string
 
 // ParseCIDRConfig extracts which CIDRs are already configured.
+// This is the ONLY place where CIDR flags can be set.
 func (args K3SArgs) ParseCIDRConfig() CIDRConfig {
 	var config CIDRConfig
 
@@ -470,9 +554,9 @@ func (args K3SArgs) ParseCIDRConfig() CIDRConfig {
 
 		switch key {
 		case "--cluster-cidr":
-			config.ClusterCIDR = cidrPresent
+			config.clusterCIDRSet = true  // ✓ Controlled mutation in parser
 		case "--service-cidr":
-			config.ServiceCIDR = cidrPresent
+			config.serviceCIDRSet = true  // ✓ Controlled mutation in parser
 		}
 	}
 
@@ -489,11 +573,11 @@ func (args *K3SArgs) AppendCIDRDefaults(ipConfig IPVersionConfig) {
 
 	defaults := ipConfig.DefaultCIDRs()
 
-	if !existing.ClusterCIDR.IsSet() {
+	if !existing.ClusterCIDRSet() {  // ✓ Read-only access via method
 		*args = append(*args, defaults.ClusterCIDRArg())
 	}
 
-	if !existing.ServiceCIDR.IsSet() {
+	if !existing.ServiceCIDRSet() {  // ✓ Read-only access via method
 		*args = append(*args, defaults.ServiceCIDRArg())
 	}
 }
@@ -508,25 +592,26 @@ func parseK3SArgument(arg string) (key, value string, ok bool) {
 }
 
 // ==================== LEAF TYPE 2: CIDRConfig ====================
-// CIDRPresence is a self-documenting optional value.
-type CIDRPresence bool
-
-const (
-	cidrPresent CIDRPresence = true
-)
-
-func (p CIDRPresence) IsSet() bool {
-	return bool(p)
-}
-
 // CIDRConfig represents which CIDR configurations are present.
+// Uses private fields for controlled mutation - can only be set by ParseCIDRConfig.
 type CIDRConfig struct {
-	ClusterCIDR CIDRPresence
-	ServiceCIDR CIDRPresence
+	clusterCIDRSet bool  // Private: controlled mutation
+	serviceCIDRSet bool  // Private: controlled mutation
 }
 
+// ClusterCIDRSet returns true if cluster CIDR is configured.
+func (c CIDRConfig) ClusterCIDRSet() bool {
+	return c.clusterCIDRSet
+}
+
+// ServiceCIDRSet returns true if service CIDR is configured.
+func (c CIDRConfig) ServiceCIDRSet() bool {
+	return c.serviceCIDRSet
+}
+
+// AreBothSet returns true if both cluster and service CIDRs are configured.
 func (c CIDRConfig) AreBothSet() bool {
-	return c.ClusterCIDR.IsSet() && c.ServiceCIDR.IsSet()
+	return c.clusterCIDRSet && c.serviceCIDRSet
 }
 
 // ==================== LEAF TYPE 3: IPVersionConfig ====================
@@ -633,7 +718,7 @@ type Config struct {
 
 **Why this matters**: Instead of one 60-line function, we get 4 small leaf types that are independently testable.
 
-### Step 3: Replace Boolean Flags with Domain Types
+### Step 3: Replace Boolean Flags with Domain Type
 
 **Before**: Two booleans tracking related state
 ```go
@@ -645,9 +730,14 @@ if isClusterCIDRSet && isServerCIDRSet { return }
 **After**: Domain model with query method
 ```go
 type CIDRConfig struct {
-    ClusterCIDR CIDRPresence
-    ServiceCIDR CIDRPresence
+    clusterCIDRSet bool  // Private fields
+    serviceCIDRSet bool
 }
+
+func (c CIDRConfig) AreBothSet() bool {
+    return c.clusterCIDRSet && c.serviceCIDRSet
+}
+
 if existing.AreBothSet() { return }
 ```
 
@@ -655,7 +745,48 @@ if existing.AreBothSet() { return }
 - Reads like English: "are both set?"
 - Encapsulates the logic in one place
 - Extensible: easy to add DNS CIDR field
-- Type-safe: can't confuse with other booleans
+- Groups related state
+
+### Step 3.5: Recognize Over-Abstraction (Critical Decision!)
+
+**Temptation**: Wrap the bool in a type
+```go
+// ❌ Over-abstraction!
+type CIDRPresence bool
+func (p CIDRPresence) IsSet() bool { return bool(p) }
+
+type CIDRConfig struct {
+    ClusterCIDR CIDRPresence
+    ServiceCIDR CIDRPresence
+}
+```
+
+**Questions to ask**:
+1. Does `CIDRPresence` add meaningful methods? → **NO** (just `.IsSet()` which unwraps)
+2. Does it enforce invariants? → **NO** (still just a bool)
+3. Does it need controlled mutation? → **YES!** (should only be set by parser)
+4. Is `.ClusterCIDR.IsSet()` clearer than `.ClusterCIDRSet()`? → **NO!**
+
+→ **Decision**: Don't create `CIDRPresence` wrapper. Instead, use **private fields** for controlled mutation:
+
+```go
+// ✅ Better: Private fields + accessor methods
+type CIDRConfig struct {
+    clusterCIDRSet bool  // Private: only parser can set
+    serviceCIDRSet bool
+}
+
+func (c CIDRConfig) ClusterCIDRSet() bool { return c.clusterCIDRSet }
+func (c CIDRConfig) ServiceCIDRSet() bool { return c.serviceCIDRSet }
+```
+
+**Why this matters**:
+- Achieves same safety (compiler-enforced controlled mutation)
+- 4 fewer lines than wrapper approach
+- No ceremonial type wrapping
+- Just as readable: `ClusterCIDRSet()` vs `ClusterCIDR.IsSet()`
+
+**Key lesson**: Not every primitive needs a type. Use private fields when you need controlled mutation without wrapper overhead.
 
 ### Step 4: Eliminate Switch Statement Duplication
 
@@ -717,10 +848,11 @@ c.K3SArgs = []string(k3sArgs)
 * **Fat function became lean orchestrator** - 60 lines → 7 lines
 * **Created 3 leaf types** - Each handles one concern:
   - `K3SArgs`: Argument list operations (parsing, appending) - **usable as config field**
-  - `CIDRConfig` + `CIDRPresence`: Domain model for CIDR state
+  - `CIDRConfig`: Domain model with **private fields for safety**
   - `IPVersionConfig` + `DefaultCIDRValues`: CIDR value generation
 * **Clear separation** - Parsing vs Detection vs Value Generation vs Orchestration
 * **Type alias pattern** - `K3SArgs` as type alias enables direct use in config structs with JSON serialization
+* **Avoided over-abstraction** - Rejected `CIDRPresence` wrapper, used private fields instead (4 fewer lines, same safety)
 
 ### Readability
 * **Storified main function** - Reads like: create config → convert → append → store
@@ -775,15 +907,30 @@ c.K3SArgs = []string(k3sArgs)
 - Max nesting: 2 levels
 - **Most complexity in leaf types** (easily testable)
 
+### Avoiding Over-Abstraction
+* **Rejected CIDRPresence wrapper** - Recognized it added no value:
+  - Would be 8 lines for a trivial bool wrapper
+  - Only one method: `.IsSet()` that just unwraps the bool
+  - Not more readable than good naming
+  - No validation, no logic, no invariants
+* **Used private fields instead** - Achieved same safety with less code:
+  - Compiler-enforced controlled mutation
+  - Only parser can set values
+  - 4 fewer lines than wrapper approach
+* **Key decision**: Compared `config.ClusterCIDR.IsSet()` vs `config.ClusterCIDRSet()` honestly
+  - **Answer**: Good naming is just as clear as method call
+  - **Lesson**: Not every primitive needs a type
+
 ## Refactoring Patterns Applied
 
-1. **Replace Primitive with Domain Type (Type Alias Pattern)** → Created `K3SArgs` type alias for `[]string` (usable in config fields), `CIDRPresence` for `bool`
+1. **Replace Primitive with Domain Type (Type Alias Pattern)** → Created `K3SArgs` type alias for `[]string` (usable in config fields)
 2. **Extract Multiple Leaf Types** → Created 3 leaf types (`K3SArgs`, `CIDRConfig`, `IPVersionConfig`) instead of one complex function
 3. **Storifying** → Main function reads: create config → convert → append → store (all at same abstraction level)
-4. **Replace Boolean Flags with Domain Model** → `isClusterCIDRSet, isServerCIDRSet` → `CIDRConfig` with query methods
+4. **Replace Boolean Flags with Domain Model** → `isClusterCIDRSet, isServerCIDRSet` → `CIDRConfig` with **private fields** and query methods
 5. **Eliminate Switch Duplication** → Extracted value generation to `DefaultCIDRValues`, eliminated 3 duplicate cases
 6. **Introduce Parameter Object** → Created `IPVersionConfig` to pass related configuration together
-7. **Query Method Pattern** → `AreBothSet()`, `IsSet()` read like English questions
+7. **Query Method Pattern** → `AreBothSet()`, `ClusterCIDRSet()`, `ServiceCIDRSet()` read like English questions
+8. **Avoid Over-Abstraction** → Rejected `CIDRPresence` wrapper, used private fields with accessors for controlled mutation
 
 ## The Type Extraction Strategy
 
@@ -806,10 +953,15 @@ K3SArgs (LEAF TYPE - no external dependencies)
   ├─ AppendCIDRDefaults()   // Mutation logic (juicy!)
   └─ parseK3SArgument()     // Helper (juicy!)
 
-CIDRConfig (LEAF TYPE - domain model)
-  ├─ ClusterCIDR: CIDRPresence
-  ├─ ServiceCIDR: CIDRPresence
+CIDRConfig (LEAF TYPE - domain model with private fields)
+  ├─ clusterCIDRSet (private bool)
+  ├─ serviceCIDRSet (private bool)
+  ├─ ClusterCIDRSet()       // Accessor (read-only)
+  ├─ ServiceCIDRSet()       // Accessor (read-only)
   └─ AreBothSet()           // Domain logic (juicy!)
+
+  Note: No CIDRPresence wrapper! Private fields achieve
+        same safety with less ceremony.
 
 IPVersionConfig (LEAF TYPE - configuration)
   └─ DefaultCIDRs() → DefaultCIDRValues
@@ -841,40 +993,119 @@ Config (ORCHESTRATOR)
 
 **After**:
 - Main function: 7 lines, complexity 1
-- Total lines: ~150 (across 6 types)
+- Total lines: ~146 (across 5 types + helpers)
 - Max complexity per function: 4
 - Testable units: 9 (all independently testable)
-- Leaf types: 4 (all with 100% coverage potential)
+- Leaf types: 3 (all with 100% coverage potential)
+
+## Abstraction Balance: Comparison Table
+
+| Approach | Total Lines | Types | Readability | Safety | Ceremony | Verdict |
+|----------|-------------|-------|-------------|--------|----------|---------|
+| **CIDRPresence wrapper** | ~150 | 6 | Good | Low | High | ❌ Over-abstraction |
+| **Public bool fields** | ~142 | 5 | Good | Low | Low | ⚠️ Acceptable for small teams |
+| **Private bool + accessors** | ~146 | 5 | Good | **High** | Low | ✅ **Recommended** |
+
+**Why Private Fields Win**:
+- Only 4 extra lines vs public fields (2 accessor methods)
+- 4 fewer lines than CIDRPresence wrapper
+- Compiler-enforced mutation control (can only be set in `ParseCIDRConfig`)
+- Same readability as public fields
+- Best safety-to-complexity ratio
+- No wrapper ceremony
 
 ## Remaining Opportunities
 
 **What could still be improved** (and why we stopped):
 
-1. **CIDRPresence could use more states**
-   - Could add `invalid` or `inherited` states
-   - Stopped because: YAGNI - current requirements only need present/absent
+### 1. Why We Rejected CIDRPresence Wrapper ❌
 
-2. **DefaultCIDRValues has similar methods**
-   - `clusterCIDRValue()` and `serviceCIDRValue()` are similar
-   - Could extract common pattern with constants as parameters
-   - Stopped because: Only 2 cases, extraction would be premature abstraction
+**Could have done**:
+```go
+type CIDRPresence bool
+func (p CIDRPresence) IsSet() bool { return bool(p) }
+```
 
-3. **K3SArgs could support more operations**
-   - Could add `Remove()`, `Update()`, `HasFlag()` methods
-   - Stopped because: YAGNI - only need parsing and appending for now
+**Why we didn't**:
+- ❌ 8 lines for a trivial bool wrapper
+- ❌ Only one method that just unwraps: `return bool(p)`
+- ❌ Not more readable: `config.ClusterCIDR.IsSet()` vs `config.ClusterCIDRSet()`
+- ❌ No validation, no logic, no invariants
+- ❌ Would add ceremony without benefit
 
-4. **IPVersionConfig is just two bools**
-   - Could make it an enum: `IPv4Only`, `IPv6Only`, `DualStack`
-   - Stopped because: Two bools are clear and simple enough
+**What we did instead**: Private bool fields with accessor methods
+- ✅ Same safety (compiler-enforced controlled mutation)
+- ✅ 4 fewer lines
+- ✅ No wrapper overhead
+- ✅ Just as readable
 
-**Why we chose type alias over struct for K3SArgs**:
+**Lesson**: **Not every primitive needs a type.** Ask: "Does this wrapper add meaningful logic or just ceremony?"
+
+### 2. Why We Chose Private Fields Over Public Fields
+
+**Could have used public fields**:
+```go
+type CIDRConfig struct {
+    ClusterCIDRSet bool  // Public
+    ServiceCIDRSet bool  // Public
+}
+```
+
+**Why we used private fields**:
+- ✅ Compiler enforces that only `ParseCIDRConfig` can set values
+- ✅ Single source of truth for where values come from
+- ✅ Easy to debug: only one place to check
+- ✅ Only 4 extra lines (2 accessor methods)
+- ✅ Public fields would work for small, disciplined teams, but private fields are safer
+
+**Lesson**: **Use private fields when mutation should be controlled.** Only 4 lines for compile-time safety.
+
+### 3. DefaultCIDRValues Has Similar Methods
+
+**Could extract**:
+- `clusterCIDRValue()` and `serviceCIDRValue()` are similar
+- Could extract common pattern with constants as parameters
+
+**Why we stopped**:
+- Only 2 cases - extraction would be premature abstraction
+- Current code is clear and straightforward
+- YAGNI principle applies
+
+### 4. K3SArgs Could Support More Operations
+
+**Could add**:
+- `Remove()`, `Update()`, `HasFlag()` methods
+
+**Why we stopped**:
+- YAGNI - only need parsing and appending for now
+- Add methods when you need them, not before
+
+### 5. IPVersionConfig Is Just Two Bools
+
+**Could use enum**:
+```go
+type IPVersion int
+const (
+    IPv4Only IPVersion = iota
+    IPv6Only
+    DualStack
+)
+```
+
+**Why we stopped**:
+- Two bools are clear and simple enough
+- Enum would add complexity without clarity benefit
+- Current code is self-documenting
+
+### 6. Why Type Alias Over Struct for K3SArgs
+
 ```go
 // ❌ Struct would require unwrapping for JSON
 type K3SArgs struct {
     args []string
 }
 type Config struct {
-    K3SArgs K3SArgs // JSON would be: {"k3sArgs": {"args": [...]}}
+    K3SArgs K3SArgs // JSON: {"k3sArgs": {"args": [...]}}
 }
 
 // ✅ Type alias works directly
@@ -884,12 +1115,37 @@ type Config struct {
 }
 ```
 
-**Key lesson**: Good refactoring knows when to stop. We achieved our goals:
+---
+
+## Key Lessons: When to Stop Refactoring
+
+**Good refactoring knows when to stop.** We achieved our goals:
 - ✅ Main function reads like a story (7 lines)
 - ✅ All logic extracted to testable leaf types
-- ✅ No primitive obsession - `K3SArgs` usable directly in config structs
+- ✅ No primitive obsession (created `K3SArgs` with real behavior)
+- ✅ **Avoided over-abstraction** (rejected `CIDRPresence` wrapper)
 - ✅ Switch duplication eliminated
 - ✅ Complexity under control
+- ✅ Controlled mutation via private fields
 - ✅ Type alias pattern enables clean JSON serialization
+
+**The Balance**:
+```
+Too Simple          Sweet Spot              Over-Engineering
+    |                   |                          |
+Raw primitives    Domain types           Types for everything
+[]string           K3SArgs               CIDRPresence wrapper
+bool flags         CIDRConfig            Every bool wrapped
+                   (private fields)
+```
+
+**Critical Questions Before Creating a Type**:
+1. Does it have >1 meaningful method with logic? (Not just unwrapping)
+2. Does it enforce invariants or validation?
+3. Does it need controlled mutation? (Use private fields, not wrappers)
+4. Is the method call **significantly** clearer than good naming?
+5. Does it hide complex implementation?
+
+**If answers are mostly NO** → Use primitives with good naming (or private fields for safety)
 
 Further refactoring would be over-engineering at this point.

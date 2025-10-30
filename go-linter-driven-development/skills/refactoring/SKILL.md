@@ -148,6 +148,22 @@ func (a ServiceAddress) URL() string {
 }
 ```
 
+⚠️ **Warning: Not Every Primitive Needs a Type!**
+
+**Create types when**: >1 meaningful methods, validation, complex logic, or controlled mutation
+**DON'T when**: One trivial method, good naming is enough, adds ceremony without benefit
+
+```go
+// ❌ Over-abstraction
+type IsValidFlag bool
+func (f IsValidFlag) IsValid() bool { return bool(f) }
+
+// ✅ Good naming or private fields
+isValid bool  // Clear enough!
+```
+
+**→ See [Example 2](./examples.md#first-refactoring-attempt-the-over-abstraction-trap)** for complete case study.
+
 ### Pattern 3: Extract Function (Long Functions)
 **Signal**: Function > 50 LOC or multiple responsibilities
 

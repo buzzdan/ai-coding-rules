@@ -310,6 +310,52 @@ func ConnectToServer(addr ServerAddress) error {
 
 **Real-world example:** See [Example 2 in examples.md](./examples.md#example-2-primitive-obsession-with-multiple-types-and-storifying-switch-statements) for extracting multiple types from a 60-line function with primitive obsession. Shows the Type Alias Pattern for creating config-friendly types and eliminating switch statement duplication.
 
+---
+
+### 2.5. The Over-Abstraction Trap ⚠️
+
+**Critical**: Not every primitive needs a type. The goal is **clarity**, not **type proliferation**.
+
+#### Quick Decision Checklist
+
+**Create types when they**:
+- ✅ Have multiple meaningful methods (>1) with real logic
+- ✅ Enforce invariants/validation at construction
+- ✅ Hide complex implementation
+- ✅ Need controlled mutation → use **private fields**, NOT wrappers
+
+**DON'T create types when they**:
+- ❌ Just wrap primitives with one trivial method
+- ❌ Add ceremony without benefit
+- ❌ Good naming achieves same clarity
+
+#### Bad vs Good: One Example
+
+```go
+// ❌ Bad: Trivial wrapper - 8 lines, no benefit
+type CIDRPresence bool
+func (p CIDRPresence) IsSet() bool { return bool(p) }
+
+// ✅ Good: Private fields - same safety, less code
+type CIDRConfig struct {
+    clusterCIDRSet bool  // Only parser can set
+    serviceCIDRSet bool
+}
+func (c CIDRConfig) ClusterCIDRSet() bool { return c.clusterCIDRSet }
+```
+
+#### Complete Teaching & Examples
+
+**→ See [Example 2: Over-Abstraction Section](./examples.md#first-refactoring-attempt-the-over-abstraction-trap)**
+
+Full case study includes:
+- Complete thought process & comparisons
+- 6 questions before creating a type
+- Balance diagram & decision tree
+- When to stop refactoring
+
+---
+
 ### 3. Early Returns (Reduce Nesting)
 
 **Signal:**
