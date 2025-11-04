@@ -1,0 +1,23 @@
+{
+  "name": "ts-react-linter-driven-development",
+  "version": "1.0.0",
+  "description": "Linter-driven development workflow for TypeScript + React with six specialized skills: component design, testing, refactoring, review, and documentation",
+  "author": {
+    "name": "Dan Mordechay"
+  },
+  "repository": "https://github.com/buzzdan/ai-coding-rules",
+  "license": "MIT",
+  "keywords": [
+    "typescript",
+    "react",
+    "linter-driven-development",
+    "testing",
+    "refactoring",
+    "code-review",
+    "design-patterns",
+    "clean-code",
+    "accessibility",
+    "jest",
+    "eslint"
+  ]
+}

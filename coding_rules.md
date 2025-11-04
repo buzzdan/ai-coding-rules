@@ -46,6 +46,7 @@ use the following rules to design a new solution to tackle its complexity:
 - does this logic run on a primitive? if so, is this primitive obsession? should i create a new type and put that logic in it ? or can i put some of the logic in another existing type? cohesion is more important than coupling.
 - is this function just long due to a long switch statement or something like that? can i break it down to smaller functions by categorizing the cases?
 - types with logic should be placed in their own file. name the file after the type.
+- always use ctx for all functions that are using IO operations. ctx should be passed from the caller to the callee. dont use context.Background().
 
 ### Development Flow
 Plan → Write Tests → Implement → Pass Tests → Run Linter → Refactor until all pass -> add testable examples if it makes sense

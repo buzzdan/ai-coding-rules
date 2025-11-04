@@ -8,6 +8,11 @@
       "name": "go-linter-driven-development",
       "source": "./go-linter-driven-development",
       "description": "Linter-driven development workflow for Go with 6 specialized skills: meta orchestrator, design, testing, refactoring, review, and documentation"
+    },
+    {
+      "name": "ts-react-linter-driven-development",
+      "source": "./ts-react-linter-driven-development",
+      "description": "Linter-driven development workflow for TypeScript + React with 6 specialized skills: meta orchestrator, component design, testing, refactoring, review, and documentation"
     }
   ]
 }
