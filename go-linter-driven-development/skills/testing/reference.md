@@ -16,55 +16,34 @@ package user_test
 import "github.com/yourorg/project/user"
 
 func TestService_CreateUser(t *testing.T) {
-    // Test through public API
     svc, _ := user.NewUserService(repo, notifier)
     err := svc.CreateUser(ctx, testUser)
-    // ...
-}
-
-// ❌ Bad
-package user
-
-func TestInternalValidation(t *testing.T) {
-    // Testing private function
-    result := validateEmailInternal("test@example.com")
     // ...
 }
 ```
 
 ### 2. Avoid Mocks - Use Real Implementations
+
 Instead of mocks, use:
 - **HTTP test servers** (`httptest` package)
 - **Temp files/directories** (`os.CreateTemp`, `os.MkdirTemp`)
-- **In-memory databases** (SQLite in-memory, or custom in-memory implementations)
+- **In-memory databases** (SQLite in-memory, or custom implementations)
 - **Test implementations** (TestEmailer that writes to buffer)
 
-```go
-// ❌ Bad - Heavy mocking
-mockRepo := &MockRepository{}
-mockRepo.On("Save", mock.Anything).Return(nil)
-
-// ✅ Good - Real implementation
-repo := user.NewInMemoryRepository()  // Real implementation
-svc, _ := user.NewUserService(repo, notifier)
-```
-
 **Benefits:**
-- Tests are more reliable (no mock setup fragility)
+- Tests are more reliable
 - Tests verify actual behavior
-- Easier to maintain (no mock expectations)
+- Easier to maintain
 
 ### 3. Coverage Strategy
 
 **Leaf Types** (self-contained):
 - **Target**: 100% unit test coverage
 - **Why**: Core logic must be bulletproof
-- **How**: Test all public methods, all edge cases
 
 **Orchestrating Types** (coordinate others):
 - **Target**: Integration test coverage
 - **Why**: Test seams between components
-- **How**: Test with real implementations, cover workflows
 
 **Goal**: Most logic in leaf types (easier to test and maintain)
 
@@ -77,12 +56,12 @@ svc, _ := user.NewUserService(repo, notifier)
 - No conditionals inside t.Run()
 - Simple, focused testing scenarios
 
-### Anti-Pattern Warning: wantErr bool
+### ❌ Anti-Pattern: wantErr bool
 
-❌ **Do NOT use wantErr bool pattern** - it violates complexity = 1 rule:
+**DO NOT** use `wantErr bool` pattern - it violates complexity = 1 rule:
 
 ```go
-// ❌ BAD - Has conditionals in test (complexity > 1)
+// ❌ BAD - Has conditionals (complexity > 1)
 func TestNewUserID(t *testing.T) {
     tests := []struct {
         name    string
@@ -97,12 +76,10 @@ func TestNewUserID(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             got, err := NewUserID(tt.input)
-
-            if tt.wantErr {  // ❌ Conditional (complexity > 1)
+            if tt.wantErr {  // ❌ Conditional
                 assert.Error(t, err)
                 return
             }
-
             assert.NoError(t, err)
             assert.Equal(t, tt.want, got)
         })
@@ -110,19 +87,9 @@ func TestNewUserID(t *testing.T) {
 }
 ```
 
-**Why this is bad:**
-- Violates cyclomatic complexity = 1 rule
-- Has if/else logic in test case
-- Harder to read and maintain
-- Mixes success and error expectations
+### ✅ Correct Pattern: Separate Functions
 
-**Instead**: Use separate test functions (see below)
-
----
-
-### Correct Pattern: Separate Success and Error Functions
-
-✅ **Always separate success and error cases** - maintains complexity = 1:
+**Always separate success and error cases:**
 
 ```go
 // ✅ Success cases - Complexity = 1
@@ -134,15 +101,12 @@ func TestNewUserID_Success(t *testing.T) {
     }{
         {name: "valid ID", input: "usr_123", want: UserID("usr_123")},
         {name: "with numbers", input: "usr_456", want: UserID("usr_456")},
-        {name: "with underscore", input: "usr_test_1", want: UserID("usr_test_1")},
     }
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             got, err := NewUserID(tt.input)
-
-            // ✅ No conditionals - always expect success
-            require.NoError(t, err)
+            require.NoError(t, err)  // ✅ No conditionals
             assert.Equal(t, tt.want, got)
         })
     }
@@ -161,16 +125,15 @@ func TestNewUserID_Error(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             _, err := NewUserID(tt.input)
-
-            // ✅ No conditionals - always expect error
-            assert.Error(t, err)
+            assert.Error(t, err)  // ✅ No conditionals
         })
     }
 }
 ```
 
 ### Critical Rule: Named Struct Fields
-**ALWAYS use named struct fields** - Linter reorders fields, breaking unnamed initialization
+
+**ALWAYS use named struct fields** - Linter reorders fields, breaking unnamed initialization:
 
 ```go
 // ❌ BAD - Breaks when linter reorders fields
@@ -179,7 +142,7 @@ tests := []struct {
     input  int
     want   string
 }{
-    {"test1", 42, "result"},  // Will break if linter reorders
+    {"test1", 42, "result"},  // Will break
 }
 
 // ✅ GOOD - Works regardless of field order
@@ -197,79 +160,52 @@ tests := []struct {
 ## Testify Suites
 
 ### When to Use
+
 ONLY for complex test infrastructure setup:
 - Mock HTTP servers
 - Database connections
-- OpenTelemetry testing setup (providers, exporters)
+- OpenTelemetry testing setup
 - Temporary files/directories needing cleanup
 - Shared expensive setup/teardown
 
 ### When NOT to Use
 - Simple unit tests (use table-driven instead)
 - Tests without complex setup
-- Basic scenarios
 
 ### Pattern
+
 ```go
 package user_test
 
 import (
-    "database/sql"
     "net/http/httptest"
-    "os"
     "testing"
-
     "github.com/stretchr/testify/suite"
 )
 
 type ServiceSuite struct {
     suite.Suite
     server   *httptest.Server
-    db       *sql.DB
-    tempDir  string
     svc      *user.UserService
 }
 
-// SetupSuite runs once for all tests
 func (s *ServiceSuite) SetupSuite() {
-    // Expensive setup
     s.server = httptest.NewServer(testHandler)
-    s.db = setupTestDatabase()
 }
 
-// TearDownSuite runs once after all tests
 func (s *ServiceSuite) TearDownSuite() {
     s.server.Close()
-    s.db.Close()
 }
 
-// SetupTest runs before each test
 func (s *ServiceSuite) SetupTest() {
-    s.tempDir, _ = os.MkdirTemp("", "test")
-    s.svc = user.NewUserService(s.db, s.tempDir)
+    s.svc = user.NewUserService(s.server.URL)
 }
 
-// TearDownTest runs after each test
-func (s *ServiceSuite) TearDownTest() {
-    os.RemoveAll(s.tempDir)
-    // Clean DB state
-}
-
-// Tests
 func (s *ServiceSuite) TestCreateUser() {
-    // Use s.svc, s.db, s.server, s.tempDir
     err := s.svc.CreateUser(ctx, testUser)
     s.NoError(err)
 }
 
-func (s *ServiceSuite) TestGetUser() {
-    // Shared setup from SetupTest
-    user, err := s.svc.GetUser(ctx, testID)
-    s.NoError(err)
-    s.Equal("expected", user.Name)
-}
-
-// Run suite
 func TestServiceSuite(t *testing.T) {
     suite.Run(t, new(ServiceSuite))
 }
@@ -280,9 +216,11 @@ func TestServiceSuite(t *testing.T) {
 ## Synchronization in Tests
 
 ### Never Use time.Sleep
-Flaky tests, timing-dependent failures, slow tests.
+
+Use channels or WaitGroups instead.
 
 ### Use Channels
+
 ```go
 func TestAsyncOperation(t *testing.T) {
     done := make(chan struct{})
@@ -296,28 +234,13 @@ func TestAsyncOperation(t *testing.T) {
     case <-done:
         // Success
     case <-time.After(1 * time.Second):
-        t.Fatal("timeout waiting for async work")
-    }
-}
-
-// With result
-func TestAsyncWithResult(t *testing.T) {
-    result := make(chan string, 1)
-
-    go func() {
-        result <- doWork()
-    }()
-
-    select {
-    case r := <-result:
-        assert.Equal(t, "expected", r)
-    case <-time.After(1 * time.Second):
         t.Fatal("timeout")
     }
 }
 ```
 
 ### Use WaitGroups
+
 ```go
 func TestConcurrentOperations(t *testing.T) {
     var wg sync.WaitGroup
@@ -332,11 +255,7 @@ func TestConcurrentOperations(t *testing.T) {
     }
 
     wg.Wait()
-
     // Assert on results
-    for _, r := range results {
-        assert.NotEmpty(t, r)
-    }
 }
 ```
 
@@ -345,17 +264,17 @@ func TestConcurrentOperations(t *testing.T) {
 ## Test Organization
 
 ### File Structure
+
 ```
 user/
 ├── user.go
-├── user_test.go          # Tests for user.go
+├── user_test.go          # Tests for user.go (pkg_test)
 ├── service.go
-├── service_test.go       # Tests for service.go
-├── repository.go
-└── repository_test.go    # Tests for repository.go
+├── service_test.go       # Tests for service.go (pkg_test)
 ```
 
 ### Package Naming
+
 ```go
 // ✅ External package - tests public API only
 package user_test
@@ -364,20 +283,15 @@ import (
     "testing"
     "github.com/yourorg/project/user"
 )
-
-// ❌ Same package - can test private methods (don't do this)
-package user
-
-import "testing"
 ```
 
 ---
 
 ## Real Implementation Patterns
 
-### Pattern 1: In-Memory Repository
+### In-Memory Repository
+
 ```go
-// user/inmem.go
 package user
 
 type InMemoryRepository struct {
@@ -401,7 +315,6 @@ func (r *InMemoryRepository) Save(ctx context.Context, u User) error {
 func (r *InMemoryRepository) Get(ctx context.Context, id UserID) (*User, error) {
     r.mu.RLock()
     defer r.mu.RUnlock()
-
     u, ok := r.users[id]
     if !ok {
         return nil, ErrNotFound
@@ -410,13 +323,14 @@ func (r *InMemoryRepository) Get(ctx context.Context, id UserID) (*User, error) 
 }
 ```
 
-### Pattern 2: Test Email Sender
+### Test Email Sender
+
 ```go
-// user/test_emailer.go
 package user
 
 import (
     "bytes"
+    "fmt"
     "sync"
 )
 
@@ -432,7 +346,6 @@ func NewTestEmailer() *TestEmailer {
 func (e *TestEmailer) Send(to Email, subject, body string) error {
     e.mu.Lock()
     defer e.mu.Unlock()
-
     fmt.Fprintf(&e.buffer, "To: %s\nSubject: %s\n%s\n\n", to, subject, body)
     return nil
 }
@@ -444,26 +357,6 @@ func (e *TestEmailer) SentEmails() string {
 }
 ```
 
-### Pattern 3: HTTP Test Server
-```go
-func TestAPIClient(t *testing.T) {
-    // Create test server
-    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        // Mock API response
-        w.WriteHeader(http.StatusOK)
-        json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-    }))
-    defer server.Close()
-
-    // Use real HTTP client with test server URL
-    client := NewAPIClient(server.URL)
-    result, err := client.GetStatus()
-
-    assert.NoError(t, err)
-    assert.Equal(t, "ok", result.Status)
-}
-```
-
 ---
 
 ## Testable Examples (GoDoc Examples)
@@ -472,67 +365,22 @@ func TestAPIClient(t *testing.T) {
 - Non-trivial types
 - Types with validation
 - Common usage patterns
-- Functions that benefit from example
 
 ### Pattern
+
 ```go
-// Example_TypeName demonstrates basic usage.
+// Example_UserID demonstrates basic usage.
 func Example_UserID() {
     id, _ := user.NewUserID("usr_123")
     fmt.Println(id)
     // Output: usr_123
 }
 
-// Example_TypeName_validation shows validation behavior.
+// Example_UserID_validation shows validation behavior.
 func Example_UserID_validation() {
     _, err := user.NewUserID("")
     fmt.Println(err != nil)
     // Output: true
-}
-
-// Example_TypeName_scenario shows specific use case.
-func Example_UserService_CreateUser() {
-    repo := user.NewInMemoryRepository()
-    svc, _ := user.NewUserService(repo, nil)
-
-    id, _ := user.NewUserID("usr_123")
-    u := user.User{ID: id, Name: "Alice"}
-
-    err := svc.CreateUser(context.Background(), u)
-    fmt.Println(err == nil)
-    // Output: true
-}
-```
-
-### Guidelines
-- Should be in test file (`*_test.go`)
-- Use `pkg_test` package
-- Show only happy path (no complex scenarios)
-- No mocking
-- Keep simple and focused
-- Verify with `// Output:` comment
-
----
-
-## Performance Testing
-
-### Benchmark Tests
-```go
-func BenchmarkNewUserID(b *testing.B) {
-    for i := 0; i < b.N; i++ {
-        user.NewUserID("usr_123")
-    }
-}
-
-func BenchmarkService_CreateUser(b *testing.B) {
-    repo := user.NewInMemoryRepository()
-    svc, _ := user.NewUserService(repo, nil)
-    testUser := createTestUser()
-
-    b.ResetTimer()
-    for i := 0; i < b.N; i++ {
-        svc.CreateUser(context.Background(), testUser)
-    }
 }
 ```
 
@@ -556,14 +404,7 @@ func BenchmarkService_CreateUser(b *testing.B) {
 **Coverage:**
 - [ ] Leaf types: 100% unit test coverage
 - [ ] Orchestrating types: Integration tests
-- [ ] Happy path covered
-- [ ] Edge cases covered
-- [ ] Error cases covered
-
-**Examples:**
-- [ ] Testable examples for complex types
-- [ ] Examples are runnable
-- [ ] Examples show common patterns
+- [ ] Happy path, edge cases, error cases covered
 
 ---
 
@@ -587,3 +428,262 @@ func BenchmarkService_CreateUser(b *testing.B) {
 - ❌ time.Sleep in tests
 - ❌ Conditionals in test cases
 - ❌ Unnamed struct fields in table tests
+
+---
+
+# Example Files - Reusable Testing Patterns
+
+The following example files contain **transferable patterns** that apply to many scenarios, not just the specific technologies shown. Claude should read these files based on the **pattern needed**, not the specific technology mentioned.
+
+## Pattern 1: In-Memory Test Harness (Level 1)
+
+**File**: `examples/nats-in-memory.md`
+
+**Pattern**: Using official test harnesses from Go libraries
+
+**When to read:**
+- Need to test with ANY service that provides an official Go test harness
+- Testing message queues, databases, caches, or any service with in-memory test mode
+- Want to avoid Docker but need realistic service behavior
+
+**Applies to:**
+- **NATS** (shown in example) - Message queue with official test harness
+- **Redis** - `github.com/alicebob/miniredis` pure Go in-memory Redis
+- **MongoDB** - `github.com/tryvium-travels/memongo` in-memory MongoDB
+- **PostgreSQL** - `github.com/jackc/pgx/v5` with pgx mock
+- **Any Go library with test package** - Check if dependency has `/test` package
+
+**Key techniques to adapt:**
+- Wrapping official harness with clean API
+- Free port allocation for parallel tests
+- Clean lifecycle management (Setup/Teardown)
+- Thread-safe initialization
+
+---
+
+## Pattern 2: Binary Dependency Management (Level 2)
+
+**File**: `examples/victoria-metrics.md`
+
+**Pattern**: Download, manage, and run ANY standalone binary for testing
+
+**When to read:**
+- Need to test against ANY external binary executable
+- No in-memory option available
+- Want production-like testing without Docker
+
+**Applies to:**
+- **Victoria Metrics** (shown in example) - Metrics database
+- **Prometheus** - Metrics and alerting
+- **Grafana** - Dashboards and visualization
+- **Any database binaries** - PostgreSQL, MySQL, Redis, etc.
+- **Any CLI tools** - Language servers, formatters, linters
+- **Custom binaries** - Your own services or third-party tools
+
+**Key techniques to adapt:**
+- OS/ARCH detection (`runtime.GOOS`, `runtime.GOARCH`)
+- Thread-safe binary downloads with double-check locking
+- Health check polling with retries
+- Graceful shutdown with `sync.Once`
+- Free port allocation
+- Temp directory management
+- Version management via environment variables
+
+---
+
+## Pattern 3: Mock Server with Generic DSL (Level 1)
+
+**File**: `examples/jsonrpc-mock.md`
+
+**Pattern**: Building generic mock servers with configurable responses using `AddMockResponse()`
+
+**When to read:**
+- Need to mock ANY request/response protocol
+- Want readable test setup with DSL
+- Testing clients that call external APIs
+
+**Applies to:**
+- **JSON-RPC** (shown in example) - RPC over HTTP
+- **REST APIs** - Use same pattern with route matching
+- **GraphQL** - Configure response per query
+- **gRPC** - Adapt for protobuf messages
+- **WebSocket** - Mock message responses
+- **Any HTTP-based protocol** - SOAP, XML-RPC, custom protocols
+
+**Key techniques to adapt:**
+- Generic `AddMockResponse(identifier, response)` pattern
+- Using `httptest.Server` as foundation
+- Query/request tracking for assertions
+- Configuration-based response mapping
+- Thread-safe response storage
+
+---
+
+## Pattern 4: Bidirectional Streaming with Rich DSL (Level 1)
+
+**File**: `examples/grpc-bufconn.md`
+
+**Pattern**: In-memory bidirectional communication with rich client/server mocks
+
+**When to read:**
+- Testing ANY bidirectional streaming protocol
+- Need full-duplex communication in tests
+- Want to avoid network I/O
+
+**Applies to:**
+- **gRPC** (shown in example) - Uses bufconn for in-memory
+- **WebSockets** - Adapt bufconn pattern
+- **TCP streams** - Custom protocols over TCP
+- **Unix sockets** - Inter-process communication
+- **Any streaming protocol** - Server-Sent Events, HTTP/2 streams
+
+**Key techniques to adapt:**
+- `bufconn` for in-memory connections (gRPC-specific, but concept applies)
+- Rich mock objects with helper methods
+- Thread-safe state tracking with mutexes
+- Assertion helpers (`ListenToStreamAndAssert()`)
+- When testing **server** → mock the **clients**
+- When testing **client** → mock the **server**
+
+---
+
+## Pattern 5: HTTP DSL and Builder Pattern (Level 1)
+
+**File**: `examples/httptest-dsl.md`
+
+**Pattern**: Building readable test infrastructure with DSL wrappers over stdlib
+
+**When to read:**
+- Want to wrap ANY test infrastructure with clean DSL
+- Need fluent, readable test setup
+- Building reusable test utilities
+
+**Applies to:**
+- **HTTP mocking** (shown in example) - httptest.Server wrapper
+- **Any test infrastructure** - Databases, queues, file systems
+- **Test data builders** - Fluent APIs for creating test data
+- **Custom test harnesses** - Wrapping complex setups
+
+**Key techniques to adapt:**
+- Builder pattern with method chaining
+- Fluent API design (`OnGET().RespondJSON()`)
+- Separating configuration from execution
+- Type-safe builders with Go generics
+- Hiding complexity behind clean interfaces
+
+---
+
+## Pattern 6: Test Organization and Structure
+
+**File**: `examples/test-organization.md`
+
+**When to read:**
+- Setting up test structure for new projects
+- Adding build tags for integration tests
+- Configuring CI/CD for tests
+- Creating testutils package structure
+
+**Universal patterns** (not technology-specific):
+- File organization (`pkg_test` package naming)
+- Build tags (`//go:build integration`)
+- Makefile/Taskfile structure
+- CI/CD configuration
+- testutils package layout
+
+---
+
+## Pattern 7: Integration Test Workflows
+
+**File**: `examples/integration-patterns.md`
+
+**When to read:**
+- Testing component interactions across package boundaries
+- Need patterns for Service + Repository testing
+- Testing workflows that span multiple components
+
+**Universal patterns:**
+- Pattern 1: Service + Repository with in-memory deps
+- Pattern 2: Testing with real external services
+- Pattern 3: Multi-component workflow with testify suites
+- Dependency priority (in-memory > binary > test-containers)
+
+---
+
+## Pattern 8: System Test (Black Box)
+
+**File**: `examples/system-patterns.md`
+
+**When to read:**
+- Writing black-box end-to-end tests
+- Testing via CLI or API
+- Need tests that work without Docker
+
+**Universal patterns:**
+- CLI testing with `exec.Command`
+- API testing with HTTP client
+- Dependency injection architecture
+- Pure Go testing (no Docker)
+
+---
+
+## How Claude Should Use These Files
+
+### Pattern-Based Reading Rules
+
+**When user needs to test with external dependencies:**
+
+1. **Has official Go test harness?** → Read `nats-in-memory.md`
+   - "Test with Redis/MongoDB/PostgreSQL/NATS"
+   - "Avoid Docker but need real service"
+   - Look for inspiration on wrapping official harnesses
+
+2. **Need to download/run binary?** → Read `victoria-metrics.md`
+   - "Test with Prometheus/Grafana/any binary"
+   - "Manage binary dependencies"
+   - Learn OS/ARCH detection, download patterns, health checks
+
+3. **Need to mock request/response?** → Read `jsonrpc-mock.md`
+   - "Mock REST/GraphQL/RPC/any HTTP API"
+   - "Build mock with DSL"
+   - Learn generic `AddMockResponse()` pattern
+
+4. **Need bidirectional streaming?** → Read `grpc-bufconn.md`
+   - "Test gRPC/WebSocket/streaming protocol"
+   - "In-memory bidirectional communication"
+   - Learn rich mock patterns, thread-safe state
+
+5. **Want readable test DSL?** → Read `httptest-dsl.md`
+   - "Build fluent test API"
+   - "Wrap test infrastructure"
+   - Learn builder pattern, method chaining
+
+**When user asks about test structure:**
+- "How should I organize tests?" → Read `test-organization.md`
+- "How do I write integration tests?" → Read `integration-patterns.md`
+- "How do I write system tests?" → Read `system-patterns.md`
+
+### Key Principle
+
+**Examples show specific technologies (NATS, Victoria Metrics, JSON-RPC) but teach transferable patterns.**
+
+Claude should:
+1. Identify the **pattern needed** (harness, binary, mock DSL, etc.)
+2. Read the **example file** that demonstrates that pattern
+3. **Adapt the techniques** to the user's specific technology
+4. Use the example as a **template**, not a literal solution
+
+### Default Behavior (No Example Needed)
+
+For simple scenarios, use the core patterns in this file:
+- Basic table-driven tests → Use patterns from this file
+- Simple testify suites → Use patterns from this file
+- Basic synchronization → Use patterns from this file
+- Simple in-memory implementations → Use InMemoryRepository/TestEmailer from this file
+
+**Read example files when patterns/techniques are needed, not just for specific tech.**
+
+---
+
+## Final Notes
+
+This reference provides core testing principles and patterns. For detailed implementations and complete examples, refer to the example files listed above. Each example file is self-contained and can be read independently based on your testing needs.
