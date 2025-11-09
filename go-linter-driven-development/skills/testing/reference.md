@@ -77,46 +77,93 @@ svc, _ := user.NewUserService(repo, notifier)
 - No conditionals inside t.Run()
 - Simple, focused testing scenarios
 
-### Pattern
+### Anti-Pattern Warning: wantErr bool
+
+❌ **Do NOT use wantErr bool pattern** - it violates complexity = 1 rule:
+
 ```go
+// ❌ BAD - Has conditionals in test (complexity > 1)
 func TestNewUserID(t *testing.T) {
     tests := []struct {
-        name    string    // Test case name
-        input   string    // Input to function
-        want    UserID    // Expected result
-        wantErr bool      // Expect error?
+        name    string
+        input   string
+        want    UserID
+        wantErr bool  // ❌ Anti-pattern
     }{
-        {
-            name:    "valid ID",
-            input:   "usr_123",
-            want:    UserID("usr_123"),
-            wantErr: false,
-        },
-        {
-            name:    "empty ID returns error",
-            input:   "",
-            want:    UserID(""),  // Zero value
-            wantErr: true,
-        },
-        {
-            name:    "whitespace ID returns error",
-            input:   "   ",
-            want:    UserID(""),
-            wantErr: true,
-        },
+        {name: "valid ID", input: "usr_123", want: UserID("usr_123"), wantErr: false},
+        {name: "empty ID", input: "", wantErr: true},
     }
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             got, err := NewUserID(tt.input)
 
-            if tt.wantErr {
+            if tt.wantErr {  // ❌ Conditional (complexity > 1)
                 assert.Error(t, err)
                 return
             }
 
             assert.NoError(t, err)
             assert.Equal(t, tt.want, got)
+        })
+    }
+}
+```
+
+**Why this is bad:**
+- Violates cyclomatic complexity = 1 rule
+- Has if/else logic in test case
+- Harder to read and maintain
+- Mixes success and error expectations
+
+**Instead**: Use separate test functions (see below)
+
+---
+
+### Correct Pattern: Separate Success and Error Functions
+
+✅ **Always separate success and error cases** - maintains complexity = 1:
+
+```go
+// ✅ Success cases - Complexity = 1
+func TestNewUserID_Success(t *testing.T) {
+    tests := []struct {
+        name  string
+        input string
+        want  UserID
+    }{
+        {name: "valid ID", input: "usr_123", want: UserID("usr_123")},
+        {name: "with numbers", input: "usr_456", want: UserID("usr_456")},
+        {name: "with underscore", input: "usr_test_1", want: UserID("usr_test_1")},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := NewUserID(tt.input)
+
+            // ✅ No conditionals - always expect success
+            require.NoError(t, err)
+            assert.Equal(t, tt.want, got)
+        })
+    }
+}
+
+// ✅ Error cases - Complexity = 1
+func TestNewUserID_Error(t *testing.T) {
+    tests := []struct {
+        name  string
+        input string
+    }{
+        {name: "empty ID", input: ""},
+        {name: "whitespace only", input: "   "},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            _, err := NewUserID(tt.input)
+
+            // ✅ No conditionals - always expect error
+            assert.Error(t, err)
         })
     }
 }
@@ -142,48 +189,6 @@ tests := []struct {
     want   string
 }{
     {name: "test1", input: 42, want: "result"},  // Always works
-}
-```
-
-### Separate Success and Error Cases
-Keep cyclomatic complexity = 1 by separating success and error tests:
-
-```go
-// ✅ Good - Separate functions
-func TestNewUserID_Success(t *testing.T) {
-    tests := []struct {
-        name  string
-        input string
-        want  UserID
-    }{
-        {name: "valid ID", input: "usr_123", want: UserID("usr_123")},
-        {name: "with numbers", input: "usr_456", want: UserID("usr_456")},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            got, err := NewUserID(tt.input)
-            assert.NoError(t, err)
-            assert.Equal(t, tt.want, got)
-        })
-    }
-}
-
-func TestNewUserID_Errors(t *testing.T) {
-    tests := []struct {
-        name  string
-        input string
-    }{
-        {name: "empty ID", input: ""},
-        {name: "whitespace", input: "   "},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            _, err := NewUserID(tt.input)
-            assert.Error(t, err)
-        })
-    }
 }
 ```
 
