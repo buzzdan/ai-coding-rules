@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Principles and patterns for writing effective Go tests. Use during implementation for test structure guidance, choosing between table-driven tests vs testify suites, or deciding between real implementations vs mocks. Emphasizes testing public API only with 100% coverage on leaf types.
+description: Automatically invoked to write tests for new types, or use as testing expert advisor for guidance and recommendations. Covers unit, integration, and system tests with emphasis on in-memory dependencies. Use when creating leaf types, after refactoring, during implementation, or when testing advice is needed. Ensures 100% coverage on leaf types with public API testing.
 ---
 
 # Testing Principles
@@ -8,10 +8,23 @@ description: Principles and patterns for writing effective Go tests. Use during 
 Principles and patterns for writing effective Go tests.
 
 ## When to Use
-- During implementation (tests + code in parallel)
-- When testing strategy is unclear
-- When structuring table-driven tests or testify suites
-- When choosing between real implementations vs mocks
+
+### Automatic Invocation (Proactive)
+- **Automatically invoked** by @linter-driven-development during Phase 2 (Implementation)
+- **Automatically invoked** by @refactoring when new isolated types are created
+- **Automatically invoked** by @code-designing after designing new types
+- **After creating new leaf types** - Types that should have 100% unit test coverage
+- **After extracting functions** during refactoring that create testable units
+
+### Manual Invocation
+- User explicitly requests tests to be written
+- User asks for testing advice, recommendations, or "what to do"
+- When testing strategy is unclear (table-driven vs testify suites)
+- When choosing between dependency levels (in-memory vs binary vs test-containers)
+- When adding tests to existing untested code
+- When user needs testing expert guidance or consultation
+
+**IMPORTANT**: This skill writes tests autonomously based on the code structure and type design, and also serves as a testing expert advisor
 
 ## Testing Philosophy
 
@@ -21,208 +34,142 @@ Principles and patterns for writing effective Go tests.
 - No testing private methods/functions
 
 **Prefer real implementations over mocks**
-- Use HTTP test servers
+- Use in-memory implementations (fastest, no external deps)
+- Use HTTP test servers (httptest)
 - Use temp files/directories
-- Use in-memory databases
-- Test with actual dependencies (integration-style)
+- Test with actual dependencies when beneficial
 
 **Coverage targets**
 - Leaf types: 100% unit test coverage
 - Orchestrating types: Integration tests
+- Critical workflows: System tests
+
+## Test Pyramid
+
+Three levels of testing, each serving a specific purpose:
+
+**Unit Tests** (Base of pyramid - most tests here)
+- Test leaf types in isolation
+- Fast, focused, no external dependencies
+- 100% coverage target for leaf types
+- Use `pkg_test` package, test public API only
+
+**Integration Tests** (Middle - fewer than unit)
+- Test seams between components
+- Test workflows across package boundaries
+- Use real or in-memory implementations
+- Verify components work together correctly
+
+**System Tests** (Top - fewest tests)
+- Black box testing from `tests/` folder
+- Test entire system via CLI/API
+- Test critical end-to-end workflows
+- **Strive for independence in Go** (minimize external deps)
+
+## Reusable Test Infrastructure
+
+Build shared test infrastructure in `internal/testutils/`:
+- In-memory mock servers with DSL (HTTP, DB, file system)
+- Reusable across all test levels
+- Test the infrastructure itself!
+- Can expose as CLI tools for manual testing
+
+**Dependency Priority** (minimize external dependencies):
+1. **In-memory** (preferred): Pure Go, httptest, in-memory DB
+2. **Binary**: Standalone executable via exec.Command
+3. **Test-containers**: Programmatic Docker from Go
+4. **Docker-compose**: Last resort, manual testing only
+
+Goal: System tests should be **independent in Go** when possible.
+
+See reference.md for comprehensive testutils patterns and DSL examples.
 
 ## Workflow
 
-### 1. Identify What to Test
-- **Leaf types**: Self-contained types with logic
-  - Test all public methods
-  - Test validation in constructors
-  - Cover happy path + edge cases + errors
+### Unit Tests Workflow
 
-- **Orchestrating types**: Types that coordinate others
-  - Test workflows/seams between components
-  - Use real implementations, not mocks
+**Purpose**: Test leaf types in isolation, 100% coverage target
 
-### 2. Choose Test Structure
+1. **Identify leaf types** - Self-contained types with logic
+2. **Choose structure** - Table-driven (simple) or testify suites (complex setup)
+3. **Write in pkg_test package** - Test public API only
+4. **Use in-memory implementations** - From testutils or local implementations
+5. **Avoid pitfalls** - No time.Sleep, no conditionals in cases, no private method tests
 
-**Table-Driven Tests** - Use when:
-- Each test case has cyclomatic complexity = 1
-- Testing simple, focused scenarios
-- No conditionals needed in test cases
+**Test structure:**
+- Table-driven: Separate success/error test functions (complexity = 1)
+- Testify suites: Only for complex infrastructure setup (HTTP servers, DBs)
+- Always use named struct fields (linter reorders fields)
 
-**Testify Suites** - Use ONLY when:
-- Complex infrastructure setup needed (mock servers, DBs)
-- Expensive setup/teardown shared across tests
-- OpenTelemetry or similar complex testing infrastructure
+See reference.md for detailed patterns and examples.
 
-### 3. Write Tests in pkg_test Package
+### Integration Tests Workflow
+
+**Purpose**: Test seams between components, verify they work together
+
+1. **Identify integration points** - Where packages/components interact
+2. **Choose dependencies** - Prefer: in-memory > binary > test-containers
+3. **Write tests** - In `pkg_test` or `integration_test.go` with build tags
+4. **Test workflows** - Cover happy path and error scenarios across boundaries
+5. **Use real or testutils implementations** - Avoid heavy mocking
+
+**File organization:**
 ```go
-package user_test  // External package
+//go:build integration
 
-import (
-    "testing"
-    "github.com/yourorg/project/user"
-    "github.com/stretchr/testify/assert"
-)
+package user_test
 
-func TestUserService_CreateUser(t *testing.T) {
-    // Test public API only
+// Test Service + Repository + real/mock dependencies
+```
+
+See reference.md for integration test patterns with dependencies.
+
+### System Tests Workflow
+
+**Purpose**: Black box test entire system, critical end-to-end workflows
+
+1. **Place in tests/ folder** - At project root, separate from packages
+2. **Test via CLI/API** - exec.Command for CLI, HTTP client for APIs
+3. **Minimize external deps** - Prefer: in-memory mocks > binary > test-containers
+4. **Strive for Go independence** - Pure Go tests, no Docker when possible
+5. **Test critical workflows** - User journeys, not every edge case
+
+**Example structure:**
+```go
+// tests/cli_test.go
+func TestCLI_UserWorkflow(t *testing.T) {
+    mockAPI := testutils.NewMockServer().
+        OnGET("/users/1").RespondJSON(200, user).
+        Build() // In-memory httptest.Server
+    defer mockAPI.Close()
+
+    cmd := exec.Command("./myapp", "get-user", "1",
+        "--api-url", mockAPI.URL())
+    output, err := cmd.CombinedOutput()
+    // Assert on output
 }
 ```
 
-### 4. Use Real Implementations
-```go
-// ✅ Real implementations
-repo := user.NewInMemoryRepository()
-notifier := user.NewTestEmailer()  // Writes to buffer, not real email
+See reference.md for comprehensive system test patterns.
 
-svc, err := user.NewUserService(repo, notifier)
-require.NoError(t, err)
+## Key Test Patterns
 
-// Test with real dependencies
-err = svc.CreateUser(ctx, testUser)
-assert.NoError(t, err)
-```
+**Table-Driven Tests:**
+- Separate success and error test functions (complexity = 1)
+- Always use named struct fields (linter reorders fields)
+- No wantErr bool pattern (adds conditionals)
 
-### 5. Avoid Common Pitfalls
-- ❌ No time.Sleep (use channels/waitgroups)
-- ❌ No conditionals in test cases (complexity = 1)
-- ❌ No testing private methods
-- ❌ No heavy mocking
+**Testify Suites:**
+- Only for complex infrastructure (HTTP servers, DBs, OpenTelemetry)
+- SetupSuite/TearDownSuite for expensive shared setup
+- SetupTest/TearDownTest for per-test isolation
 
-## Test Patterns
+**Synchronization:**
+- Never use time.Sleep (flaky, slow)
+- Use channels with select/timeout for async operations
+- Use sync.WaitGroup for concurrent operations
 
-### Pattern 1: Table-Driven Tests (Separate Success/Error)
-
-**Correct**: Separate success and error cases to maintain complexity = 1
-
-```go
-// Success cases - no conditionals
-func TestNewUserID_Success(t *testing.T) {
-    tests := []struct {
-        name  string
-        input string
-        want  user.UserID
-    }{
-        {
-            name:  "valid ID",
-            input: "usr_123",
-            want:  user.UserID("usr_123"),
-        },
-        {
-            name:  "with numbers",
-            input: "usr_456",
-            want:  user.UserID("usr_456"),
-        },
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            got, err := user.NewUserID(tt.input)
-
-            require.NoError(t, err)
-            assert.Equal(t, tt.want, got)
-        })
-    }
-}
-
-// Error cases - no conditionals
-func TestNewUserID_Error(t *testing.T) {
-    tests := []struct {
-        name  string
-        input string
-    }{
-        {name: "empty ID", input: ""},
-        {name: "whitespace", input: "   "},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            _, err := user.NewUserID(tt.input)
-
-            assert.Error(t, err)
-        })
-    }
-}
-```
-
-**Key**:
-- ALWAYS use named struct fields (linter reorders fields)
-- NO wantErr bool pattern (violates complexity = 1)
-- Separate success and error test functions
-
-### Pattern 2: Testify Suite (Complex Setup)
-```go
-type ServiceSuite struct {
-    suite.Suite
-    server   *httptest.Server
-    db       *sql.DB
-    tempDir  string
-}
-
-func (s *ServiceSuite) SetupSuite() {
-    // Expensive setup once for all tests
-    s.server = httptest.NewServer(handler)
-    s.db = setupTestDB()
-}
-
-func (s *ServiceSuite) TearDownSuite() {
-    s.server.Close()
-    s.db.Close()
-}
-
-func (s *ServiceSuite) SetupTest() {
-    // Per-test setup
-    s.tempDir, _ = os.MkdirTemp("", "test")
-}
-
-func (s *ServiceSuite) TearDownTest() {
-    os.RemoveAll(s.tempDir)
-}
-
-func (s *ServiceSuite) TestSomething() {
-    // Use s.server, s.db, s.tempDir
-}
-
-func TestServiceSuite(t *testing.T) {
-    suite.Run(t, new(ServiceSuite))
-}
-```
-
-### Pattern 3: Synchronization (No time.Sleep)
-```go
-// ✅ Use channels
-func TestAsyncWork(t *testing.T) {
-    done := make(chan struct{})
-
-    go func() {
-        doWork()
-        close(done)
-    }()
-
-    select {
-    case <-done:
-        // Success
-    case <-time.After(1 * time.Second):
-        t.Fatal("timeout")
-    }
-}
-
-// ✅ Use waitgroups
-func TestConcurrentWork(t *testing.T) {
-    var wg sync.WaitGroup
-    wg.Add(10)
-
-    for i := 0; i < 10; i++ {
-        go func() {
-            defer wg.Done()
-            doWork()
-        }()
-    }
-
-    wg.Wait()
-    // Assert results
-}
-```
+See reference.md for complete patterns with code examples.
 
 ## Output Format
 
@@ -231,19 +178,32 @@ After writing tests:
 ```
 ✅ TESTING COMPLETE
 
-Test Coverage:
-- user/user_id_test.go: 100% (NewUserID, String)
-- user/email_test.go: 100% (NewEmail, Validate)
-- user/service_test.go: 92% (CreateUser, GetUser, UpdateUser)
+📊 Unit Tests:
+- user/user_id_test.go: 100% (4 test cases)
+- user/email_test.go: 100% (6 test cases)
+- user/service_test.go: 100% (8 test cases)
 
-Test Structure:
-- Table-driven tests: 15 test cases
-- Integration tests: 3 workflows
-- Real implementations used: InMemoryRepository, TestEmailer
+🔗 Integration Tests:
+- user/integration_test.go: 3 workflows tested
+- Dependencies: In-memory DB, httptest mock server
+
+🎯 System Tests:
+- tests/cli_test.go: 2 end-to-end workflows
+- tests/api_test.go: 1 full API workflow
+- Infrastructure: In-memory mocks (pure Go, no Docker)
+
+Test Infrastructure:
+- internal/testutils/httpserver: In-memory mock API with DSL
+- internal/testutils/mockdb: In-memory database mock
 
 Test Execution:
-$ go test ./user/...
-ok      github.com/yourorg/project/user  0.123s
+$ go test ./...                    # All tests
+$ go test -tags=integration ./...  # Include integration tests
+$ go test ./tests/...              # System tests only
+
+✅ All tests pass
+✅ 100% coverage on leaf types
+✅ No external dependencies required
 
 Next Steps:
 1. Run linter: task lintwithfix
@@ -262,14 +222,34 @@ See reference.md for:
 
 ## Testing Checklist
 
-Before considering tests complete:
-- [ ] All tests in pkg_test package
+### Unit Tests
+- [ ] All unit tests in pkg_test package
 - [ ] Testing public API only (no private methods)
 - [ ] Table-driven tests use named struct fields
 - [ ] No conditionals in test cases (complexity = 1)
-- [ ] Using real implementations, not mocks
+- [ ] Using in-memory implementations from testutils
 - [ ] No time.Sleep (using channels/waitgroups)
 - [ ] Leaf types have 100% coverage
-- [ ] Integration tests cover orchestrating types
+
+### Integration Tests
+- [ ] Test seams between components
+- [ ] Use in-memory or binary dependencies (avoid Docker)
+- [ ] Build tags for optional execution (`//go:build integration`)
+- [ ] Cover happy path and error scenarios across boundaries
+- [ ] Real or testutils implementations (minimal mocking)
+
+### System Tests
+- [ ] Located in tests/ folder at project root
+- [ ] Black box testing via CLI/API
+- [ ] Uses in-memory testutils mocks (pure Go)
+- [ ] No external dependencies (no Docker required)
+- [ ] Tests critical end-to-end workflows
+- [ ] Fast execution, runs in CI without setup
+
+### Test Infrastructure
+- [ ] Reusable mocks in internal/testutils/
+- [ ] Test infrastructure has its own tests
+- [ ] DSL provides readable test setup
+- [ ] Can be exposed as CLI for manual testing
 
 See reference.md for complete testing guidelines and examples.
