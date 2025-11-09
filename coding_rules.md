@@ -56,6 +56,9 @@ Plan → Write Tests → Implement → Pass Tests → Run Linter → Refactor un
   - Can logic be moved into smaller custom types?
     - Example: If `Port` must be > 0 and < 9000, define a `Port` type that validates this.
     - Example: Parser logic is too complex and may be split into multiple roles: `HeaderParser`, `PathParser`, etc. to make it more readable and testable.
+- When you read the function, does it read like a story? if not, break it down to be in the same level of abstraction and to read like a story.
+  - Example: If the function is doing too many things, break it down into smaller functions.
+  - Example: Do you see comments that explain what a block of code is doing? if so, extract a function and name it after the comment.
 - Design types around intent and behavior, not just shape.
 - Only after this review, proceed to write code.
 
