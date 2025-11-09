@@ -1,6 +1,6 @@
 ---
 name: linter-driven-development
-description: META ORCHESTRATOR for complete implementation workflow - design, test, lint, refactor, review, commit. Use for any code change that should result in a commit (features, bug fixes, refactors). Ensures clean code with tests, linting passes, and design validation.
+description: Orchestrates a complete code implementation workflow - design, test, lint, refactor, review, and commit. Use for any new features, bug fixes, or refactors to ensure clean code with tests and design validation
 ---
 
 # Linter-Driven Development Workflow
@@ -13,36 +13,48 @@ Use for any commit: features, bug fixes, refactors.
 - Need automatic workflow management with quality gates
 - Want to ensure: clean code + tests + linting + design validation
 
+## Prerequisites - must have a linter command to run automatically
+- find the project linter command in the project's docs like README.md/CLAUDE.md
+  - if command not found in the project docs, you will need to look it up yourself:
+  - look into the projects admin tasks like Makefile/Taskfile.yaml/package.json etc...
+  - prefer a linter command with autofix capability like a command that runs golangci-lint run --fix
+  - if no such command is found, run the linter command manually
+  - if none of the above works, ask the user how to run the linter command.
+  - when found: add it to the projects admin tasks like Makefile/Taskfile.yaml and then the project's docs like README.md/CLAUDE.md so it can be run automatically in the future.
+
 ## Workflow Phases
 
-### Phase 1: Design (if needed)
-- If new types/major changes needed → invoke @code-designing skill
+### Phase 1: Design
+- for any new types/functions/major changes needed → invoke @code-designing skill
+- when in plan mode, invoke @code-designing skill with plan mode flag
 - Output: Type design plan with domain types
 
 ### Phase 2: Implementation
-- Follow @testing skill principles
-- Write tests + implementation in parallel (not necessarily test-first)
-- Aim for 100% coverage on new leaf types
+- invoke @code-designing skill for writing code
+- invoke @testing skill for writing any tests
+- Aim for 100% coverage on new leaf types or value objects (its ok to have dependencies on other leaf types, but always isolated, encapsulated, and tested independently)
 
-### Phase 3: Linter Loop
-- Run `task lintwithfix` automatically
-- If failures detected:
-  - Interpret failures (complexity, maintainability, etc.)
-  - Invoke @refactoring skill to fix
-  - Re-run linter
-- Repeat until linter passes clean
+### Phase 3: Linter Loop (automatically)
+- run the linter command (prerequisites must be met)
+- if failures detected:
+  - interpret failures (complexity, maintainability, etc.)
+  - invoke @refactoring skill to fix
+  - re-run linter
+  - repeat until linter passes clean
 
-### Phase 4: Pre-Commit Design Review (ADVISORY)
+### Phase 4: Review Loop (automatically)
 - Invoke @pre-commit-review skill
 - Review validates design principles (not code correctness)
 - Categorized findings: Design Debt / Readability Debt / Polish Opportunities
 - If issues found in broader file context, flag for potential refactor
-- **User decides**: commit as-is, apply fixes, or expand scope
+- itertate over the findings and invoke the @refactoring skill to fix the issues
+- invoke Phase 3 (linter loop) until clean
+- repeat until clean
 
 ### Phase 5: Commit Ready
 - Linter passes ✅
 - Tests pass with target coverage ✅
-- Design review complete (advisory) ✅
+- Design review complete (findings fixed) ✅
 - Present summary + commit message suggestion
 
 ## Output Format

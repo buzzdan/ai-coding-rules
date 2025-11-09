@@ -1149,3 +1149,529 @@ bool flags         CIDRConfig            Every bool wrapped
 **If answers are mostly NO** → Use primitives with good naming (or private fields for safety)
 
 Further refactoring would be over-engineering at this point.
+
+# Example 3: Dependency Rejection Pattern - Incremental Global Elimination
+
+This real-world example shows how to handle `noglobals` linter failures by incrementally pushing global dependencies up the call chain, creating "islands of clean code" that are 100% testable.
+
+## Key Learning: From Global Chaos to Clean Islands
+
+**The Problem**: `env.Configs.NATsAddress` accessed throughout codebase (20+ locations)
+**The Solution**: Reject dependency up one level at a time (bottom-up approach)
+**The Result**: Clean, testable types with globals only at entry points (2 locations)
+
+This pattern is DIFFERENT from other refactorings:
+- **NOT a one-time fix** - it's an incremental journey
+- **Start at the bottom** (leaf code)
+- **Create one clean island at a time**
+- **Slowly push globals toward main()**
+- **Pragmatic endpoint** - accept globals at top level
+
+## Why Not Just Refactor Logger?
+
+**Important**: Some globals are designed to be global (like `slog.Logger`, `zerolog`). Those are fine!
+
+**Problem globals**: Configuration access like:
+- `env.Configs.NATsAddress`
+- `env.Configs.DBHost`
+- `env.Configs.RedisURL`
+- Any `env.Configs.*` scattered throughout code
+
+**Why these are problems**:
+- Makes code untestable (need to set global state)
+- Creates hidden dependencies
+- Impossible to run tests in parallel
+- Can't swap implementations
+- Tight coupling to global config struct
+
+## Before Refactoring: Global Chaos
+
+```go
+// Global config accessed everywhere
+package env
+
+var Configs struct {
+    NATsAddress string
+    DBHost      string
+    RedisURL    string
+}
+
+// ❌ Deep in the messaging code - globals everywhere
+package messaging
+
+func PublishEvent(event Event) error {
+    // Global accessed here
+    conn, err := nats.Connect(env.Configs.NATsAddress)
+    if err != nil {
+        return fmt.Errorf("connect failed: %w", err)
+    }
+    defer conn.Close()
+
+    data, err := json.Marshal(event)
+    if err != nil {
+        return err
+    }
+
+    return conn.Publish(event.Topic, data)
+}
+
+func PublishBatch(events []Event) error {
+    // Global accessed here too
+    conn, err := nats.Connect(env.Configs.NATsAddress)
+    if err != nil {
+        return fmt.Errorf("connect failed: %w", err)
+    }
+    defer conn.Close()
+
+    for _, event := range events {
+        // ... publishing logic
+    }
+    return nil
+}
+
+// ❌ In the order service - more global access
+package order
+
+func ProcessOrder(orderID string) error {
+    // More globals
+    db := connectDB(env.Configs.DBHost)
+    defer db.Close()
+
+    // Even more globals
+    err := messaging.PublishEvent(orderCreatedEvent)
+    // ...
+}
+
+// ❌ Testing is a nightmare
+func TestPublishEvent(t *testing.T) {
+    // Must set global state!
+    env.Configs.NATsAddress = "nats://test:4222"
+
+    // Tests can't run in parallel
+    // Can't easily test with different addresses
+    // Global state leaks between tests
+}
+```
+
+**Problems Identified**:
+- `env.Configs.NATsAddress` used in 12 places
+- `env.Configs.DBHost` used in 8 places
+- Testing requires global state mutation
+- Parallel tests impossible
+- Hidden dependencies everywhere
+
+## Step-by-Step Refactoring
+
+### Step 1: Analyze Dependency Chain
+
+```
+DEPENDENCY MAP:
+main()
+  └─ HTTP handlers (entry points)
+       ├─ OrderService.ProcessOrder()  [USES env.Configs.DBHost]
+       │    └─ messaging.PublishEvent()  [USES env.Configs.NATsAddress]
+       │    └─ messaging.PublishBatch()  [USES env.Configs.NATsAddress]
+       └─ UserService.CreateUser()
+            └─ messaging.PublishEvent()  [USES env.Configs.NATsAddress]
+
+DEEPEST USAGE: messaging.PublishEvent/PublishBatch (furthest from main)
+START HERE: Extract messaging types first
+```
+
+### Step 2: Create First Clean Island (Bottom Level)
+
+**Extract NATSClient - the deepest leaf**:
+
+```go
+// ✅ Clean type with injected dependency
+type NATSClient struct {
+    natsAddress string  // Injected, not global!
+}
+
+func NewNATSClient(natsAddress string) *NATSClient {
+    return &NATSClient{natsAddress: natsAddress}
+}
+
+func (c *NATSClient) PublishEvent(event Event) error {
+    // Uses injected value, not global
+    conn, err := nats.Connect(c.natsAddress)
+    if err != nil {
+        return fmt.Errorf("connect failed: %w", err)
+    }
+    defer conn.Close()
+
+    data, err := json.Marshal(event)
+    if err != nil {
+        return err
+    }
+
+    return conn.Publish(event.Topic, data)
+}
+
+func (c *NATSClient) PublishBatch(events []Event) error {
+    conn, err := nats.Connect(c.natsAddress)
+    if err != nil {
+        return fmt.Errorf("connect failed: %w", err)
+    }
+    defer conn.Close()
+
+    for _, event := range events {
+        // ... publishing logic
+    }
+    return nil
+}
+
+// ✅ Now testable without globals!
+func TestNATSClient_PublishEvent(t *testing.T) {
+    // Start local test NATS server
+    testNATS := startTestNATS(t)
+    defer testNATS.Stop()
+
+    // Create client with test address - NO GLOBALS!
+    client := NewNATSClient(testNATS.URL())
+
+    // Test with real implementation
+    err := client.PublishEvent(testEvent)
+    assert.NoError(t, err)
+
+    // Can run in parallel!
+    // No global state needed!
+}
+```
+
+**Island #1 Created**: `NATSClient` is now 100% testable without global dependencies.
+
+### Step 3: Push Global Up One Level
+
+**Now the callers (one level up) need updating**:
+
+```go
+// ❌ Before - OrderService accessed globals
+package order
+
+func ProcessOrder(orderID string) error {
+    db := connectDB(env.Configs.DBHost)
+    defer db.Close()
+
+    // This used to access env.Configs.NATsAddress internally
+    err := messaging.PublishEvent(orderCreatedEvent)
+    return err
+}
+
+// ✅ After - OrderService gets clean dependency
+package order
+
+type OrderService struct {
+    dbHost      string       // Injected
+    natsClient  *NATSClient  // Clean dependency!
+}
+
+func NewOrderService(dbHost string, natsClient *NATSClient) *OrderService {
+    return &OrderService{
+        dbHost:     dbHost,
+        natsClient: natsClient,
+    }
+}
+
+func (s *OrderService) ProcessOrder(orderID string) error {
+    db := connectDB(s.dbHost)
+    defer db.Close()
+
+    // Use clean dependency - no globals
+    err := s.natsClient.PublishEvent(orderCreatedEvent)
+    return err
+}
+
+// ✅ Now OrderService is testable!
+func TestOrderService_ProcessOrder(t *testing.T) {
+    testNATS := startTestNATS(t)
+    defer testNATS.Stop()
+
+    natsClient := NewNATSClient(testNATS.URL())
+    service := NewOrderService("localhost:5432", natsClient)
+
+    err := service.ProcessOrder("order-123")
+    assert.NoError(t, err)
+}
+```
+
+**Island #2 Created**: `OrderService` is now testable with clean dependencies.
+
+### Step 4: Continue Up the Chain to Entry Points
+
+**Finally, reach the HTTP handlers (entry points)**:
+
+```go
+// ✅ HTTP handler - global accessed only here (top level)
+package api
+
+type OrderHandler struct {
+    orderService *OrderService
+}
+
+func SetupOrderHandler() *OrderHandler {
+    // Global accessed only at entry point!
+    natsClient := NewNATSClient(env.Configs.NATsAddress)
+    orderService := NewOrderService(env.Configs.DBHost, natsClient)
+
+    return &OrderHandler{
+        orderService: orderService,
+    }
+}
+
+func (h *OrderHandler) HandleCreateOrder(w http.ResponseWriter, r *http.Request) {
+    // All clean code from here down - no globals!
+    err := h.orderService.ProcessOrder(orderID)
+    // ...
+}
+```
+
+**Final state**:
+- Globals only in `SetupOrderHandler()` (acceptable!)
+- Everything below is clean, testable code
+- 2 global accesses (was 20+)
+
+## Complete Before/After Comparison
+
+### Before: Globals Everywhere (20+ accesses)
+
+```
+main()
+  └─ handlers [env.Configs access]
+       ├─ OrderService [env.Configs access]
+       │    └─ messaging funcs [env.Configs access]
+       └─ UserService [env.Configs access]
+            └─ messaging funcs [env.Configs access]
+
+Testing: IMPOSSIBLE without global state mutation
+Parallel tests: NO
+```
+
+### After: Globals Only at Top (2 accesses)
+
+```
+main()
+  └─ handlers [env.Configs access - 2 locations ONLY]
+       ├─ OrderService [clean - injected deps]
+       │    └─ NATSClient [clean - injected deps]
+       └─ UserService [clean - injected deps]
+            └─ NATSClient [clean - injected deps]
+
+Testing: EASY - inject test values
+Parallel tests: YES
+Islands of clean code: 3 types (NATSClient, OrderService, UserService)
+```
+
+## Testing Benefits Demonstrated
+
+### Before: Global State Nightmare
+
+```go
+func TestPublishEvent(t *testing.T) {
+    // ❌ Must mutate global
+    originalAddr := env.Configs.NATsAddress
+    env.Configs.NATsAddress = "nats://test:4222"
+    defer func() {
+        env.Configs.NATsAddress = originalAddr  // Restore
+    }()
+
+    // ❌ Can't run in parallel - global state shared
+    // ❌ Tests can interfere with each other
+    // ❌ Hard to test multiple scenarios
+}
+```
+
+### After: Clean Dependency Injection
+
+```go
+func TestNATSClient_PublishEvent(t *testing.T) {
+    t.Parallel()  // ✅ Parallel execution!
+
+    // ✅ No global state needed
+    testNATS := startTestNATS(t)
+    defer testNATS.Stop()
+
+    // ✅ Clean injection
+    client := NewNATSClient(testNATS.URL())
+
+    // ✅ Easy to test edge cases
+    tests := []struct {
+        name    string
+        address string
+        wantErr bool
+    }{
+        {"valid", testNATS.URL(), false},
+        {"invalid", "nats://nonexistent:4222", true},
+        {"empty", "", true},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Each test gets clean client - no interference!
+            c := NewNATSClient(tt.address)
+            err := c.PublishEvent(testEvent)
+            // ... assertions
+        })
+    }
+}
+```
+
+## Metrics
+
+### Before Refactoring
+
+```
+Global Accesses:
+- env.Configs.NATsAddress: 12 locations (deep in code)
+- env.Configs.DBHost: 8 locations (deep in code)
+Total: 20 global accesses scattered
+
+Testability:
+- Testable types: 0 (all depend on globals)
+- Parallel tests: Impossible
+- Test complexity: High (global state setup/teardown)
+
+Code Quality:
+- Hidden dependencies: Everywhere
+- Coupling: Tight (everything to env.Configs)
+- Flexibility: Low (can't swap implementations)
+```
+
+### After Refactoring
+
+```
+Global Accesses:
+- Entry points only: 2 locations (SetupOrderHandler, SetupUserHandler)
+- Deep code: 0 global accesses
+
+Testability:
+- Clean testable types: 3 islands (NATSClient, OrderService, UserService)
+- Test coverage: 100% on clean types
+- Parallel tests: Fully supported
+- Test complexity: Low (simple dependency injection)
+
+Code Quality:
+- Hidden dependencies: Eliminated
+- Coupling: Loose (injected dependencies)
+- Flexibility: High (easy to swap implementations)
+
+Improvement:
+- 90% reduction in global access points (20 → 2)
+- 3 new testable types created
+- 100% of business logic now testable
+```
+
+## Key Lessons
+
+### 1. Incremental is Better Than Perfect
+
+**DON'T**:
+```go
+// ❌ Try to eliminate ALL globals at once
+// This is overwhelming and error-prone
+```
+
+**DO**:
+```go
+// ✅ One type at a time, one level at a time
+// Step 1: Extract NATSClient (week 1)
+// Step 2: Extract OrderService (week 2)
+// Step 3: Continue gradually
+```
+
+### 2. Bottom-Up Approach Works
+
+**Start at the leaf** (furthest from main):
+1. Identify deepest usage (`messaging.PublishEvent`)
+2. Extract clean type (`NATSClient`)
+3. Push global up one level (`OrderService`)
+4. Repeat until reaching entry points
+
+### 3. Pragmatic Stopping Point
+
+**Acceptable to have globals at**:
+- `main()` function
+- HTTP handler setup
+- Application initialization
+- Top-level factory functions
+
+**NOT acceptable deep in**:
+- Business logic types
+- Data access types
+- Service layer
+- Utility functions
+
+### 4. Islands of Clean Code
+
+Each extracted type is an "island":
+- **Fully testable** in isolation
+- **No global dependencies**
+- **Explicit dependencies** via constructor
+- **Can be tested in parallel**
+- **Easy to understand** (dependencies visible)
+
+### 5. Real Testability
+
+**Before**: "We have 80% test coverage"
+(But all tests depend on global state mutation)
+
+**After**: "We have 95% test coverage"
+(All tests use clean dependency injection, run in parallel)
+
+Real testability means:
+- ✅ No global state manipulation
+- ✅ Tests run in parallel
+- ✅ Tests are isolated
+- ✅ Easy to test edge cases
+- ✅ Can use real implementations (no mocking)
+
+## When to Apply This Pattern
+
+**Apply dependency rejection when**:
+- ✅ `noglobals` linter fails
+- ✅ Global config accessed throughout codebase
+- ✅ Testing requires global state mutation
+- ✅ Parallel tests fail due to shared state
+- ✅ Code has hidden dependencies
+
+**DON'T apply to**:
+- ❌ Loggers (`slog`, `zerolog`) - designed to be global
+- ❌ Constants/enums - these are fine as globals
+- ❌ Read-only singletons with no state
+
+## Refactoring Progression Example
+
+```
+Iteration 1 (Week 1):
+├─ Extract NATSClient
+├─ Global accesses: 20 → 14
+└─ Testable types: 1
+
+Iteration 2 (Week 2):
+├─ Extract OrderService
+├─ Global accesses: 14 → 8
+└─ Testable types: 2
+
+Iteration 3 (Week 3):
+├─ Extract UserService
+├─ Global accesses: 8 → 4
+└─ Testable types: 3
+
+Iteration 4 (Week 4):
+├─ Push to handlers
+├─ Global accesses: 4 → 2
+└─ Mission accomplished! ✅
+```
+
+**Note**: Each iteration is a working, tested, deployable state. No "big bang" refactoring needed.
+
+## Conclusion
+
+Dependency rejection is about **gradual improvement**, not perfection:
+- Start at the bottom (leaf code)
+- Create one clean island at a time
+- Push globals up one level per iteration
+- Stop when globals are only at entry points
+- Every step improves testability
+
+**The goal isn't zero globals** - it's **globals only where they belong** (entry points), with all business logic cleanly injectable and testable.
