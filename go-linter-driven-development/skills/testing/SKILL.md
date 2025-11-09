@@ -91,25 +91,27 @@ assert.NoError(t, err)
 
 ## Test Patterns
 
-### Pattern 1: Table-Driven Tests
+### Pattern 1: Table-Driven Tests (Separate Success/Error)
+
+**Correct**: Separate success and error cases to maintain complexity = 1
+
 ```go
-func TestNewUserID(t *testing.T) {
+// Success cases - no conditionals
+func TestNewUserID_Success(t *testing.T) {
     tests := []struct {
-        name    string
-        input   string
-        want    user.UserID
-        wantErr bool
+        name  string
+        input string
+        want  user.UserID
     }{
         {
-            name:    "valid ID",
-            input:   "usr_123",
-            want:    user.UserID("usr_123"),
-            wantErr: false,
+            name:  "valid ID",
+            input: "usr_123",
+            want:  user.UserID("usr_123"),
         },
         {
-            name:    "empty ID",
-            input:   "",
-            wantErr: true,
+            name:  "with numbers",
+            input: "usr_456",
+            want:  user.UserID("usr_456"),
         },
     }
 
@@ -117,19 +119,36 @@ func TestNewUserID(t *testing.T) {
         t.Run(tt.name, func(t *testing.T) {
             got, err := user.NewUserID(tt.input)
 
-            if tt.wantErr {
-                assert.Error(t, err)
-                return
-            }
-
-            assert.NoError(t, err)
+            require.NoError(t, err)
             assert.Equal(t, tt.want, got)
+        })
+    }
+}
+
+// Error cases - no conditionals
+func TestNewUserID_Error(t *testing.T) {
+    tests := []struct {
+        name  string
+        input string
+    }{
+        {name: "empty ID", input: ""},
+        {name: "whitespace", input: "   "},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            _, err := user.NewUserID(tt.input)
+
+            assert.Error(t, err)
         })
     }
 }
 ```
 
-**Key**: ALWAYS use named struct fields (linter reorders fields)
+**Key**:
+- ALWAYS use named struct fields (linter reorders fields)
+- NO wantErr bool pattern (violates complexity = 1)
+- Separate success and error test functions
 
 ### Pattern 2: Testify Suite (Complex Setup)
 ```go

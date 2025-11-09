@@ -5,19 +5,140 @@ description: ADVISORY validation of code against design principles that linters 
 
 # Pre-Commit Design Review
 
-ADVISORY validation of code against design principles that linters cannot enforce.
-Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities.
+Expert design analysis that detects issues linters can't catch. Returns detailed report to caller with categorized findings and fix recommendations.
 
-## When to Use
-- Automatically invoked by @linter-driven-development (Phase 4)
-- Manually before committing (to validate design quality)
-- After linter passes and tests pass
+## What This Skill Does
 
-## What This Reviews
-- **NOT code correctness** (tests verify that)
-- **NOT syntax/style** (linter enforces that)
-- **YES design principles** (primitive obsession, abstraction, architecture)
-- **YES maintainability** (readability, storifying, self-validation)
+**Pure Analysis & Reporting** - Generates report, doesn't fix anything or invoke skills.
+
+### Input
+- Files to review (specific files or all staged changes)
+- Context (invoked by refactoring, orchestrator, or user)
+
+### Output
+- Structured report with categorized findings
+- Each finding: location, issue, better pattern, why it matters, how to fix, effort
+- Prioritized by impact and effort
+
+### What Reviewer Detects (That Linters Can't)
+- Primitive obsession (with juiciness scoring)
+- Unstorified functions (mixed abstraction levels)
+- Missing domain concepts (implicit types that should be explicit)
+- Non-self-validating types (defensive code in methods)
+- Poor comment quality (explaining what instead of why)
+- File structure issues (too long, too many types)
+- Generic package extraction opportunities
+- Design bugs (nil deref, ignored errors, resource leaks)
+- Test quality (weak assertions, missing use cases, mock overuse, conditionals in tests)
+
+**See [reference.md](./reference.md) for complete detection checklist with examples**
+
+## Who Invokes This Skill
+
+1. **@refactoring skill** - After applying patterns, validates design quality remains high
+2. **@linter-driven-development** - Phase 4, checks design quality after linter passes
+3. **User** - Manual code review before commit
+
+## Workflow
+
+```
+1. Read files under review (using Read tool)
+2. Apply design principles checklist from reference.md (LLM reasoning)
+3. Search for usage patterns across codebase (using Grep tool)
+4. Categorize findings:
+   🐛 Bugs (nil deref, ignored errors, resource leaks)
+   🔴 Design Debt (types, architecture, validation)
+   🟡 Readability Debt (abstraction, flow, clarity)
+   🟢 Polish (naming, docs, minor improvements)
+5. Generate structured report with recommendations
+6. Return report to caller (doesn't invoke other skills or make fixes)
+```
+
+## Detection Approach
+
+**LLM-Powered Analysis** (not AST parsing or metrics calculation):
+
+The reviewer reads code like a senior developer and applies design principles:
+- Reads files with Read tool
+- Searches patterns with Grep tool (find usages, duplications)
+- Applies checklist from reference.md using LLM reasoning
+- Pattern matches against anti-patterns
+- Counts occurrences and calculates juiciness scores
+- Generates findings with specific locations and fix guidance
+
+**Division of Labor:**
+- **Linter handles**: Complexity metrics, line counts, formatting, syntax
+- **Reviewer handles**: Design patterns, domain modeling, conceptual issues
+
+## Report Format
+
+```
+📊 CODE REVIEW REPORT
+Scope: [files reviewed]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total findings: 18
+🐛 Bugs: 2 (fix immediately)
+🔴 Design Debt: 5 (fix before commit)
+🟡 Readability Debt: 8 (improves maintainability)
+🟢 Polish: 3 (nice to have)
+
+Estimated fix effort: 3.5 hours
+
+[Detailed findings by category]
+[Recommendations by priority]
+[Skills to use for fixes]
+```
+
+**See [examples.md](./examples.md) for complete report examples**
+
+## What This Skill Does NOT Do
+
+- ❌ Invoke other skills (@refactoring, @code-designing, @testing)
+- ❌ Fix anything or make code changes
+- ❌ Make decisions on behalf of user
+- ❌ Parse AST or calculate complexity metrics (linter does this)
+- ❌ Run linter (caller does this)
+- ❌ Iterate or loop (caller decides whether to re-invoke)
+- ❌ Block commits (findings are advisory)
+
+## Integration with Other Skills
+
+### Invoked by @refactoring
+```
+Refactoring completes → invoke reviewer → analyze report:
+- Bugs found? → Fix immediately, re-run linter
+- Design debt found? → Apply another refactoring pattern
+- All clean? → Return success to orchestrator
+```
+
+### Invoked by @linter-driven-development
+```
+Phase 4 (after linter passes):
+1. Invoke reviewer on all staged changes
+2. Receive categorized report
+3. Present findings to user with options:
+   - Commit as-is (accept debt knowingly)
+   - Fix critical issues only (bugs + design debt)
+   - Fix all recommended (bugs + design + readability)
+   - Fix everything (including polish)
+4. Based on user choice:
+   - Invoke @refactoring or @code-designing for chosen fixes
+   - Return to Phase 3 (linter loop)
+   - Iterate until user satisfied
+```
+
+### Invoked by User
+```
+Manual review request:
+1. User invokes: @pre-commit-review on path/to/file.go
+2. Receive detailed report
+3. User decides how to proceed
+4. User may invoke @refactoring or @code-designing for fixes
+```
 
 ## Review Scope
 
@@ -28,122 +149,8 @@ Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities.
 
 **Secondary Scope**: Context around changes
 - Entire files containing modifications
-- Flag patterns/issues outside commit scope
-- Suggest broader refactoring opportunities
-
-## Finding Categories (Debt-Based)
-
-### 🔴 Design Debt
-**Will cause pain when extending/modifying code**
-
-Violations:
-- Primitive obsession (string IDs, int ports without types)
-- Wrong architecture (horizontal layers vs vertical slices)
-- Non-self-validating types (validation outside constructor)
-- Missing error context (errors.New instead of fmt.Errorf)
-
-Impact: Future changes will require more work and introduce bugs
-
-### 🟡 Readability Debt
-**Makes code harder to understand and work with**
-
-Violations:
-- Mixed abstraction levels (story + implementation details)
-- Functions not storified (unclear flow)
-- Defensive nil checks (should be in constructor)
-- Generic naming (utils, common, data, manager)
-
-Impact: Team members (and AI) will struggle to understand intent
-
-### 🟢 Polish Opportunities
-**Minor improvements for consistency**
-
-Violations:
-- Non-idiomatic naming
-- Missing comments on complex logic
-- Opportunities for minor refactoring
-
-Impact: Low, but keeps codebase clean and consistent
-
-## Review Workflow
-
-### 0. Architectural Pattern Validation (FIRST CHECK)
-
-**Expected: Vertical slice architecture. Design Debt (ADVISORY) - never blocks commit.**
-
-Check file patterns:
-- `internal/[feature]/{handler,service,models}.go` → ✅ Vertical slice
-- `internal/{handlers,services,domain}/[feature].go` → 🔴 Horizontal layers (Design Debt - advisory)
-
-**Advisory Categories**:
-1. **✅ Vertical slice** → Praise, note migration progress if applicable
-2. **🟢 Mixed without docs** → Suggest creating `docs/architecture/vertical-slice-migration.md`
-3. **🔴 Horizontal pattern (advisory)** → Suggest vertical slice alternative, respect constraints
-
-**Report Template**:
-```
-🔴 Design Debt (Advisory): [Pattern Name]
-- Current: [what code does]
-- Preferred: Vertical slice for better cohesion/maintainability
-- Alternative: Continue as-is (time constraints, team decision valid)
-- Offer: Create migration docs? Refactor? Proceed as-is?
-```
-
-**Always acknowledge**: Time pressure, consistency needs, team decisions are valid reasons to proceed.
-
-See reference.md section #5 for detailed patterns.
-
----
-
-### 1. Analyze Commit Scope
-```bash
-# Identify what changed
-git diff --cached --name-only
-
-# For each file, get changed lines
-git diff --cached --unified=3 [file]
-```
-
-### 2. Check Against Design Principles
-For each changed line/block, validate:
-- [ ] Primitive obsession check (reference.md #1)
-- [ ] Storifying check (reference.md #2)
-- [ ] Self-validating types check (reference.md #3)
-- [ ] Abstraction levels check (reference.md #4)
-- [ ] Architecture check (reference.md #5)
-- [ ] Naming check (reference.md #6)
-- [ ] Testing approach check (reference.md #7)
-
-### 3. Scan Broader Context
-Review entire files containing changes:
-- Are there similar violations outside commit scope?
-- Would fixing require broader refactoring?
-- Is there a pattern worth addressing holistically?
-
-### 4. Categorize Findings
-Assign each violation to debt category:
-- Design Debt (🔴): Type safety, architecture, validation
-- Readability Debt (🟡): Abstraction, naming, clarity
-- Polish (🟢): Minor improvements
-
-### 5. Generate Advisory Report
-For each finding:
-- **Location**: file:line
-- **Issue**: Specific violation with current code
-- **Better**: Suggested improvement with example
-- **Why**: Impact explanation (connects to maintenance/understanding)
-- **Fix**: Which skill to use (@code-designing, @refactoring, etc.)
-
-## Output Format
-
-See linter-driven-development workflow for integrated output.
-
-Key elements:
-- Commit scope summary
-- Findings grouped by category (🔴 🟡 🟢)
-- Specific line numbers and code examples
-- Broader context observations
-- Actionable next steps
+- Flag patterns/issues outside commit scope (in BROADER CONTEXT section)
+- Suggest broader refactoring opportunities if valuable
 
 ## Advisory Nature
 
@@ -151,21 +158,68 @@ Key elements:
 
 Purpose:
 - ✅ Provide visibility into design quality
-- ✅ Offer concrete improvement suggestions
+- ✅ Offer concrete improvement suggestions with examples
 - ✅ Help maintain coding principles
 - ✅ Guide refactoring decisions
 
-User decides:
+Caller (or user) decides:
 - Commit as-is (accept debt knowingly)
-- Fix critical debt before commit
-- Fix all debt before commit
-- Expand scope to broader refactor
+- Fix critical debt before commit (bugs, major design issues)
+- Fix all debt before commit (comprehensive cleanup)
+- Expand scope to broader refactor (when broader context issues found)
 
-## Integration with Other Skills
+## Finding Categories
 
-When findings suggest deeper work:
-- **Design Debt** → often needs @code-designing skill
-- **Readability Debt** → often needs @refactoring skill
-- **Architecture issues** → may need @code-designing + @refactoring
+Findings are categorized by technical debt type and severity:
 
-See reference.md for complete design principles checklist.
+### 🐛 Bugs
+**Will cause runtime failures or correctness issues**
+- Nil dereferences, ignored errors, resource leaks
+- Invalid nil returns, race conditions
+- Fix immediately before any other work
+
+### 🔴 Design Debt
+**Will cause pain when extending/modifying code**
+- Primitive obsession, missing domain types
+- Non-self-validating types
+- Wrong architecture (horizontal vs vertical)
+- Fix before commit recommended
+
+### 🟡 Readability Debt
+**Makes code harder to understand and work with**
+- Mixed abstraction levels, not storified
+- Functions too long or complex
+- Poor naming, unclear intent
+- Fix improves team productivity
+
+### 🟢 Polish Opportunities
+**Minor improvements for consistency and quality**
+- Non-idiomatic naming, missing examples
+- Comment improvements, minor refactoring
+- Low priority, nice to have
+
+**See [reference.md](./reference.md) for detailed principles and examples for each category**
+
+## Key Capabilities
+
+**Detects 8 Issue Categories:**
+1. Primitive Obsession - with juiciness scoring algorithm
+2. Storifying - detects mixed abstraction levels
+3. Missing Domain Concepts - identifies implicit types
+4. Self-Validating Types - finds defensive code patterns
+5. Comment Quality - analyzes what vs why
+6. File Structure - checks size and responsibility boundaries
+7. Testing Approach - validates test structure and quality
+8. Design Bugs - catches common runtime issues
+
+**For complete detection patterns and examples, see [reference.md](./reference.md)**
+**For real-world review scenarios, see [examples.md](./examples.md)**
+
+## Integration with Orchestrator
+
+This skill is automatically invoked by @linter-driven-development workflow:
+- **Phase 4**: Design review after linter passes
+- **Iterative**: Re-invoked after fixes until clean or user accepts debt
+- **Advisory**: Never blocks, always presents options
+
+See [linter-driven-development workflow](../linter-driven-development/SKILL.md) for complete flow.

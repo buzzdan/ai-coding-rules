@@ -2,6 +2,61 @@
 
 Complete validation guide with debt-based categorization.
 
+## How to Use This Reference
+
+This checklist is applied by the pre-commit-review skill using LLM reasoning to analyze code:
+
+### Application Process
+1. For each file under review, systematically apply all 8 categories below
+2. For each detected issue, generate a finding with:
+   - **Category**: Bug, Design Debt, Readability Debt, or Polish
+   - **Location**: file:line with specific line numbers
+   - **Issue**: Description with relevant code snippet
+   - **Better**: Improved pattern with example code
+   - **Why**: Impact explanation (maintenance, bugs, productivity)
+   - **Fix**: Recommended approach (which skill, which pattern)
+   - **Effort**: Time estimate for fixing
+
+### Detection Strategy
+
+**LLM analyzes code by asking questions for each principle:**
+- Does this code violate a design principle? → Flag it
+- How severe is the impact? → Categorize (Bug > Design > Readability > Polish)
+- What's the better pattern? → Provide example
+- How much effort to fix? → Estimate time
+
+**Tools used during detection:**
+- **Read tool**: Get file contents for analysis
+- **Grep tool**: Find usage patterns, count occurrences, detect duplication across codebase
+- **LLM reasoning**: Pattern match anti-patterns, apply heuristics, calculate scores
+
+### Juiciness Scoring (for Primitive Obsession)
+
+When detecting potential types, calculate juiciness score:
+
+**Behavioral (rich behavior):**
+- Complex validation (regex, ranges, business rules): +3
+- Multiple meaningful methods (≥2): +2
+- State transitions/transformations: +2
+- Format conversions: +1
+
+**Structural (organizing complexity):**
+- Parsing unstructured data into fields: +3
+- Grouping related data that travels together: +2
+- Making implicit structure explicit: +2
+- Replacing map[string]interface{}: +2
+
+**Usage (simplifies code):**
+- Used in 5+ places: +2
+- Used in 3-4 places: +1
+- Significantly simplifies calling code: +1
+- Makes tests cleaner: +1
+
+**Scoring:**
+- Score ≥4: HIGH priority (clear win, recommend creating type)
+- Score 2-3: MEDIUM priority (judgment call, present to user)
+- Score 0-1: LOW priority (don't create type, over-engineering)
+
 ## 1. Primitive Obsession [Design Debt 🔴]
 
 ### Detection
@@ -631,6 +686,225 @@ func TestWithChannel(t *testing.T) {
 }
 ```
 
+### Test Quality Review
+
+Beyond structure, review if tests actually test the system properly.
+
+#### Detection: Does Test Actually Test the SUT?
+
+Look for:
+- [ ] **Weak assertions**: Tests that pass but don't verify behavior
+- [ ] **Missing use cases**: Important scenarios not covered
+- [ ] **Mock overuse**: Mocking prevents testing real behavior
+- [ ] **Test isolation**: Tests depend on each other or shared state
+- [ ] **Incomplete verification**: Only checking happy path
+- [ ] **Conditionals in tests**: wantErr bool pattern (violates complexity = 1)
+
+#### ❌ Poor Test Quality
+
+**Example 1: Weak Assertion**
+```go
+func TestCreateUser(t *testing.T) {
+    svc := setupService()
+    err := svc.CreateUser(ctx, user)
+
+    assert.NoError(t, err)  // Only checks no error
+    // ❌ Doesn't verify user was actually created!
+    // ❌ Doesn't check user in database
+    // ❌ Doesn't verify email was sent
+}
+```
+
+**Example 2: Mock Prevents Real Testing**
+```go
+func TestDataProcessor(t *testing.T) {
+    mockDB := &MockDatabase{}
+    mockDB.On("Query", "SELECT...").Return(mockData, nil)
+
+    processor := NewProcessor(mockDB)
+    result := processor.Process()
+
+    assert.Equal(t, expected, result)
+    // ❌ Never tests real database interaction
+    // ❌ Can't catch SQL syntax errors
+    // ❌ Can't catch data marshaling issues
+}
+```
+
+**Example 3: Missing Important Use Cases**
+```go
+func TestParseEmail(t *testing.T) {
+    email, err := ParseEmail("test@example.com")
+    assert.NoError(t, err)
+    assert.Equal(t, "test@example.com", email.String())
+
+    // ❌ Only tests happy path
+    // ❌ Missing: empty string, invalid format, edge cases
+}
+```
+
+**Example 4: Conditionals in Tests (wantErr anti-pattern)**
+```go
+func TestParseEmail(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        want    Email
+        wantErr bool  // ❌ Anti-pattern
+    }{
+        {name: "valid", input: "test@example.com", want: Email("test@example.com")},
+        {name: "empty", input: "", wantErr: true},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ParseEmail(tt.input)
+
+            if tt.wantErr {  // ❌ Conditional in test (complexity > 1)
+                assert.Error(t, err)
+                return
+            }
+
+            assert.NoError(t, err)
+            assert.Equal(t, tt.want, got)
+        })
+    }
+}
+```
+
+#### ✅ Good Test Quality
+
+**Example 1: Complete Verification**
+```go
+func TestCreateUser(t *testing.T) {
+    // Use real implementations
+    db := setupTestDB(t)
+    emailer := &TestEmailer{sent: []Email{}}
+
+    svc := NewUserService(db, emailer)
+    user := User{Email: "test@example.com", Name: "Test"}
+
+    err := svc.CreateUser(ctx, user)
+    require.NoError(t, err)
+
+    // ✅ Verify user in database
+    saved, err := db.GetUser(ctx, user.ID)
+    require.NoError(t, err)
+    assert.Equal(t, user.Email, saved.Email)
+    assert.Equal(t, user.Name, saved.Name)
+
+    // ✅ Verify email sent
+    assert.Len(t, emailer.sent, 1)
+    assert.Equal(t, user.Email, emailer.sent[0].To)
+    assert.Contains(t, emailer.sent[0].Body, "Welcome")
+}
+```
+
+**Example 2: Test Real Database**
+```go
+func TestUserRepository_Save(t *testing.T) {
+    // ✅ Use real database (in-memory or testcontainers)
+    db := setupPostgresTestContainer(t)
+    // OR: db := setupInMemoryDB(t)
+
+    repo := NewUserRepository(db)
+    user := User{Email: "test@example.com"}
+
+    // Test real database operations
+    err := repo.Save(ctx, user)
+    require.NoError(t, err)
+
+    // Verify by querying database directly
+    var count int
+    err = db.QueryRow("SELECT COUNT(*) FROM users WHERE email = ?",
+                      user.Email).Scan(&count)
+    require.NoError(t, err)
+    assert.Equal(t, 1, count)
+}
+```
+
+**Example 3: Correct Pattern (Separate Functions, Complexity = 1)**
+
+Instead of conditionals, use separate test functions:
+
+```go
+// ✅ Success cases - always expect success (no conditionals)
+func TestParseEmail_Success(t *testing.T) {
+    tests := []struct {
+        name  string
+        input string
+        want  Email
+    }{
+        {name: "simple", input: "test@example.com", want: Email("test@example.com")},
+        {name: "with plus", input: "test+tag@example.com", want: Email("test+tag@example.com")},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ParseEmail(tt.input)
+            require.NoError(t, err)  // No conditionals
+            assert.Equal(t, tt.want, got)
+        })
+    }
+}
+
+// ✅ Error cases - always expect error (no conditionals)
+func TestParseEmail_Error(t *testing.T) {
+    tests := []struct {
+        name  string
+        input string
+    }{
+        {name: "empty", input: ""},
+        {name: "no @", input: "testexample.com"},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            _, err := ParseEmail(tt.input)
+            assert.Error(t, err)  // No conditionals
+        })
+    }
+}
+```
+
+**See [testing/reference.md](../testing/reference.md) for complete testing patterns and anti-patterns.**
+
+#### Test Quality Checkpoints
+
+When reviewing tests, check:
+
+**1. Real Implementation Usage**
+- Database: Use in-memory DB or testcontainers (not mocks)
+- Files: Use `t.TempDir()` or `os.CreateTemp()` (not mocks)
+- HTTP: Use `httptest.Server` (not mocks)
+- External services: Use real test instances or testcontainers
+- Only mock when absolutely necessary (external APIs you don't control)
+
+**2. Complete Verification**
+- Assert actual behavior, not just "no error"
+- Verify side effects (database changes, files written, messages sent)
+- Check state before and after operation
+
+**3. Use Case Coverage**
+- ✅ Happy path + ✅ Edge cases + ✅ Error cases
+
+**4. Test Independence**
+- Tests can run in any order
+- Use `t.Cleanup()` for cleanup
+- No shared mutable state
+
+**5. No Conditionals (Complexity = 1)**
+- ❌ No `wantErr bool` with if statements
+- ✅ Separate success/error test functions
+
+**6. Meaningful Assertions**
+- Use specific assertions with messages
+- Verify business logic, not implementation
+
+**For complete testing patterns and examples, see [testing/reference.md](../testing/reference.md)**
+
+---
+
 ### Principles
 
 **Test Only Public API:**
@@ -660,13 +934,231 @@ func TestWithChannel(t *testing.T) {
 - Orchestrating types: Integration tests
 
 ### Review Questions
+
+**Structure:**
 - Are tests in same package? → Use pkg_test
 - Testing private methods? → Test public API instead
 - Using mocks heavily? → Use real implementations
 - Using time.Sleep? → Use channels/wait groups
 
+**Quality:**
+- Does test verify actual behavior? → Add meaningful assertions
+- Are important use cases covered? → Add edge cases and error cases
+- Using mocks where real implementation possible? → Use testcontainers/in-memory/temp files
+- Do tests verify side effects? → Check database/files/messages
+- Are tests independent? → Use t.Cleanup(), avoid shared state
+- Conditionals in tests (wantErr)? → Separate success and error test functions
+
 ### Fix
 Use @testing skill to restructure tests
+
+---
+
+## 8. Design Bugs [Bug 🐛]
+
+### Detection
+Look for:
+- [ ] Potential nil dereferences
+- [ ] Errors assigned to `_` (silently ignored)
+- [ ] Missing defer for resource cleanup
+- [ ] Race conditions (shared state without synchronization)
+- [ ] Context not propagated (using context.Background() in call chain)
+- [ ] Invalid nil returns (returning nil for non-error values)
+- [ ] time.Sleep in production code (should use timers/contexts)
+- [ ] Goroutine leaks (no way to exit)
+
+### Examples
+
+#### ❌ Bug: Potential Nil Dereference
+```go
+user := getUser()  // Can return user with nil Profile
+email := user.Profile.Email  // Panic if Profile is nil
+```
+
+**Problems:**
+- Crash risk if Profile is nil
+- No defensive check
+- Hard to debug in production
+
+#### ✅ Fixed
+```go
+user := getUser()
+if user.Profile == nil {
+    return errors.New("user has no profile")
+}
+email := user.Profile.Email
+```
+
+**Better: Self-validating User type**
+```go
+func NewUser(..., profile Profile) (*User, error) {
+    if profile == nil {
+        return nil, errors.New("profile required")
+    }
+    return &User{Profile: profile}, nil
+}
+
+// Now Profile is guaranteed non-nil
+func (u *User) GetEmail() string {
+    return u.Profile.Email  // Safe, no check needed
+}
+```
+
+#### ❌ Bug: Ignored Error
+```go
+_ = client.Record(metric)  // Silent failure
+```
+
+**Problems:**
+- If metrics recording fails, no visibility
+- Hard to debug production issues
+- Violates fail-fast principle
+
+#### ✅ Fixed
+```go
+if err := client.Record(metric); err != nil {
+    log.Printf("failed to record metric: %v", err)
+}
+
+// Better: Return error if it's critical
+if err := client.Record(metric); err != nil {
+    return fmt.Errorf("record metric: %w", err)
+}
+```
+
+#### ❌ Bug: Resource Leak
+```go
+func processFile(path string) error {
+    f, err := os.Open(path)
+    if err != nil {
+        return err
+    }
+
+    data, err := io.ReadAll(f)
+    if err != nil {
+        return err  // File never closed!
+    }
+
+    f.Close()
+    return process(data)
+}
+```
+
+**Problems:**
+- Early return doesn't close file
+- Resource leak
+- Can exhaust file descriptors
+
+#### ✅ Fixed
+```go
+func processFile(path string) error {
+    f, err := os.Open(path)
+    if err != nil {
+        return err
+    }
+    defer f.Close()  // Always closes, even on early return
+
+    data, err := io.ReadAll(f)
+    if err != nil {
+        return err
+    }
+
+    return process(data)
+}
+```
+
+#### ❌ Bug: Context Not Propagated
+```go
+func (s *Service) CreateUser(ctx context.Context, user User) error {
+    // Ignoring ctx, using Background
+    return s.repo.Save(context.Background(), user)
+}
+```
+
+**Problems:**
+- Cancellation not respected
+- Timeouts don't work
+- Can't trace requests
+
+#### ✅ Fixed
+```go
+func (s *Service) CreateUser(ctx context.Context, user User) error {
+    return s.repo.Save(ctx, user)  // Propagate context
+}
+```
+
+#### ❌ Bug: Invalid Nil Return
+```go
+func FindUser(id string) *User {
+    // ...
+    return nil  // Nil is not a valid value for non-error returns
+}
+```
+
+**Problems:**
+- Caller must check for nil
+- Easy to forget nil check
+- Violates "nil is not a valid value" principle
+
+#### ✅ Fixed
+```go
+func FindUser(id UserID) (*User, error) {
+    user, found := users[id]
+    if !found {
+        return nil, fmt.Errorf("user not found: %s", id)
+    }
+    return &user, nil
+}
+```
+
+#### ❌ Bug: Goroutine Leak
+```go
+func startWorker() {
+    go func() {
+        for {
+            work := <- workChan
+            process(work)
+            // No way to exit this goroutine!
+        }
+    }()
+}
+```
+
+**Problems:**
+- Goroutine runs forever
+- Memory leak
+- Can't shutdown cleanly
+
+#### ✅ Fixed
+```go
+func startWorker(ctx context.Context) {
+    go func() {
+        for {
+            select {
+            case work := <- workChan:
+                process(work)
+            case <-ctx.Done():
+                return  // Clean exit
+            }
+        }
+    }()
+}
+```
+
+### Review Questions
+- Can anything panic? → Check nil flows
+- Are errors handled? → No `_ = ...`
+- Are resources cleaned up? → Check defer usage
+- Is context propagated? → No context.Background in chains
+- Can goroutines exit? → Check cancellation
+
+### Fix
+**Fix bugs immediately before any refactoring work.**
+- Nil issues → Add validation or use self-validating types
+- Ignored errors → Log at minimum, return if critical
+- Resource leaks → Add defer statements
+- Context issues → Propagate ctx through call chain
+- Goroutine leaks → Add cancellation via context
 
 ---
 
@@ -674,8 +1166,9 @@ Use @testing skill to restructure tests
 
 For each modified file:
 
-1. **Run Checklist** (#1-7 above)
+1. **Run Checklist** (#1-8 above)
 2. **Categorize Findings**:
+   - 🐛 Bugs: Nil deref, ignored errors, resource leaks (fix immediately)
    - 🔴 Design Debt: Types, architecture, validation
    - 🟡 Readability Debt: Abstraction, flow, naming
    - 🟢 Polish: Minor improvements

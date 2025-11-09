@@ -2,6 +2,411 @@
 
 Real-world examples of design review findings with before/after comparisons.
 
+## Example 0: Detection Workflow
+
+Shows how the pre-commit-review skill analyzes code step-by-step using LLM reasoning.
+
+### Input: user/service.go
+
+```go
+package user
+
+type UserService struct {
+    Repo Repository
+}
+
+func (s *UserService) CreateUser(id string, email string) error {
+    // Validate ID
+    if id == "" {
+        return errors.New("empty id")
+    }
+
+    // Validate email
+    if !strings.Contains(email, "@") {
+        return errors.New("invalid email")
+    }
+
+    // Open DB
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+        return err
+    }
+    defer db.Close()
+
+    // Build query
+    query := "INSERT INTO users (id, email) VALUES (?, ?)"
+    _, err = db.Exec(query, id, email)
+    if err != nil {
+        return err
+    }
+
+    // Send email
+    _ = sendEmail(email, "Welcome!")
+
+    return nil
+}
+```
+
+### LLM Analysis Step-by-Step
+
+**Step 1: Apply Primitive Obsession Check (reference.md #1)**
+
+Questions LLM asks:
+- Q: Are primitives being validated?
+- A: Yes - 'id' string validated at line 9, 'email' string validated at line 14
+
+- Q: Is same validation repeated elsewhere?
+- A: [Uses Grep tool to search codebase]
+  - Found in handler.go:23 (same id validation)
+  - Found in repository.go:45 (same email validation)
+
+- Q: Would types add value beyond validation?
+- A: Yes
+  - Email: Complex validation pattern, domain concept
+  - UserID: Validation scattered, type safety benefit
+
+- Q: Calculate juiciness score (see reference.md):
+  ```
+  UserID:
+  - Validation in 3 places (+1)
+  - Simple empty check (+0)
+  - Used in 8 locations (+2)
+  Score: 3/10 → MEDIUM priority
+
+  Email:
+  - Validation in 3 places (+1)
+  - Regex validation possible (+3)
+  - Domain/LocalPart methods (+2)
+  - Used in 8 locations (+2)
+  Score: 8/10 → HIGH priority
+  ```
+
+**Finding identified:**
+```
+🔴 Design Debt: Primitive obsession
+- string id → UserID type (MEDIUM juiciness)
+- string email → Email type (HIGH juiciness)
+```
+
+---
+
+**Step 2: Apply Storifying Check (reference.md #2)**
+
+Questions LLM asks:
+- Q: Does function read like a story?
+- A: No - mixes abstraction levels:
+  - Lines 7-16: High-level validation
+  - Lines 18-23: Low-level DB connection setup
+  - Lines 25-31: SQL implementation details
+  - Lines 33-34: High-level notification
+
+- Q: Can I explain flow in 3-5 clear steps?
+- A: Should be: validateUser() → saveUser() → notifyUser()
+  But currently mixes infrastructure and business logic
+
+**Finding identified:**
+```
+🟡 Readability Debt: Function not storified
+Mixed abstraction levels in CreateUser
+Should extract: validateUser(), saveUser(), notifyUser()
+```
+
+---
+
+**Step 3: Apply Self-Validating Types Check (reference.md #3)**
+
+Questions LLM asks:
+- Q: Do methods check if struct fields are nil/invalid?
+- A: No checks in this method, but...
+
+- Q: Could UserService.Repo be nil?
+- A: Yes - struct can be created without validation
+  ```go
+  svc := &UserService{} // Repo is nil!
+  svc.CreateUser(...) // Will panic if we use Repo
+  ```
+
+- Q: Is there a constructor with validation?
+- A: [Searches codebase] No NewUserService constructor found
+
+**Finding identified:**
+```
+🔴 Design Debt: Non-self-validating type
+UserService can be created with nil Repo
+Need NewUserService constructor
+```
+
+---
+
+**Step 4: Apply Design Bugs Check (reference.md #8)**
+
+Questions LLM asks:
+- Q: Potential nil dereferences?
+- A: Not obvious in this function (but found UserService.Repo issue above)
+
+- Q: Are errors ignored?
+- A: YES! Line 34: `_ = sendEmail(email, "Welcome!")`
+  Silent failure, no visibility into delivery failures
+
+- Q: Resources cleaned up?
+- A: Yes, defer db.Close() at line 23 ✓
+
+- Q: Context propagated?
+- A: No ctx parameter, but no downstream calls needing it
+
+**Finding identified:**
+```
+🐛 Bug: Ignored error
+Line 34: _ = sendEmail() silently ignores failure
+Should at least log the error
+```
+
+---
+
+**Step 5: Apply Other Checks**
+
+- Abstraction Levels (#4): Already covered in storifying
+- Architecture (#5): Single file, can't assess pattern
+- Naming (#6): Names are clear and idiomatic ✓
+- Testing (#7): No test file in scope
+- Comment Quality: Missing (no package docs, no function docs)
+- File Structure: Single type, reasonable size ✓
+
+---
+
+### Analysis Complete - Categorize & Prioritize
+
+**Bugs (Priority 1 - Fix immediately):**
+1. Ignored error at line 34
+
+**Design Debt (Priority 2 - Fix before commit):**
+2. Primitive obsession: string email (HIGH juiciness: 8/10)
+3. Primitive obsession: string id (MEDIUM juiciness: 3/10)
+4. Non-self-validating: UserService
+
+**Readability Debt (Priority 3 - Improves maintainability):**
+5. Not storified: CreateUser function
+
+---
+
+### Output Report
+
+```
+📊 CODE REVIEW REPORT
+Generated: 2025-11-09 15:45:00
+Scope: user/service.go (1 file, 40 lines)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total findings: 5
+🐛 Bugs: 1 (fix immediately)
+🔴 Design Debt: 3 (fix before commit recommended)
+🟡 Readability Debt: 1 (improves maintainability)
+🟢 Polish: 0
+
+Estimated fix effort: 50 minutes total
+  - Critical (bugs + high juiciness design): 25 min
+  - Recommended (medium design + readability): 25 min
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🐛 BUGS (1) - FIX IMMEDIATELY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Ignored error
+   Location: user/service.go:34
+   Code: _ = sendEmail(email, "Welcome!")
+
+   Issue: Email sending failure silently ignored
+   Impact: No visibility into delivery failures, hard to debug
+
+   Fix: Log error at minimum:
+     if err := sendEmail(email, "Welcome!"); err != nil {
+       log.Printf("failed to send welcome email: %v", err)
+     }
+
+   Better: Return error if critical:
+     if err := sendEmail(email, "Welcome!"); err != nil {
+       return fmt.Errorf("send welcome email: %w", err)
+     }
+
+   Effort: 2 min
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔴 DESIGN DEBT (3) - FIX BEFORE COMMIT RECOMMENDED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Primitive obsession: string email (HIGH juiciness: 8/10)
+   Locations: Line 6, 14, 28, 34
+   Also found in: handler.go:23, repository.go:45
+
+   Juiciness Score: 8/10
+   - Validation in 3 places (+1)
+   - Complex regex validation possible (+3)
+   - Methods: Domain(), LocalPart() (+2)
+   - Used in 8 locations (+2)
+
+   Current:
+     func CreateUser(id string, email string) error {
+       if !strings.Contains(email, "@") {
+         return errors.New("invalid email")
+       }
+       // ...
+     }
+
+   Better:
+     type Email string
+
+     func ParseEmail(s string) (Email, error) {
+       if !emailRegex.MatchString(s) {
+         return "", fmt.Errorf("invalid email: %s", s)
+       }
+       return Email(s), nil
+     }
+
+     func (e Email) Domain() string { /* ... */ }
+     func (e Email) LocalPart() string { /* ... */ }
+     func (e Email) String() string { return string(e) }
+
+     func CreateUser(id string, email Email) error {
+       // No validation needed, guaranteed valid
+     }
+
+   Why: Type safety, centralized validation, prevents invalid emails
+   Fix: Use @code-designing skill → Create Email type
+   Effort: 20 min
+
+2. Primitive obsession: string id (MEDIUM juiciness: 3/10)
+   Locations: Line 6, 9, 28
+   Also found in: handler.go:23, repository.go:45
+
+   Juiciness Score: 3/10
+   - Validation in 3 places (+1)
+   - Simple empty check (+0)
+   - Used in 8 locations (+2)
+
+   Note: Borderline case. Judgment call on whether to create type.
+
+   Better:
+     type UserID string
+
+     func ParseUserID(s string) (UserID, error) {
+       if s == "" {
+         return "", errors.New("empty user id")
+       }
+       return UserID(s), nil
+     }
+
+   Why: Centralizes validation, type safety
+   Fix: Use @code-designing skill → Create UserID type
+   Effort: 10 min
+
+3. Non-self-validating type: UserService
+   Location: user/service.go:4
+
+   Issue: UserService.Repo is public, can be nil
+   No constructor to validate dependencies
+
+   Current:
+     type UserService struct {
+       Repo Repository  // Can be nil!
+     }
+
+     svc := &UserService{}  // Invalid state allowed
+
+   Better:
+     type UserService struct {
+       repo Repository  // Private
+     }
+
+     func NewUserService(repo Repository) (*UserService, error) {
+       if repo == nil {
+         return nil, errors.New("repo required")
+       }
+       return &UserService{repo: repo}, nil
+     }
+
+     func (s *UserService) CreateUser(id string, email Email) error {
+       // No nil checks needed - constructor guarantees validity
+       return s.repo.Save(...)
+     }
+
+   Why: Impossible to create invalid service, eliminates defensive checks
+   Fix: Use @code-designing skill → Add constructor
+   Effort: 10 min
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🟡 READABILITY DEBT (1) - IMPROVES MAINTAINABILITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Function not storified: CreateUser
+   Location: user/service.go:6-36
+
+   Issue: Mixes 3 abstraction levels:
+   - Lines 7-16: High-level validation
+   - Lines 18-31: Low-level DB connection/SQL
+   - Lines 33-34: High-level notification
+
+   Flow not clear at a glance, hard to test pieces independently.
+
+   Better:
+     func CreateUser(id string, email Email) error {
+       if err := validateUser(id, email); err != nil {
+         return err
+       }
+
+       if err := saveUser(id, email); err != nil {
+         return err
+       }
+
+       if err := notifyUser(email); err != nil {
+         return err
+       }
+
+       return nil
+     }
+
+     func validateUser(id string, email Email) error { /* ... */ }
+     func saveUser(id string, email Email) error { /* ... */ }
+     func notifyUser(email Email) error { /* ... */ }
+
+   Why: Reads like a story, testable pieces, clear intent
+   Fix: Use @refactoring skill → Storifying pattern
+   Effort: 15 min
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RECOMMENDATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Priority 1: Fix immediately (2 min)
+  ☐ Fix ignored error (log or return)
+
+Priority 2: Fix before commit (40 min)
+  ☐ Create Email type (HIGH juiciness) @code-designing
+  ☐ Create UserID type (MEDIUM juiciness) @code-designing
+  ☐ Add NewUserService constructor @code-designing
+
+Priority 3: Improve maintainability (15 min)
+  ☐ Storify CreateUser function @refactoring
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SKILLS TO USE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@code-designing: For creating Email, UserID types and NewUserService
+@refactoring: For storifying CreateUser function
+Manual: For fixing ignored error (simple change)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+This example demonstrates how the reviewer skill applies the complete checklist from reference.md systematically, using LLM reasoning to detect issues that linters cannot catch.
+
+---
+
 ## Example 1: Primitive Obsession + Self-Validating Types
 
 ### Before (Design Debt 🔴)
