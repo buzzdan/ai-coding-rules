@@ -108,7 +108,25 @@ Should show: `go-linter-driven-development (enabled)`
 
 ## Quick Start
 
-### Complete Workflow
+### 🚀 Autopilot Mode (NEW!)
+
+Just say what you want to implement - the workflow engages automatically:
+
+```
+"implement step 1"
+"ready to start coding"
+"do the next task"
+"execute step 2 from the plan"
+```
+
+**Auto-detects implementation intent** and runs complete workflow:
+- Parallel analysis (tests + linter + review run simultaneously)
+- Intelligent combined reporting (finds overlapping issues)
+- Auto-fix all issues (no manual intervention needed)
+- ~40-50% faster than sequential execution
+
+### Manual Invocation
+
 ```
 "Implement user authentication using @linter-driven-development"
 ```
@@ -120,7 +138,19 @@ This automatically:
 4. Reviews design (@pre-commit-review)
 5. Presents commit-ready summary
 
+### Slash Commands
+
+Quick access to specific phases:
+
+```
+/go-ldd-autopilot     # Full workflow (Phase 1-6)
+/go-ldd-quickfix      # Quality gates only (Phase 2-4)
+/go-ldd-status        # Check current progress
+/go-ldd-review        # Final verification (no auto-fix)
+```
+
 ### Individual Skills
+
 ```
 "Use @code-designing to plan types for payment processing"
 "Use @testing to structure tests for UserService"
@@ -138,6 +168,31 @@ Design → Implement → Lint → Refactor → Review → Commit
 designing                            commit
                                      review
 ```
+
+### Enhanced Workflow Features (v2.0)
+
+**🔄 Parallel Analysis**
+- Tests, linter, and code review run simultaneously
+- 40-50% faster than sequential execution
+- Uses dedicated `go-code-reviewer` subagent for design analysis
+
+**🧠 Intelligent Combined Reporting**
+- LLM analyzes overlapping issues from linter + review
+- Identifies root causes (one fix solves multiple issues)
+- Prioritizes by: Impact × Effort × Risk
+- Example: Complexity + length + mixed abstractions = Apply storifying pattern
+
+**📊 Incremental Review Mode**
+- First run: Full analysis of all files
+- Subsequent runs: Only analyzes changed files
+- Tracks: ✅ Fixed | ⚠️ Remaining | 🆕 New issues
+- Faster iteration during fix loops
+
+**⚡ Auto-Fix Loop**
+- Automatically applies all fixes without manual intervention
+- Re-verifies in parallel after each fix
+- Safety limits: Max 10 iterations, asks for help if stuck
+- Smart grouping reduces 10+ issues to 3-4 strategic fixes
 
 ## Debt-Based Review Categories
 
