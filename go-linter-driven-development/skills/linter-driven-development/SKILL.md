@@ -97,141 +97,158 @@ Scan conversation history (last 50 messages) for:
 - Use self-validating types, prevent primitive obsession
 - Apply storifying pattern for readable top-level functions
 
-### Gate 1: Tests Must Pass
+### Phase 2: Quality Analysis (Agent is the Gate)
 
-Run discovered test command (from Pre-Flight Check).
+**Invoke quality-analyzer agent** for parallel quality analysis:
 
-**Loop until tests pass**:
-- IF tests fail → Analyze failure → Fix implementation → Re-run
-- Once ✅ tests green → Continue to Phase 2
-
-### Phase 2: Parallel Quality Analysis
-
-**Launch 3 analyses in single message (PARALLEL EXECUTION)**:
-
-**Tool Call 1**: Run tests
 ```
-Bash([PROJECT_TEST_COMMAND])
-- Verify tests still pass
-- Get coverage metrics
-```
-
-**Tool Call 2**: Run linter
-```
-Bash([PROJECT_LINT_COMMAND])
-- Run linter with autofix enabled
-- Capture exit code + error details
-```
-
-**Tool Call 3**: Launch review agent
-```
-Task(subagent_type: "go-code-reviewer")
+Task(subagent_type: "quality-analyzer")
 
 Prompt:
-"Review these Go files:
+"Analyze code quality for this Go project.
+
+Mode: full
+
+Project commands:
+- Test: [PROJECT_TEST_COMMAND from Pre-Flight Check]
+- Lint: [PROJECT_LINT_COMMAND from Pre-Flight Check]
+
+Files to analyze:
 [list files from: git diff --name-only main...HEAD | grep '\.go$']
 
-Mode: full"
-
-Note: The go-code-reviewer agent automatically:
-- Uses @pre-commit-review skill for analysis guidelines
-- Detects 8 categories of design issues
-- Returns structured report with effort estimates
-- Operates in read-only mode (no changes, no skill invocations)
+Run all quality gates in parallel and return combined analysis."
 ```
 
-**Wait for all three to complete** before proceeding to Phase 3.
+**The quality-analyzer agent automatically**:
+- Executes tests, linter, and code review in parallel (40-50% faster)
+- Normalizes outputs into common format
+- Identifies overlapping issues (same file:line from multiple sources)
+- Performs root cause analysis (why multiple issues occur together)
+- Prioritizes fixes by impact (issues resolved per fix)
+- Returns structured report with one of 4 statuses
 
-**Time Savings**: ~40-50% faster than sequential execution.
+**Route based on agent status**:
 
-### Phase 3: Intelligent Combined Report
+### Status: TEST_FAILURE → Enter Test Focus Mode
 
-**Collect and Merge Results**:
+**When**: Agent returns TEST_FAILURE status (tests failed)
 
-1. **Gather findings**:
-   - Tests: status + coverage
-   - Linter: errors with file:line details
-   - Review: categorized findings with effort estimates
+**Action**: Focus exclusively on fixing tests before any quality analysis
 
-2. **Group by location**:
-   - Organize by file and function/area
-   - Identify overlapping issues (same location, multiple findings)
+```
+Loop until tests pass:
+  1. Display test failures from agent report
+  2. Analyze failure root cause
+  3. Apply fix to implementation or tests
+  4. Re-run quality-analyzer (mode: "full")
+  5. Check status:
+     - Still TEST_FAILURE → Continue loop
+     - ISSUES_FOUND or CLEAN_STATE → Exit Test Focus Mode, proceed with new status
 
-3. **LLM-Powered Root Cause Analysis**:
-   For each group of overlapping issues:
-   - List all issues (linter + review) at that location
-   - Analyze root cause (what's the underlying problem?)
-   - Propose unified fix strategy (one fix solves multiple issues)
-   - Predict outcome (will this fix resolve all issues?)
-   - Score: impact (issues resolved) × effort × risk
+Max 10 iterations. If stuck, ask user for guidance.
+```
 
-4. **Prioritize Fixes**:
-   - **Priority 1 - CRITICAL**: Fixes multiple issues with single change
-   - **Priority 2 - HIGH VALUE**: Prevents future pain, enables better patterns
-   - **Priority 3 - QUICK WINS**: Low effort, clear benefit
+**Why Test Focus Mode**:
+- Tests are Gate 1 - nothing else matters if tests fail
+- Prevents wasting time on linter/review issues when code doesn't work
+- Ensures quality analysis runs on working code
 
-5. **Generate Fix Instructions**:
-   Create detailed list for @refactoring skill:
-   - File and function to fix
-   - All issues in that area
-   - Unified fix strategy
-   - Expected outcome (predicted metrics after fix)
+**After tests pass**: Re-run quality-analyzer and continue with new status
 
-6. **Decision**:
-   - IF (linter clean AND review clean) → Skip to Phase 5 (Documentation)
-   - ELSE → Proceed to Phase 4 (Auto-fix all issues)
+### Status: CLEAN_STATE → Skip to Phase 5 (Documentation)
 
-**Example Combined Report**:
+**When**: Agent returns CLEAN_STATE status
+- ✅ Tests passed
+- ✅ Linter clean (0 errors)
+- ✅ Review clean (0 findings)
+
+**Action**: All quality gates passed! Skip fix loop, proceed directly to Phase 5 (Documentation)
+
+### Status: ISSUES_FOUND → Continue to Phase 3 (Fix Loop)
+
+**When**: Agent returns ISSUES_FOUND status
+- ✅ Tests passed
+- ❌ Linter has errors OR ⚠️ Review has findings
+
+**Action**: Display agent's combined report and proceed to Phase 3
+
+**Agent Report Contains**:
+- 📊 Summary: Tests, linter, review status
+- 🎯 Overlapping issues with root cause analysis
+- 📋 Isolated issues (single source only)
+- 🔢 Prioritized fix order (by impact)
+
+**Example Report** (generated by quality-analyzer agent):
 ```
 ═══════════════════════════════════════════════════════
-INTELLIGENT COMBINED REPORT
+QUALITY ANALYSIS REPORT
+Mode: FULL
+Files analyzed: 8
 ═══════════════════════════════════════════════════════
 
-📊 Raw Findings:
-  - Linter: 5 errors
-  - Review: 8 findings
-  - Total: 13 issues
+📊 SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🧠 Analyzing overlapping issues...
+Tests: ✅ PASS (coverage: 87%)
+Linter: ❌ FAIL (5 errors)
+Review: ⚠️ FINDINGS (8 issues: 0 bugs, 3 design, 4 readability, 1 polish)
+
+Total issues: 13 from 3 sources
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OVERLAPPING ISSUES ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Found 3 locations with overlapping issues:
 
 ┌─────────────────────────────────────────────────────┐
 │ pkg/parser.go:45 - function Parse                   │
-│ OVERLAPPING ISSUES (4):                             │
+│ OVERLAPPING (4 issues):                             │
 │                                                      │
 │ ⚠️ Linter: Cognitive complexity 18 (>15)           │
 │ ⚠️ Linter: Function length 58 statements (>50)     │
 │ 🔴 Review: Mixed abstraction levels                 │
 │ 🔴 Review: Defensive null checking                  │
 │                                                      │
-│ 🎯 ROOT CAUSE: Function handles 4 responsibilities  │
-│ 💡 UNIFIED FIX: Apply STORIFYING pattern            │
-│    - Extract parseRawInput() (low-level)           │
-│    - Extract validateFields() (mid-level)          │
-│    - Extract buildResult() (high-level)            │
-│    - Main function orchestrates (single level)     │
+│ 🎯 ROOT CAUSE:                                      │
+│ Function handles multiple responsibilities at       │
+│ different abstraction levels (parsing, validation,  │
+│ building result).                                   │
 │                                                      │
-│ ✅ EXPECTED: All 4 issues resolved!                │
-│    Complexity: 18 → ~8 | Length: 58 → ~25         │
-│                                                      │
-│ Priority: #1 CRITICAL (Impact: HIGH, Effort: MOD)  │
+│ Impact: HIGH (4 issues) | Complexity: MODERATE      │
+│ Priority: #1 CRITICAL                               │
 └─────────────────────────────────────────────────────┘
 
-🎯 Total Issues: 13
-🎯 Total Fixes: 3 (smart grouping!)
-🎯 Expected Result: All checks green
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRIORITIZED FIX ORDER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Proceeding to Phase 4 with automated fixes...
+Priority #1: pkg/parser.go:45 (4 issues, HIGH impact)
+Priority #2: pkg/validator.go:23 (3 issues, HIGH impact)
+Priority #3: pkg/handler.go:67 (2 issues, MEDIUM impact)
+
+Isolated issues: 6 (fix individually)
+
+Total fix targets: 3 overlapping groups + 6 isolated = 9 fixes
+
+STATUS: ISSUES_FOUND
 ```
 
-### Phase 4: Iterative Fix Loop
+### Status: TOOLS_UNAVAILABLE → Report Error
 
-**For each prioritized fix** (from Phase 3):
+**When**: Agent returns TOOLS_UNAVAILABLE status (missing tools)
+
+**Action**: Display agent report with missing tools and suggestions, ask user to install tools
+
+### Phase 3: Iterative Fix Loop
+
+**For each prioritized fix** (from agent's report):
 
 1. **Apply Fix**:
    - Invoke @refactoring skill with:
      * File and function to fix
-     * All issues in that area
-     * Unified fix strategy from Phase 3
+     * All issues in that area (from agent's overlapping groups or isolated issues)
+     * Root cause analysis from agent (if available)
      * Expected outcome
    - @refactoring applies appropriate patterns:
      * Early returns (reduce nesting)
@@ -241,64 +258,97 @@ Proceeding to Phase 4 with automated fixes...
      * Switch extraction (categorize cases)
      * Extract constant (remove magic numbers)
 
-2. **Verify Fix (PARALLEL)**:
-   Launch 3 verifications simultaneously:
+2. **Verify Fix with Quality-Analyzer Agent (Incremental Mode)**:
 
-   - **Tool 1**: Run tests
-     ```
-     Bash([PROJECT_TEST_COMMAND])
-     ```
+   ```
+   Task(subagent_type: "quality-analyzer")
 
-   - **Tool 2**: Run linter
-     ```
-     Bash([PROJECT_LINT_COMMAND])
-     ```
+   Prompt:
+   "Re-analyze code quality after refactoring.
 
-   - **Tool 3**: Launch review agent in INCREMENTAL mode
-     ```
-     Task(subagent_type: "go-code-reviewer")
+   Mode: incremental
 
-     Prompt:
-     "Review these Go files:
-     [list files from: git diff --name-only HEAD~1 HEAD | grep '\.go$']
+   Project commands:
+   - Test: [PROJECT_TEST_COMMAND]
+   - Lint: [PROJECT_LINT_COMMAND]
 
-     Mode: incremental
+   Files to analyze (changed):
+   [list files from: git diff --name-only HEAD~1 HEAD | grep '\.go$']
 
-     Previous findings:
-     [paste findings from Phase 3 combined report]"
+   Previous findings:
+   [paste findings from previous quality-analyzer report]
 
-     Note: Agent returns delta report:
-     - ✅ Fixed: Issues resolved since last run
-     - ⚠️ Remaining: Issues still present
-     - 🆕 New: Issues introduced by recent changes
-     ```
+   Run quality gates and return delta report (what changed)."
+   ```
 
-3. **Check Status**:
-   - ✅ All pass → Continue to next fix or Phase 5
-   - ❌ Still failing → Analyze new issues, apply next pattern
+   **Agent returns delta report with status**:
+   - ✅ Fixed: Issues resolved since last run
+   - ⚠️ Remaining: Issues still present
+   - 🆕 New: Issues introduced by recent changes
+
+3. **Route Based on Agent Status**:
+
+   **If status = TEST_FAILURE**:
+   - → Enter Test Focus Mode (refactoring broke tests)
+   - Loop until tests pass (same as Phase 2)
+   - Continue with new status
+
+   **If status = CLEAN_STATE**:
+   - → All issues resolved! Break out of fix loop
+   - Continue to Phase 4 (Documentation)
+
+   **If status = ISSUES_FOUND**:
+   - Check delta report for progress:
+     * ✅ If issues were fixed → Continue to next fix
+     * ⚠️ If no progress → Analyze why, try different approach
+     * 🆕 If new issues introduced → Fix them first
 
 4. **Safety Limits**:
-   - Max 10 iterations per phase
-   - IF stuck → Show current status, ask user for guidance
-   - User can review: `git diff`
+   - Max 10 iterations per fix loop
+   - IF stuck (no progress after 3 attempts):
+     * Show current status and delta report
+     * Ask user for guidance
+     * User can review: `git diff`
 
-**Loop until**:
+**Example Delta Report** (from quality-analyzer agent):
+```
+═══════════════════════════════════════════════════════
+QUALITY ANALYSIS DELTA REPORT
+Mode: INCREMENTAL
+Files re-analyzed: 1 (changed since last run)
+═══════════════════════════════════════════════════════
+
+📊 SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Tests: ✅ PASS (coverage: 89% ↑)
+Linter: ✅ PASS (0 errors)
+Review: ✅ CLEAN (0 findings)
+
+✅ Fixed: 4 issues from pkg/parser.go:45
+⚠️ Remaining: 0 issues
+🆕 New: 0 issues introduced
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RESOLUTION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ FIXED:
+  pkg/parser.go:45 | Linter | Cognitive complexity (was 18, now 8)
+  pkg/parser.go:45 | Linter | Function length (was 58, now 25)
+  pkg/parser.go:45 | Review | Mixed abstraction levels (resolved)
+  pkg/parser.go:45 | Review | Defensive null checking (resolved)
+
+STATUS: CLEAN_STATE ✅
+Ready to proceed with next fix or move to documentation phase.
+```
+
+**Loop until agent returns CLEAN_STATE**:
 - ✅ Tests pass
 - ✅ Linter clean
 - ✅ Review clean
 
-### Gate 2: All Quality Checks Green
-
-**Final parallel verification**:
-```
-├─ [PROJECT_TEST_COMMAND]  ✅
-├─ [PROJECT_LINT_COMMAND]  ✅
-└─ Review report           ✅
-```
-
-Once all green → Continue to Phase 5
-
-### Phase 5: Documentation
+### Phase 4: Documentation
 
 Invoke @documentation skill:
 
@@ -314,7 +364,7 @@ Invoke @documentation skill:
 - Ensure examples compile
 - Check documentation coverage
 
-### Phase 6: Commit Ready
+### Phase 5: Commit Ready
 
 Generate comprehensive summary with suggested commit message.
 
@@ -394,22 +444,38 @@ Would you like to:
 ## Workflow Control
 
 **Sequential Phases**: Each phase depends on previous phase completion
-- Design must complete before implementation
-- Implementation must complete before linting
-- Linting must pass before review
-- Review must complete before commit
+- Phase 1: Design and implementation must complete before quality analysis
+- Phase 2: Quality analysis (via quality-analyzer agent) determines next phase
+- Phase 3: Fix loop continues until all issues resolved (agent returns CLEAN_STATE)
+- Phase 4: Documentation only after all quality gates pass
+- Phase 5: Commit ready summary presented to user
 
-**Iterative Linting**: Phase 3 loops until clean
-**Advisory Review**: Phase 4 never blocks, always asks user
+**Status-Based Routing**: Agent determines workflow path
+- **TEST_FAILURE** → Test Focus Mode (fix tests, retry Phase 2)
+- **CLEAN_STATE** → Skip fix loop, go directly to documentation
+- **ISSUES_FOUND** → Enter fix loop (Phase 3)
+- **TOOLS_UNAVAILABLE** → Report error, ask user to install tools
 
-## Integration with Other Skills
+**Parallel Execution**: Phase 2 and fix verification run 3 tools simultaneously (40-50% faster)
 
-This orchestrator **invokes** other skills automatically:
-- @code-designing (Phase 1, if needed)
-- @testing (Phase 2, principles applied)
-- @refactoring (Phase 3, when linter fails)
-- @pre-commit-review (Phase 4, always)
+**Incremental Review**: After first run, agent only analyzes changed files for faster iteration
+
+## Integration with Other Skills and Agents
+
+This orchestrator **invokes** other skills and agents automatically:
+
+**Skills**:
+- @code-designing (Phase 1, if needed for type design)
+- @testing (Phase 1, principles applied)
+- @refactoring (Phase 3, when issues found)
+- @documentation (Phase 4, always)
+
+**Agents**:
+- quality-analyzer agent (Phase 2 and Phase 3 verification)
+  - Internally delegates to go-code-reviewer agent for design analysis
+  - Executes tests and linter in parallel
+  - Returns intelligent combined reports with overlapping issue detection
 
 After committing, consider:
-- If feature complete → invoke @documentation skill
-- If more work needed → run this workflow again for next commit
+- If feature complete → Feature fully documented in Phase 4
+- If more work needed → Run this workflow again for next commit
