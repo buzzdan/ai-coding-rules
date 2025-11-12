@@ -145,8 +145,9 @@ Quick access to specific phases:
 ```
 /go-ldd-autopilot     # Full workflow (Phase 1-6)
 /go-ldd-quickfix      # Quality gates only (Phase 2-4)
-/go-ldd-status        # Check current progress
+/go-ldd-analyze       # Quality analysis with intelligent combining (no auto-fix)
 /go-ldd-review        # Final verification (no auto-fix)
+/go-ldd-status        # Check current progress
 ```
 
 ### Individual Skills
