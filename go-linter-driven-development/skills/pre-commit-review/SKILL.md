@@ -13,12 +13,28 @@ Expert design analysis that detects issues linters can't catch. Returns detailed
 
 ### Input
 - Files to review (specific files or all staged changes)
-- Context (invoked by refactoring, orchestrator, or user)
+- Review mode: `full` (first run) or `incremental` (subsequent runs)
+- Previous findings (optional, for incremental mode)
+- Context (invoked by refactoring, orchestrator, subagent, or user)
 
 ### Output
 - Structured report with categorized findings
-- Each finding: location, issue, better pattern, why it matters, how to fix, effort
+- Each finding: `file:line`, issue, why it matters, fix strategy, effort estimate
 - Prioritized by impact and effort
+- Format: Parseable for combined analysis (when invoked by orchestrator)
+
+### Invocation Modes
+
+**1. Direct Skill Invocation** (User or Orchestrator)
+- Full control, can invoke other skills
+- Can make changes based on findings
+- Interactive mode with user feedback
+
+**2. Subagent Mode** (Task tool with go-code-reviewer)
+- Read-only analysis, returns report only
+- Cannot invoke other skills
+- Used for parallel execution by orchestrator
+- Designed for speed and focused analysis
 
 ### What Reviewer Detects (That Linters Can't)
 - Primitive obsession (with juiciness scoring)
@@ -41,8 +57,10 @@ Expert design analysis that detects issues linters can't catch. Returns detailed
 
 ## Workflow
 
+### Full Review Mode (First Run)
+
 ```
-1. Read files under review (using Read tool)
+1. Read all files under review (using Read tool)
 2. Apply design principles checklist from reference.md (LLM reasoning)
 3. Search for usage patterns across codebase (using Grep tool)
 4. Categorize findings:
@@ -53,6 +71,33 @@ Expert design analysis that detects issues linters can't catch. Returns detailed
 5. Generate structured report with recommendations
 6. Return report to caller (doesn't invoke other skills or make fixes)
 ```
+
+### Incremental Review Mode (Subsequent Runs)
+
+Used after fixes have been applied to verify resolution and detect new issues.
+
+```
+1. Read ONLY changed files since last review (using git diff)
+2. Compare against previous findings:
+   - Mark resolved issues as ✅ Fixed
+   - Identify issues that still exist
+3. Analyze changed code for NEW issues introduced by fixes
+4. Generate delta report:
+   - ✅ Fixed: Issues from previous run that are now resolved
+   - ⚠️ Remaining: Issues that still need attention
+   - 🆕 New: Issues introduced by recent changes
+5. Return concise delta report (not full analysis)
+```
+
+**When to Use Incremental Mode:**
+- After @refactoring skill applies fixes
+- During iterative fix loop in Phase 4 of autopilot workflow
+- User requests re-review after making changes
+
+**Benefits:**
+- Faster execution (only analyzes changed files)
+- Clear feedback on what was fixed vs what remains
+- Detects regressions introduced by fixes
 
 ## Detection Approach
 
@@ -72,9 +117,12 @@ The reviewer reads code like a senior developer and applies design principles:
 
 ## Report Format
 
+### Full Report (First Run)
+
 ```
 📊 CODE REVIEW REPORT
 Scope: [files reviewed]
+Mode: FULL
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SUMMARY
@@ -92,6 +140,55 @@ Estimated fix effort: 3.5 hours
 [Recommendations by priority]
 [Skills to use for fixes]
 ```
+
+### Incremental Report (Subsequent Runs)
+
+```
+📊 CODE REVIEW DELTA REPORT
+Scope: [changed files only]
+Mode: INCREMENTAL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Fixed: 4 (resolved from previous run)
+⚠️ Remaining: 2 (still need attention)
+🆕 New: 1 (introduced by recent changes)
+
+[Detailed delta findings]
+```
+
+### Structured Output for Orchestrator Parsing
+
+When invoked as subagent for combined analysis, output follows strict format:
+
+```
+🐛 BUGS
+────────────────────────────────────────────────
+file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+
+🔴 DESIGN DEBT
+────────────────────────────────────────────────
+file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+
+🟡 READABILITY DEBT
+────────────────────────────────────────────────
+file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+
+🟢 POLISH
+────────────────────────────────────────────────
+file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+```
+
+**Effort Estimates:**
+- **Trivial**: <5 minutes (extract constant, rename variable)
+- **Moderate**: 5-20 minutes (extract function, storifying, create simple type)
+- **Significant**: >20 minutes (architectural refactoring, complex type extraction)
+
+**file:line Format:** Must be exact for orchestrator to correlate with linter errors
+- Example: `pkg/parser.go:45`
+- NOT: `parser.go line 45` or `pkg/parser.go (line 45)`
 
 **See [examples.md](./examples.md) for complete report examples**
 
