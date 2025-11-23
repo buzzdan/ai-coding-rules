@@ -1,9 +1,13 @@
 ---
 name: go-ldd-quickfix
 description: Run quality gates loop until all green (tests+linter+review → fix → repeat)
+argument-hint: "[file_pattern]"
+allowed-tools: []  # Delegates to @linter-driven-development skill
 ---
 
 Execute the quality gates loop for already-implemented code that needs cleanup.
+
+⏱️ **Estimated Duration**: 2-5 minutes (depends on number of issues found)
 
 Run these phases from @linter-driven-development skill:
 

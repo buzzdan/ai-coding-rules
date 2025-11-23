@@ -1,42 +1,70 @@
 ---
 name: pre-commit-review
-description: ADVISORY validation of code against design principles that linters cannot enforce. Use after linter passes and tests pass to validate design quality. Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+description: |
+  ADVISORY validation of code against design principles that linters cannot enforce.
+  Loaded by go-code-reviewer agent for design analysis guidance. Also invoked by @refactoring (after pattern application).
+  Can be manually invoked for standalone code review.
+  Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
 ---
 
-# Pre-Commit Design Review
-
-Expert design analysis that detects issues linters can't catch. Returns detailed report to caller with categorized findings and fix recommendations.
-
-## What This Skill Does
+<objective>
+Expert design analysis that detects issues linters can't catch.
+Returns detailed report to caller with categorized findings and fix recommendations.
 
 **Pure Analysis & Reporting** - Generates report, doesn't fix anything or invoke skills.
 
-### Input
+**Reference**: See `reference.md` for complete detection checklist with examples.
+**Examples**: See `examples.md` for real-world review scenarios.
+</objective>
+
+<quick_start>
+1. **Read files** under review (all staged or specific files)
+2. **Apply design principles** checklist from reference.md (LLM reasoning)
+3. **Search usage patterns** with Grep tool
+4. **Categorize findings**: Bugs, Design Debt, Readability Debt, Polish
+5. **Generate structured report** with file:line locations and fix recommendations
+6. **Return report** to caller (no fixes, no skill invocations)
+</quick_start>
+
+<input_output>
+<input>
 - Files to review (specific files or all staged changes)
 - Review mode: `full` (first run) or `incremental` (subsequent runs)
 - Previous findings (optional, for incremental mode)
 - Context (invoked by refactoring, orchestrator, subagent, or user)
+</input>
 
-### Output
+<output>
 - Structured report with categorized findings
 - Each finding: `file:line`, issue, why it matters, fix strategy, effort estimate
 - Prioritized by impact and effort
 - Format: Parseable for combined analysis (when invoked by orchestrator)
+</output>
+</input_output>
 
-### Invocation Modes
-
-**1. Direct Skill Invocation** (User or Orchestrator)
+<invocation_modes>
+<direct_skill_invocation context="User or Orchestrator">
 - Full control, can invoke other skills
 - Can make changes based on findings
 - Interactive mode with user feedback
+</direct_skill_invocation>
 
-**2. Subagent Mode** (Task tool with go-code-reviewer)
+<subagent_mode context="Task tool with go-code-reviewer">
 - Read-only analysis, returns report only
 - Cannot invoke other skills
 - Used for parallel execution by orchestrator
 - Designed for speed and focused analysis
+</subagent_mode>
+</invocation_modes>
 
-### What Reviewer Detects (That Linters Can't)
+<who_invokes>
+1. **go-code-reviewer agent** - Loads this skill for design analysis guidance during parallel quality analysis
+2. **@refactoring skill** - After applying patterns, validates design quality remains high
+3. **User** - Manual code review before commit
+</who_invokes>
+
+<detection_capabilities>
+**What Reviewer Detects (That Linters Can't):**
 - Primitive obsession (with juiciness scoring)
 - Unstorified functions (mixed abstraction levels)
 - Missing domain concepts (implicit types that should be explicit)
@@ -47,47 +75,41 @@ Expert design analysis that detects issues linters can't catch. Returns detailed
 - Design bugs (nil deref, ignored errors, resource leaks)
 - Test quality (weak assertions, missing use cases, mock overuse, conditionals in tests)
 
-**See [reference.md](./reference.md) for complete detection checklist with examples**
+**Division of Labor:**
+- **Linter handles**: Complexity metrics, line counts, formatting, syntax
+- **Reviewer handles**: Design patterns, domain modeling, conceptual issues
 
-## Who Invokes This Skill
+See [reference.md](./reference.md) for complete detection checklist with examples.
+</detection_capabilities>
 
-1. **@refactoring skill** - After applying patterns, validates design quality remains high
-2. **@linter-driven-development** - Phase 4, checks design quality after linter passes
-3. **User** - Manual code review before commit
+<workflow>
 
-## Workflow
-
-### Full Review Mode (First Run)
-
-```
+<full_review_mode context="First Run">
 1. Read all files under review (using Read tool)
 2. Apply design principles checklist from reference.md (LLM reasoning)
 3. Search for usage patterns across codebase (using Grep tool)
 4. Categorize findings:
-   🐛 Bugs (nil deref, ignored errors, resource leaks)
-   🔴 Design Debt (types, architecture, validation)
-   🟡 Readability Debt (abstraction, flow, clarity)
-   🟢 Polish (naming, docs, minor improvements)
+   - Bugs (nil deref, ignored errors, resource leaks)
+   - Design Debt (types, architecture, validation)
+   - Readability Debt (abstraction, flow, clarity)
+   - Polish (naming, docs, minor improvements)
 5. Generate structured report with recommendations
 6. Return report to caller (doesn't invoke other skills or make fixes)
-```
+</full_review_mode>
 
-### Incremental Review Mode (Subsequent Runs)
-
+<incremental_review_mode context="Subsequent Runs">
 Used after fixes have been applied to verify resolution and detect new issues.
 
-```
 1. Read ONLY changed files since last review (using git diff)
 2. Compare against previous findings:
-   - Mark resolved issues as ✅ Fixed
+   - Mark resolved issues as Fixed
    - Identify issues that still exist
 3. Analyze changed code for NEW issues introduced by fixes
 4. Generate delta report:
-   - ✅ Fixed: Issues from previous run that are now resolved
-   - ⚠️ Remaining: Issues that still need attention
-   - 🆕 New: Issues introduced by recent changes
+   - Fixed: Issues from previous run that are now resolved
+   - Remaining: Issues that still need attention
+   - New: Issues introduced by recent changes
 5. Return concise delta report (not full analysis)
-```
 
 **When to Use Incremental Mode:**
 - After @refactoring skill applies fixes
@@ -98,9 +120,11 @@ Used after fixes have been applied to verify resolution and detect new issues.
 - Faster execution (only analyzes changed files)
 - Clear feedback on what was fixed vs what remains
 - Detects regressions introduced by fixes
+</incremental_review_mode>
 
-## Detection Approach
+</workflow>
 
+<detection_approach>
 **LLM-Powered Analysis** (not AST parsing or metrics calculation):
 
 The reviewer reads code like a senior developer and applies design principles:
@@ -110,23 +134,17 @@ The reviewer reads code like a senior developer and applies design principles:
 - Pattern matches against anti-patterns
 - Counts occurrences and calculates juiciness scores
 - Generates findings with specific locations and fix guidance
+</detection_approach>
 
-**Division of Labor:**
-- **Linter handles**: Complexity metrics, line counts, formatting, syntax
-- **Reviewer handles**: Design patterns, domain modeling, conceptual issues
+<report_format>
 
-## Report Format
-
-### Full Report (First Run)
-
+<full_report context="First Run">
 ```
 📊 CODE REVIEW REPORT
 Scope: [files reviewed]
 Mode: FULL
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Total findings: 18
 🐛 Bugs: 2 (fix immediately)
@@ -140,17 +158,15 @@ Estimated fix effort: 3.5 hours
 [Recommendations by priority]
 [Skills to use for fixes]
 ```
+</full_report>
 
-### Incremental Report (Subsequent Runs)
-
+<incremental_report context="Subsequent Runs">
 ```
 📊 CODE REVIEW DELTA REPORT
 Scope: [changed files only]
 Mode: INCREMENTAL
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✅ Fixed: 4 (resolved from previous run)
 ⚠️ Remaining: 2 (still need attention)
@@ -158,9 +174,9 @@ SUMMARY
 
 [Detailed delta findings]
 ```
+</incremental_report>
 
-### Structured Output for Orchestrator Parsing
-
+<structured_output context="For Orchestrator Parsing">
 When invoked as subagent for combined analysis, output follows strict format:
 
 ```
@@ -189,56 +205,50 @@ file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial
 **file:line Format:** Must be exact for orchestrator to correlate with linter errors
 - Example: `pkg/parser.go:45`
 - NOT: `parser.go line 45` or `pkg/parser.go (line 45)`
+</structured_output>
 
-**See [examples.md](./examples.md) for complete report examples**
+</report_format>
 
-## What This Skill Does NOT Do
+<constraints>
+This skill MUST NOT:
+- Invoke other skills (@refactoring, @code-designing, @testing)
+- Fix anything or make code changes
+- Make decisions on behalf of user
+- Parse AST or calculate complexity metrics (linter does this)
+- Run linter (caller does this)
+- Iterate or loop (caller decides whether to re-invoke)
+- Block commits (findings are advisory)
+</constraints>
 
-- ❌ Invoke other skills (@refactoring, @code-designing, @testing)
-- ❌ Fix anything or make code changes
-- ❌ Make decisions on behalf of user
-- ❌ Parse AST or calculate complexity metrics (linter does this)
-- ❌ Run linter (caller does this)
-- ❌ Iterate or loop (caller decides whether to re-invoke)
-- ❌ Block commits (findings are advisory)
+<integration>
 
-## Integration with Other Skills
-
-### Invoked by @refactoring
-```
+<invoked_by_refactoring>
 Refactoring completes → invoke reviewer → analyze report:
 - Bugs found? → Fix immediately, re-run linter
 - Design debt found? → Apply another refactoring pattern
 - All clean? → Return success to orchestrator
-```
+</invoked_by_refactoring>
 
-### Invoked by @linter-driven-development
-```
-Phase 4 (after linter passes):
-1. Invoke reviewer on all staged changes
-2. Receive categorized report
-3. Present findings to user with options:
-   - Commit as-is (accept debt knowingly)
-   - Fix critical issues only (bugs + design debt)
-   - Fix all recommended (bugs + design + readability)
-   - Fix everything (including polish)
-4. Based on user choice:
-   - Invoke @refactoring or @code-designing for chosen fixes
-   - Return to Phase 3 (linter loop)
-   - Iterate until user satisfied
-```
+<invoked_by_go_code_reviewer>
+During Phase 2 (Parallel Quality Analysis):
+1. go-code-reviewer agent automatically loads this skill for guidance
+2. Agent applies detection checklist from this skill
+3. Agent returns structured report to quality-analyzer
+4. quality-analyzer combines with linter/test results
+5. Orchestrator routes based on combined findings
+</invoked_by_go_code_reviewer>
 
-### Invoked by User
-```
+<invoked_by_user>
 Manual review request:
 1. User invokes: @pre-commit-review on path/to/file.go
 2. Receive detailed report
 3. User decides how to proceed
 4. User may invoke @refactoring or @code-designing for fixes
-```
+</invoked_by_user>
 
-## Review Scope
+</integration>
 
+<review_scope>
 **Primary Scope**: Changed code in commit
 - All modified lines
 - All new files
@@ -248,75 +258,75 @@ Manual review request:
 - Entire files containing modifications
 - Flag patterns/issues outside commit scope (in BROADER CONTEXT section)
 - Suggest broader refactoring opportunities if valuable
+</review_scope>
 
-## Advisory Nature
-
+<advisory_nature>
 **This review does NOT block commits.**
 
 Purpose:
-- ✅ Provide visibility into design quality
-- ✅ Offer concrete improvement suggestions with examples
-- ✅ Help maintain coding principles
-- ✅ Guide refactoring decisions
+- Provide visibility into design quality
+- Offer concrete improvement suggestions with examples
+- Help maintain coding principles
+- Guide refactoring decisions
 
 Caller (or user) decides:
 - Commit as-is (accept debt knowingly)
 - Fix critical debt before commit (bugs, major design issues)
 - Fix all debt before commit (comprehensive cleanup)
 - Expand scope to broader refactor (when broader context issues found)
+</advisory_nature>
 
-## Finding Categories
+<finding_categories>
 
-Findings are categorized by technical debt type and severity:
-
-### 🐛 Bugs
+<bugs severity="critical">
 **Will cause runtime failures or correctness issues**
 - Nil dereferences, ignored errors, resource leaks
 - Invalid nil returns, race conditions
 - Fix immediately before any other work
+</bugs>
 
-### 🔴 Design Debt
+<design_debt severity="high">
 **Will cause pain when extending/modifying code**
 - Primitive obsession, missing domain types
 - Non-self-validating types
 - Wrong architecture (horizontal vs vertical)
 - Fix before commit recommended
+</design_debt>
 
-### 🟡 Readability Debt
+<readability_debt severity="medium">
 **Makes code harder to understand and work with**
 - Mixed abstraction levels, not storified
 - Functions too long or complex
 - Poor naming, unclear intent
 - Fix improves team productivity
+</readability_debt>
 
-### 🟢 Polish Opportunities
+<polish severity="low">
 **Minor improvements for consistency and quality**
 - Non-idiomatic naming, missing examples
 - Comment improvements, minor refactoring
 - Low priority, nice to have
+</polish>
 
-**See [reference.md](./reference.md) for detailed principles and examples for each category**
+See [reference.md](./reference.md) for detailed principles and examples for each category.
+</finding_categories>
 
-## Key Capabilities
+<success_criteria>
+**Code Quality Analysis Performed:**
+- [ ] Read every function - does it read like a story? (single abstraction level)
+- [ ] Checked all functions for mixed abstraction levels (storifying needed?)
+- [ ] Evaluated primitives for primitive obsession (juiciness test applied)
+- [ ] Assessed types for self-validation (defensive code in methods?)
+- [ ] Reviewed comment quality (explaining WHY not WHAT?)
+- [ ] Checked file structure (too long? too many types?)
+- [ ] Searched for missing domain concepts (implicit types that should be explicit)
+- [ ] Validated test quality (weak assertions? conditionals in tests? mock overuse?)
+- [ ] Scanned for design bugs (nil deref, ignored errors, resource leaks)
 
-**Detects 8 Issue Categories:**
-1. Primitive Obsession - with juiciness scoring algorithm
-2. Storifying - detects mixed abstraction levels
-3. Missing Domain Concepts - identifies implicit types
-4. Self-Validating Types - finds defensive code patterns
-5. Comment Quality - analyzes what vs why
-6. File Structure - checks size and responsibility boundaries
-7. Testing Approach - validates test structure and quality
-8. Design Bugs - catches common runtime issues
-
-**For complete detection patterns and examples, see [reference.md](./reference.md)**
-**For real-world review scenarios, see [examples.md](./examples.md)**
-
-## Integration with Orchestrator
-
-This skill is automatically invoked by @linter-driven-development workflow:
-- **Phase 4**: Design review after linter passes
-- **Iterative**: Re-invoked after fixes until clean or user accepts debt
-- **Advisory**: Never blocks, always presents options
-
-See [linter-driven-development workflow](../linter-driven-development/SKILL.md) for complete flow.
+**Report Quality:**
+- [ ] All findings categorized by severity (Bugs, Design Debt, Readability Debt, Polish)
+- [ ] Each finding includes: file:line, issue, why it matters, fix strategy, effort estimate
+- [ ] Structured format parseable by orchestrator
+- [ ] Clear distinction between bugs (fix immediately) and advisory findings
+- [ ] Incremental mode accurately tracks fixed, remaining, and new issues
+</success_criteria>

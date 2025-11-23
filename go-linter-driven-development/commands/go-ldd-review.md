@@ -1,9 +1,22 @@
 ---
 name: go-ldd-review
 description: Check if code is commit-ready (final verification, no auto-fix)
+argument-hint: "[file_pattern]"
+allowed-tools:
+  - Read
+  - Grep
+  - Bash
+  - Task
 ---
 
 Run final verification checks **without** the auto-fix loop.
+
+> **🔍 READ-ONLY COMMAND**
+> This command performs verification only and makes NO changes to your code.
+> For auto-fix capability, use `/go-ldd-quickfix` instead.
+
+!`git status --porcelain`
+!`git diff --stat`
 
 Execute these steps:
 

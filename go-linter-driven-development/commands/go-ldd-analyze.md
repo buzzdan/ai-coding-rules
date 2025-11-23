@@ -1,11 +1,19 @@
 ---
 name: go-ldd-analyze
 description: Run quality analysis only - invoke quality-analyzer agent and display combined report without auto-fixing
+argument-hint: "[file_pattern]"
+allowed-tools:
+  - Read
+  - Grep
+  - Bash
+  - Task
 ---
 
 Run comprehensive quality analysis with intelligent combining of test results, linter findings, and code review feedback.
 
-**This command does NOT auto-fix anything** - it provides read-only analysis with overlapping issue detection and root cause analysis.
+> **🔍 READ-ONLY COMMAND**
+> This command performs analysis only and makes NO changes to your code.
+> For auto-fix capability, use `/go-ldd-quickfix` instead.
 
 Execute these steps:
 
@@ -35,15 +43,21 @@ Search project documentation to find test and lint commands:
    - Test: `go test ./...`
    - Lint: `golangci-lint run --fix`
 
-## Step 2: Identify Changed Files
+## Step 2: Identify Files to Analyze
 
-Use git to find files that have changed:
+!`git status --porcelain`
+!`git diff --name-only --diff-filter=ACMR HEAD`
 
-```bash
-git diff --name-only --diff-filter=ACMR HEAD | grep '\.go$'
-```
+**If arguments provided** (`$ARGUMENTS`):
+- Use as file pattern (e.g., `./pkg/parser/*.go`, `./pkg/parser/`)
+- Validate files exist with glob/ls
 
-If no git repository or no changes, analyze all `.go` files in the project (excluding vendor/, testdata/).
+**Otherwise** (default behavior):
+- Use git to find changed files:
+  ```bash
+  git diff --name-only --diff-filter=ACMR HEAD | grep '\.go$'
+  ```
+- If no git repository or no changes, analyze all `.go` files in the project (excluding vendor/, testdata/)
 
 ## Step 3: Invoke Quality Analyzer Agent
 
@@ -89,7 +103,14 @@ The agent returns:
 ## Example Usage
 
 ```bash
+# Analyze all changed files (default)
 /go-ldd-analyze
+
+# Analyze specific package
+/go-ldd-analyze ./pkg/parser/
+
+# Analyze specific file
+/go-ldd-analyze ./pkg/parser/parser.go
 ```
 
 This will:

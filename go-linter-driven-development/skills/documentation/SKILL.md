@@ -1,42 +1,60 @@
 ---
 name: documentation
-description: Creates comprehensive feature documentation for humans and AI to understand features, resolve bugs, and extend functionality. Use after complete feature implementation (may span multiple commits). Generates feature docs, updates godoc, and creates testable examples.
+description: |
+  Creates comprehensive feature documentation for humans and AI to understand features, resolve bugs, and extend functionality.
+  Use after complete feature implementation (may span multiple commits).
+  Generates feature docs, updates godoc, and creates testable examples.
 ---
 
-# Feature Documentation
-
+<objective>
 Creates comprehensive feature documentation for humans and AI to use for
 future bug resolution, feature extensions, and codebase understanding.
 
-## When to Use
+This is NOT a changelog - it's an introduction to the feature.
+
+**Reference**: See `reference.md` for complete documentation checklist and examples.
+</objective>
+
+<quick_start>
+1. **Understand feature scope** - Review all commits related to the feature
+2. **Analyze architecture** - Identify core types, data flow, design decisions
+3. **Generate docs/[feature-name].md** - Problem/solution, architecture, usage
+4. **Update package godoc** - Reflect feature's role
+5. **Add type documentation** - Explain purpose and design decisions
+6. **Create testable examples** - Example_* functions for complex types
+7. **Validate** - Can future you/AI understand the feature without reading all code?
+</quick_start>
+
+<when_to_use>
 - After a complete feature is implemented (may span multiple commits)
 - When adding significant new functionality to the codebase
 - NOT for: individual commits, bug fixes, minor refactors
+</when_to_use>
 
-## Purpose
+<purpose>
 Generate documentation that helps:
 - **Humans**: Understand what the feature does and how to use it
 - **AI**: Context for future bug fixes and feature extensions
 - **Team**: Onboarding and knowledge sharing
+</purpose>
 
-This is NOT a changelog - it's an introduction to the feature.
+<workflow>
 
-## Workflow
-
-### 1. Understand Feature Scope
+<understand_feature_scope>
 - Review all commits related to the feature
 - Identify all modified/new files
 - Understand the problem being solved
 - Map out integration points with existing system
+</understand_feature_scope>
 
-### 2. Analyze Architecture
+<analyze_architecture>
 - Identify core domain types
 - Map data/control flow
 - Document design decisions (WHY choices were made)
 - Note patterns used (vertical slice, self-validating types, etc.)
+</analyze_architecture>
 
-### 3. Generate Documentation Artifacts
-
+<generate_documentation_artifacts>
 **Primary: Feature Documentation** (`docs/[feature-name].md`)
 - Problem & solution: What problem does this solve?
 - Architecture: How does it work?
@@ -47,15 +65,18 @@ This is NOT a changelog - it's an introduction to the feature.
 - Update package godoc to reflect feature's role
 - Add godoc to key types explaining their purpose
 - Create testable examples (Example_* functions) when helpful
+</generate_documentation_artifacts>
 
-### 4. Validate Documentation
+<validate_documentation>
 - Can someone unfamiliar understand the feature?
 - Can AI use this for bug fixes without reading all code?
 - Are design decisions clearly explained?
 - Are integration points documented?
+</validate_documentation>
 
-## Documentation Template
+</workflow>
 
+<documentation_template>
 ```markdown
 # [Feature Name]
 
@@ -77,10 +98,8 @@ This is NOT a changelog - it's an introduction to the feature.
   - Example: "Vertical slice structure groups all user logic together for easier maintenance"
 
 ### Data Flow
-```
 [Step-by-step flow diagram or description]
 Input → Validation → Processing → Storage → Output
-```
 
 ### Integration Points
 - **Consumed by**: [What uses this feature]
@@ -90,24 +109,10 @@ Input → Validation → Processing → Storage → Output
 ## Usage
 
 ### Basic Usage
-```go
-// Common case example
-package main
-
-func example() {
-    // Real, runnable code
-}
-```
+[Common case example with real, runnable code]
 
 ### Advanced Scenarios
-```go
-// Complex case example
-package main
-
-func advancedExample() {
-    // Real, runnable code showing edge cases
-}
-```
+[Complex case example showing edge cases]
 
 ## Testing Strategy
 - **Unit Tests**: [What's covered, approach]
@@ -124,10 +129,11 @@ func advancedExample() {
 - [External documentation]
 - [Design patterns used]
 ```
+</documentation_template>
 
-## Code Comment Guidelines
+<code_comment_guidelines>
 
-**Package-Level Documentation:**
+<package_level_documentation>
 ```go
 // Package [name] provides [high-level purpose].
 //
@@ -145,8 +151,9 @@ func advancedExample() {
 //   - [Why certain patterns were used]
 package name
 ```
+</package_level_documentation>
 
-**Type-Level Documentation:**
+<type_level_documentation>
 ```go
 // TypeName represents [domain concept].
 //
@@ -163,8 +170,9 @@ type TypeName struct {
     // ...
 }
 ```
+</type_level_documentation>
 
-**Testable Examples:**
+<testable_examples>
 ```go
 // Example_TypeName_Usage demonstrates typical usage of TypeName.
 func Example_TypeName_Usage() {
@@ -180,23 +188,25 @@ func Example_TypeName_Validation() {
     // Output: true
 }
 ```
+</testable_examples>
 
-## Output Format
+</code_comment_guidelines>
 
+<output_format>
 After generating documentation:
 
 ```
-📚 FEATURE DOCUMENTATION COMPLETE
+FEATURE DOCUMENTATION COMPLETE
 
 Feature: [Feature Name]
 
 Generated Artifacts:
-✅ docs/[feature-name].md (created)
-✅ Package godoc updated in [package]/[file].go
-✅ Type documentation for:
+- docs/[feature-name].md (created)
+- Package godoc updated in [package]/[file].go
+- Type documentation for:
    - TypeName1 ([file]:line)
    - TypeName2 ([file]:line)
-✅ Testable examples:
+- Testable examples:
    - Example_TypeName1_Usage
    - Example_TypeName2_Validation
 
@@ -210,7 +220,7 @@ Documentation covers:
 - Testing strategy
 - Future considerations
 
-📝 Next Steps:
+Next Steps:
 1. Review docs/[feature-name].md for accuracy
 2. Run `go test` to verify testable examples execute correctly
 3. Consider: Does this help future you/AI understand the feature?
@@ -221,9 +231,9 @@ Would you like to:
 3. Add more examples
 4. Add testable examples to code
 ```
+</output_format>
 
-## Key Principles
-
+<key_principles>
 **Documentation is NOT:**
 - A changelog of commits
 - Implementation details without context
@@ -244,3 +254,16 @@ When AI tools read this documentation for bug fixes or extensions:
 - They should see how it integrates with the system
 
 See reference.md for complete documentation checklist and examples.
+</key_principles>
+
+<success_criteria>
+Documentation is complete when ALL of the following are true:
+
+- [ ] Feature doc created at docs/[feature-name].md with all sections
+- [ ] Package godoc updated to reflect feature's role
+- [ ] Key types have godoc explaining purpose and design decisions
+- [ ] Testable examples created for complex/core types
+- [ ] Someone unfamiliar can understand the feature
+- [ ] AI can use this for bug fixes without reading all code
+- [ ] Design decisions are clearly explained with rationale
+</success_criteria>
