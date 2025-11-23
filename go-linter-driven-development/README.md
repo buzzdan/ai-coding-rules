@@ -40,11 +40,159 @@ The secret? **Intelligent combining.** When your linter says "complexity 18" and
 
 **Five slash commands** for quick access:
 
-- `/go-ldd-autopilot` - Full workflow from design to commit
-- `/go-ldd-quickfix` - Quality gates loop with auto-fix
-- `/go-ldd-analyze` - Quality analysis only (read-only)
-- `/go-ldd-review` - Final verification (read-only)
-- `/go-ldd-status` - Show current progress
+| Command | Description | Duration | File Targeting |
+|---------|-------------|----------|----------------|
+| `/go-ldd-autopilot` | Full workflow from design to commit | 5-15 min | - |
+| `/go-ldd-quickfix [files]` | Quality gates loop with auto-fix | 2-5 min | ✅ Optional |
+| `/go-ldd-analyze [files]` | 🔍 Quality analysis only (read-only) | 1-2 min | ✅ Optional |
+| `/go-ldd-review [files]` | 🔍 Final verification (read-only) | 30-60 sec | ✅ Optional |
+| `/go-ldd-status` | Show current progress | Instant | - |
+
+## Architecture: Who Calls Who
+
+This diagram shows the complete call hierarchy of the plugin - commands, skills, and agents:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              SLASH COMMANDS (Entry Points)                       │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  /go-ldd-autopilot ─────┐                                                       │
+│  (Full Phase 1-5)       │                                                       │
+│                         ├──────▶ @linter-driven-development SKILL               │
+│  /go-ldd-quickfix ──────┘        (ORCHESTRATOR)                                 │
+│  (Phase 2-4 only)                      │                                        │
+│                                        ▼                                        │
+│  /go-ldd-analyze ──────────────▶ quality-analyzer AGENT ◀────────────────┐     │
+│  (Read-only analysis)                                                     │     │
+│                                                                           │     │
+│  /go-ldd-review ───────────────▶ [Parallel: Bash + go-code-reviewer]     │     │
+│  (Final verification)                                                     │     │
+│                                                                           │     │
+│  /go-ldd-status ───────────────▶ [Status display - no agents]            │     │
+│                                                                           │     │
+└───────────────────────────────────────────────────────────────────────────┼─────┘
+                                                                            │
+┌───────────────────────────────────────────────────────────────────────────┼─────┐
+│                     @linter-driven-development SKILL                      │     │
+│                           (Main Orchestrator)                             │     │
+├───────────────────────────────────────────────────────────────────────────┼─────┤
+│                                                                           │     │
+│  Phase 1: Pre-Flight ───▶ @code-designing SKILL (design phase)           │     │
+│                     └───▶ @testing SKILL (test-first)                    │     │
+│                                                                           │     │
+│  Phase 2: Analysis ─────▶ quality-analyzer AGENT ─────────────────────────┘     │
+│  (Full Mode)                    │                                               │
+│                                 │                                               │
+│  Phase 3: Fix Loop ─────▶ quality-analyzer AGENT (Incremental Mode)            │
+│                     └───▶ @refactoring SKILL (apply fixes)                     │
+│                                                                                 │
+│  Phase 4: Docs ─────────▶ @documentation SKILL                                 │
+│                                                                                 │
+│  Phase 5: Commit Ready ─▶ [Generate summary + options]                         │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          quality-analyzer AGENT                                  │
+│                      (Parallel Quality Gate Orchestrator)                        │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  Executes 3 tools IN PARALLEL (single message):                                 │
+│                                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────────┐               │
+│  │ Bash         │  │ Bash         │  │ Task                    │               │
+│  │ (tests)      │  │ (linter)     │  │ go-code-reviewer AGENT  │               │
+│  │              │  │              │  │                         │               │
+│  │ go test ./...│  │ golangci-lint│  │ Design debt analysis    │               │
+│  └──────────────┘  └──────────────┘  └───────────┬─────────────┘               │
+│         │                │                        │                             │
+│         └────────────────┼────────────────────────┘                             │
+│                          ▼                                                      │
+│              ┌─────────────────────────┐                                        │
+│              │ Normalize + Combine     │                                        │
+│              │ Find Overlapping Issues │                                        │
+│              │ Root Cause Analysis     │                                        │
+│              │ Prioritized Report      │                                        │
+│              └─────────────────────────┘                                        │
+│                          │                                                      │
+│                          ▼                                                      │
+│  Returns: TOOLS_UNAVAILABLE | TEST_FAILURE | ISSUES_FOUND | CLEAN_STATE        │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          go-code-reviewer AGENT                                  │
+│                       (Design-Focused Code Analysis)                             │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  Tools Used:                    Skill Loaded:                                   │
+│  ┌──────────┐ ┌──────────┐     ┌────────────────────────┐                      │
+│  │ Read     │ │ Grep     │ ──▶ │ @pre-commit-review     │                      │
+│  │ (files)  │ │ (usage)  │     │ SKILL (guidance)       │                      │
+│  └──────────┘ └──────────┘     └────────────────────────┘                      │
+│                                          │                                      │
+│                                          ▼                                      │
+│  Detects (what linters can't):                                                  │
+│  🐛 Bugs: nil deref, ignored errors, resource leaks, race conditions           │
+│  🔴 Design: primitive obsession, non-self-validating types, wrong architecture │
+│  🟡 Readability: mixed abstraction, poor naming, comment quality               │
+│  🟢 Polish: non-idiomatic naming, missing godoc examples                       │
+│                                                                                  │
+│  Returns: Structured report with file:line, category, effort estimates         │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Component Summary
+
+| Component | Type | Calls | Called By |
+|-----------|------|-------|-----------|
+| `/go-ldd-autopilot` | Command | @linter-driven-development | User |
+| `/go-ldd-quickfix` | Command | @linter-driven-development (phases 2-4) | User |
+| `/go-ldd-analyze` | Command | quality-analyzer agent | User |
+| `/go-ldd-review` | Command | Bash (×2) + go-code-reviewer | User |
+| `/go-ldd-status` | Command | (none) | User |
+| `@linter-driven-development` | Skill | 5 skills + quality-analyzer agent | Commands |
+| `quality-analyzer` | Agent | go-code-reviewer + Bash (×2) | Skill, Commands |
+| `go-code-reviewer` | Agent | @pre-commit-review (guidance) | quality-analyzer |
+| `@code-designing` | Skill | - | @linter-driven-development |
+| `@testing` | Skill | - | @linter-driven-development |
+| `@refactoring` | Skill | - | @linter-driven-development |
+| `@documentation` | Skill | - | @linter-driven-development |
+| `@pre-commit-review` | Skill | - | go-code-reviewer (guidance) |
+
+## How Auto-Detection Works
+
+When you request Go code work (e.g., "implement feature X", "fix bug in handler.go"), Claude will detect that the linter-driven-development skill applies and **ask for permission**:
+
+```
+Use skill "go-linter-driven-development:linter-driven-development"?
+Claude may use instructions, code, or files from this Skill.
+
+Do you want to proceed?
+❯ 1. Yes
+  2. Yes, and don't ask again for this skill in [current-directory]
+  3. No, and tell Claude what to do differently
+```
+
+**Recommended:** Select option 2 on first use. After that, the skill will run automatically in that directory without asking again—giving you a seamless experience while maintaining control.
+
+**Triggers auto-detection:**
+- Action verbs: `implement`, `fix`, `build`, `add`, `refactor`, `update`, `change`, `modify`
+- Working in Go project (detects `go.mod` or `.go` files)
+
+**Example workflow:**
+```bash
+# First time in a project
+You: "implement the auth feature"
+Claude: [Asks permission]
+You: "Yes, and don't ask again" ✓
+
+# All subsequent times
+You: "fix bug in handler.go"
+Claude: "Using go-ldd workflow..." → Runs immediately
+```
 
 ## TL;DR - Should I Use This?
 
@@ -195,27 +343,40 @@ You just implement your feature. The plugin handles quality gates.
 
 If you prefer explicit commands over automatic detection, use these:
 
-| Command | Perfect For | What It Does | Auto-Fix? |
-|---------|------------|--------------|-----------|
-| `/go-ldd-autopilot` | New feature from scratch | Full workflow: design → implement → fix → document → commit | ✅ Yes |
-| `/go-ldd-quickfix` | Existing code needs cleanup | Skips implementation, just runs quality gates and fixes | ✅ Yes |
-| `/go-ldd-analyze` | "What's wrong with my code?" | Analysis report only, no changes made | ❌ No |
-| `/go-ldd-review` | Pre-commit sanity check | Quick verification: are we green? | ❌ No |
-| `/go-ldd-status` | "Where are we?" | Shows current progress in workflow | N/A |
+| Command | Perfect For | What It Does | Auto-Fix? | Duration |
+|---------|------------|--------------|-----------|----------|
+| `/go-ldd-autopilot` | New feature from scratch | Full workflow: design → implement → fix → document → commit | ✅ Yes | 5-15 min |
+| `/go-ldd-quickfix [files]` | Existing code needs cleanup | Skips implementation, just runs quality gates and fixes | ✅ Yes | 2-5 min |
+| `/go-ldd-analyze [files]` | "What's wrong with my code?" | 🔍 Analysis report only, no changes made | ❌ No | 1-2 min |
+| `/go-ldd-review [files]` | Pre-commit sanity check | 🔍 Quick verification: are we green? | ❌ No | 30-60 sec |
+| `/go-ldd-status` | "Where are we?" | Shows current progress + suggests next steps | N/A | Instant |
+
+**File targeting:** Commands marked with `[files]` accept optional file patterns to analyze specific files instead of all git changes:
+
+```bash
+# Analyze specific package
+/go-ldd-analyze ./pkg/parser/
+
+# Fix issues in specific file only
+/go-ldd-quickfix ./pkg/handler.go
+
+# Review single file before commit
+/go-ldd-review ./cmd/main.go
+```
 
 **Which one should I use?**
 
 ```bash
-# Starting fresh? Full autopilot
+# Starting fresh? Full autopilot (5-15 min)
 /go-ldd-autopilot
 
-# Code is written, just needs to pass linter/tests?
+# Code is written, just needs to pass linter/tests? (2-5 min)
 /go-ldd-quickfix
 
-# Want to see what's wrong before deciding whether to fix?
+# Want to see what's wrong before deciding whether to fix? (1-2 min)
 /go-ldd-analyze
 
-# About to commit, want one final check?
+# About to commit, want one final check? (30-60 sec)
 /go-ldd-review
 
 # Lost track of where we are in a complex feature?

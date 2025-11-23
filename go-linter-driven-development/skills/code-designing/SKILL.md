@@ -1,40 +1,58 @@
 ---
 name: code-designing
-description: Domain type design and architectural planning for Go code. Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types. Focuses on vertical slice architecture and type safety.
+description: |
+  Domain type design and architectural planning for Go code.
+  Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
+  Focuses on vertical slice architecture and type safety.
 ---
 
-# Code Designing
-
+<objective>
 Domain type design and architectural planning for Go code.
 Use when planning new features or identifying need for new types during refactoring.
 
-## When to Use
+**Reference**: See `reference.md` for complete design principles and examples.
+</objective>
+
+<quick_start>
+1. **Analyze Architecture**: Check for vertical vs horizontal slicing
+2. **Understand Domain**: Identify problem domain, concepts, invariants
+3. **Identify Core Types**: Find primitives that need type wrappers
+4. **Design Self-Validating Types**: Create types with validating constructors
+5. **Plan Package Structure**: Vertical slices by feature
+6. **Output Design Plan**: Present structured plan before implementation
+
+Ready to implement? Use @testing skill for test structure.
+</quick_start>
+
+<when_to_use>
 - Planning a new feature (before writing code)
 - Refactoring reveals need for new types (complexity extraction)
 - Linter failures suggest types should be introduced
 - When you need to think through domain modeling
+</when_to_use>
 
-## Purpose
+<purpose>
 Design clean, self-validating types that:
 - Prevent primitive obsession
 - Ensure type safety
 - Make validation explicit
 - Follow vertical slice architecture
+</purpose>
 
-## Workflow
+<workflow>
 
-### 0. Architecture Pattern Analysis (FIRST STEP)
-
+<architecture_pattern_analysis priority="FIRST_STEP">
 **Default: Always use vertical slice architecture** (feature-first, not layer-first).
 
 Scan codebase structure:
-- **Vertical slicing**: `internal/feature/{handler,service,repository,models}.go` ✅
-- **Horizontal layering**: `internal/{handlers,services,domain}/feature.go` ⚠️
+- **Vertical slicing**: `internal/feature/{handler,service,repository,models}.go`
+- **Horizontal layering**: `internal/{handlers,services,domain}/feature.go`
 
-**Decision Flow**:
+<decision_flow>
 1. **Pure vertical** → Continue pattern, implement as `internal/[new-feature]/`
 2. **Pure horizontal** → Propose: Start migration with `docs/architecture/vertical-slice-migration.md`, implement new feature as first vertical slice
 3. **Mixed (migrating)** → Check for migration docs, continue pattern as vertical slice
+</decision_flow>
 
 **Always ask user approval with options:**
 - Option A: Vertical slice (recommended for cohesion/maintainability)
@@ -51,16 +69,16 @@ Scan codebase structure:
 ```
 
 See reference.md section #3 for detailed patterns.
+</architecture_pattern_analysis>
 
----
-
-### 1. Understand Domain
+<understand_domain>
 - What is the problem domain?
 - What are the main concepts/entities?
 - What are the invariants and rules?
 - How does this fit into existing architecture?
+</understand_domain>
 
-### 2. Identify Core Types
+<identify_core_types>
 Ask for each concept:
 - Is this currently a primitive (string, int, float)?
 - Does it have validation rules?
@@ -68,8 +86,9 @@ Ask for each concept:
 - Is it used across multiple places?
 
 If yes to any → Consider creating a type
+</identify_core_types>
 
-### 3. Design Self-Validating Types
+<design_self_validating_types>
 For each type:
 ```go
 // Type definition
@@ -89,8 +108,9 @@ func (t TypeName) SomeMethod() result {
     // Type-specific logic
 }
 ```
+</design_self_validating_types>
 
-### 4. Plan Package Structure
+<plan_package_structure>
 - **Vertical slices**: Group by feature, not layer
 - Each feature gets its own package
 - Within package: separate by role (service, repository, handler)
@@ -110,8 +130,9 @@ domain/user.go
 services/user_service.go
 repository/user_repository.go
 ```
+</plan_package_structure>
 
-### 5. Design Orchestrating Types
+<design_orchestrating_types>
 For types that coordinate others:
 - Make fields private
 - Validate dependencies in constructor
@@ -142,36 +163,39 @@ func (s *Service) DoSomething() error {
     return s.repo.Save(...)
 }
 ```
+</design_orchestrating_types>
 
-### 6. Review Against Principles
+<review_against_principles>
 Check design against (see reference.md):
 - [ ] No primitive obsession
 - [ ] Types are self-validating
 - [ ] Vertical slice architecture
 - [ ] Types designed around intent, not just shape
 - [ ] Clear separation of concerns
+</review_against_principles>
 
-## Output Format
+</workflow>
 
+<output_format>
 After design phase:
 
 ```
-🎨 DESIGN PLAN
+DESIGN PLAN
 
 Feature: [Feature Name]
 
 Core Domain Types:
-✅ UserID (string) - Self-validating, prevents empty IDs
-✅ Email (string) - Self-validating, RFC 5322 validation
-✅ Age (int) - Self-validating, range 0-150
+- UserID (string) - Self-validating, prevents empty IDs
+- Email (string) - Self-validating, RFC 5322 validation
+- Age (int) - Self-validating, range 0-150
 
 Orchestrating Types:
-✅ UserService - Coordinates user operations
+- UserService - Coordinates user operations
    Dependencies: Repository, Notifier
    Methods: CreateUser, GetUser, UpdateUser
 
 Package Structure:
-📁 user/
+user/
   ├── user.go          # UserID, Email, Age, User
   ├── service.go       # UserService
   ├── repository.go    # Repository interface + implementations
@@ -197,18 +221,18 @@ Next Steps:
 
 Ready to implement? Use @testing skill for test structure.
 ```
+</output_format>
 
-## Key Principles
-
+<key_principles>
 See reference.md for detailed principles:
 - Primitive obsession prevention (Yoke design strategy)
 - Self-validating types
 - Vertical slice architecture
 - Types around intent and behavior, not just shape
 - Single responsibility per type
+</key_principles>
 
-## Pre-Code Review Questions
-
+<pre_code_review>
 Before writing code, ask:
 - Can logic be moved into smaller custom types?
 - Is this type designed around intent and behavior?
@@ -219,3 +243,16 @@ Before writing code, ask:
 Only after satisfactory answers, proceed to implementation.
 
 See reference.md for complete design principles and examples.
+</pre_code_review>
+
+<success_criteria>
+Design phase is complete when ALL of the following are true:
+
+- [ ] Architecture pattern analyzed (vertical/horizontal/mixed)
+- [ ] Core domain types identified with validation rules
+- [ ] Self-validating type design documented
+- [ ] Package structure follows vertical slice pattern
+- [ ] Design decisions documented with rationale
+- [ ] Pre-code review questions answered satisfactorily
+- [ ] Design plan output presented to user
+</success_criteria>

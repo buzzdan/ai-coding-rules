@@ -1,7 +1,13 @@
 ---
 name: go-ldd-status
 description: Show current workflow status and progress
+allowed-tools:
+  - Read
+  - Bash(git *)
 ---
+
+!`git status --porcelain`
+!`git diff --stat`
 
 Display current implementation status:
 
@@ -20,5 +26,13 @@ Display current implementation status:
 
 🎯 Next Action:
   [What happens next in the workflow]
+
+## Suggested Next Steps
+
+Based on current status:
+- **Tests failing?** → Fix tests, then run `/go-ldd-analyze`
+- **Linter errors?** → Run `/go-ldd-quickfix` for auto-fix loop
+- **Code complete?** → Run `/go-ldd-review` for commit readiness check
+- **Starting new work?** → Run `/go-ldd-autopilot` for full workflow
 
 Perfect for: "where are we?", "what's the status?", "what's next?"
