@@ -4,6 +4,8 @@ description: |
   Domain type design and architectural planning for Go code.
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
   Focuses on vertical slice architecture and type safety.
+allowed-tools:
+  - Skill(go-linter-driven-development:testing)
 ---
 
 <objective>
