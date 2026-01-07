@@ -4,6 +4,12 @@ description: |
   WHEN: User requests Go code work (implement, fix, add, refactor) or mentions @ldd in a Go project.
   Orchestrates complete workflow (Phases 1-5): design → test → implement → lint → fix → documentation.
   Auto-triggers parallel quality analysis and iterative fix loop until code is commit-ready.
+allowed-tools:
+  - Skill(go-linter-driven-development:code-designing)
+  - Skill(go-linter-driven-development:testing)
+  - Skill(go-linter-driven-development:refactoring)
+  - Skill(go-linter-driven-development:documentation)
+  - Task
 ---
 
 <objective>

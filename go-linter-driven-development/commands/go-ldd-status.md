@@ -1,6 +1,7 @@
 ---
 name: go-ldd-status
 description: Show current workflow status and progress
+argument-hint: ""
 allowed-tools:
   - Read
   - Bash(git *)
