@@ -94,7 +94,7 @@ Tool Call 3 (Reviewer): Task
 
 **Independence Guarantee:**
 - Tests and reviewer operate on READ-ONLY codebase state
-- Linter with `--fix` MAY modify files (autofix, autoformatting)
+- Linter with `--fix` MAY modify files (autofix, autoformatting) - track via `git status`
 - Tools can execute in any order without dependency
 - Results collected when ALL tools complete (barrier synchronization)
 

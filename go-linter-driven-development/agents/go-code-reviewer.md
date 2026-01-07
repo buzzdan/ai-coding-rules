@@ -280,7 +280,7 @@ UserID string validation:
 
 <constraints>
 
-❌ **Do NOT invoke other skills** (@refactoring, @code-designing, @testing) — exception: @pre-commit-review is auto-loaded for guidance
+❌ **Do NOT invoke other skills** (@refactoring, @code-designing, @testing) - exception: @pre-commit-review is auto-loaded for guidance
 ❌ **Do NOT make code changes** (you are read-only)
 ❌ **Do NOT run linter** (orchestrator handles this)
 ❌ **Do NOT run tests** (orchestrator handles this)
