@@ -1,269 +1,187 @@
 ---
 name: documentation
 description: |
-  Creates comprehensive feature documentation for humans and AI to understand features, resolve bugs, and extend functionality.
-  Use after complete feature implementation (may span multiple commits).
-  Generates feature docs, updates godoc, and creates testable examples.
+  Creates concise, behavior-focused documentation for humans and AI.
+  Use after feature implementation OR bug fixes to document HOW THE PRODUCT BEHAVES.
+  NOT a changelog - documents current behavior, not change history.
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Write
+  - Edit
+  - mcp__ide__getDiagnostics
 ---
 
 <objective>
-Creates comprehensive feature documentation for humans and AI to use for
-future bug resolution, feature extensions, and codebase understanding.
+Creates concise, behavior-focused documentation that answers: **"How does this product/feature work?"**
 
-This is NOT a changelog - it's an introduction to the feature.
+This is NOT a changelog - it's an introduction to current product behavior.
 
-**Reference**: See `reference.md` for complete documentation checklist and examples.
+**Reference**: See `reference.md` for templates, checklists, and examples.
 </objective>
+
+<philosophy>
+**The 5-Year Reader Test**: Someone reading this in 5 years doesn't care that "we fixed a bug where X happened" - they just want to know how X works NOW.
+
+**Behavior Over History**: Document what the product DOES, not what changed. When readers come back later, they need to understand current behavior, not archaeology.
+
+**Conciseness Over Completeness**: A focused doc that gets read beats an exhaustive doc that gets skipped. Document what matters for understanding and usage.
+
+**Layered Documentation**: Different scopes need different docs. System-level overviews, project guides, feature docs, and code comments each serve distinct purposes. See reference.md for layer definitions.
+
+**Documentation IS**: Explaining WHY decisions were made, providing context for future changes, showing how pieces fit together, helping both humans and AI understand intent.
+
+**Documentation is NOT**: A changelog of commits, implementation details without context, API reference without explanation.
+</philosophy>
+
+<when_to_use>
+**Features**: After implementing significant new functionality (may span multiple commits)
+**Bug Fixes**: Update existing docs to reflect corrected behavior (don't add "bug fix" sections)
+**Refactors**: Only if external behavior or usage patterns changed
+
+**NOT for**: Individual commits, internal refactors that don't change behavior, changelog entries
+</when_to_use>
 
 <quick_start>
 1. **Understand feature scope** - Review all commits related to the feature
 2. **Analyze architecture** - Identify core types, data flow, design decisions
-3. **Generate docs/[feature-name].md** - Problem/solution, architecture, usage
-4. **Update package godoc** - Reflect feature's role
-5. **Add type documentation** - Explain purpose and design decisions
+3. **Generate docs/[feature-name].md** - Use template from reference.md
+4. **Update package godoc** - Use template from reference.md
+5. **Add type documentation** - Use template from reference.md
 6. **Create testable examples** - Example_* functions for complex types
-7. **Validate** - Can future you/AI understand the feature without reading all code?
+7. **Validate** - Run through checklists in reference.md
 </quick_start>
-
-<when_to_use>
-- After a complete feature is implemented (may span multiple commits)
-- When adding significant new functionality to the codebase
-- NOT for: individual commits, bug fixes, minor refactors
-</when_to_use>
-
-<purpose>
-Generate documentation that helps:
-- **Humans**: Understand what the feature does and how to use it
-- **AI**: Context for future bug fixes and feature extensions
-- **Team**: Onboarding and knowledge sharing
-</purpose>
 
 <workflow>
 
-<understand_feature_scope>
+<step_1_understand_scope>
 - Review all commits related to the feature
 - Identify all modified/new files
 - Understand the problem being solved
 - Map out integration points with existing system
-</understand_feature_scope>
+</step_1_understand_scope>
 
-<analyze_architecture>
+<step_2_analyze_architecture>
 - Identify core domain types
 - Map data/control flow
 - Document design decisions (WHY choices were made)
 - Note patterns used (vertical slice, self-validating types, etc.)
-</analyze_architecture>
+</step_2_analyze_architecture>
 
-<generate_documentation_artifacts>
-**Primary: Feature Documentation** (`docs/[feature-name].md`)
+<step_3_choose_documentation_layer>
+Before writing, decide where each piece of documentation belongs.
+
+**Decision Questions:**
+| Question | If Yes → |
+|----------|----------|
+| Does this affect how multiple features interact? | System docs |
+| Does this explain project setup, structure, or getting started? | Project docs |
+| Does this explain how ONE feature works? | Feature docs |
+| Does this explain ONE type/function's purpose? | Code docs |
+
+**The Overlap Rule:**
+- **Summarize up, detail down**: Higher layers summarize, lower layers elaborate
+- **Good overlap**: System doc mentions "auth uses JWT" → Feature doc explains JWT implementation
+- **Bad overlap**: Same paragraph copy-pasted across multiple docs (will drift)
+
+**Cross-Reference, Don't Duplicate:**
+- System doc: "See `docs/auth.md` for authentication details"
+- Feature doc: "See `UserID` godoc for validation rules"
+- Code doc: "See `docs/auth.md` for architectural context"
+
+See reference.md "Choosing Documentation Layer" for detailed decision tree.
+</step_3_choose_documentation_layer>
+
+<step_4_generate_feature_doc>
+Create `docs/[feature-name].md` using the template in reference.md.
+
+Cover:
 - Problem & solution: What problem does this solve?
+- **Key players**: Who are the main actors? (types, interfaces, services)
+- **Entry points**: Where does execution start? (handlers, commands, events)
 - Architecture: How does it work?
 - Usage examples: How do I use it?
 - Integration: How does it fit into the system?
 
-**Secondary: Code Comments**
-- Update package godoc to reflect feature's role
-- Add godoc to key types explaining their purpose
-- Create testable examples (Example_* functions) when helpful
-</generate_documentation_artifacts>
+**For bug fixes**: Don't create new docs. Update existing docs to reflect correct behavior.
+See reference.md "Bug Fix Documentation" guidelines.
+</step_4_generate_feature_doc>
 
-<validate_documentation>
+<step_5_update_code_documentation>
+Using templates from reference.md:
+
+1. **Package godoc** - Update to reflect feature's role
+2. **Type godoc** - Explain purpose, design decisions, constraints
+3. **Function godoc** - Only for non-obvious behavior
+4. **Testable examples** - Example_* functions for complex types
+
+Code docs should reference feature docs: `See docs/[feature].md for detailed architecture`
+</step_5_update_code_documentation>
+
+<step_6_validate>
+Run through the checklists in reference.md:
+- Feature documentation checklist
+- Code comments checklist
+- Quality gates (clarity, AI, maintenance, example tests)
+
+Key questions:
 - Can someone unfamiliar understand the feature?
 - Can AI use this for bug fixes without reading all code?
 - Are design decisions clearly explained?
 - Are integration points documented?
-</validate_documentation>
+</step_6_validate>
+
+<step_7_manage_size>
+If documentation grows too large (>500 lines), split into folder structure.
+See reference.md "Managing Documentation Size" for guidelines.
+</step_7_manage_size>
 
 </workflow>
-
-<documentation_template>
-```markdown
-# [Feature Name]
-
-## Problem & Solution
-**Problem**: [What user/system problem does this solve?]
-
-**Solution**: [High-level approach taken]
-
-## Architecture
-
-### Core Types
-- `TypeName` - [Purpose, why it exists, key responsibility]
-- `AnotherType` - [Purpose, why it exists, key responsibility]
-
-### Design Decisions
-- **Why [Decision]**: [Rationale - connects to coding principles]
-  - Example: "UserID is a custom type (not string) to avoid primitive obsession and ensure validation"
-- **Why [Pattern]**: [Rationale]
-  - Example: "Vertical slice structure groups all user logic together for easier maintenance"
-
-### Data Flow
-[Step-by-step flow diagram or description]
-Input → Validation → Processing → Storage → Output
-
-### Integration Points
-- **Consumed by**: [What uses this feature]
-- **Depends on**: [What this feature uses]
-- **Events/Hooks**: [If applicable]
-
-## Usage
-
-### Basic Usage
-[Common case example with real, runnable code]
-
-### Advanced Scenarios
-[Complex case example showing edge cases]
-
-## Testing Strategy
-- **Unit Tests**: [What's covered, approach]
-- **Integration Tests**: [What's covered, approach]
-- **Coverage**: [Percentage and rationale]
-
-## Future Considerations
-- [Known limitations]
-- [Potential extensions]
-- [Related features that might be built on this]
-
-## References
-- [Related packages]
-- [External documentation]
-- [Design patterns used]
-```
-</documentation_template>
-
-<code_comment_guidelines>
-
-<package_level_documentation>
-```go
-// Package [name] provides [high-level purpose].
-//
-// [2-3 sentences about what problem this solves and how]
-//
-// Core types:
-//   - Type1: [Purpose]
-//   - Type2: [Purpose]
-//
-// Example usage:
-//   [Simple example showing typical usage]
-//
-// Design notes:
-//   - [Key design decision]
-//   - [Why certain patterns were used]
-package name
-```
-</package_level_documentation>
-
-<type_level_documentation>
-```go
-// TypeName represents [domain concept].
-//
-// [Explain why this type exists - design decision]
-// [Explain validation rules if self-validating]
-// [Explain thread-safety if relevant]
-//
-// Example:
-//   id, err := NewUserID("usr_123")
-//   if err != nil {
-//       // handle validation error
-//   }
-type TypeName struct {
-    // ...
-}
-```
-</type_level_documentation>
-
-<testable_examples>
-```go
-// Example_TypeName_Usage demonstrates typical usage of TypeName.
-func Example_TypeName_Usage() {
-    id, _ := NewUserID("usr_123")
-    fmt.Println(id)
-    // Output: usr_123
-}
-
-// Example_TypeName_Validation shows validation behavior.
-func Example_TypeName_Validation() {
-    _, err := NewUserID("")
-    fmt.Println(err != nil)
-    // Output: true
-}
-```
-</testable_examples>
-
-</code_comment_guidelines>
 
 <output_format>
 After generating documentation:
 
 ```
-FEATURE DOCUMENTATION COMPLETE
+DOCUMENTATION COMPLETE
 
 Feature: [Feature Name]
 
 Generated Artifacts:
-- docs/[feature-name].md (created)
+- docs/[feature-name].md (created/updated)
 - Package godoc updated in [package]/[file].go
-- Type documentation for:
-   - TypeName1 ([file]:line)
-   - TypeName2 ([file]:line)
-- Testable examples:
-   - Example_TypeName1_Usage
-   - Example_TypeName2_Validation
+- Type documentation for: [list types]
+- Testable examples: [list Example_* functions]
 
-Documentation covers:
-- Problem & Solution overview
-- Architecture with design decisions
-- Core types: [list]
-- Data flow diagram
-- Integration points: [list]
-- Usage examples (basic + advanced)
-- Testing strategy
-- Future considerations
+Validation:
+- [ ] Feature doc checklist passed
+- [ ] Code comments checklist passed
+- [ ] Quality gates passed
 
 Next Steps:
 1. Review docs/[feature-name].md for accuracy
-2. Run `go test` to verify testable examples execute correctly
-3. Consider: Does this help future you/AI understand the feature?
-
-Would you like to:
-1. Commit documentation as-is
-2. Refine specific sections
-3. Add more examples
-4. Add testable examples to code
+2. Run `go test` to verify testable examples
+3. Commit documentation
 ```
 </output_format>
-
-<key_principles>
-**Documentation is NOT:**
-- A changelog of commits
-- Implementation details without context
-- API reference without explanation
-- Generated automatically without understanding
-
-**Documentation IS:**
-- Explaining WHY decisions were made
-- Providing context for future changes
-- Showing how pieces fit together
-- Helping both humans and AI understand intent
-
-**AI-Friendly Documentation:**
-When AI tools read this documentation for bug fixes or extensions:
-- They should understand the problem domain
-- They should know which types are central
-- They should understand design constraints
-- They should see how it integrates with the system
-
-See reference.md for complete documentation checklist and examples.
-</key_principles>
 
 <success_criteria>
 Documentation is complete when ALL of the following are true:
 
-- [ ] Feature doc created at docs/[feature-name].md with all sections
+**Content:**
+- [ ] Feature doc created/updated at docs/[feature-name].md
 - [ ] Package godoc updated to reflect feature's role
 - [ ] Key types have godoc explaining purpose and design decisions
 - [ ] Testable examples created for complex/core types
+
+**Quality:**
+- [ ] Describes current behavior (not history or changelogs)
 - [ ] Someone unfamiliar can understand the feature
 - [ ] AI can use this for bug fixes without reading all code
 - [ ] Design decisions are clearly explained with rationale
+
+**Maintainability:**
+- [ ] Doc stays focused and scannable (split if >500 lines)
+- [ ] No redundant information across layers
+- [ ] Cross-references between doc layers are clear
 </success_criteria>
