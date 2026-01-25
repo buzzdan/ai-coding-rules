@@ -10,6 +10,7 @@ allowed-tools:
   - Skill(go-linter-driven-development:refactoring)
   - Skill(go-linter-driven-development:documentation)
   - Task
+  - mcp__ide__getDiagnostics
 ---
 
 <objective>
@@ -27,6 +28,25 @@ Use for any commit: features, bug fixes, refactors.
 - User mentions "ldd" or "@ldd" (shorthand for linter-driven-development)
 - Working directory contains Go project (go.mod or .go files)
 </essential_principles>
+
+<skill_invocation>
+**CRITICAL**: When this skill says "Invoke @skill-name" or routes to "@skill-name", you MUST use the **Skill tool** explicitly.
+
+| Notation | Skill Tool Call |
+|----------|-----------------|
+| @code-designing | `Skill(go-linter-driven-development:code-designing)` |
+| @testing | `Skill(go-linter-driven-development:testing)` |
+| @refactoring | `Skill(go-linter-driven-development:refactoring)` |
+| @documentation | `Skill(go-linter-driven-development:documentation)` |
+
+**DO NOT** just reference the skill in your response - actually invoke it using the Skill tool.
+**DO NOT** read the skill file directly - use the Skill tool to load and execute it.
+
+Example: When Phase 1 says "Invoke @testing skill to WRITE tests", you must call:
+```
+Skill(go-linter-driven-development:testing)
+```
+</skill_invocation>
 
 <quick_start>
 **Immediate Action**: Run Pre-Flight Check, then execute phases sequentially until commit-ready.
@@ -81,8 +101,9 @@ Scan conversation history (last 50 messages) for step-by-step plan and which ste
 - Invoke @code-designing skill
 - Output: Type design plan with self-validating domain types
 
-**Write Tests First**:
-- Invoke @testing skill for guidance
+**Write Tests First** (MANDATORY):
+- Invoke @testing skill to WRITE tests (not just guidance)
+- Create test files for all new types/functions
 - Write table-driven tests or testify suites
 - Target: 100% coverage on new leaf types
 
@@ -90,6 +111,18 @@ Scan conversation history (last 50 messages) for step-by-step plan and which ste
 - Follow coding principles from coding_rules.md
 - Keep functions <50 LOC, max 2 nesting levels
 - Use self-validating types, prevent primitive obsession
+
+**Test Verification** (before proceeding):
+1. For each new type file created:
+   - Verify corresponding `*_test.go` exists
+   - Run: `go test -cover ./path/to/package`
+   - Verify: coverage > 0% (tests actually exercise code)
+2. For leaf types: warn if coverage < 80%
+
+**GATE**: DO NOT proceed to Phase 2 until:
+- [ ] Test files exist for all new types
+- [ ] `go test -cover` shows > 0% coverage for new packages
+- [ ] No "no test files" or "[no tests to run]" messages
 </phase>
 
 <phase name="2" title="Quality Analysis">
@@ -120,9 +153,45 @@ Max 10 iterations. If stuck, ask user for guidance.
 </phase>
 
 <phase name="3" title="Iterative Fix Loop">
+
+<linter_skill_routing>
+**Linter Error → Skill Routing Table**
+
+Route linter failures to the correct skill based on error type:
+
+| Linter Error | Route To | Pattern Priority |
+|--------------|----------|------------------|
+| `nestif` (deep nesting) | @refactoring | 1. Storify, 2. Early returns, 3. Extract function |
+| `argument-limit` (>4 params) | @code-designing | Create options struct type |
+| `function-result-limit` (>3 returns) | @code-designing | Create result type |
+| `confusing-results` | @code-designing | Create named result type |
+| `cyclop`/`gocognit` (complexity) | @refactoring | 1. Storifying, 2. Extract type |
+| `funlen` (function too long) | @refactoring | 1. Storify, 2. Extract function |
+| `wrapcheck` (unwrapped error) | Direct fix | `fmt.Errorf("context: %w", err)` |
+| `varnamelen` (short var name) | Direct fix | Rename variable to be descriptive |
+| `early-return` (revive) | @refactoring | Apply early return pattern |
+| `file-length-limit` (revive) | Analyze first → route | See file-level concerns below |
+
+**File-Level Concerns** (`file-length-limit` triggers at >450 lines):
+When files exceed the limit, analyze structure first:
+
+| File Pattern | Route To | Pattern |
+|--------------|----------|---------|
+| Multiple juicy types in one file | @code-designing | **Juicy type per file** - move each to own file |
+| Single god type (>15 methods) | @refactoring → @code-designing | 1. Storify (refactoring), 2. Decompose (code-designing) |
+| Long functions, few types | @refactoring | **Storify → Extract functions** |
+
+**"Juicy" types** (deserve their own file):
+- Types with ≥2 methods
+- Types with complex validation
+- Types with transformations/parsing
+- Enums WITH methods (behavior makes them juicy)
+</linter_skill_routing>
+
 **For each prioritized fix** (from agent's report):
 
 1. **Apply Fix**:
+   - Use routing table above to select correct skill
    - Invoke @refactoring skill with file, function, issues, and root cause
    - @refactoring applies patterns: early returns, extract function, storifying, extract type, switch extraction, extract constant
 
@@ -139,6 +208,25 @@ Max 10 iterations. If stuck, ask user for guidance.
 4. **Safety Limits**:
    - Max 10 iterations per fix loop
    - If stuck after 3 attempts → show status, ask user
+
+5. **Orchestrator Check** (after CLEAN_STATE):
+   - Count methods per type in modified files
+   - If any type has >15 methods:
+     - Flag as potential god object
+     - Apply @refactoring for storification (make it read like a story)
+     - Apply @code-designing for composition (extract services)
+   - Re-run quality-analyzer to verify
+
+6. **Test Extracted Types** (mandatory after type extraction):
+   - Track all new types created during refactoring
+   - For each leaf type (no external dependencies):
+     - Invoke @testing skill
+     - Write table-driven tests for constructor validation
+     - Write tests for all public methods
+     - Target: 100% coverage on leaf types
+   - For orchestrating types:
+     - Write integration-style tests covering seams
+   - Re-run `task test` to verify all pass
 
 **Loop until agent returns CLEAN_STATE**.
 </phase>
@@ -198,6 +286,8 @@ Workflow is complete when ALL of the following are true:
   - [ ] Tests pass
   - [ ] Linter passes (0 errors)
   - [ ] Code review clean (0 findings)
+- [ ] All extracted leaf types have tests (100% coverage)
+- [ ] No god objects (all types have ≤15 methods)
 - [ ] Phase 4 complete (documentation added/updated)
 - [ ] Commit summary presented to user with options
 - [ ] User has chosen commit action (or deferred)

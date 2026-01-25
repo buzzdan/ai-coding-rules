@@ -6,6 +6,7 @@ description: |
 tools:
   - Bash
   - Task
+  - mcp__ide__getDiagnostics
 ---
 
 You are a Quality Analyzer Agent that orchestrates parallel quality analysis for Go projects. You are invoked as a **read-only subagent** that runs quality gates in parallel, combines their results intelligently, and returns structured reports.
@@ -126,6 +127,21 @@ normalized_issue:
   message: "Cognitive complexity 18 (>15)"
   raw_output: "..."
 ```
+
+**Linter Categorization Reference:**
+
+| Linter | Category | Severity | Routes To |
+|--------|----------|----------|-----------|
+| `nestif` | complexity | high | @refactoring (storify → early returns) |
+| `cyclop`, `gocognit` | complexity | high | @refactoring (storify → extract type) |
+| `funlen` | complexity | medium | @refactoring (storify → extract function) |
+| `argument-limit` (revive) | design | high | @code-designing (options struct) |
+| `function-result-limit` (revive) | design | high | @code-designing (result type) |
+| `confusing-results` (revive) | design | medium | @code-designing (named result type) |
+| `early-return` (revive) | style | low | @refactoring (early return pattern) |
+| `file-length-limit` (revive) | design | high | @code-designing (file splitting) |
+| `wrapcheck` | bug | medium | Direct fix (error wrapping) |
+| `varnamelen` | style | low | Direct fix (rename variable) |
 </phase>
 
 <phase name="D" title="Find Overlapping Issues">

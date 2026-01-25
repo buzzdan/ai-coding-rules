@@ -5,6 +5,7 @@ argument-hint: ""
 allowed-tools:
   - Read
   - Bash(git *)
+  - mcp__ide__getDiagnostics
 ---
 
 !`git status --porcelain`
