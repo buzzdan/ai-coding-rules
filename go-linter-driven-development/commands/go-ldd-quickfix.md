@@ -4,13 +4,14 @@ description: Run quality gates loop until all green (tests+linter+review → fix
 argument-hint: "[file_pattern]"
 allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
+  - mcp__ide__getDiagnostics
 ---
 
 Execute the quality gates loop for already-implemented code that needs cleanup.
 
 ⏱️ **Estimated Duration**: 2-5 minutes (depends on number of issues found)
 
-Run these phases from @linter-driven-development skill:
+**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` and run these phases:
 
 **Phase 2**: Parallel Analysis
 - Discover project test/lint commands
@@ -29,8 +30,14 @@ Run these phases from @linter-driven-development skill:
 - Re-verify with parallel analysis (incremental review mode)
 - Repeat until all green
 
+**Phase 5**: Orchestrator Review (after linter clean)
+- Check types with >15 methods (god object threshold)
+- If found: Apply @refactoring for storification first
+- Then apply @code-designing for composition (service extraction)
+- Re-verify with linter
+
 **Loop until**:
-✅ Tests pass | ✅ Linter clean | ✅ Review clean
+✅ Tests pass | ✅ Linter clean | ✅ Review clean | ✅ No god objects (≤15 methods per type)
 
 Use this when code is already written but needs to pass quality gates.
 Skip the implementation phase (Phase 1) and go straight to fixing issues.

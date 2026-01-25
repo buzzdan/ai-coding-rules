@@ -7,6 +7,7 @@ allowed-tools:
   - Grep
   - Bash
   - Task
+  - mcp__ide__getDiagnostics
 ---
 
 Run final verification checks **without** the auto-fix loop.

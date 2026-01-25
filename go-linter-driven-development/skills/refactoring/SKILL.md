@@ -8,6 +8,7 @@ allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
   - Skill(go-linter-driven-development:pre-commit-review)
+  - mcp__ide__getDiagnostics
 ---
 
 <objective>
@@ -17,6 +18,18 @@ Operates autonomously - no user confirmation needed during execution.
 **Reference**: See `reference.md` for complete decision tree and all patterns.
 **Examples**: See `examples.md` for real-world refactoring case studies.
 </objective>
+
+<skill_invocation>
+**CRITICAL**: When this skill says "Invoke @skill-name" or routes to "@skill-name", you MUST use the **Skill tool** explicitly.
+
+| Notation | Skill Tool Call |
+|----------|-----------------|
+| @code-designing | `Skill(go-linter-driven-development:code-designing)` |
+| @testing | `Skill(go-linter-driven-development:testing)` |
+| @pre-commit-review | `Skill(go-linter-driven-development:pre-commit-review)` |
+
+**DO NOT** just reference the skill - actually invoke it using the Skill tool.
+</skill_invocation>
 
 <quick_start>
 1. **Receive linter failures** from @linter-driven-development
@@ -92,9 +105,16 @@ The analysis produces a refactoring plan identifying:
 <refactoring_signals>
 <linter_failures>
 **Complexity Issues:**
-- **Cyclomatic Complexity**: Too many decision points → Extract functions, simplify logic
-- **Cognitive Complexity**: Hard to understand → Storifying, reduce nesting
-- **Maintainability Index**: Hard to maintain → Break into smaller pieces
+- **Cyclomatic Complexity** (`cyclop`): Too many decision points → Extract functions, simplify logic
+- **Cognitive Complexity** (`gocognit`): Hard to understand → Storifying, reduce nesting
+- **Maintainability Index** (`maintidx`): Hard to maintain → Break into smaller pieces
+- **Deep Nesting** (`nestif`): >2 nesting levels → **Storify first** → Early returns → Extract function
+- **Function Length** (`funlen`): Function too long → **Storify first** → Extract functions
+
+**Nesting Depth (`nestif`) - Priority Pattern:**
+1. **Storify first** - Make code read like a story, reveals hidden structure
+2. **Early returns** - Invert conditions, exit early
+3. **Extract function** - Pull nested blocks into named functions
 
 **Architectural Issues:**
 - **noglobals/gochecknoglobals**: Global variable usage → Dependency rejection pattern
@@ -105,6 +125,10 @@ The analysis produces a refactoring plan identifying:
 - **dupl**: Code duplication → Extract common logic/types
 - **goconst**: Magic strings/numbers → Extract constants or types
 - **ineffassign**: Ineffective assignments → Simplify logic
+
+**Error Handling:**
+- **wrapcheck**: Unwrapped external errors → `fmt.Errorf("context: %w", err)`
+- **early-return** (revive): Superfluous else → Invert condition, return early
 </linter_failures>
 
 <code_smells>
@@ -114,7 +138,33 @@ The analysis produces a refactoring plan identifying:
 - Unclear flow/purpose
 - Primitive obsession
 - Global variable access scattered throughout code
+- **Files > 450 lines** (`file-length-limit` revive rule) - Route to @code-designing for file splitting
 </code_smells>
+
+<file_level_concerns>
+**When `file-length-limit` (revive) triggers (>450 lines):**
+
+Analyze file structure before refactoring:
+
+| File Pattern | Diagnosis | Pattern |
+|--------------|-----------|---------|
+| Multiple juicy types | Types scattered in one file | Route to @code-designing → Juicy type per file |
+| Single god type | One type doing too much | Route to @code-designing → Extract via composition |
+| Long functions, few types | Function bloat | **Storify → Extract functions** → Reassess |
+
+**"Juicy" types** (deserve their own file):
+- Types with ≥2 methods
+- Types with complex validation
+- Types with transformations/parsing
+- Enums WITH methods (behavior makes them juicy)
+
+**Anemic types** (can stay grouped):
+- Simple enums (const block only)
+- DTOs with no methods
+- Type aliases
+
+**Key Insight:** Storification often reveals extraction opportunities - it's the first step in any refactoring.
+</file_level_concerns>
 </refactoring_signals>
 
 <automation_flow>
@@ -137,11 +187,16 @@ AUTOMATED PROCESS:
 
 <pattern_priority>
 **For Complexity Failures** (cyclomatic, cognitive, maintainability):
-1. Early Returns → Reduce nesting quickly
-2. Extract Function → Break up long functions
-3. Storifying → Improve abstraction levels
+1. Storifying → **Always start here** - makes code read like a story, reveals hidden structure
+2. Early Returns → Reduce nesting quickly
+3. Extract Function → Break up long functions
 4. Extract Type → Create domain types (only if "juicy")
 5. Switch Extraction → Categorize switch cases
+
+**For Nesting Depth Failures** (`nestif`):
+1. Storify → Make code read like a story first
+2. Early Returns → Invert conditions, exit early
+3. Extract Function → Pull deeply nested blocks into named functions
 
 **For Architectural Failures** (noglobals, singletons):
 1. Dependency Rejection → Incremental bottom-up approach
@@ -272,6 +327,57 @@ func ParseCommandResult(output string) (CommandResult, error) {
 - Good variable naming would be clearer
 
 See [Example 2](./examples.md#first-refactoring-attempt-the-over-abstraction-trap) for complete case study.
+</pattern>
+
+<pattern name="type_cohesion" signal="Type extracted but related declarations scattered">
+**Type Cohesion Rule**: When extracting a type to its own file, **co-locate ALL related declarations**:
+
+```go
+// WRONG - OrderStatus type in order.go but constants scattered elsewhere
+// processor.go
+type OrderStatus string  // defined here but...
+// ... later in another file or same file far away
+const (
+    OrderStatusPending OrderStatus = "pending"
+    OrderStatusShipped OrderStatus = "shipped"
+)
+
+// CORRECT - Type and its constants in same file, together
+// order.go
+type OrderStatus string
+
+const (
+    OrderStatusPending    OrderStatus = "pending"
+    OrderStatusProcessing OrderStatus = "processing"
+    OrderStatusShipped    OrderStatus = "shipped"
+    OrderStatusDelivered  OrderStatus = "delivered"
+    OrderStatusCancelled  OrderStatus = "cancelled"
+)
+
+func (s OrderStatus) IsValid() bool { ... }
+func (s OrderStatus) CanTransitionTo(target OrderStatus) error { ... }
+```
+
+**What to co-locate with a type:**
+- Type definition
+- Type constants (enum values)
+- Type-specific errors (if not centralized in errors.go)
+- Constructor function(s) (`New*`, `Parse*`)
+- All methods on the type
+- Related helper functions that operate on the type
+
+**Verification**: After extracting type, grep for type name in other files:
+```bash
+grep -r "TypeName" --include="*.go" . | grep -v "type_file.go"
+```
+If found → move declaration to type's file
+
+**Process**:
+1. Extract type to its own file (e.g., `order_status.go`)
+2. Find all constants of that type → move to same file
+3. Find all methods on that type → move to same file
+4. Find constructor/parser functions → move to same file
+5. Verify: only imports of the type remain in other files
 </pattern>
 
 <pattern name="extract_function" signal="Function > 50 LOC or multiple responsibilities">
@@ -425,6 +531,60 @@ func SetupMessaging() *EventPublisher {
 See [Example 3](./examples.md#example-3-dependency-rejection-pattern) for complete case study.
 </pattern>
 
+<pattern name="god_object_decomposition" signal="Type has >15 methods OR >500 LOC">
+**Strategy**: Break orchestrator into focused services using composition
+
+```go
+// BEFORE - God object with 25+ methods
+type DataProcessor struct {
+    users         map[string]*User
+    orders        map[string]*Order
+    cache         map[string]any
+    httpClient    *http.Client
+    notifications []Notification
+}
+
+func (dp *DataProcessor) CreateUser(...) { }
+func (dp *DataProcessor) GetUser(...) { }
+func (dp *DataProcessor) UpdateUser(...) { }
+func (dp *DataProcessor) DeleteUser(...) { }
+func (dp *DataProcessor) CreateOrder(...) { }
+func (dp *DataProcessor) GetOrder(...) { }
+// ... 20+ more methods
+
+// AFTER - Composed services
+type DataProcessor struct {
+    users    *UserService
+    orders   *OrderService
+    cache    *CacheService
+    notifier *NotificationService
+}
+
+func NewDataProcessor(config Config) (*DataProcessor, error) {
+    return &DataProcessor{
+        users:    NewUserService(),
+        orders:   NewOrderService(),
+        cache:    NewCacheService(),
+        notifier: NewNotificationService(config),
+    }, nil
+}
+
+// Delegate to focused services
+func (dp *DataProcessor) CreateUser(req CreateUserRequest) (*User, error) {
+    return dp.users.Create(req)
+}
+```
+
+**Process**:
+1. Group methods by noun (User, Order, Cache, Notification)
+2. Extract each group into a focused service type
+3. Move relevant fields to each service
+4. Compose services in the orchestrator
+5. Orchestrator delegates, doesn't implement
+
+**Threshold**: >15 methods = god object candidate
+</pattern>
+
 </refactoring_patterns>
 
 <decision_tree>
@@ -451,11 +611,21 @@ When linter fails, ask these questions (see reference.md for details):
 <testing_integration>
 When creating new types or extracting functions during refactoring:
 
-**ALWAYS invoke @testing skill** to write tests for:
+**MANDATORY: Invoke @testing skill** to write tests for:
 - **Isolated types**: Types with injected dependencies (testable islands)
 - **Value object types**: Types that may depend on other value objects but are still isolated
 - **Extracted functions**: New functions created during refactoring
 - **Parse functions**: Functions that transform unstructured data
+
+<enforcement>
+**ENFORCEMENT**: Before marking refactoring complete:
+1. List all types created: `grep -r "^type.*struct" internal/`
+2. For each type, verify test file exists: `internal/[pkg]/[type]_test.go`
+3. If missing: STOP and invoke @testing skill
+4. Coverage check: `go test -cover ./...` - leaf types must show 100%
+
+**BLOCKING**: Do not proceed to next phase until tests exist for all extracted types.
+</enforcement>
 
 <island_definition>
 A type is an "island of clean code" if:
@@ -504,6 +674,77 @@ IF linter passes AND code is readable:
 EVEN IF you could theoretically extract more:
     STOP - Avoid abstraction bloat
 </stopping_criteria>
+
+<nolint_prohibition>
+**NEVER use `//nolint` directives to avoid refactoring.** These are lazy shortcuts that hide problems.
+
+<forbidden_patterns>
+```go
+// FORBIDDEN - Hiding error handling
+defer func() {
+    resp.Body.Close() //nolint:errcheck,gosec // Best effort
+}()
+
+// FORBIDDEN - Hiding security concerns
+data, err := os.ReadFile(path) //nolint:gosec // Trust caller
+
+// FORBIDDEN - Hiding complexity
+func BigFunction() { //nolint:gocognit // It's fine
+```
+</forbidden_patterns>
+
+<required_alternatives>
+```go
+// CORRECT - Handle the error (log as fallback)
+defer func() {
+    if err := resp.Body.Close(); err != nil {
+        log.Printf("failed to close response body: %v", err)
+    }
+}()
+
+// CORRECT - In tests, use t.Log
+defer func() {
+    if err := resp.Body.Close(); err != nil {
+        t.Logf("failed to close response body: %v", err)
+    }
+}()
+
+// CORRECT - Validate input at boundaries
+func ParseConfig(path string) (*Config, error) {
+    if !filepath.IsAbs(path) {
+        return nil, errors.New("path must be absolute")
+    }
+    // Now gosec is satisfied because path is validated
+    data, err := os.ReadFile(path)
+}
+
+// CORRECT - Refactor to reduce complexity
+// Split BigFunction into smaller, focused functions
+```
+</required_alternatives>
+
+<when_acceptable>
+**When Nolint IS Acceptable** (rare):
+Only use `//nolint` when ALL of these are true:
+1. You have exhausted all refactoring options
+2. The linter is genuinely wrong (false positive)
+3. You add the nolint to `.golangci.yaml` exclusions, not inline
+4. You get explicit user approval before adding
+</when_acceptable>
+
+<verification>
+**Verification**: After refactoring, scan changed files (both staged and unstaged) for nolint:
+```bash
+# Check unstaged changes
+git diff --name-only | xargs grep "//nolint" 2>/dev/null
+# Check staged changes
+git diff --cached --name-only | xargs grep "//nolint" 2>/dev/null
+```
+If found in any changed files → STOP and fix properly instead
+
+Note: Existing `//nolint` in unchanged files is acceptable (legacy code)
+</verification>
+</nolint_prohibition>
 
 <output_format>
 ```

@@ -7,6 +7,7 @@ allowed-tools:
   - Grep
   - Bash
   - Task
+  - mcp__ide__getDiagnostics
 ---
 
 Run comprehensive quality analysis with intelligent combining of test results, linter findings, and code review feedback.
