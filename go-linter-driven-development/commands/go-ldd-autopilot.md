@@ -4,9 +4,10 @@ description: Start complete linter-driven autopilot workflow (Phase 1-5)
 argument-hint: ""
 allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
+  - mcp__ide__getDiagnostics
 ---
 
-Invoke the @linter-driven-development skill to run the complete autopilot workflow from design through commit-ready.
+**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` to run the complete autopilot workflow from design through commit-ready.
 
 ⏱️ **Estimated Duration**: 5-15 minutes (depends on feature complexity and issues found)
 

@@ -8,20 +8,33 @@ allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
   - Skill(go-linter-driven-development:pre-commit-review)
+  - mcp__ide__getDiagnostics
 ---
 
 <objective>
 Linter-driven refactoring patterns to reduce complexity and improve code quality.
 Operates autonomously - no user confirmation needed during execution.
 
-**Reference**: See `reference.md` for complete decision tree and all patterns.
+**Reference**: See `reference.md` for complete decision tree, patterns, and code examples.
 **Examples**: See `examples.md` for real-world refactoring case studies.
 </objective>
+
+<skill_invocation>
+**CRITICAL**: When this skill says "Invoke @skill-name" or routes to "@skill-name", you MUST use the **Skill tool** explicitly.
+
+| Notation | Skill Tool Call |
+|----------|-----------------|
+| @code-designing | `Skill(go-linter-driven-development:code-designing)` |
+| @testing | `Skill(go-linter-driven-development:testing)` |
+| @pre-commit-review | `Skill(go-linter-driven-development:pre-commit-review)` |
+
+**DO NOT** just reference the skill - actually invoke it using the Skill tool.
+</skill_invocation>
 
 <quick_start>
 1. **Receive linter failures** from @linter-driven-development
 2. **Analyze root cause** - Does it read like a story? Can it be broken down?
-3. **Apply patterns** in priority order (early returns → extract function → storifying → extract type)
+3. **Apply patterns** in priority order (storify → early returns → extract function → extract type)
 4. **Verify** - Re-run linter automatically
 5. **Iterate** until linter passes
 
@@ -33,448 +46,151 @@ Operates autonomously - no user confirmation needed during execution.
 - **Automatically invoked** by @pre-commit-review when design issues detected
 - **Complexity failures**: cyclomatic, cognitive, maintainability index
 - **Architectural failures**: noglobals, gochecknoinits, gochecknoglobals
-- **Design smell failures**: dupl (duplication), goconst (magic strings), ineffassign
+- **Design smell failures**: dupl, goconst, ineffassign
 - Functions > 50 LOC or nesting > 2 levels
 - Mixed abstraction levels in functions
 - Manual invocation when code feels hard to read/maintain
 </when_to_use>
 
 <learning_resources>
-Choose your learning path:
-- **Quick Start**: Use the patterns below for common refactoring cases
+- **Quick Start**: Use patterns below for common cases
 - **Complete Reference**: See [reference.md](./reference.md) for full decision tree and all patterns
-- **Real-World Examples**: See [examples.md](./examples.md) to learn the refactoring thought process
-  - [Example 1](./examples.md#example-1-storifying-mixed-abstractions-and-extracting-logic-into-leaf-types): Storifying and extracting a single leaf type
-  - [Example 2](./examples.md#example-2-primitive-obsession-with-multiple-types-and-storifying-switch-statements): Primitive obsession with multiple types and switch elimination
+- **Real-World Examples**: See [examples.md](./examples.md) for case studies:
+  - **Example 1**: Storifying mixed abstractions + extracting leaf types (fat function → lean orchestration)
+  - **Example 2**: Primitive obsession with multiple types + switch elimination (includes over-abstraction trap!)
+  - **Example 3**: Dependency rejection pattern (globals → clean testable islands, bottom-up approach)
 </learning_resources>
 
-<analysis_phase>
-Before applying any refactoring patterns, automatically analyze the context:
-
-<system_context_analysis>
-AUTOMATICALLY ANALYZE:
-1. Find all callers of the failing function
-2. Identify which flows/features depend on it
-3. Determine primary responsibility
-4. Check for similar functions revealing patterns
-5. Spot potential refactoring opportunities
-</system_context_analysis>
-
-<type_discovery>
-Proactively identify hidden types in the code:
-
-POTENTIAL TYPES TO DISCOVER:
-1. Data being parsed from strings → Parse* types
-   Example: ParseCommandResult(), ParseLogEntry()
-
-2. Scattered validation logic → Validated types
-   Example: Email, Port, IPAddress types
-
-3. Data that always travels together → Aggregate types
-   Example: UserCredentials, ServerConfig
-
-4. Complex conditions → State/status types
-   Example: DeploymentStatus with IsReady(), CanProceed()
-
-5. Repeated string manipulation → Types with methods
-   Example: FilePath with Dir(), Base(), Ext()
-</type_discovery>
-
-<analysis_output>
-The analysis produces a refactoring plan identifying:
-- Function's role in the system
-- Potential domain types to extract
-- Recommended refactoring approach
-- Expected complexity reduction
-</analysis_output>
-</analysis_phase>
-
 <refactoring_signals>
-<linter_failures>
-**Complexity Issues:**
-- **Cyclomatic Complexity**: Too many decision points → Extract functions, simplify logic
-- **Cognitive Complexity**: Hard to understand → Storifying, reduce nesting
-- **Maintainability Index**: Hard to maintain → Break into smaller pieces
 
-**Architectural Issues:**
-- **noglobals/gochecknoglobals**: Global variable usage → Dependency rejection pattern
-- **gochecknoinits**: Init function usage → Extract initialization logic
-- **Static/singleton patterns**: Hidden dependencies → Inject dependencies
+<linter_routing>
+| Linter Error | Pattern |
+|--------------|---------|
+| `nestif` (deep nesting) | Storify → Early returns → Extract function |
+| `cyclop`/`gocognit` | Storify → Extract type |
+| `funlen` (too long) | Storify → Extract function |
+| `noglobals` | Dependency rejection |
+| `dupl` | Extract common logic/types |
+| `goconst` | Extract constants or types |
+| `wrapcheck` | Direct fix: `fmt.Errorf("context: %w", err)` |
+| `early-return` (revive) | Invert condition, return early |
+| `file-length-limit` | Route to @code-designing for file splitting |
 
-**Design Smells:**
-- **dupl**: Code duplication → Extract common logic/types
-- **goconst**: Magic strings/numbers → Extract constants or types
-- **ineffassign**: Ineffective assignments → Simplify logic
-</linter_failures>
+**Pattern Documentation**:
+- Storifying, Early Returns, Extract Function, Extract Type → `reference.md`
+- Dependency Rejection → `examples.md` (Example 3)
+- Over-abstraction warnings → `reference.md` section 2.5
+</linter_routing>
 
-<code_smells>
-- Functions > 50 LOC
-- Nesting > 2 levels
-- Mixed abstraction levels
-- Unclear flow/purpose
-- Primitive obsession
-- Global variable access scattered throughout code
-</code_smells>
+<file_level_concerns>
+**When `file-length-limit` triggers (>450 lines):**
+
+| File Pattern | Route To | Action |
+|--------------|----------|--------|
+| Multiple juicy types | @code-designing | Juicy type per file |
+| Single god type (>15 methods) | @refactoring → @code-designing | Storify, then decompose |
+| Long functions, few types | @refactoring | Storify → Extract functions |
+
+**"Juicy" types** (deserve own file): ≥2 methods, complex validation, transformations/parsing
+**Anemic types** (can stay grouped): Simple enums, DTOs without methods, type aliases
+</file_level_concerns>
 </refactoring_signals>
 
-<automation_flow>
-This skill operates completely autonomously once invoked:
+<pattern_summary>
+**Pattern Priority Order** (for complexity failures):
 
+1. **Storifying** - Make code read like a story, reveals hidden structure
+2. **Early Returns** - Reduce nesting by inverting conditions
+3. **Extract Function** - Break up long functions by responsibility
+4. **Extract Type** - Create domain types (only if "juicy")
+5. **Switch Extraction** - Extract case handlers to separate functions
+6. **Dependency Rejection** - Push globals up call chain incrementally
+
+See `reference.md` for detailed patterns with code examples.
+
+<juiciness_test>
+Before extracting a type, verify it's "juicy" (worth creating):
+
+**BEHAVIORAL**: Complex validation, ≥2 meaningful methods, state transitions
+**STRUCTURAL**: Parsing unstructured data, grouping related data
+**USAGE**: Used in multiple places, simplifies calling code
+
+Need "yes" in at least ONE category. See `reference.md` section 2.5 for over-abstraction warnings.
+</juiciness_test>
+
+<type_cohesion>
+When extracting a type to its own file, co-locate ALL related declarations:
+- Type definition + constants + constructor + all methods
+
+Verify: `grep -r "TypeName" --include="*.go" . | grep -v "type_file.go"`
+If found elsewhere → move to type's file
+</type_cohesion>
+
+<god_object_decomposition>
+**Trigger**: Type has >15 methods OR >500 LOC
+
+**Strategy** (in order):
+
+1. **Extract generic logic first** (creates reusable leaf types):
+   - String manipulation → `StringParser`, `Formatter` types
+   - URL/path handling → `URL`, `FilePath` types with validation
+   - Retry/timeout logic → `Retrier`, `TimeoutHandler` types
+   - Date/time formatting → `DateFormatter` type
+   - Validation patterns → Self-validating domain types
+
+   These become **testable islands** and may be useful elsewhere.
+
+2. **Then group remaining methods by noun** (domain services):
+   - User methods → `UserService`
+   - Order methods → `OrderService`
+   - Cache methods → `CacheService`
+
+3. **Extract each group into focused service type**
+4. **Compose services in orchestrator** (delegates, doesn't implement)
+
+**Key insight**: Generic logic extraction often reveals the god object was mixing infrastructure concerns with domain logic.
+
+See `reference.md` for detailed example.
+</god_object_decomposition>
+</pattern_summary>
+
+<automation_flow>
 <iteration_loop>
-AUTOMATED PROCESS:
-1. Receive trigger:
-   - From @linter-driven-development (linter failures)
-   - From @pre-commit-review (design debt/readability debt)
+1. Receive trigger (automatic from other skills, or manual user request)
 2. Apply refactoring pattern (start with least invasive)
 3. Run linter immediately (no user confirmation)
-4. If linter still fails OR review finds more issues:
-   - Try next pattern in priority order
-   - Repeat until both linter and review pass
-5. If patterns exhausted and still failing:
-   - Report what was tried
-   - Suggest file splitting or architectural changes
+4. If linter still fails → try next pattern in priority order
+5. Repeat until linter passes
+6. If patterns exhausted → report what was tried, escalate to user for architectural guidance
 </iteration_loop>
-
-<pattern_priority>
-**For Complexity Failures** (cyclomatic, cognitive, maintainability):
-1. Early Returns → Reduce nesting quickly
-2. Extract Function → Break up long functions
-3. Storifying → Improve abstraction levels
-4. Extract Type → Create domain types (only if "juicy")
-5. Switch Extraction → Categorize switch cases
-
-**For Architectural Failures** (noglobals, singletons):
-1. Dependency Rejection → Incremental bottom-up approach
-2. Extract Type with dependency injection
-3. Push global access up call chain one level
-4. Iterate until globals only at entry points (main, handlers)
-
-**For Design Smells** (dupl, goconst):
-1. Extract Type → For repeated values or validation
-2. Extract Function → For code duplication
-3. Extract Constant → For magic strings/numbers
-</pattern_priority>
 
 <no_manual_intervention>
 - **NO** asking for confirmation between patterns
 - **NO** waiting for user input
-- **NO** manual linter runs
 - **AUTOMATIC** progression through patterns
 - **ONLY** report results at the end
 </no_manual_intervention>
 </automation_flow>
 
-<refactoring_patterns>
-
-<pattern name="storifying" signal="Mixed abstraction levels">
-```go
-// BEFORE - Mixed abstractions
-func ProcessOrder(order Order) error {
-    // Validation
-    if order.ID == "" {
-        return errors.New("invalid")
-    }
-    // Low-level DB setup
-    db, err := sql.Open("postgres", connStr)
-    if err != nil { return err }
-    defer db.Close()
-    // SQL construction
-    query := "INSERT INTO..."
-    // ... many lines
-    return nil
-}
-
-// AFTER - Story-like
-func ProcessOrder(order Order) error {
-    if err := validateOrder(order); err != nil {
-        return err
-    }
-    if err := saveToDatabase(order); err != nil {
-        return err
-    }
-    return notifyCustomer(order)
-}
-
-func validateOrder(order Order) error { /* ... */ }
-func saveToDatabase(order Order) error { /* ... */ }
-func notifyCustomer(order Order) error { /* ... */ }
-```
-</pattern>
-
-<pattern name="extract_type" signal="Primitive obsession or unstructured data">
-<juiciness_test version="2">
-**BEHAVIORAL JUICINESS** (rich behavior):
-- Complex validation rules (regex, ranges, business rules)
-- Multiple meaningful methods (≥2 methods)
-- State transitions or transformations
-- Format conversions (different representations)
-
-**STRUCTURAL JUICINESS** (organizing complexity):
-- Parsing unstructured data into fields
-- Grouping related data that travels together
-- Making implicit structure explicit
-- Replacing map[string]interface{} with typed fields
-
-**USAGE JUICINESS** (simplifies code):
-- Used in multiple places
-- Significantly simplifies calling code
-- Makes tests cleaner and more focused
-
-**Score**: Need "yes" in at least ONE category to create the type
-</juiciness_test>
-
-```go
-// NOT JUICY - Don't create type
-func ValidateUserID(id string) error {
-    if id == "" {
-        return errors.New("empty id")
-    }
-    return nil
-}
-// Just use: if userID == ""
-
-// JUICY (Behavioral) - Complex validation
-type Email string
-
-func ParseEmail(s string) (Email, error) {
-    if s == "" {
-        return "", errors.New("empty email")
-    }
-    if !emailRegex.MatchString(s) {
-        return "", errors.New("invalid format")
-    }
-    if len(s) > 255 {
-        return "", errors.New("too long")
-    }
-    return Email(s), nil
-}
-
-func (e Email) Domain() string { /* extract domain */ }
-func (e Email) LocalPart() string { /* extract local */ }
-
-// JUICY (Structural) - Parsing complex data
-type CommandResult struct {
-    FailedFiles  []string
-    SuccessFiles []string
-    Message      string
-    ExitCode     int
-}
-
-func ParseCommandResult(output string) (CommandResult, error) {
-    // Parse unstructured output into structured fields
-}
-```
-
-**Warning Signs of Over-Engineering:**
-- Type with only one trivial method
-- Simple validation (just empty check)
-- Type that's just a wrapper without behavior
-- Good variable naming would be clearer
-
-See [Example 2](./examples.md#first-refactoring-attempt-the-over-abstraction-trap) for complete case study.
-</pattern>
-
-<pattern name="extract_function" signal="Function > 50 LOC or multiple responsibilities">
-```go
-// BEFORE - Long function
-func CreateUser(data map[string]interface{}) error {
-    // Validation (15 lines)
-    // Database operations (20 lines)
-    // Email notification (10 lines)
-    // Logging (5 lines)
-    return nil
-}
-
-// AFTER - Extracted functions
-func CreateUser(data map[string]interface{}) error {
-    user, err := validateAndParseUser(data)
-    if err != nil {
-        return err
-    }
-    if err := saveUser(user); err != nil {
-        return err
-    }
-    if err := sendWelcomeEmail(user); err != nil {
-        return err
-    }
-    logUserCreation(user)
-    return nil
-}
-```
-</pattern>
-
-<pattern name="early_returns" signal="Deep nesting > 2 levels">
-```go
-// BEFORE - Deeply nested
-func ProcessItem(item Item) error {
-    if item.IsValid() {
-        if item.IsReady() {
-            if item.HasPermission() {
-                // Process
-                return nil
-            } else {
-                return errors.New("no permission")
-            }
-        } else {
-            return errors.New("not ready")
-        }
-    } else {
-        return errors.New("invalid")
-    }
-}
-
-// AFTER - Early returns
-func ProcessItem(item Item) error {
-    if !item.IsValid() {
-        return errors.New("invalid")
-    }
-    if !item.IsReady() {
-        return errors.New("not ready")
-    }
-    if !item.HasPermission() {
-        return errors.New("no permission")
-    }
-    // Process
-    return nil
-}
-```
-</pattern>
-
-<pattern name="switch_extraction" signal="Switch statement with complex cases">
-```go
-// BEFORE - Long switch in one function
-func HandleRequest(reqType string, data interface{}) error {
-    switch reqType {
-    case "create":
-        // 20 lines of creation logic
-    case "update":
-        // 20 lines of update logic
-    case "delete":
-        // 15 lines of delete logic
-    default:
-        return errors.New("unknown type")
-    }
-    return nil
-}
-
-// AFTER - Extracted handlers
-func HandleRequest(reqType string, data interface{}) error {
-    switch reqType {
-    case "create":
-        return handleCreate(data)
-    case "update":
-        return handleUpdate(data)
-    case "delete":
-        return handleDelete(data)
-    default:
-        return errors.New("unknown type")
-    }
-}
-
-func handleCreate(data interface{}) error { /* ... */ }
-func handleUpdate(data interface{}) error { /* ... */ }
-func handleDelete(data interface{}) error { /* ... */ }
-```
-</pattern>
-
-<pattern name="dependency_rejection" signal="noglobals linter fails or global/singleton usage">
-**Goal**: Create "islands of clean code" by incrementally pushing dependencies up the call chain
-
-**Strategy**: Work from bottom-up, rejecting dependencies one level at a time
-- DON'T do massive refactoring all at once
-- Start at deepest level (furthest from main)
-- Extract clean type with dependency injected
-- Push global access up one level
-- Repeat until global only at entry points
-
-```go
-// BEFORE - Global accessed deep in code
-func PublishEvent(event Event) error {
-    conn, err := nats.Connect(env.Configs.NATsAddress)
-    // ... complex logic
-}
-
-// AFTER - Dependency rejected up one level
-type EventPublisher struct {
-    natsAddress string  // injected, not global
-}
-
-func NewEventPublisher(natsAddress string) *EventPublisher {
-    return &EventPublisher{natsAddress: natsAddress}
-}
-
-func (p *EventPublisher) Publish(event Event) error {
-    conn, err := nats.Connect(p.natsAddress)
-    // ... same logic, now testable
-}
-
-// Caller pushed up (closer to main)
-func SetupMessaging() *EventPublisher {
-    return NewEventPublisher(env.Configs.NATsAddress)  // Global only here
-}
-```
-
-**Result**: EventPublisher is now 100% testable without globals
-
-**Key Principles**:
-- **Incremental**: One type at a time, one level at a time
-- **Bottom-up**: Start at deepest code, work toward main
-- **Pragmatic**: Accept globals at entry points (main, handlers)
-- **Testability**: Each extracted type is an island (testable in isolation)
-
-See [Example 3](./examples.md#example-3-dependency-rejection-pattern) for complete case study.
-</pattern>
-
-</refactoring_patterns>
-
-<decision_tree>
-When linter fails, ask these questions (see reference.md for details):
-
-1. **Does this read like a story?**
-   - No → Extract functions for different abstraction levels
-
-2. **Can this be broken into smaller pieces?**
-   - By responsibility? → Extract functions
-   - By task? → Extract functions
-   - By category? → Extract functions
-
-3. **Does logic run on primitives?**
-   - Yes → Is this primitive obsession? → Extract type
-
-4. **Is function long due to switch statement?**
-   - Yes → Extract case handlers
-
-5. **Are there deeply nested if/else?**
-   - Yes → Use early returns or extract functions
-</decision_tree>
-
 <testing_integration>
-When creating new types or extracting functions during refactoring:
+**MANDATORY**: After creating new types or extracting functions, invoke @testing skill.
 
-**ALWAYS invoke @testing skill** to write tests for:
-- **Isolated types**: Types with injected dependencies (testable islands)
-- **Value object types**: Types that may depend on other value objects but are still isolated
-- **Extracted functions**: New functions created during refactoring
-- **Parse functions**: Functions that transform unstructured data
+<enforcement>
+Before marking refactoring complete:
+1. List all types created: `grep -r "^type.*struct" internal/`
+2. Verify test file exists for each type
+3. If missing: STOP and invoke @testing skill to write tests
+4. Coverage check: `go test -cover ./...` - leaf types must show 100%
+5. Scan for nolint in all uncommitted files (staged + unstaged):
+   ```bash
+   { git diff --name-only; git diff --cached --name-only; } | sort -u | xargs grep "//nolint" 2>/dev/null
+   ```
+   If found → remove directive and fix properly (see `<nolint_prohibition>` section)
 
-<island_definition>
-A type is an "island of clean code" if:
-- Dependencies are explicit (injected via constructor)
-- No global or static dependencies
-- Can be tested in isolation
-- Has 100% testable public API
-
-**Examples of testable islands:**
-- `NATSClient` with injected `natsAddress` string (no other dependencies)
-- `Email` type with validation logic (no dependencies)
-- `ServiceEndpoint` that uses `Port` value object (both are testable islands)
-- `OrderService` with injected `Repository` and `EventPublisher` (all testable)
-
-**Note**: Islands can depend on other value objects and still be isolated!
-</island_definition>
+**BLOCKING**: Do not proceed until tests exist AND no nolint directives in changed files.
+</enforcement>
 
 <workflow>
-REFACTORING → TESTING:
 1. Extract type during refactoring
 2. Immediately invoke @testing skill
 3. @testing skill writes appropriate tests
@@ -483,120 +199,90 @@ REFACTORING → TESTING:
 </workflow>
 </testing_integration>
 
+<nolint_prohibition>
+**NEVER use `//nolint` directives to avoid refactoring.**
+
+Instead:
+- Handle errors (log as fallback, use t.Log in tests)
+- Validate input at boundaries
+- Refactor to reduce complexity
+
+**Verification**: After refactoring, scan for nolint in all uncommitted files (staged + unstaged):
+```bash
+{ git diff --name-only; git diff --cached --name-only; } | sort -u | xargs grep "//nolint" 2>/dev/null
+```
+If found → STOP and fix properly
+
+See `reference.md` for acceptable exceptions (rare, requires user approval).
+</nolint_prohibition>
+
 <stopping_criteria>
-**STOP when ALL of these are met:**
-- Linter passes
+**STOP when ALL are met:**
+- Linter passes (0 issues)
 - All functions < 50 LOC
 - Nesting ≤ 2 levels
 - Code reads like a story
 - No more "juicy" abstractions to extract
 
 **Warning Signs of Over-Engineering:**
-- Creating types with only one method
+- Types with only one method
 - Functions that just call another function
 - More abstraction layers than necessary
 - Code becomes harder to understand
-- Diminishing returns on complexity reduction
 
-**Pragmatic Approach:**
-IF linter passes AND code is readable:
-    STOP - Don't extract more
-EVEN IF you could theoretically extract more:
-    STOP - Avoid abstraction bloat
+IF linter passes AND code is readable → STOP (avoid abstraction bloat)
 </stopping_criteria>
 
 <output_format>
 ```
-CONTEXT ANALYSIS
-
-Function: CreateUser (user/service.go:45)
-Role: Core user creation orchestration
-Called by:
-- api/handler.go:89 (HTTP endpoint)
-- cmd/user.go:34 (CLI command)
-
-Potential types spotted:
-- Email: Complex validation logic scattered
-- UserID: Generation and validation logic
-
 REFACTORING APPLIED
 
-Patterns Successfully Applied:
-1. Early Returns: Reduced nesting from 4 to 2 levels
-2. Storifying: Extracted validate(), save(), notify()
-3. Extract Type: Created Email and PhoneNumber types
-
-Patterns Tried but Insufficient:
-- Extract Function alone: Still too complex, needed types
+Patterns Applied:
+1. [Pattern]: [What changed]
+2. [Pattern]: [What changed]
 
 Types Created (with Juiciness Score):
+- [Type] (JUICY - [reason]): [methods]
+  → Invoke @testing skill
 
-Email type (JUICY - Behavioral + Usage):
-- Behavioral: ParseEmail(), Domain(), LocalPart() methods
-- Usage: Used in 5+ places across codebase
-- Island: Testable in isolation
-- → Invoke @testing skill to write tests
+Types Rejected (NOT JUICY):
+- [Type]: [reason - good naming sufficient]
 
-Types Considered but Rejected (NOT JUICY):
-- UserID: Only empty check, good naming sufficient
-- Status: Just string constants, enum adequate
+Metrics:
+- Cyclomatic: [before] → [after]
+- LOC: [before] → [after]
+- Nesting: [before] → [after]
 
-METRICS
-
-Complexity Reduction:
-- Cyclomatic: 18 → 7
-- Cognitive: 25 → 8
-- LOC: 120 → 45
-- Nesting: 4 → 2
-
-FILES MODIFIED
-
-Modified:
-- user/service.go (+15, -75 lines)
+Files Modified:
+- [file] (+X, -Y lines)
 
 Created (Islands of Clean Code):
-- user/email.go (new, +45 lines) → Ready for @testing skill
+- [file] (new) → Ready for @testing skill
 
-AUTOMATION COMPLETE
-
-Stopping Criteria Met:
-- Linter passes (0 issues)
-- All functions < 50 LOC
-- Max nesting = 2 levels
-- Code reads like a story
-- No more juicy abstractions
-
-Ready for: @pre-commit-review phase
+STATUS: [Linter passes / Still failing: X issues]
 ```
 </output_format>
 
 <integration>
-**Invoked By (Automatic Triggering)**:
-- **@linter-driven-development**: Automatically invokes when linter fails (Phase 3)
-- **@pre-commit-review**: Automatically invokes when design issues detected (Phase 4)
+**Invoked By**:
+- @linter-driven-development: When linter fails (Phase 3)
+- @pre-commit-review: When design issues detected
 
-**Iterative Loop**:
-1. Linter fails → invoke @refactoring
-2. Refactoring complete → re-run linter
-3. Linter passes → invoke @pre-commit-review
-4. Review finds design debt → invoke @refactoring again
-5. Repeat until both linter AND review pass
+**Invokes**:
+- @code-designing: When file splitting needed or new types require design validation
+- @testing: After creating new types/functions (MANDATORY)
+- @pre-commit-review: After linting passes (validates design quality)
 
-**Invokes (When Needed)**:
-- **@code-designing**: When refactoring creates new types, validate design
-- **@testing**: Automatically invoked to write tests for new types/functions
-- **@pre-commit-review**: Validates design quality after linting passes
-
-See [reference.md](./reference.md) for complete refactoring patterns and decision tree.
+**Loop**: Linter fails → @refactoring → re-run linter → @pre-commit-review → repeat until both pass
 </integration>
 
 <success_criteria>
-Refactoring is complete when ALL of the following are true:
+Refactoring is complete when ALL are true:
 
 - [ ] Linter passes (0 issues)
 - [ ] All functions < 50 LOC
 - [ ] Max nesting ≤ 2 levels
-- [ ] Code reads like a story (single abstraction level per function)
+- [ ] Code reads like a story
 - [ ] No more "juicy" abstractions to extract
 - [ ] Tests written for new types/functions (via @testing skill)
 - [ ] Ready for @pre-commit-review phase

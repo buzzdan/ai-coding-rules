@@ -6,6 +6,7 @@ description: |
   Focuses on vertical slice architecture and type safety.
 allowed-tools:
   - Skill(go-linter-driven-development:testing)
+  - mcp__ide__getDiagnostics
 ---
 
 <objective>
@@ -14,6 +15,16 @@ Use when planning new features or identifying need for new types during refactor
 
 **Reference**: See `reference.md` for complete design principles and examples.
 </objective>
+
+<skill_invocation>
+**CRITICAL**: When this skill says "Use @skill-name" or routes to "@skill-name", you MUST use the **Skill tool** explicitly.
+
+| Notation | Skill Tool Call |
+|----------|-----------------|
+| @testing | `Skill(go-linter-driven-development:testing)` |
+
+**DO NOT** just reference the skill - actually invoke it using the Skill tool.
+</skill_invocation>
 
 <quick_start>
 1. **Analyze Architecture**: Check for vertical vs horizontal slicing
@@ -31,6 +42,10 @@ Ready to implement? Use @testing skill for test structure.
 - Refactoring reveals need for new types (complexity extraction)
 - Linter failures suggest types should be introduced
 - When you need to think through domain modeling
+- **`argument-limit`** linter failure (>4 parameters) → Design options struct
+- **`function-result-limit`** linter failure (>3 returns) → Design result type
+- **`confusing-results`** linter failure → Design named result type
+- **`file-length-limit`** linter failure (>450 lines) → Analyze and split juicy types to own files
 </when_to_use>
 
 <purpose>
@@ -175,6 +190,97 @@ Check design against (see reference.md):
 - [ ] Types designed around intent, not just shape
 - [ ] Clear separation of concerns
 </review_against_principles>
+
+<linter_triggered_patterns>
+**When invoked by linter failures, apply these patterns:**
+
+<pattern name="options_struct" trigger="argument-limit (>4 params)">
+```go
+// BEFORE - Too many parameters
+func CreateUser(name string, email string, age int, role string, dept string) (*User, error)
+
+// AFTER - Options struct
+type CreateUserOptions struct {
+    Name  string
+    Email string
+    Age   int
+    Role  string
+    Dept  string
+}
+
+func CreateUser(opts CreateUserOptions) (*User, error)
+```
+**Design Tip**: Add validation in a constructor: `NewCreateUserOptions(...) (CreateUserOptions, error)`
+</pattern>
+
+<pattern name="result_type" trigger="function-result-limit (>3 returns)">
+```go
+// BEFORE - Too many return values
+func ParseConfig(path string) (config Config, warnings []string, version int, error)
+
+// AFTER - Result type
+type ParseConfigResult struct {
+    Config   Config
+    Warnings []string
+    Version  int
+}
+
+func ParseConfig(path string) (ParseConfigResult, error)
+```
+</pattern>
+
+<pattern name="named_result_type" trigger="confusing-results">
+```go
+// BEFORE - Confusing (string, string, error)
+func ParseAddress(raw string) (string, string, error) // Which is host? Which is port?
+
+// AFTER - Named result type
+type ParsedAddress struct {
+    Host string
+    Port string
+}
+
+func ParseAddress(raw string) (ParsedAddress, error)
+```
+</pattern>
+
+<pattern name="file_splitting" trigger="file-length-limit (revive) - file > 450 lines">
+**Step 1: Analyze file structure**
+
+| File Pattern | Action |
+|--------------|--------|
+| Multiple juicy types | Move each juicy type to its own file |
+| Single god type | Extract method clusters via composition OR extract juicy logic from methods |
+| Long functions, few types | Route to @refactoring first (storify → extract functions) |
+
+**Step 2: Apply juiciness test**
+
+"Juicy" types (deserve their own file):
+- Types with ≥2 methods
+- Types with complex validation
+- Types with transformations/parsing
+- Enums WITH methods (behavior makes them juicy)
+
+"Anemic" types (can stay grouped in types.go or similar):
+- Simple enums (const block only)
+- DTOs with no methods
+- Type aliases
+
+**Step 3: For god types** (>15 methods)
+
+| Option | When to Use | Pattern |
+|--------|-------------|---------|
+| **Storify first** | Methods are hard to read | Apply storification → reveals hidden structure |
+| **Extract via composition** | Method clusters exist | Identify cluster → extract to new type → compose |
+| **Extract juicy logic** | Primitive obsession inside methods | Find logic on primitives → extract to self-validating type |
+
+**Routing**: God types require two-phase refactoring:
+1. **@refactoring** (first): Storify methods to reveal structure
+2. **@code-designing** (then): Design service composition
+
+See @refactoring skill → `god_object_decomposition` pattern for detailed mechanics.
+</pattern>
+</linter_triggered_patterns>
 
 </workflow>
 
