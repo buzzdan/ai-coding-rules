@@ -13,6 +13,15 @@ Linter-driven refactoring patterns to reduce complexity and improve React code q
 - Components/functions are too long or deeply nested
 - Automatically invoked by @linter-driven-development when linter fails
 
+## Critical Rule: Never Disable Linter Rules
+
+**IMPORTANT**: When refactoring:
+- **DO NOT** add `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, or similar suppression comments
+- **ALWAYS** fix the underlying issue through proper refactoring
+- **ONLY** disable rules as an absolute last resort with explicit user approval
+- **When approved**: Add a comment explaining WHY the rule is disabled
+- Linter warnings indicate real code quality issues - fix them, don't hide them
+
 ## Refactoring Signals
 
 ### SonarJS Linter Failures
@@ -39,10 +48,10 @@ Linter-driven refactoring patterns to reduce complexity and improve React code q
 
 ### 1. Interpret Linter Output
 
-Run `npm run lintcheck` and analyze failures:
+Run the lint check command from package.json and analyze failures:
 ```
-src/features/auth/LoginForm.tsx:45:1: Cognitive Complexity of 18 exceeds max of 15
-src/features/users/UserList.tsx:120:5: Cyclomatic Complexity of 12 exceeds max of 10
+src/components/LoginForm.tsx:45:1: Cognitive Complexity of 18 exceeds max of 15
+src/components/UserList.tsx:120:5: Cyclomatic Complexity of 12 exceeds max of 10
 src/components/DataTable.tsx:89:1: Function has 250 lines, max is 200
 ```
 
@@ -68,8 +77,8 @@ Choose appropriate pattern:
 
 ### 4. Verify Improvement
 
-- Re-run linter: `npm run lintcheck`
-- Tests still pass: `npm test`
+- Re-run linter using detected lint check command from package.json
+- Tests still pass using detected test command from package.json
 - Code more readable?
 
 ## Refactoring Patterns
@@ -557,20 +566,155 @@ Linter Failure
 ## Key Principles
 
 See reference.md for detailed principles:
+- **Never Disable Rules**: Fix issues through refactoring, never suppress with eslint-disable or @ts-ignore
 - Single Responsibility: Each component/hook does one thing
+- DRY (Don't Repeat Yourself): Extract repeated patterns to reusable utilities/constants
+- Check Before Creating: Search for existing type guards, utilities, and constants before creating new ones
 - Extract Early, Extract Often: Don't wait for linter to fail
 - Composition Over Complexity: Combine simple pieces
 - Guard Clauses: Exit early, reduce nesting
 - Extract Helper Functions: Name complex logic
+- Type Guards: Use utilities (isString, isNumber) instead of repeated typeof checks
 - Custom Hooks: Reusable logic outside components
 - Zod for Validation: Move validation out of components
 
 ## After Refactoring
 
-- [ ] Re-run linter: `npm run lintcheck`
-- [ ] Run tests: `npm test`
+- [ ] Re-run linter using detected lint command - **changed code must have no linting errors**
+- [ ] Run tests using detected test command
 - [ ] Verify behavior unchanged
 - [ ] Check if more readable
 - [ ] Consider broader refactoring if patterns repeat
 
-See reference.md for complete refactoring patterns and decision trees.
+## Success Criteria: Comments
+
+**No comments on functions, variables, or code lines** - they should be self-explanatory through good naming.
+
+**Acceptable comments:**
+- File-level comments explaining a complex hook's purpose or architecture
+- JSDoc for public API functions that will be consumed by other modules
+- Comments explaining WHY (non-obvious business logic, intentional tradeoffs)
+
+**Not acceptable:**
+- Comments explaining WHAT code does (refactor to better names instead)
+- Comments on variables or individual lines
+- Comments that repeat the function/variable name
+
+See examples.md for detailed examples.
+
+## Acceptance Criteria
+
+**CRITICAL: All criteria must be met before completing refactoring.**
+
+### Mandatory Requirements (Must Pass)
+
+1. **No Linter Rule Disabling in Refactored Code**
+   - [ ] Refactored files contain NO new `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line` comments
+   - [ ] Refactored files contain NO new `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck` comments
+   - [ ] Pre-existing disabling comments in unchanged files are acceptable (not in scope)
+   - [ ] All linter issues resolved through proper refactoring patterns
+   - **If disabling seems necessary**: Stop, reconsider approach, ask user for approval
+
+2. **All Linter Checks Pass Clean**
+   - [ ] ESLint: 0 errors, 0 warnings in refactored files
+   - [ ] TypeScript: 0 errors
+   - [ ] No new linter issues introduced by refactoring
+
+3. **Behavior Preserved**
+   - [ ] All existing tests still pass
+   - [ ] No functionality removed or changed (unless explicitly requested)
+   - [ ] Public API unchanged (unless explicitly requested)
+
+4. **Iterative Verification (Multiple Passes)**
+   - [ ] Run linter after each refactoring step
+   - [ ] Run linter at least twice after final changes
+   - [ ] Both runs pass clean with no new issues
+   - [ ] If fix introduces new issue, address it before proceeding
+
+### Verification Workflow
+
+**IMPORTANT**: Detect available scripts from the project's `package.json` before running checks.
+
+```
+# After each refactoring step:
+Run lint check command from package.json (quick verification)
+
+# After all refactoring complete:
+# Iteration 1
+Run all quality check commands detected from package.json:
+- TypeScript check
+- Linting check
+- Tests
+
+# Iteration 2 (verify stability)
+Run the same quality check commands again
+
+# Both must pass clean before refactoring is complete
+```
+
+### Refactoring Completion Checklist
+
+```
+✅ REFACTORING ACCEPTANCE CRITERIA
+
+Linter Compliance (MANDATORY):
+[ ] No eslint-disable comments added
+[ ] No @ts-ignore/@ts-expect-error added
+[ ] All complexity issues fixed through refactoring patterns
+[ ] Did NOT disable rules to "fix" issues
+[ ] If any disabling approved: comment explains WHY
+
+Quality Verification:
+[ ] ESLint passes clean (0 errors/warnings)
+[ ] TypeScript compiles (0 errors)
+[ ] All tests pass
+[ ] Ran verification twice consecutively
+
+Code Quality:
+[ ] No comments explaining WHAT (only WHY if needed)
+[ ] Self-explanatory naming
+[ ] Single responsibility per function/component
+[ ] No repeated typeof checks (use type guards)
+
+Refactoring complete: All boxes checked ✅
+```
+
+### What Blocks Completion
+
+The following will BLOCK refactoring completion:
+- Any new linter disabling comment (without explicit user approval)
+- Approved linter disabling without explanatory comment (why was it necessary)
+- Complexity still above thresholds
+- Any failing linter check in refactored files
+- Single-run verification (must run twice)
+- Tests failing after refactoring
+
+### Acceptable Exceptions (Require User Approval)
+
+Only with explicit user consent:
+- Keeping complexity slightly above threshold with justification
+- Disabling a specific rule with documented reason
+- Breaking behavior change (if explicitly requested)
+
+**When disabling a rule with approval, add a comment explaining WHY:**
+```typescript
+// ❌ Bad: Disabled without explanation
+// eslint-disable-next-line sonarjs/cognitive-complexity
+function complexLegacyParser() { ... }
+
+// ✅ Good: Disabled with justification
+// eslint-disable-next-line sonarjs/cognitive-complexity -- Legacy parser with complex state machine, refactoring planned in Q2
+function complexLegacyParser() { ... }
+```
+
+**Document any exceptions when reporting refactoring results.**
+
+## Additional Resources
+
+- **reference.md** - Complete refactoring patterns, storifying techniques, and decision trees
+- **examples.md** - Real-world refactoring examples:
+  - Avoid IIFE (use lookup objects or helper functions)
+  - No empty blocks (use early returns, guard clauses)
+  - Magic numbers (extract to named constants)
+  - Comments philosophy (explain WHY, not WHAT)
+  - Complex conditionals to early returns

@@ -78,27 +78,37 @@ Impact: Low, but improves codebase quality
 
 ### 0. Architecture Pattern Validation (FIRST CHECK)
 
-**Expected: Feature-based architecture. Design Debt (ADVISORY) - never blocks commit.**
+**Expected: Consistent architecture. Design Debt (ADVISORY) - never blocks commit.**
 
 Check file patterns:
+- `src/{components,hooks,contexts}/` → ✅ Layer-based (most common)
 - `src/features/[feature]/{components,hooks,context}/` → ✅ Feature-based
-- `src/{components,hooks,contexts}/[feature].tsx` → 🔴 Technical layers (Design Debt)
+- Mixed patterns → ✅ Hybrid (if intentional)
+- Inconsistent patterns → 🔴 Design Debt
 
 **Advisory Categories**:
-1. **✅ Feature-based** → Praise, note migration progress if applicable
-2. **🟢 Mixed without docs** → Suggest creating `docs/architecture/feature-based-migration.md`
-3. **🔴 Technical layers (advisory)** → Suggest feature-based alternative, respect constraints
+1. **✅ Consistent architecture** → Acknowledge pattern, ensure new code follows it
+2. **🟢 Hybrid with clear boundaries** → Validate shared vs feature-specific distinction is clear
+3. **🔴 Inconsistent patterns (advisory)** → Suggest establishing clear conventions
 
 **Report Template**:
 ```
-🔴 Design Debt (Advisory): Technical Layer Architecture
-- Current: Code organized by technical type (components/, hooks/, etc.)
-- Preferred: Feature-based structure for better cohesion/maintainability
-- Alternative: Continue as-is (time constraints, team decision valid)
-- Offer: Create migration docs? Refactor? Proceed as-is?
+🟢 Architecture Review: Layer-Based Pattern
+- Current: Code organized by technical layer (components/, hooks/, contexts/)
+- Status: Consistent with existing codebase ✅
+- New code follows established pattern ✅
 ```
 
-**Always acknowledge**: Time pressure, consistency needs, team decisions are valid reasons to proceed.
+Or if inconsistent:
+```
+🔴 Design Debt (Advisory): Inconsistent Architecture
+- Issue: Mixed patterns without clear conventions
+- Examples: Some auth code in src/components/, other auth code scattered
+- Suggestion: Document architecture decisions and apply consistently
+- Alternative: Proceed as-is (address in future refactor)
+```
+
+**Always acknowledge**: Consistency with existing codebase is the priority.
 
 ---
 
@@ -352,7 +362,7 @@ After reviewing changed code, scan entire modified files for:
 ```
 📝 BROADER CONTEXT:
 While reviewing LoginForm.tsx, noticed similar validation patterns in
-RegisterForm.tsx and ProfileForm.tsx (src/features/user/). Consider
+RegisterForm.tsx and ProfileForm.tsx (src/components/). Consider
 extracting shared validation logic to a useFormValidation hook or
 creating branded types for Email, Password used across features.
 ```
@@ -365,19 +375,19 @@ After review:
 ⚠️  PRE-COMMIT REVIEW FINDINGS
 
 Reviewed:
-- src/features/auth/LoginForm.tsx (+45, -20 lines)
-- src/features/auth/types.ts (+15, -0 lines)
-- src/features/auth/useAuth.ts (+30, -5 lines)
+- src/components/LoginForm.tsx (+45, -20 lines)
+- src/types/auth.ts (+15, -0 lines)
+- src/hooks/useAuth.ts (+30, -5 lines)
 
 🔴 DESIGN DEBT (2 findings) - Recommended to fix:
 
-1. src/features/auth/LoginForm.tsx:45 - Primitive obsession
+1. src/components/LoginForm.tsx:45 - Primitive obsession
    Current: email validation with regex inline
    Better:  Use Zod schema or branded Email type
    Why:     Type safety, validation guarantee, reusable across features
    Fix:     Use @component-designing to create Email type
 
-2. src/features/auth/LoginForm.tsx:89 - Missing error boundary
+2. src/components/LoginForm.tsx:89 - Missing error boundary
    Current: Async login can fail silently
    Better:  Wrap with ErrorBoundary or add error handling
    Why:     Better user experience, prevents broken UI
@@ -385,38 +395,38 @@ Reviewed:
 
 🟡 READABILITY DEBT (3 findings) - Consider fixing:
 
-1. src/features/auth/LoginForm.tsx:120 - Mixed abstractions
+1. src/components/LoginForm.tsx:120 - Mixed abstractions
    Component mixes validation logic with UI rendering
    Why:     Harder to understand and test independently
    Fix:     Extract validation to useFormValidation hook
 
-2. src/features/auth/LoginForm.tsx:67 - Complex condition
+2. src/components/LoginForm.tsx:67 - Complex condition
    if (email && email.length > 0 && /regex/.test(email) && !isSubmitting && !error)
    Why:     Hard to understand intent
    Fix:     Extract to: const canSubmit = isFormValid(email, isSubmitting, error)
 
-3. src/features/auth/useAuth.ts:34 - Missing hook extraction
+3. src/hooks/useAuth.ts:34 - Missing hook extraction
    Complex useEffect with multiple concerns
    Why:     Hard to test, hard to reuse
    Fix:     Split into useLogin and useAuthState hooks
 
 🟢 POLISH OPPORTUNITIES (4 findings) - Optional improvements:
 
-1. src/features/auth/types.ts:10 - Missing JSDoc
+1. src/types/auth.ts:10 - Missing JSDoc
    Public Email type should have documentation
    Suggestion: Add JSDoc explaining validation rules
 
-2. src/features/auth/LoginForm.tsx:12 - Accessibility enhancement
+2. src/components/LoginForm.tsx:12 - Accessibility enhancement
    Form could use aria-describedby for better screen reader support
    Current:  <input type="email" />
    Better:   <input type="email" aria-describedby="email-hint" />
    Impact:   Better accessibility for screen reader users
 
-3. src/features/auth/LoginForm.tsx:55 - Keyboard navigation
+3. src/components/LoginForm.tsx:55 - Keyboard navigation
    Close button could have Escape key handler
    Suggestion: Add onKeyDown handler for Escape key
 
-4. src/features/auth/useAuth.ts:89 - Type improvement
+4. src/hooks/useAuth.ts:89 - Type improvement
    Return type could be more specific than { user: User | null }
    Suggestion: Use discriminated union for different states
 
@@ -464,4 +474,104 @@ This is **ADVISORY** only. User decides:
 
 The review never blocks commits. It informs decisions.
 
-See reference.md for complete review checklist and examples.
+## Acceptance Criteria
+
+**All criteria must be met before review is considered complete.**
+
+### Mandatory Requirements (Must Pass)
+
+1. **Review Scope Complete**
+   - [ ] All changed files reviewed
+   - [ ] All new components/hooks analyzed
+   - [ ] Broader context examined (entire modified files)
+
+2. **Categorization Complete**
+   - [ ] All findings categorized (Design Debt / Readability Debt / Polish)
+   - [ ] Each finding has: location, current code, better approach, why it matters
+   - [ ] Fix suggestions provided for each finding
+
+3. **Design Principles Checked**
+   - [ ] Primitive obsession checked
+   - [ ] Component composition checked
+   - [ ] Prop drilling checked
+   - [ ] Custom hook extraction opportunities identified
+   - [ ] Type safety validated
+
+4. **Accessibility Checked**
+   - [ ] Semantic HTML usage verified
+   - [ ] ARIA attributes checked
+   - [ ] Keyboard navigation verified
+   - [ ] Form labels checked
+   - [ ] Color contrast considerations noted
+
+5. **Findings Reported**
+   - [ ] Clear output format used
+   - [ ] User presented with options (commit as-is, fix debt, etc.)
+   - [ ] Broader context patterns noted if found
+
+### Review Completion Checklist
+
+```
+✅ PRE-COMMIT REVIEW ACCEPTANCE CRITERIA
+
+Scope:
+[ ] All changed files reviewed
+[ ] All new code analyzed
+[ ] Broader file context examined
+
+Categorization:
+[ ] Design Debt findings identified
+[ ] Readability Debt findings identified
+[ ] Polish Opportunities identified
+[ ] Each finding has fix suggestion
+
+Design Principles:
+[ ] No primitive obsession
+[ ] No prop drilling
+[ ] Proper component composition
+[ ] Custom hooks where appropriate
+
+Accessibility:
+[ ] Semantic HTML
+[ ] Proper ARIA
+[ ] Keyboard accessible
+[ ] Form labels present
+
+Output:
+[ ] Findings formatted clearly
+[ ] User options presented
+[ ] Recommendations clear
+
+Review complete: All boxes checked ✅
+```
+
+### What Blocks Completion
+
+The following will BLOCK review completion:
+- Files not reviewed
+- Findings not categorized
+- Missing fix suggestions
+- Accessibility not checked
+- No user options presented
+
+### Review Output Requirements
+
+Review must include:
+1. **Files Reviewed** - List of all files examined
+2. **Design Debt** - High-impact issues with fix suggestions
+3. **Readability Debt** - Medium-impact issues with fix suggestions
+4. **Polish Opportunities** - Low-impact improvements
+5. **Broader Context** - Patterns noticed in unmodified code
+6. **User Options** - Clear choices for how to proceed
+
+**Note**: This review is ADVISORY. It never blocks commits but informs decisions.
+
+## Additional Resources
+
+- **reference.md** - Complete review checklist and examples
+- **examples.md** - Specific violations to check for:
+  - Design Debt: IIFE patterns, primitive obsession, prop drilling
+  - Readability Debt: Empty blocks, magic numbers
+  - Polish: Comment quality, EMPTY_STRING usage
+  - Detection patterns and review finding formats
+  - Suggested fixes for each violation type

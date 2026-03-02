@@ -170,45 +170,101 @@ const userId: UserId = createEmail("test@example.com")  // ❌ Compile error
 - Zod for boundaries (forms, API)
 - Branded types for internal type safety
 
-## 2. Feature-Based Architecture
+## 2. Architecture Patterns
 
 ### Principle
 
-Group code by **feature** (what it does), not by **technical layer** (how it works).
+Choose an architecture that matches your codebase and team. **Consistency is more important than dogma.**
 
 ### Pattern Comparison
 
-**❌ Bad: Technical Layers (Horizontal Slicing)**
+**A. Layer-Based Architecture (Horizontal Slicing)**
+
+Most common pattern, especially in established codebases:
+
 ```
 src/
-├── components/
-│   ├── LoginForm.tsx
-│   ├── RegisterForm.tsx
-│   ├── UserProfile.tsx
-│   └── UserList.tsx
-├── hooks/
+├── components/        # Reusable components only
+│   ├── Button.tsx
+│   ├── Input.tsx
+│   ├── Modal.tsx
+│   └── Card.tsx
+├── pages/            # Top-level views/pages
+│   ├── LoginPage.tsx
+│   ├── DashboardPage.tsx
+│   ├── UserProfilePage.tsx
+│   └── SettingsPage.tsx
+├── hooks/            # Reusable hooks
 │   ├── useAuth.ts
-│   ├── useUsers.ts
-│   └── useProfile.ts
-├── contexts/
+│   ├── useDebounce.ts
+│   └── useLocalStorage.ts
+├── contexts/         # Shared contexts
 │   ├── AuthContext.tsx
-│   └── UserContext.tsx
-├── types/
+│   └── ThemeContext.tsx
+├── types/            # Shared types
 │   ├── auth.ts
 │   └── user.ts
-└── api/
-    ├── auth.ts
-    └── users.ts
+└── api/              # API client
+    ├── authApi.ts
+    └── userApi.ts
 ```
 
-**Problems:**
-- Related code spread across directories
-- Hard to find all code for a feature
-- Changes require touching multiple folders
-- Tight coupling between features
-- Difficult to extract or delete features
+**Key Distinction**:
+- `components/` = **Reusable** UI components used across multiple pages
+- `pages/` or `views/` = **Top-level** page components that compose reusable components
 
-**✅ Good: Feature-Based (Vertical Slicing)**
+**Benefits:**
+- Clear separation: reusable vs page-specific
+- Easy to find shared components
+- Familiar to most developers
+- Works well for small to medium projects
+- Simple mental model
+
+**Tradeoffs:**
+- Can become large folders in big projects
+- Page-specific logic not always colocated with page
+
+**B. Hybrid Architecture (Mixed Approach)**
+
+Combines shared layers with feature-specific organization:
+
+```
+src/
+├── components/         # Truly shared UI components
+│   ├── Button.tsx
+│   ├── Input.tsx
+│   └── Modal.tsx
+├── hooks/             # Truly shared hooks
+│   ├── useDebounce.ts
+│   └── useLocalStorage.ts
+├── pages/             # Pages with feature-specific code
+│   ├── auth/
+│   │   ├── LoginPage.tsx
+│   │   ├── components/
+│   │   │   └── LoginForm.tsx
+│   │   └── hooks/
+│   │       └── useLoginForm.ts
+│   └── dashboard/
+│       ├── DashboardPage.tsx
+│       └── components/
+│           └── StatsWidget.tsx
+├── contexts/
+│   └── AuthContext.tsx
+└── types/
+    └── auth.ts
+```
+
+**Benefits:**
+- Clear distinction between shared and feature-specific
+- Related page code colocated
+- Scales better than pure layer-based
+- Feature code easy to find and maintain
+
+**Tradeoffs:**
+- Requires discipline (what goes where?)
+- More complex mental model
+
+**C. Feature-Based Architecture (Vertical Slicing)**
 ```
 src/
 ├── features/
@@ -259,9 +315,36 @@ src/
 - Clear dependencies between features
 - Tests colocated with implementation
 
-### Feature Index Files
+**Tradeoffs:**
+- Less familiar to some developers
+- Requires more upfront planning
+- Can lead to duplication if not careful
 
-Each feature should export its public API through `index.ts`:
+### Choosing the Right Pattern
+
+**Use Layer-Based when:**
+- Working with existing codebase that uses it
+- Team is comfortable with this pattern
+- Small to medium project size
+- Strong component library focus
+
+**Use Hybrid when:**
+- Need to balance shared and feature-specific code
+- Using Next.js or similar page-based frameworks
+- Want benefits of both approaches
+- Medium to large projects
+
+**Use Feature-Based when:**
+- Starting a new large-scale project
+- Team experienced with this pattern
+- Strong feature boundaries
+- Planning for micro-frontends
+
+**Golden Rule**: Match the existing codebase architecture unless there's a compelling reason to change.
+
+### Public API Exports (Optional)
+
+For feature-based architecture, use index files to control public API:
 
 ```typescript
 // src/features/auth/index.ts
@@ -271,19 +354,15 @@ export { AuthProvider, useAuthContext } from './context/AuthContext'
 export type { User, Email, UserId } from './types'
 
 // Private implementation details stay unexported
-// - Internal hooks
-// - Utility functions
-// - Implementation components
 ```
 
-**Usage from other features:**
-```typescript
-// ✅ Good: Import from feature's public API
-import { LoginForm, useAuth, type User } from '@/features/auth'
+For layer-based architecture, direct imports are fine:
 
-// ❌ Bad: Import internal implementation
-import { LoginForm } from '@/features/auth/components/LoginForm'
-import { useAuth } from '@/features/auth/hooks/useAuth'
+```typescript
+// Direct imports from layers
+import { LoginForm } from '@/components/LoginForm'
+import { useAuth } from '@/hooks/useAuth'
+import { type User } from '@/types/auth'
 ```
 
 ## 3. Component Composition Patterns
@@ -790,7 +869,7 @@ type ImmutableUser = Readonly<User>
 ### Key Principles
 
 1. **Prevent Primitive Obsession**: Use Zod schemas and branded types
-2. **Feature-Based Architecture**: Group by feature, not technical layer
+2. **Consistent Architecture**: Match existing codebase structure (layer-based, hybrid, or feature-based)
 3. **Component Composition**: Presentational vs container, compound components
 4. **Single Responsibility Hooks**: Each hook does one thing
 5. **Context Sparingly**: Only for 3+ levels, optimize for performance
@@ -801,7 +880,7 @@ type ImmutableUser = Readonly<User>
 ### Design Checklist
 
 Before writing code:
-- [ ] Architecture pattern decided (feature-based)
+- [ ] Architecture pattern identified (match existing: layer-based/hybrid/feature-based)
 - [ ] Primitives identified and types designed (Zod/branded)
 - [ ] Component responsibilities clear (presentational vs container)
 - [ ] Custom hooks extracted (single responsibility)

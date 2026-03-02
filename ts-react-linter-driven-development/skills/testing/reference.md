@@ -1,4 +1,6 @@
-# Testing Reference (Jest + React Testing Library)
+# Testing Reference (React Testing Library)
+
+Compatible with **Jest**, **Vitest**, or any test runner supporting React Testing Library.
 
 ## Core Philosophy
 
@@ -207,7 +209,9 @@ await waitFor(() => {
 })
 ```
 
-## MSW (Mock Service Worker)
+## API Mocking
+
+Use the project's existing API mocking approach consistently. Examples below use MSW - adapt to your project's approach.
 
 ### Setup
 
@@ -249,7 +253,7 @@ import { handlers } from './handlers'
 
 export const server = setupServer(...handlers)
 
-// src/test/setup.ts (imported in Jest config)
+// src/test/setup.ts (imported in test config)
 import '@testing-library/jest-dom'
 import { server } from './mocks/server'
 
@@ -782,7 +786,7 @@ function useOrder(orderId: string) {
 
 **How to test**:
 - Test entire feature flows
-- Use MSW (Mock Service Worker) for API calls
+- Mock API calls using project's existing approach
 - Test user interactions with `userEvent`
 - Verify multiple components working together
 - Test loading/error/success states
@@ -844,11 +848,11 @@ When you follow this pattern:
 | Type | Coverage Target | Test Approach | Example |
 |------|----------------|---------------|---------|
 | Leaf | 100% unit tests | Isolated, no mocks | `useDebounce()`, `Email` type, `Button` |
-| Orchestrating | Integration tests | User flows, MSW | `LoginForm`, `UserProfile`, `AuthProvider` |
+| Orchestrating | Integration tests | User flows, API mocking | `LoginForm`, `UserProfile`, `AuthProvider` |
 
-## Jest Matchers (jest-dom)
+## Testing Library Matchers (jest-dom / vitest-dom)
 
-Common assertions from `@testing-library/jest-dom`:
+Common assertions from `@testing-library/jest-dom` (Jest) or `@vitest/web-test-utils` (Vitest):
 
 ```typescript
 // Presence
@@ -928,7 +932,7 @@ module.exports = {
 - Test user behavior, not implementation
 - Use accessible queries (getByRole, getByLabelText)
 - Use user-event for interactions
-- Use MSW for API mocking
+- Mock API calls consistently
 - Wait for conditions with waitFor/findBy
 - Colocate tests with components
 - Write descriptive test names
@@ -992,10 +996,391 @@ await waitFor(() => expect(screen.getByText(/loaded/i)).toBeInTheDocument())
 jest.mock('./useAuth', () => ({ useAuth: () => mockAuth }))
 jest.mock('./api', () => ({ fetchUser: mockFetch }))
 
-// ✅ Good: Use real implementations with MSW
+// ✅ Good: Use real implementations, mock only APIs
 // useAuth uses real context
-// API calls intercepted by MSW
+// API calls mocked appropriately
 ```
+
+### 5. Mocking child components in unit tests
+
+```typescript
+// ❌ Bad: Mocking icon in unit test
+jest.mock('@/icons/CheckIcon', () => ({
+  CheckIcon: () => <span data-testid="mock-check-icon" />
+}))
+
+test('shows success state', () => {
+  render(<SuccessMessage />)
+  expect(screen.getByTestId('mock-check-icon')).toBeInTheDocument() // Testing mock, not real icon!
+})
+
+// ✅ Good: Test real icon renders
+test('shows success state with check icon', () => {
+  render(<SuccessMessage />)
+  // Test the real icon - by accessible name, role, or actual SVG content
+  expect(screen.getByRole('img', { name: /success/i })).toBeInTheDocument()
+  // Or if icon has specific class/attribute
+  expect(screen.getByTestId('check-icon')).toHaveClass('text-green-500')
+})
+
+// ❌ Bad: Mocking child component
+jest.mock('./Button', () => ({
+  Button: ({ onClick, children }) => <button onClick={onClick}>{children}</button>
+}))
+
+// ✅ Good: Use real Button component
+import { Button } from './Button'
+
+test('form submits on button click', async () => {
+  render(<Form />)
+  await user.click(screen.getByRole('button', { name: /submit/i }))
+  // Real Button behavior is tested
+})
+```
+
+## Mocking Strategy
+
+### When to Avoid Mocking (Unit Tests)
+
+For unit tests of components, hooks, and utilities - **use real implementations**:
+
+```typescript
+// ❌ DON'T mock these in unit tests:
+// - Child components (Button, Icon, Card)
+// - UI libraries (icons, design system components)
+// - Utility functions
+// - Custom hooks that don't fetch data
+// - Context providers (use real ones with test values)
+
+// ✅ DO use real implementations:
+test('Alert shows warning icon for warning variant', () => {
+  render(<Alert variant="warning" message="Watch out!" />)
+
+  // Test REAL icon renders, not a mock
+  const icon = screen.getByRole('img', { name: /warning/i })
+  expect(icon).toBeInTheDocument()
+  expect(icon).toHaveAttribute('aria-label', 'Warning')
+})
+```
+
+### When Mocking is Acceptable
+
+**1. Integration/Page-Level Tests** - Mock heavy child components to focus on page composition:
+
+```typescript
+// Testing that Dashboard page renders all sections
+// Mocking individual sections is OK here - we're testing composition, not section details
+jest.mock('./UserStats', () => ({
+  UserStats: () => <div data-testid="user-stats">Stats</div>
+}))
+
+test('Dashboard renders all sections', () => {
+  render(<Dashboard />)
+  expect(screen.getByTestId('user-stats')).toBeInTheDocument()
+  expect(screen.getByTestId('recent-activity')).toBeInTheDocument()
+})
+```
+
+**2. External API Calls** - Mock consistently using project's approach:
+
+```typescript
+// ✅ Good: API mocking (MSW example - adapt to your project)
+server.use(
+  rest.get('/api/users', (req, res, ctx) => {
+    return res(ctx.json([{ id: '1', name: 'Alice' }]))
+  })
+)
+
+// ❌ Bad: jest.mock for API
+jest.mock('./api', () => ({
+  fetchUsers: jest.fn().mockResolvedValue([{ id: '1', name: 'Alice' }])
+}))
+```
+
+**3. Browser APIs** - When API doesn't exist in test environment:
+
+```typescript
+// localStorage, geolocation, etc.
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  clear: jest.fn()
+}
+Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+```
+
+### The "Closest to Component" Principle
+
+Test data and implementations should be as close to real component behavior as possible:
+
+```typescript
+// ❌ Far from component: Mock everything, test nothing real
+jest.mock('./Icon')
+jest.mock('./Text')
+jest.mock('./styles')
+
+// ❌ Medium distance: Use test utilities that hide real behavior
+const { getByText } = renderWithMocks(<Component />)
+
+// ✅ Close to component: Real implementations, real data
+render(
+  <ThemeProvider theme={realTheme}>
+    <Component user={realUserData} />
+  </ThemeProvider>
+)
+// Now testing actual icon rendering, actual styling, actual behavior
+```
+
+### Quick Reference: Mock or Not?
+
+| What | Unit Test | Integration Test |
+|------|-----------|------------------|
+| Child components | ❌ No mock | ✅ Mock OK |
+| Icons/UI elements | ❌ No mock | ✅ Mock OK |
+| Custom hooks (pure) | ❌ No mock | ❌ No mock |
+| Custom hooks (data fetching) | Mock API calls | Mock API calls |
+| Context providers | ❌ Use real | ❌ Use real |
+| API calls | ✅ Mock appropriately | ✅ Mock appropriately |
+| Browser APIs | ✅ Mock if needed | ✅ Mock if needed |
+| Third-party libraries | ❌ Prefer real | ✅ Mock OK |
+
+## DRY Principle in Tests
+
+Keep test code DRY (Don't Repeat Yourself) to improve maintainability and reduce errors.
+
+### Extract Render Helpers
+
+```typescript
+// ❌ Bad: Repeated provider setup in every test
+test('shows user name', () => {
+  render(
+    <AuthProvider initialUser={user}>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <UserProfile />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </AuthProvider>
+  )
+})
+
+test('shows logout button', () => {
+  render(
+    <AuthProvider initialUser={user}>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <UserProfile />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </AuthProvider>
+  )
+})
+
+// ✅ Good: Extract render helper
+function renderWithProviders(
+  ui: React.ReactElement,
+  { user = null, theme = 'light' } = {}
+) {
+  const queryClient = new QueryClient()
+  return render(
+    <AuthProvider initialUser={user}>
+      <ThemeProvider initialTheme={theme}>
+        <QueryClientProvider client={queryClient}>
+          {ui}
+        </QueryClientProvider>
+      </ThemeProvider>
+    </AuthProvider>
+  )
+}
+
+test('shows user name', () => {
+  renderWithProviders(<UserProfile />, { user })
+  expect(screen.getByText(user.name)).toBeInTheDocument()
+})
+
+test('shows logout button', () => {
+  renderWithProviders(<UserProfile />, { user })
+  expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument()
+})
+```
+
+### Use beforeEach for Shared Setup
+
+```typescript
+// ❌ Bad: Repeated setup in every test
+describe('UserList', () => {
+  test('displays users', async () => {
+    const user = userEvent.setup()
+    render(<UserList />)
+    // ...
+  })
+
+  test('filters users', async () => {
+    const user = userEvent.setup()
+    render(<UserList />)
+    // ...
+  })
+})
+
+// ✅ Good: Shared setup with beforeEach
+describe('UserList', () => {
+  let user: ReturnType<typeof userEvent.setup>
+
+  beforeEach(() => {
+    user = userEvent.setup()
+    render(<UserList />)
+  })
+
+  test('displays users', async () => {
+    expect(await screen.findAllByRole('listitem')).toHaveLength(3)
+  })
+
+  test('filters users', async () => {
+    await user.type(screen.getByRole('textbox'), 'alice')
+    expect(await screen.findAllByRole('listitem')).toHaveLength(1)
+  })
+})
+```
+
+### Create Test Data Factories
+
+```typescript
+// ❌ Bad: Repeated test data creation
+test('shows full name', () => {
+  const user = { id: '1', firstName: 'John', lastName: 'Doe', email: 'john@example.com' }
+  render(<UserCard user={user} />)
+})
+
+test('shows email', () => {
+  const user = { id: '2', firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' }
+  render(<UserCard user={user} />)
+})
+
+// ✅ Good: Test data factory
+function createUser(overrides: Partial<User> = {}): User {
+  return {
+    id: '1',
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john@example.com',
+    ...overrides
+  }
+}
+
+test('shows full name', () => {
+  const user = createUser()
+  render(<UserCard user={user} />)
+  expect(screen.getByText('John Doe')).toBeInTheDocument()
+})
+
+test('shows email', () => {
+  const user = createUser({ email: 'custom@example.com' })
+  render(<UserCard user={user} />)
+  expect(screen.getByText('custom@example.com')).toBeInTheDocument()
+})
+```
+
+### Share API Mock Handlers
+
+```typescript
+// src/test/mocks/handlers.ts - Shared handlers
+export const handlers = [
+  rest.get('/api/users', (req, res, ctx) => {
+    return res(ctx.json(mockUsers))
+  }),
+  rest.get('/api/users/:id', (req, res, ctx) => {
+    const user = mockUsers.find(u => u.id === req.params.id)
+    return user
+      ? res(ctx.json(user))
+      : res(ctx.status(404))
+  })
+]
+
+// In tests - just override when needed
+test('handles empty list', async () => {
+  server.use(
+    rest.get('/api/users', (req, res, ctx) => res(ctx.json([])))
+  )
+  render(<UserList />)
+  expect(await screen.findByText(/no users/i)).toBeInTheDocument()
+})
+```
+
+### Use test.each for Similar Tests
+
+```typescript
+// ❌ Bad: Repeated test structure
+test('validates empty email', () => {
+  render(<Form />)
+  fireEvent.submit(screen.getByRole('form'))
+  expect(screen.getByText('Email is required')).toBeInTheDocument()
+})
+
+test('validates invalid email', () => {
+  render(<Form />)
+  fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'invalid' } })
+  fireEvent.submit(screen.getByRole('form'))
+  expect(screen.getByText('Invalid email format')).toBeInTheDocument()
+})
+
+// ✅ Good: test.each for variations
+test.each([
+  { value: '', error: 'Email is required' },
+  { value: 'invalid', error: 'Invalid email format' },
+  { value: 'no-domain@', error: 'Invalid email format' },
+  { value: '@no-local.com', error: 'Invalid email format' }
+])('shows "$error" for email "$value"', async ({ value, error }) => {
+  const user = userEvent.setup()
+  render(<Form />)
+
+  if (value) {
+    await user.type(screen.getByLabelText(/email/i), value)
+  }
+  await user.click(screen.getByRole('button', { name: /submit/i }))
+
+  expect(screen.getByText(error)).toBeInTheDocument()
+})
+```
+
+### When NOT to DRY
+
+Some repetition improves test clarity:
+
+```typescript
+// ✅ OK: Explicit test data makes intent clear
+test('admin can delete users', () => {
+  const admin = { id: '1', role: 'admin', name: 'Admin User' }
+  renderWithProviders(<UserList />, { user: admin })
+  expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument()
+})
+
+test('regular user cannot delete users', () => {
+  const regularUser = { id: '2', role: 'user', name: 'Regular User' }
+  renderWithProviders(<UserList />, { user: regularUser })
+  expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
+})
+
+// ❌ Over-DRY: Abstraction hides test intent
+const testUserPermission = (role, canDelete) => {
+  const user = createUser({ role })
+  renderWithProviders(<UserList />, { user })
+  if (canDelete) {
+    expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument()
+  } else {
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
+  }
+}
+// What is this testing? Intent is hidden in abstraction
+```
+
+### DRY Checklist
+
+- [ ] Common render setup extracted to helper functions
+- [ ] Shared setup uses `beforeEach` within describe blocks
+- [ ] Test data uses factories with sensible defaults
+- [ ] API mock handlers shared in central location
+- [ ] `test.each` used for testing variations of same logic
+- [ ] Clarity preserved - not over-abstracted
 
 ## Testing Checklist
 
@@ -1003,10 +1388,13 @@ Before committing tests:
 - [ ] Tests use accessible queries (getByRole, getByLabelText)
 - [ ] User interactions use user-event, not fireEvent
 - [ ] Async operations use waitFor/findBy, not setTimeout
-- [ ] API calls mocked with MSW, not jest.mock
+- [ ] API calls mocked consistently with project approach
 - [ ] Tests are independent (no shared state)
 - [ ] Error scenarios covered
 - [ ] Loading states covered
 - [ ] Tests read like user stories
 - [ ] No implementation details tested
 - [ ] Coverage meets targets
+- [ ] Unit tests use real components (no mocking child components, icons, UI elements)
+- [ ] Mocking only used for integration tests, external APIs, or browser APIs
+- [ ] Test code follows DRY - shared setup, data factories, render helpers used

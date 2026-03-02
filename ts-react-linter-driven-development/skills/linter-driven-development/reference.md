@@ -6,16 +6,18 @@ The linter-driven development workflow ensures code quality through automated to
 
 ## Quality Tool Stack
 
+**IMPORTANT**: Detect actual command names from the project's `package.json` scripts section. The examples below are common patterns but actual names vary by project.
+
 ### 1. TypeScript Compiler (`tsc`)
-**Command**: `npm run typecheck`
+**Common script names**: `typecheck`, `type-check`, `tsc`, `check-types`
 **Purpose**: Type safety validation
 **Can auto-fix**: No
 **Failure resolution**: Manual type fixes or refactoring
 
 ### 2. ESLint
-**Command**:
-- Check: `npm run lintcheck`
-- Fix: `npm run lint`
+**Common script names**:
+- Check: `lint`, `lint:check`, `eslint`, `lintcheck`
+- Fix: `lint:fix`, `eslint:fix`, `lint --fix`
 
 **Purpose**: Code quality, style, and complexity analysis
 **Plugins used**:
@@ -34,17 +36,17 @@ The linter-driven development workflow ensures code quality through automated to
 **Requires refactoring**: Complexity rules, design issues
 
 ### 3. Prettier
-**Command**:
-- Check: `npm run formatcheck`
-- Fix: `npm run format`
+**Common script names**:
+- Check: `format:check`, `prettier:check`, `formatcheck`
+- Fix: `format`, `format:fix`, `prettier:write`
 
 **Purpose**: Code formatting consistency
 **Can auto-fix**: Always (100% auto-fixable)
 
 ### 4. Stylelint
-**Command**:
-- Check: `npm run stylecheck`
-- Fix: `npm run stylefix`
+**Common script names**:
+- Check: `stylelint`, `style:check`, `stylecheck`
+- Fix: `stylelint:fix`, `style:fix`, `stylefix`
 
 **Purpose**: SCSS/CSS linting
 **Can auto-fix**: Most rules
@@ -91,12 +93,13 @@ The linter-driven development workflow ensures code quality through automated to
 
 ### Phase 3: Linter Loop
 
-This is the core quality gate with multiple sub-checks:
+This is the core quality gate with multiple sub-checks.
+
+**IMPORTANT**: Detect actual command names from the project's `package.json` before running any checks.
 
 #### Step 1: Type Checking
-```bash
-npm run typecheck
-```
+Run the TypeScript check command detected from package.json.
+
 **Checks**: TypeScript compilation, type safety
 **Failures**: Type errors, missing types, type mismatches
 **Resolution**:
@@ -106,30 +109,27 @@ npm run typecheck
 - Cannot proceed if failing
 
 #### Step 2: ESLint Check
-```bash
-npm run lintcheck
-```
+Run the lint check command detected from package.json.
+
 **Checks**: Code quality, complexity, React rules, hooks rules, a11y
 **Failures**: See "ESLint Failure Categories" below
 **Resolution**:
-- Auto-fix: `npm run lint`
+- Run auto-fix command if available
 - If auto-fix insufficient → manual fixes or invoke @refactoring
 
 #### Step 3: Prettier Check
-```bash
-npm run formatcheck
-```
+Run the format check command detected from package.json.
+
 **Checks**: Code formatting consistency
 **Failures**: Inconsistent formatting
-**Resolution**: Always auto-fix with `npm run format`
+**Resolution**: Always auto-fix with format fix command
 
 #### Step 4: Stylelint Check
-```bash
-npm run stylecheck
-```
+Run the style check command detected from package.json (if CSS/SCSS in project).
+
 **Checks**: SCSS/CSS quality and consistency
 **Failures**: Style violations, naming issues
-**Resolution**: Auto-fix with `npm run stylefix`, some manual fixes
+**Resolution**: Auto-fix with style fix command, some manual fixes
 
 #### Loop Behavior
 ```
@@ -219,15 +219,15 @@ See **testing/reference.md** for:
 
 ## ESLint Failure Categories
 
-### Category 1: Auto-Fixable (npm run lint)
-These are fixed automatically:
+### Category 1: Auto-Fixable
+These are fixed automatically by the lint fix command:
 - Unused imports (`unused-imports/no-unused-imports`)
 - Import sorting (`simple-import-sort/imports`)
 - Missing semicolons, quotes, spacing (handled by Prettier)
 - Simple style violations
 - Arrow function simplification (`arrow-body-style`)
 
-**Action**: Run `npm run lint` → Re-run checks → Continue
+**Action**: Run lint fix command from package.json → Re-run checks → Continue
 
 ### Category 2: Requires Manual Fix
 These need developer intervention but are straightforward:
@@ -348,41 +348,37 @@ See **refactoring/reference.md** for:
 **Output**: Storybook stories, JSDoc, feature docs
 **Purpose**: Documentation for humans and AI
 
-## Command Alternatives
+## Command Detection
 
-Different projects may use different naming conventions:
+**CRITICAL**: Always detect actual command names from the project's `package.json` before running any checks. Never assume specific command names.
 
-### Option 1: Separate check/fix commands
-```bash
-# Checks (validation only)
-npm run typecheck
-npm run lintcheck
-npm run formatcheck
-npm run stylecheck
+### Detection Strategy
 
-# Fixes (auto-fix where possible)
-npm run lint
-npm run format
-npm run stylefix
-```
+1. Read `package.json` scripts section
+2. Identify available commands for each purpose:
+   - **TypeScript check**: Look for `typecheck`, `type-check`, `tsc`, `check-types`
+   - **Lint check**: Look for `lint`, `lint:check`, `eslint`, `lintcheck`
+   - **Lint fix**: Look for `lint:fix`, `eslint:fix`
+   - **Format check**: Look for `format:check`, `prettier:check`, `formatcheck`
+   - **Format fix**: Look for `format`, `format:fix`, `prettier:write`
+   - **Style check**: Look for `stylelint`, `style:check`, `stylecheck`
+   - **Style fix**: Look for `stylelint:fix`, `style:fix`, `stylefix`
+   - **Tests**: Look for `test`, `test:unit`, `vitest`, `jest`
+   - **Combined check**: Look for `check`, `checkall`, `validate`, `verify`
+   - **Combined fix**: Look for `fix`, `fixall`
 
-### Option 2: Combined commands
-```bash
-# Check all quality gates
-npm run checkall  # or npm run check
+3. If no matching script found:
+   - Run tool directly (e.g., `tsc --noEmit`, `eslint .`, `prettier --check .`)
+   - Or skip that check if tool not installed
 
-# Fix all auto-fixable issues
-npm run fix
-```
+### Common Patterns
 
-### Option 3: Task runner (if available)
-```bash
-# Using task runner (e.g., make, task)
-task lint
-task fix
-```
+Projects typically use one of these patterns:
+- **Separate check/fix commands** - e.g., `lint:check` and `lint:fix`
+- **Combined commands** - e.g., `check` runs all validations
+- **Task runner** - e.g., `make lint` or `task lint`
 
-**Plugin should detect** which commands are available from `package.json` scripts.
+Adapt to whatever pattern the project uses.
 
 ## Best Practices
 

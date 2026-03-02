@@ -1,11 +1,12 @@
 ---
 name: testing
-description: Principles and patterns for writing effective React tests with Jest and React Testing Library. Use during implementation for test structure guidance, choosing test patterns, and deciding testing strategies. Emphasizes testing user behavior, not implementation details.
+description: Principles and patterns for writing effective React tests with React Testing Library (Jest/Vitest). Use during implementation for test structure guidance, choosing test patterns, and deciding testing strategies. Emphasizes testing user behavior, not implementation details.
 ---
 
-# Testing Principles (Jest + React Testing Library)
+# Testing Principles (React Testing Library)
 
 Principles and patterns for writing effective TypeScript + React tests.
+Works with **Jest**, **Vitest**, or any other test runner that supports React Testing Library.
 
 ## When to Use
 - During implementation (tests + code in parallel)
@@ -22,10 +23,28 @@ Principles and patterns for writing effective TypeScript + React tests.
 - Focus on public API
 
 **Prefer real implementations over mocks**
-- Use MSW (Mock Service Worker) for API mocking
+- Mock API calls using project's existing approach (MSW, nock, jest.mock, etc.)
 - Use real hooks and contexts
 - Test components with actual dependencies
 - Integration-style tests over unit tests
+
+**Minimize mocking - use real data closest to the component**
+- Unit tests: NO mocking of child components, icons, or UI elements
+- If testing an icon renders - check the REAL icon, don't mock it
+- Use actual component implementations, not jest.mock() replacements
+- Mocking is acceptable ONLY for:
+  - Integration/page-level tests (verifying page has all needed components)
+  - External API calls (use project's mocking approach consistently)
+  - Browser APIs that don't exist in test environment (localStorage, etc.)
+- The closer your test data is to real component behavior, the more valuable the test
+
+**Keep tests DRY - avoid code repetition**
+- Extract common render setups into helper functions (e.g., `renderWithProviders`)
+- Use `beforeEach` for shared setup across tests in a describe block
+- Create test data factories for consistent mock data
+- Share API mock handlers across test files
+- Use `test.each()` for testing same logic with different inputs
+- BUT: Prefer clarity over DRY - some repetition is OK if it makes tests more readable
 
 **Coverage targets**
 - Pure components/hooks: 100% coverage
@@ -78,8 +97,8 @@ Examples:
 ### 3. Write Tests Next to Implementation
 
 ```typescript
-// src/features/auth/components/LoginForm.tsx
-// src/features/auth/components/LoginForm.test.tsx
+// src/components/LoginForm.tsx
+// src/components/LoginForm.test.tsx
 ```
 
 ### 4. Use Real Implementations
@@ -129,8 +148,49 @@ test('user can log in', async () => {
 - ❌ No waitFor(() => {}, { timeout: 5000 }) with arbitrary delays
 - ❌ No testing implementation details (state, internal methods)
 - ❌ No shallow rendering (use full render)
-- ❌ No excessive mocking (use MSW for APIs)
+- ❌ No excessive mocking (mock APIs, not child components)
 - ❌ No getByTestId unless absolutely necessary (use accessibility queries)
+- ❌ No comments explaining test methods - test names and code should be self-explanatory
+- ❌ No mocking child components, icons, or UI elements in unit tests - use REAL implementations
+- ❌ No jest.mock() for components - if icon should render, check the REAL icon
+- ❌ No repeated code - use render helpers, data factories, beforeEach, test.each
+
+### 6. No Linter Disabling Without Approval
+
+**NEVER add linter disabling comments to test files without explicit user approval:**
+- `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line`
+- `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`
+
+If a linter rule fails in tests:
+1. Fix through proper refactoring (better test structure, correct typing)
+2. If truly unfixable, ASK USER for explicit approval before disabling
+3. **When approved**: Add a comment explaining WHY the rule is disabled
+
+```typescript
+// ❌ Bad: Disabled without explanation
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockData: any = { ... }
+
+// ✅ Good: Disabled with justification (after user approval)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Testing error handling for malformed API responses
+const mockData: any = { unexpectedField: 'value' }
+
+// ✅ Good: Disabled with justification (after user approval)
+// @ts-expect-error -- Intentionally passing wrong type to test runtime validation
+validateUser({ name: 123 })
+```
+
+### 6. Verify Tests Actually Catch Bugs
+
+When writing unit tests for components, verify each test actually works:
+
+1. Run a single test
+2. Introduce a bug in the code that the test should catch
+3. Confirm the test fails
+4. Revert the breakage
+5. Move to the next test
+
+This ensures tests are meaningful and not just passing by accident.
 
 ## Test Patterns
 
@@ -384,9 +444,11 @@ Use queries in this order (from most to least preferred):
    screen.getByTestId('custom-component')
    ```
 
-## MSW Setup
+## API Mocking Setup
 
-Mock Service Worker for realistic API mocking:
+Use the project's existing API mocking approach consistently (MSW, nock, jest.mock, etc.).
+
+**MSW example** (adapt to your project's approach):
 
 ```typescript
 // src/test/mocks/server.ts
@@ -426,7 +488,7 @@ export const handlers = [
   })
 ]
 
-// src/test/setup.ts (in Jest config)
+// src/test/setup.ts (in test config - Jest/Vitest)
 import { server } from './mocks/server'
 
 beforeAll(() => server.listen())
@@ -440,7 +502,7 @@ See reference.md for detailed principles:
 - Test user behavior, not implementation
 - Use accessibility queries (getByRole)
 - Prefer real implementations over mocks
-- MSW for API mocking
+- Mock APIs consistently using project's approach
 - waitFor for async, avoid arbitrary timeouts
 - 100% coverage for pure components/hooks
 - Integration tests for user flows
@@ -526,4 +588,119 @@ test('navigates to user profile on click', async () => {
 })
 ```
 
-See reference.md for complete testing patterns and examples.
+## Acceptance Criteria
+
+**All criteria must be met before testing is considered complete.**
+
+### Mandatory Requirements (Must Pass)
+
+1. **All Tests Pass**
+   - [ ] All new tests pass
+   - [ ] All existing tests pass (no regressions)
+   - [ ] No skipped tests (`.skip`) without documented reason
+   - [ ] No focused tests (`.only`) left in codebase
+
+2. **Coverage Targets Met**
+   - [ ] Pure components/hooks (leaf types): 100% coverage
+   - [ ] Container components: Key user flows covered
+   - [ ] Custom hooks: All branches and edge cases tested
+   - [ ] Error states: Tested for components with async operations
+
+3. **Test Quality Standards**
+   - [ ] Tests use accessibility queries (getByRole, getByLabelText)
+   - [ ] Tests verify user behavior, not implementation details
+   - [ ] No arbitrary timeouts (no `waitFor(() => {}, { timeout: 5000 })`)
+   - [ ] API mocking follows project's existing approach
+   - [ ] No `getByTestId` unless absolutely necessary
+   - [ ] Unit tests use REAL components - no mocking child components, icons, or UI elements
+   - [ ] Mocking only for: integration/page tests, external APIs, browser APIs
+   - [ ] Test code follows DRY principle (shared setup, data factories, render helpers)
+   - [ ] No linter disabling comments without explicit user approval
+   - [ ] If linter disabled (with approval): comment explains WHY
+
+4. **Test Verification**
+   - [ ] Each test verified to actually catch bugs (break code, confirm test fails)
+   - [ ] Tests are not passing by accident (false positives)
+   - [ ] Test names clearly describe what is being tested
+
+### Verification Workflow
+
+**IMPORTANT**: Detect available scripts from the project's `package.json` before running checks.
+
+```
+# Run all tests
+Run test command from package.json (e.g., test, test:unit, vitest)
+
+# Check coverage
+Run test command with coverage flag (e.g., test --coverage)
+
+# Verify specific test catches bugs:
+# 1. Run single test
+# 2. Break the code it tests
+# 3. Confirm test fails
+# 4. Revert breakage
+```
+
+### Testing Completion Checklist
+
+```
+✅ TESTING ACCEPTANCE CRITERIA
+
+Test Execution:
+[ ] All tests pass
+[ ] No .skip or .only left in code
+[ ] No test errors or warnings
+
+Coverage:
+[ ] Leaf components/hooks: 100%
+[ ] User flows: Key paths covered
+[ ] Error states: Covered
+[ ] Edge cases: Covered
+
+Test Quality:
+[ ] Accessibility queries used (getByRole, getByLabelText)
+[ ] User behavior tested, not implementation
+[ ] No arbitrary timeouts
+[ ] API mocking consistent with project approach
+[ ] Tests verified to catch actual bugs
+[ ] Unit tests use real components (no mocking icons, child components, UI elements)
+[ ] Mocking only for integration tests, external APIs, browser APIs
+[ ] DRY principle followed (shared setup, data factories, render helpers)
+[ ] No linter disabling without user approval
+[ ] Any approved disables have explanatory comments
+
+Testing complete: All boxes checked ✅
+```
+
+### What Blocks Completion
+
+The following will BLOCK testing completion:
+- Any failing test
+- Coverage below targets for leaf types
+- Tests using implementation details (internal state, private methods)
+- Unverified tests (not confirmed to catch bugs)
+- `.only` or `.skip` left in test files
+- Unit tests that mock child components, icons, or UI elements (use real implementations)
+- Excessive code repetition (extract render helpers, data factories, use beforeEach/test.each)
+- Linter disabling comments without explicit user approval
+- Approved linter disabling without explanatory comment (why was it necessary)
+
+### Coverage Exceptions (Document When Used)
+
+Acceptable reasons for < 100% coverage on leaf types:
+- Platform-specific code paths (document which)
+- Third-party library edge cases
+- Explicitly unreachable defensive code
+
+**Document any coverage exceptions in test file comments.**
+
+## Additional Resources
+
+- **reference.md** - Complete testing patterns and examples
+- **examples.md** - Real-world testing examples:
+  - Testing presentational components (pure UI, 100% coverage)
+  - Testing container components (integration tests)
+  - Testing custom hooks with API mocking
+  - Testing with Readonly props
+  - Testing state updates (functional vs direct)
+  - Testing composition patterns (compound components, hook composition)

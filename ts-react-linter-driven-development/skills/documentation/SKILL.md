@@ -555,3 +555,88 @@ See reference.md for detailed principles:
 - Focus on usage, not implementation
 
 See reference.md for complete documentation templates and examples.
+
+## Acceptance Criteria
+
+**All criteria must be met before documentation is considered complete.**
+
+### Mandatory Requirements (Must Pass)
+
+1. **JSDoc Comments (for hooks and types)**
+   - [ ] All public hooks have JSDoc with `@example`
+   - [ ] All complex types have JSDoc explanations
+   - [ ] Props interfaces documented
+   - [ ] Return types documented for hooks
+
+2. **Examples Are Executable**
+   - [ ] JSDoc examples are valid TypeScript
+   - [ ] Code examples compile without errors
+
+3. **Documentation Quality**
+   - [ ] WHY documented, not just WHAT
+   - [ ] Examples show typical usage patterns
+   - [ ] Integration points described
+   - [ ] Troubleshooting section for complex features
+
+### Nice-to-Have (Optional)
+
+1. **Storybook Stories (for components)**
+   - [ ] Story file created for each public component
+   - [ ] Default state story exists
+   - [ ] All variants/props demonstrated
+   - [ ] Interactive states shown (loading, error, empty)
+   - [ ] Stories compile and render without errors
+
+*Note: Storybook is valuable for visual documentation but not required for skill completion.*
+
+### Documentation Completion Checklist
+
+```
+✅ DOCUMENTATION ACCEPTANCE CRITERIA
+
+JSDoc (Hooks & Types) - REQUIRED:
+[ ] Public hooks documented
+[ ] @example tags with working code
+[ ] Complex types explained
+[ ] Return types documented
+
+Quality - REQUIRED:
+[ ] WHY, not just WHAT
+[ ] Examples are executable
+[ ] Integration points clear
+[ ] Troubleshooting included (for complex features)
+
+Storybook (Components) - OPTIONAL:
+[ ] Story file per public component
+[ ] Default state story
+[ ] All variants shown
+[ ] Edge cases covered (loading, error, empty)
+
+Documentation complete: All REQUIRED boxes checked ✅
+```
+
+### What Blocks Completion
+
+The following will BLOCK documentation completion:
+- Missing JSDoc for public hooks
+- Examples that don't compile
+- Documentation that only describes WHAT (not WHY)
+
+The following will NOT block completion:
+- Missing Storybook stories (nice-to-have)
+
+### Documentation Output Requirements
+
+Documentation must include:
+1. **JSDoc Comments** - Inline documentation for hooks and types (required)
+2. **Working Examples** - All examples must compile (required)
+3. **Storybook Stories** - Visual documentation for components (optional, nice-to-have)
+
+### Documentation Types by Scope
+
+| Scope | Required | Nice-to-Have |
+|-------|----------|--------------|
+| Single component | JSDoc for props | Storybook story |
+| Custom hook | JSDoc with @example | - |
+| Complex type | JSDoc explaining purpose | - |
+| Complete feature | JSDoc + examples | Storybook + feature docs |

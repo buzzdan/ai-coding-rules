@@ -1,5 +1,13 @@
 # Refactoring Reference (React/TypeScript)
 
+## Critical Rule: Never Disable Linter Rules
+
+**IMPORTANT**: When refactoring to fix linter errors:
+- **DO NOT** add `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, or similar suppression comments
+- **ALWAYS** fix the underlying issue through proper refactoring
+- **ONLY** disable rules as an absolute last resort with explicit user approval
+- Linter warnings indicate real code quality issues - fix them, don't hide them
+
 ## Linter-Driven Refactoring Philosophy
 
 Let complexity metrics guide refactoring decisions:
@@ -722,6 +730,286 @@ Apply storifying when:
 5. **Verify readability** - Main function should read like a story
 6. **Test each piece** - Each extracted function is now testable
 
+## DRY Principle: Reusing Code and Avoiding Repetition
+
+**Core Principle**: If you see a repeated pattern more than twice, extract it to a reusable constant, utility function, or type.
+
+**Why it matters**:
+- Reduces maintenance burden (one place to fix bugs)
+- Ensures consistency across the codebase
+- Makes changes easier (update once, applies everywhere)
+- Reduces cognitive load (named utilities are self-documenting)
+
+**When in doubt, ask the user** if they want to consolidate repeated patterns. Better to clarify than leave duplication.
+
+### Example 1: Repeated String Constants
+
+```tsx
+// ❌ Before - Status strings repeated everywhere
+function UserProfile({ status }: Props) {
+  if (status === 'success') return <div>Success!</div>
+  if (status === 'error') return <div>Error!</div>
+  return <div>Loading...</div>
+}
+
+function PostList({ status }: Props) {
+  if (status === 'success') return <ul>...</ul>
+  if (status === 'error') return <ErrorMessage />
+  return null
+}
+
+// ✅ After - Extract to constants object
+// constants/statuses.ts
+export const STATUSES = {
+  SUCCESS: 'success',
+  ERROR: 'error',
+  LOADING: 'loading',
+} as const
+
+export type Status = typeof STATUSES[keyof typeof STATUSES]
+
+// components/UserProfile.tsx
+import { STATUSES } from '@/constants/statuses'
+
+function UserProfile({ status }: Props) {
+  if (status === STATUSES.SUCCESS) return <div>Success!</div>
+  if (status === STATUSES.ERROR) return <div>Error!</div>
+  return <div>Loading...</div>
+}
+```
+
+### Example 2: Repeated Type Union
+
+```tsx
+// ❌ Before - Type union duplicated
+function Button({ variant }: { variant: 'default' | 'custom' }) {
+  return <button className={variant}>Click</button>
+}
+
+function Card({ type }: { type: 'default' | 'custom' }) {
+  return <div className={type}>...</div>
+}
+
+function Modal({ style }: { style: 'default' | 'custom' }) {
+  return <div className={style}>...</div>
+}
+
+// ✅ After - Extract to shared type
+// types/variants.ts
+export type Variant = 'default' | 'custom'
+
+// components
+import type { Variant } from '@/types/variants'
+
+function Button({ variant }: { variant: Variant }) {
+  return <button className={variant}>Click</button>
+}
+
+function Card({ type }: { type: Variant }) {
+  return <div className={type}>...</div>
+}
+
+function Modal({ style }: { style: Variant }) {
+  return <div className={style}>...</div>
+}
+```
+
+### Example 3: Repeated Logic Pattern
+
+```tsx
+// ❌ Before - Same conversion logic repeated
+function calculateTotal(value: string) {
+  const n = Number(value)
+  return isNaN(n) ? 0 : n
+}
+
+function getAge(input: string) {
+  const n = Number(input)
+  return isNaN(n) ? 0 : n
+}
+
+function parseQuantity(qty: string) {
+  const n = Number(qty)
+  return isNaN(n) ? 0 : n
+}
+
+// ✅ After - Extract to utility function
+// utils/number.ts
+export function toNumber(value: string | number): number {
+  const n = Number(value)
+  return isNaN(n) ? 0 : n
+}
+
+// usage
+import { toNumber } from '@/utils/number'
+
+function calculateTotal(value: string) {
+  return toNumber(value)
+}
+
+function getAge(input: string) {
+  return toNumber(input)
+}
+
+function parseQuantity(qty: string) {
+  return toNumber(qty)
+}
+```
+
+### Example 4: Repeated Validation Pattern
+
+```tsx
+// ❌ Before - Email validation repeated
+function LoginForm() {
+  const validate = (email: string) => {
+    return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+  // ...
+}
+
+function SignupForm() {
+  const validate = (email: string) => {
+    return email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+  // ...
+}
+
+// ✅ After - Extract to Zod schema or utility
+// utils/validation.ts
+import { z } from 'zod'
+
+export const EmailSchema = z.string().email()
+
+export function isValidEmail(email: string): boolean {
+  return EmailSchema.safeParse(email).success
+}
+
+// usage
+import { isValidEmail } from '@/utils/validation'
+
+function LoginForm() {
+  const validate = (email: string) => isValidEmail(email)
+  // ...
+}
+
+function SignupForm() {
+  const validate = (email: string) => isValidEmail(email)
+  // ...
+}
+```
+
+### Example 5: Repeated Type Guards
+
+```tsx
+// ❌ Before - typeof checks repeated everywhere
+function processValue(value: unknown) {
+  if (typeof value === 'string') {
+    return value.toUpperCase()
+  }
+  return ''
+}
+
+function formatInput(input: unknown) {
+  if (typeof input === 'string') {
+    return input.trim()
+  }
+  return ''
+}
+
+function parseData(data: unknown) {
+  if (typeof data === 'number') {
+    return data.toFixed(2)
+  }
+  return '0.00'
+}
+
+function calculateTotal(amount: unknown) {
+  if (typeof amount === 'number') {
+    return amount * 1.1
+  }
+  return 0
+}
+
+// ✅ After - Extract to type guard utilities
+// utils/typeGuards.ts
+export function isString(value: unknown): value is string {
+  return typeof value === 'string'
+}
+
+export function isNumber(value: unknown): value is number {
+  return typeof value === 'number'
+}
+
+export function isBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean'
+}
+
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function isArray<T = unknown>(value: unknown): value is T[] {
+  return Array.isArray(value)
+}
+
+// usage
+import { isString, isNumber } from '@/utils/typeGuards'
+
+function processValue(value: unknown) {
+  if (isString(value)) {
+    return value.toUpperCase() // TypeScript knows value is string
+  }
+  return ''
+}
+
+function formatInput(input: unknown) {
+  if (isString(input)) {
+    return input.trim() // TypeScript knows input is string
+  }
+  return ''
+}
+
+function parseData(data: unknown) {
+  if (isNumber(data)) {
+    return data.toFixed(2) // TypeScript knows data is number
+  }
+  return '0.00'
+}
+
+function calculateTotal(amount: unknown) {
+  if (isNumber(amount)) {
+    return amount * 1.1 // TypeScript knows amount is number
+  }
+  return 0
+}
+```
+
+**Benefits**:
+- Type guards provide type narrowing (TypeScript knows the type after the check)
+- Reusable across the codebase
+- Single place to update type checking logic
+- More readable than repeated `typeof` checks
+- **Important**: Check if type guards already exist before creating new ones
+
+### When to Ask the User
+
+If you notice a pattern that **might** be worth consolidating but you're uncertain, ask:
+
+```
+"I notice formatUserName and formatAuthorName have identical logic.
+Would you like me to create a shared formatFullName utility that both can use?"
+```
+
+**Ask when**:
+- Pattern appears 2-3 times (not obviously repetition yet)
+- Logic is similar but not identical
+- You're unsure if the similarity is coincidental
+
+**Don't ask when**:
+- Pattern repeated 4+ times (definitely consolidate)
+- Exact duplication (obviously should be extracted)
+- Values clearly magic numbers (always extract to constants)
+
 ## React-Specific Refactoring Patterns
 
 ### 1. Extract Custom Hook
@@ -1181,13 +1469,16 @@ Don't use context for everything. Props are fine for 1-2 levels:
 
 ### Key Principles
 
-1. **Single Responsibility**: Each component/hook does one thing
-2. **Extract Early**: Don't wait for linter to fail
-3. **Composition**: Combine simple pieces, not complex ones
-4. **Guard Clauses**: Exit early, reduce nesting
-5. **Named Logic**: Extract and name complex conditions
-6. **Hooks for Logic**: Components for UI
-7. **Zod for Validation**: Declarative, reusable
+1. **Never Disable Rules**: Fix issues through refactoring, never suppress with eslint-disable or @ts-ignore
+2. **Single Responsibility**: Each component/hook does one thing
+3. **DRY (Don't Repeat Yourself)**: Extract repeated patterns to reusable utilities/constants
+4. **Check Before Creating**: Search for existing type guards, utilities, and constants before creating new ones
+5. **Extract Early**: Don't wait for linter to fail
+6. **Composition**: Combine simple pieces, not complex ones
+7. **Guard Clauses**: Exit early, reduce nesting
+8. **Named Logic**: Extract and name complex conditions
+9. **Hooks for Logic**: Components for UI
+10. **Zod for Validation**: Declarative, reusable
 
 ### Refactoring Priority
 
@@ -1206,5 +1497,7 @@ When linter fails:
 - Use Zod for validation
 - Extract nested components
 - Replace switches with object mapping
+- Use type guard utilities instead of repeated `typeof` checks
+- Check for existing utilities before creating new ones
 
 Trust the linter. When it fails, there's real complexity to address.
