@@ -110,6 +110,20 @@ func (t TypeName) SomeMethod() result {
     // Type-specific logic
 }
 ```
+
+**Composed types trust their parts** — never re-validate self-validating types:
+```go
+// ❌ Re-validates composed types
+func NewAddress(host Host, port Port) (Address, error) {
+    if host == "" { return Address{}, errors.New("host required") }  // Host owns this
+    return Address{host: host, port: port}, nil
+}
+
+// ✅ Trusts composed self-validating types
+func NewAddress(host Host, port Port) Address {
+    return Address{host: host, port: port}
+}
+```
 </design_self_validating_types>
 
 <plan_package_structure>
@@ -174,6 +188,7 @@ Check design against (see reference.md):
 - [ ] Vertical slice architecture
 - [ ] Types designed around intent, not just shape
 - [ ] Clear separation of concerns
+- [ ] Each type owns its validation; composed self-validating types are trusted, not re-validated
 </review_against_principles>
 
 </workflow>

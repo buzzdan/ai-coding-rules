@@ -128,6 +128,23 @@ func (s *UserService) CreateUser(user User) error {
 - Constructor should guarantee object validity
 - Methods can trust object state
 
+### Trust Composed Types
+When composing self-validating types, trust them — don't re-validate:
+```go
+// ❌ Re-validates composed types
+func NewAddress(host Host, port Port) (Address, error) {
+    if host == "" { return Address{}, errors.New("host required") }  // Host owns this
+    return Address{host: host, port: port}, nil
+}
+
+// ✅ Trusts composed self-validating types — only validates own concerns
+func NewAddress(host Host, port Port) Address {
+    return Address{host: host, port: port}
+}
+```
+
+Each type must own its validation — never rely on callers to validate on your behalf.
+
 ---
 
 ## 3. Vertical Slice Architecture
@@ -389,6 +406,7 @@ Before writing code, review:
 - [ ] Is validation in constructor?
 - [ ] Are fields private?
 - [ ] Can methods trust object validity?
+- [ ] Does each type own its validation? Are composed self-validating types trusted, not re-validated?
 
 ### Architecture
 - [ ] Is this a vertical slice (not horizontal layer)?
