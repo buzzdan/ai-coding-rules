@@ -308,6 +308,8 @@ func ConnectToServer(addr ServerAddress) error {
 - Reduced complexity
 - Self-documenting
 
+**Composed types trust each other:** Note how `NewServerAddress(host Host, port Port)` above needs no validation — `Host` and `Port` are already self-validating. Each type owns its validation; composing types never re-validate their parts.
+
 **Real-world example:** See [Example 2 in examples.md](./examples.md#example-2-primitive-obsession-with-multiple-types-and-storifying-switch-statements) for extracting multiple types from a 60-line function with primitive obsession. Shows the Type Alias Pattern for creating config-friendly types and eliminating switch statement duplication.
 
 ---

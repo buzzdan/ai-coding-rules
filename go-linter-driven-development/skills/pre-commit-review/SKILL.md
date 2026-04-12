@@ -68,7 +68,7 @@ Returns detailed report to caller with categorized findings and fix recommendati
 - Primitive obsession (with juiciness scoring)
 - Unstorified functions (mixed abstraction levels)
 - Missing domain concepts (implicit types that should be explicit)
-- Non-self-validating types (defensive code in methods)
+- Non-self-validating types (defensive code in methods, reliance on upstream validation, re-validation of composed types)
 - Poor comment quality (explaining what instead of why)
 - File structure issues (too long, too many types)
 - Generic package extraction opportunities
@@ -316,7 +316,7 @@ See [reference.md](./reference.md) for detailed principles and examples for each
 - [ ] Read every function - does it read like a story? (single abstraction level)
 - [ ] Checked all functions for mixed abstraction levels (storifying needed?)
 - [ ] Evaluated primitives for primitive obsession (juiciness test applied)
-- [ ] Assessed types for self-validation (defensive code in methods?)
+- [ ] Assessed types for self-validation (defensive code in methods? relying on upstream? re-validating composed types?)
 - [ ] Reviewed comment quality (explaining WHY not WHAT?)
 - [ ] Checked file structure (too long? too many types?)
 - [ ] Searched for missing domain concepts (implicit types that should be explicit)

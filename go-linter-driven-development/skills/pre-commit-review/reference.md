@@ -295,6 +295,8 @@ Look for:
 - [ ] Methods checking if fields are nil/empty/invalid
 - [ ] Validation happening outside constructors
 - [ ] Defensive programming inside methods
+- [ ] Types that skip own validation, relying on caller to validate
+- [ ] Composing types that re-validate already self-validating sub-types
 
 ### Examples
 
@@ -377,10 +379,27 @@ Benefits:
 - No need to check for nil object fields inside methods
 - Avoid defensive coding
 
+#### ❌ Design Debt: Re-validates composed types
+```go
+func NewAddress(host Host, port Port) (Address, error) {
+    if host == "" { return Address{}, errors.New("host required") }  // Host owns this
+    return Address{host: host, port: port}, nil
+}
+```
+
+#### ✅ No Debt: Trusts composed self-validating types
+```go
+func NewAddress(host Host, port Port) Address {
+    return Address{host: host, port: port}
+}
+```
+
 ### Review Questions
 - Do methods check field validity? → Move to constructor
 - Are fields public when they shouldn't be? → Make private
 - Can this object be invalid after construction? → Add validation
+- Does the type rely on callers to validate? → Add validating constructor
+- Does the type re-validate composed self-validating types? → Remove redundant checks
 
 ### Fix
 Use @code-designing skill to add validating constructors

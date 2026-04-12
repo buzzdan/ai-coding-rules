@@ -271,6 +271,8 @@ func ParseCommandResult(output string) (CommandResult, error) {
 - Type that's just a wrapper without behavior
 - Good variable naming would be clearer
 
+**Self-Validation Rule:** Extracted types must own their validation. The original function stops validating what the new type now owns. Composed self-validating types are trusted, not re-validated.
+
 See [Example 2](./examples.md#first-refactoring-attempt-the-over-abstraction-trap) for complete case study.
 </pattern>
 
