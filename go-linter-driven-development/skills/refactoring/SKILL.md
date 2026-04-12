@@ -116,6 +116,8 @@ Before extracting a type, verify it's "juicy" (worth creating):
 **USAGE**: Used in multiple places, simplifies calling code
 
 Need "yes" in at least ONE category. See `reference.md` section 2.5 for over-abstraction warnings.
+
+**Self-Validation Rule:** Extracted types must own their validation. The original function stops validating what the new type now owns. Composed self-validating types are trusted, not re-validated.
 </juiciness_test>
 
 <type_cohesion>
