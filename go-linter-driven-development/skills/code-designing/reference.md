@@ -143,7 +143,22 @@ func NewAddress(host Host, port Port) Address {
 }
 ```
 
-Each type must own its validation — never rely on callers to validate on your behalf.
+Each type must own its validation — never rely on callers to validate on your behalf:
+```go
+// ❌ No constructor — relies on callers to validate
+type Config struct {
+    Host string
+    Port int
+}
+// Every caller must remember: if host == "" || port <= 0 { ... }
+
+// ✅ Owns its own validation
+func NewConfig(host string, port int) (Config, error) {
+    if host == "" { return Config{}, errors.New("host required") }
+    if port <= 0 || port > 65535 { return Config{}, errors.New("invalid port") }
+    return Config{host: host, port: port}, nil
+}
+```
 
 ---
 
