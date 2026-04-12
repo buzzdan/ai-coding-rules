@@ -44,7 +44,7 @@ Violations:
 - **Prop drilling**: State passed through 3+ component levels
 - **Tight coupling**: Components tightly coupled to specific implementations
 - **Missing error boundaries**: No error handling for async operations
-- **No type validation**: Runtime data not validated (no Zod schemas)
+- **No type validation**: Runtime data not validated (no Zod schemas), types relying on upstream validation, or re-validating composed validated types
 
 Impact: Future changes will require more work and introduce bugs
 
@@ -495,7 +495,7 @@ The review never blocks commits. It informs decisions.
    - [ ] Component composition checked
    - [ ] Prop drilling checked
    - [ ] Custom hook extraction opportunities identified
-   - [ ] Type safety validated
+   - [ ] Type safety validated (each type owns validation; composed Zod/branded types trusted, not re-validated)
 
 4. **Accessibility Checked**
    - [ ] Semantic HTML usage verified

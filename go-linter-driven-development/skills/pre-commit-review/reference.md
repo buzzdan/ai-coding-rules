@@ -394,6 +394,23 @@ func NewAddress(host Host, port Port) Address {
 }
 ```
 
+#### ❌ Design Debt: Relies on upstream to validate
+```go
+type Config struct {
+    Host string  // Public, no validation — callers must remember to check
+    Port int
+}
+```
+
+#### ✅ No Debt: Owns its own validation
+```go
+func NewConfig(host string, port int) (Config, error) {
+    if host == "" { return Config{}, errors.New("host required") }
+    if port <= 0 || port > 65535 { return Config{}, errors.New("invalid port") }
+    return Config{host: host, port: port}, nil
+}
+```
+
 ### Review Questions
 - Do methods check field validity? → Move to constructor
 - Are fields public when they shouldn't be? → Make private

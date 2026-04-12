@@ -70,6 +70,41 @@ interface User {
 function getUser(id: UserId): User  // Only valid IDs accepted
 ```
 
+#### Re-Validating Composed Types
+
+**🔴 Design Debt**: Re-validating after Zod parse or branded type construction
+```typescript
+// ❌ Re-validates composed types
+function createUser(email: Email, id: UserId) {
+  if (!email.includes('@')) { ... }  // EmailSchema already validated this
+}
+
+// ✅ Trusts validated types
+function createUser(email: Email, id: UserId) {
+  return { email, id, createdAt: new Date() }
+}
+```
+
+Each type must own its validation — callers of validated types should trust them.
+
+#### Relies on Upstream Validation
+
+**🔴 Design Debt**: Type with no schema or constructor — relies on callers to validate
+```typescript
+// ❌ No validation — every caller must remember to check
+interface UserInput {
+  email: string
+  age: number
+}
+
+// ✅ Owns its own validation
+const UserInputSchema = z.object({
+  email: z.string().email(),
+  age: z.number().min(0).max(150),
+})
+type UserInput = z.infer<typeof UserInputSchema>
+```
+
 #### Number Primitives
 
 **🔴 Design Debt**:

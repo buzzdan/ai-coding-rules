@@ -163,6 +163,20 @@ export function createUserId(value: string): UserId {
 - Zod: Form validation, API parsing, runtime validation
 - Branded types: Type safety without runtime overhead
 
+**Composed types trust their parts** — never re-validate validated types:
+```typescript
+// ❌ Re-validates after Zod parse
+function createUser(email: Email, id: UserId) {
+  if (!email.includes('@')) { ... }  // EmailSchema already validated this
+}
+
+// ✅ Trusts validated types — only adds own concerns
+function createUser(email: Email, id: UserId) {
+  // Email and UserId are already validated — no re-validation needed
+  return { email, id, createdAt: new Date() }
+}
+```
+
 ### 4. Design Component Structure
 
 **Component Types:**
@@ -398,6 +412,7 @@ Check design against (see reference.md):
 - [ ] Context only when needed (3+ levels)
 - [ ] Clear separation: presentational vs container
 - [ ] Props interfaces well-defined
+- [ ] Each type owns its validation; composed validated types (Zod/branded) are trusted, not re-validated
 
 ## Output Format
 

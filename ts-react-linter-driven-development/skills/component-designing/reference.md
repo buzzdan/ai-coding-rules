@@ -170,6 +170,43 @@ const userId: UserId = createEmail("test@example.com")  // ❌ Compile error
 - Zod for boundaries (forms, API)
 - Branded types for internal type safety
 
+### Trust Composed Types
+
+When composing validated types (Zod schemas or branded), trust them — don't re-validate:
+```typescript
+// ❌ Re-validates after parse/construction
+function createUser(email: Email, id: UserId) {
+  if (!email.includes('@')) { ... }  // EmailSchema already validated this
+}
+
+// ✅ Trusts validated types — only validates own concerns
+function createUser(email: Email, id: UserId) {
+  return { email, id, createdAt: new Date() }
+}
+
+// ✅ Zod composition handles this naturally
+const UserSchema = z.object({
+  email: EmailSchema,  // Delegates validation to EmailSchema
+  id: UserIdSchema,    // Delegates validation to UserIdSchema
+})
+```
+
+Each type must own its validation — never rely on callers to validate on your behalf:
+```typescript
+// ❌ No validation — relies on callers to check
+interface UserInput {
+  email: string   // Every caller must remember to validate
+  age: number     // Every caller must remember to check range
+}
+
+// ✅ Owns its own validation
+const UserInputSchema = z.object({
+  email: z.string().email(),
+  age: z.number().min(0).max(150),
+})
+type UserInput = z.infer<typeof UserInputSchema>
+```
+
 ## 2. Architecture Patterns
 
 ### Principle
@@ -886,5 +923,6 @@ Before writing code:
 - [ ] Custom hooks extracted (single responsibility)
 - [ ] Context usage justified (3+ levels, truly shared)
 - [ ] Props interfaces defined (clear, typed)
+- [ ] Each type owns its validation; composed validated types (Zod/branded) are trusted, not re-validated
 - [ ] File structure planned (colocated tests)
 - [ ] Integration points identified

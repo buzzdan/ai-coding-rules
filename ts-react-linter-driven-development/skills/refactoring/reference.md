@@ -1479,6 +1479,7 @@ Don't use context for everything. Props are fine for 1-2 levels:
 8. **Named Logic**: Extract and name complex conditions
 9. **Hooks for Logic**: Components for UI
 10. **Zod for Validation**: Declarative, reusable
+11. **Self-Validation Ownership**: Extracted types own their validation; composed validated types (Zod/branded) are trusted, not re-validated
 
 ### Refactoring Priority
 

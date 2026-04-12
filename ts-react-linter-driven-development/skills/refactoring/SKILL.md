@@ -577,6 +577,7 @@ See reference.md for detailed principles:
 - Type Guards: Use utilities (isString, isNumber) instead of repeated typeof checks
 - Custom Hooks: Reusable logic outside components
 - Zod for Validation: Move validation out of components
+- Self-Validation Ownership: Extracted types own their validation; composed validated types (Zod/branded) are trusted, not re-validated
 
 ## After Refactoring
 
