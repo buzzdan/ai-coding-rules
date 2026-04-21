@@ -10,7 +10,6 @@ allowed-tools:
   - Skill(go-linter-driven-development:refactoring)
   - Skill(go-linter-driven-development:documentation)
   - Task
-  - mcp__ide__getDiagnostics
 ---
 
 <objective>

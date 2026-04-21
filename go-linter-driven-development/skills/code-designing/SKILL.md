@@ -6,7 +6,6 @@ description: |
   Focuses on vertical slice architecture and type safety.
 allowed-tools:
   - Skill(go-linter-driven-development:testing)
-  - mcp__ide__getDiagnostics
 ---
 
 <objective>

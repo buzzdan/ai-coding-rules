@@ -10,7 +10,6 @@ allowed-tools:
   - Glob
   - Write
   - Edit
-  - mcp__ide__getDiagnostics
 ---
 
 <objective>

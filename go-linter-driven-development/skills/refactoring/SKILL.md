@@ -8,7 +8,6 @@ allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
   - Skill(go-linter-driven-development:pre-commit-review)
-  - mcp__ide__getDiagnostics
 ---
 
 <objective>

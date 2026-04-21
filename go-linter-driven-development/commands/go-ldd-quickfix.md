@@ -4,7 +4,6 @@ description: Run quality gates loop until all green (tests+linter+review → fix
 argument-hint: "[file_pattern]"
 allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
-  - mcp__ide__getDiagnostics
 ---
 
 Execute the quality gates loop for already-implemented code that needs cleanup.
