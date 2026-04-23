@@ -46,6 +46,7 @@ Operates autonomously - no user confirmation needed during execution.
 - **Complexity failures**: cyclomatic, cognitive, maintainability index
 - **Architectural failures**: noglobals, gochecknoinits, gochecknoglobals
 - **Design smell failures**: dupl, goconst, ineffassign
+- **Package size violations**: ≥13 non-test `.go` files at one directory level (red zone, must decompose) or 8–12 (yellow zone, design review before next file)
 - Functions > 50 LOC or nesting > 2 levels
 - Mixed abstraction levels in functions
 - Manual invocation when code feels hard to read/maintain
@@ -93,6 +94,18 @@ Operates autonomously - no user confirmation needed during execution.
 **"Juicy" types** (deserve own file): ≥2 methods, complex validation, transformations/parsing
 **Anemic types** (can stay grouped): Simple enums, DTOs without methods, type aliases
 </file_level_concerns>
+
+<package_level_concerns>
+**Detection is automatic.** This plugin ships a PostToolUse hook (`hooks/check-package-sizes.sh`) that counts non-test `.go` files per package after every Write / Edit / MultiEdit and surfaces violations directly to Claude.
+
+| Count | Zone   | Action                                                                          |
+|-------|--------|---------------------------------------------------------------------------------|
+| ≤ 7   | Green  | Fine.                                                                           |
+| 8–12  | Yellow | Advisory from hook (non-blocking). Design review **before the next file lands** — route to `<package_decomposition>`. |
+| ≥ 13  | Red    | Blocking feedback from hook (exit 2). **Must decompose** — route to `<package_decomposition>`. |
+
+**Critical**: A package-size violation is a *design* review (domain modeling + type extraction), not a mechanical file split. File count is a symptom; the disease is usually missing domain types or multiple vertical slices sharing a package.
+</package_level_concerns>
 </refactoring_signals>
 
 <pattern_summary>
@@ -104,6 +117,7 @@ Operates autonomously - no user confirmation needed during execution.
 4. **Extract Type** - Create domain types (only if "juicy")
 5. **Switch Extraction** - Extract case handlers to separate functions
 6. **Dependency Rejection** - Push globals up call chain incrementally
+7. **Package Decomposition** - Split oversized packages (≥13 files) via 3-step design review (see `<package_decomposition>`)
 
 See `reference.md` for detailed patterns with code examples.
 
@@ -153,6 +167,65 @@ If found elsewhere → move to type's file
 
 See `reference.md` for detailed example.
 </god_object_decomposition>
+
+<package_decomposition>
+**Trigger**: PostToolUse hook reports a package in the red zone (≥13 non-test `.go` files at one directory level) or yellow zone (8–12). Detection is handled by `hooks/check-package-sizes.sh`; this section is the authoritative HOW for responding.
+
+**A package-size violation is a design review, not a mechanical file split.** Run the 3 steps *in order*:
+
+**Step 1 — Does the package name reflect a real-world domain concept?**
+
+Anti-patterns (rename *first*, the split follows from the new model):
+- Role names: `handlers/`, `types/`, `model/`
+- Containers: `common/`, `shared/`, `core/`, `base/`, `util/`, `domain/`
+
+Naming method for the split:
+- The **parent** names the actor/system (the thing that does the work).
+- The **sub-package** names the domain object (the thing being acted upon). This is where `pkg.Type` call sites live — they must read like English.
+
+Examples:
+- A worker HAS a job → `worker/` + `worker/job/` (`job.ID`, `job.Status`)
+- A compiler HAS tokens → `compiler/` + `compiler/token/`
+- A scheduler HAS tasks → `scheduler/` + `scheduler/task/`
+
+Test: say `pkg.Type` out loud. `job.ID` sounds right. `domain.ID` sounds like Java.
+
+**Step 2 — Are the existing types well-scoped?**
+
+Look *inside* the package before looking at the file list:
+- **Primitive obsession**: fields like `apiKey string`, `email string`, `timeout int` with validation scattered through top-level functions → extract self-validating types (`APIKey`, `Email`, `Timeout`) with the behavior attached.
+- **Big structs with disjoint method sets**: methods `A() B() C()` use fields `x y` while methods `D() E()` use fields `z w` — that's two types fused together. Split them.
+- **Top-level functions that belong on a type**: `func normalizeFoo(s string) string` almost always wants to be `(f Foo) Normalize()` on a `Foo` type.
+
+Extracting types often shrinks the package below threshold without any sub-package split — file count is the symptom, missing types are the disease. Invoke @code-designing to validate juicy type extractions.
+
+**Step 3 — Only now, decide the physical split.**
+
+- Multiple vertical slices in one package → extract sub-packages (Step 1 naming).
+- One slice with undermodeled internals → extract types into their own files, possibly a leaf sub-package for pure domain types.
+- Often: both.
+
+**Persistence naming**: use `Store`, not `Repository` (Go-idiomatic, concrete). Each sub-package gets its own Store with focused queries. Constructor pattern everywhere: `NewStore(db *sql.DB, opts ...StoreOption)`.
+
+**Function stutter**: when moving a function to a named package, drop the prefix — the package provides context. `jira.SanitizeTicketJSON()` → `sanitize.TicketJSON()`. `job.NewJobID()` → `job.ParseID()`.
+
+**Import direction** (strictly downward — prevents cycles):
+```
+leaf types (domain)  ← (nothing)
+sub-packages         ← leaf types
+parent               ← leaf types + sub-packages
+cmd/                 ← everything
+```
+If the parent needs sub-package logic AND the sub-package needs parent types → extract the shared types into a leaf sub-package.
+
+**Phased migration** (each phase must pass tests + linter):
+1. Extract leaf types first (domain sub-package) — biggest import update, zero behavior change.
+2. Extract the simplest sub-package (e.g., pure UPDATE queries, no shared scanner).
+3. Extract complex sub-packages (may need minimal duplication of shared utilities).
+4. Rename parent last — update all remaining imports.
+
+**PR strategy**: land the decomposition in its own PR, then rebase the feature against the decomposed structure. Do not mix feature changes with package moves.
+</package_decomposition>
 </pattern_summary>
 
 <automation_flow>
@@ -222,6 +295,7 @@ See `reference.md` for acceptable exceptions (rare, requires user approval).
 - Linter passes (0 issues)
 - All functions < 50 LOC
 - Nesting ≤ 2 levels
+- No packages in red zone (≥13 non-test `.go` files at one directory level)
 - Code reads like a story
 - No more "juicy" abstractions to extract
 
@@ -285,6 +359,7 @@ Refactoring is complete when ALL are true:
 - [ ] Max nesting ≤ 2 levels
 - [ ] Code reads like a story
 - [ ] No more "juicy" abstractions to extract
+- [ ] No packages in red zone (the plugin's PostToolUse hook passes with no RED output; see `<package_level_concerns>`)
 - [ ] Tests written for new types/functions (via @testing skill)
 - [ ] Ready for @pre-commit-review phase
 </success_criteria>
