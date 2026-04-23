@@ -45,6 +45,7 @@ Ready to implement? Use @testing skill for test structure.
 - **`function-result-limit`** linter failure (>3 returns) → Design result type
 - **`confusing-results`** linter failure → Design named result type
 - **`file-length-limit`** linter failure (>450 lines) → Analyze and split juicy types to own files
+- **PostToolUse package-size hook** reports yellow/red zone → design-time intervention: re-model with sub-packages *before* the zone escalates (full decomposition playbook in @refactoring `<package_decomposition>`)
 </when_to_use>
 
 <purpose>
@@ -160,6 +161,31 @@ domain/user.go
 services/user_service.go
 repository/user_repository.go
 ```
+
+**Package naming method** (for feature and sub-package design):
+
+1. **Model the real-world relationship.** Ask: "What IS this system? What does it DO? What does it operate ON?"
+   - A worker HAS a job → `worker/` + `worker/job/` (`job.ID`, `job.Status`)
+   - A compiler HAS tokens → `compiler/` + `compiler/token/`
+   - A scheduler HAS tasks → `scheduler/` + `scheduler/task/`
+2. **The parent names the actor/system** (the thing that does the work).
+3. **The sub-package names the domain object** (the thing being acted upon) — this is where your `pkg.Type` call sites live.
+4. **Test**: say `pkg.Type` out loud. `job.ID` sounds right. `domain.ID` sounds like Java.
+
+**Package-name anti-patterns** (never use — they describe roles or act as dumping grounds):
+- Role names: `handlers/`, `types/`, `model/`
+- Generic containers: `common/`, `shared/`, `core/`, `base/`, `util/`, `helpers/`, `domain/`
+
+**Import direction** (strictly downward — plan this up front to avoid cycles):
+```
+leaf types (domain)  ← (nothing)
+sub-packages         ← leaf types
+parent               ← leaf types + sub-packages
+cmd/                 ← everything
+```
+If the parent needs sub-package logic AND the sub-package needs parent types, extract the shared types into a leaf sub-package from day one.
+
+**When decomposing an existing package** (red/yellow zone), see @refactoring `<package_decomposition>` for the full 3-step design review and phased migration.
 </plan_package_structure>
 
 <design_orchestrating_types>
@@ -374,6 +400,8 @@ Design phase is complete when ALL of the following are true:
 - [ ] Core domain types identified with validation rules
 - [ ] Self-validating type design documented
 - [ ] Package structure follows vertical slice pattern
+- [ ] Package names reflect real-world domain concepts (not role names like `handlers/`/`types/` or containers like `common/`/`domain/`); `pkg.Type` reads like English
+- [ ] Import direction is strictly downward (leaf types ← sub-packages ← parent ← cmd/)
 - [ ] Design decisions documented with rationale
 - [ ] Pre-code review questions answered satisfactorily
 - [ ] Design plan output presented to user
