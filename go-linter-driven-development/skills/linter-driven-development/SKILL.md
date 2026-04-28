@@ -170,6 +170,14 @@ Route linter failures to the correct skill based on error type:
 | `varnamelen` (short var name) | Direct fix | Rename variable to be descriptive |
 | `early-return` (revive) | @refactoring | Apply early return pattern |
 | `file-length-limit` (revive) | Analyze first → route | See file-level concerns below |
+| **`package-size` hook RED (≥13 `.go` files)** | **@refactoring** | **`<package_decomposition>` 3-step design review — BLOCKING, decompose before next file** |
+| **`package-size` hook YELLOW (8–12 `.go` files)** | **@refactoring** | **`<package_decomposition>` 3-step design review — *before* adding the next `.go` file to that package** |
+
+**Package-size is a first-class linter failure.** The PostToolUse hook (`hooks/check-package-sizes.sh`) fires after every `Write`/`Edit`/`MultiEdit` and surfaces violations directly to Claude. Treat its output exactly like any other linter row above:
+- ⛔ RED banner → exit 2 from the hook → blocking; route to `@refactoring` and complete `<package_decomposition>` *before* any other fix or feature step lands. Insert decomposition tasks at the front of the active todo list.
+- ⚠️ YELLOW banner → non-blocking; if the *next* planned step adds a `.go` file to the named package, do `<package_decomposition>` first instead of writing the file. Skip otherwise.
+
+Decomposition lands in its own commit (often its own PR). Do not mix package moves with feature changes.
 
 **File-Level Concerns** (`file-length-limit` triggers at >450 lines):
 When files exceed the limit, analyze structure first:
