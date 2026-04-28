@@ -27,7 +27,7 @@ Your job: Analyze the code and return a **structured report** that the orchestra
 
 <step number="1" name="Load Pre-Commit Review Skill">
 
-Automatically use the @pre-commit-review skill to guide your analysis. This skill contains:
+**Use the Skill tool** to invoke `Skill(go-linter-driven-development:pre-commit-review)` to load design analysis guidance. This skill contains:
 - Detection checklist for 8 design issue categories
 - Juiciness scoring algorithm for primitive obsession
 - Examples of good vs bad patterns

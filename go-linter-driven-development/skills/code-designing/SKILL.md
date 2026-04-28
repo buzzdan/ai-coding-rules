@@ -15,6 +15,16 @@ Use when planning new features or identifying need for new types during refactor
 **Reference**: See `reference.md` for complete design principles and examples.
 </objective>
 
+<skill_invocation>
+**CRITICAL**: When this skill says "Use @skill-name" or routes to "@skill-name", you MUST use the **Skill tool** explicitly.
+
+| Notation | Skill Tool Call |
+|----------|-----------------|
+| @testing | `Skill(go-linter-driven-development:testing)` |
+
+**DO NOT** just reference the skill - actually invoke it using the Skill tool.
+</skill_invocation>
+
 <quick_start>
 1. **Analyze Architecture**: Check for vertical vs horizontal slicing
 2. **Understand Domain**: Identify problem domain, concepts, invariants
@@ -31,6 +41,11 @@ Ready to implement? Use @testing skill for test structure.
 - Refactoring reveals need for new types (complexity extraction)
 - Linter failures suggest types should be introduced
 - When you need to think through domain modeling
+- **`argument-limit`** linter failure (>4 parameters) → Design options struct
+- **`function-result-limit`** linter failure (>3 returns) → Design result type
+- **`confusing-results`** linter failure → Design named result type
+- **`file-length-limit`** linter failure (>450 lines) → Analyze and split juicy types to own files
+- **PostToolUse package-size hook** reports yellow/red zone → design-time intervention: re-model with sub-packages *before* the zone escalates (full decomposition playbook in @refactoring `<package_decomposition>`)
 </when_to_use>
 
 <purpose>
@@ -146,6 +161,31 @@ domain/user.go
 services/user_service.go
 repository/user_repository.go
 ```
+
+**Package naming method** (for feature and sub-package design):
+
+1. **Model the real-world relationship.** Ask: "What IS this system? What does it DO? What does it operate ON?"
+   - A worker HAS a job → `worker/` + `worker/job/` (`job.ID`, `job.Status`)
+   - A compiler HAS tokens → `compiler/` + `compiler/token/`
+   - A scheduler HAS tasks → `scheduler/` + `scheduler/task/`
+2. **The parent names the actor/system** (the thing that does the work).
+3. **The sub-package names the domain object** (the thing being acted upon) — this is where your `pkg.Type` call sites live.
+4. **Test**: say `pkg.Type` out loud. `job.ID` sounds right. `domain.ID` sounds like Java.
+
+**Package-name anti-patterns** (never use — they describe roles or act as dumping grounds):
+- Role names: `handlers/`, `types/`, `model/`
+- Generic containers: `common/`, `shared/`, `core/`, `base/`, `util/`, `helpers/`, `domain/`
+
+**Import direction** (strictly downward — plan this up front to avoid cycles):
+```
+leaf types (domain)  ← (nothing)
+sub-packages         ← leaf types
+parent               ← leaf types + sub-packages
+cmd/                 ← everything
+```
+If the parent needs sub-package logic AND the sub-package needs parent types, extract the shared types into a leaf sub-package from day one.
+
+**When decomposing an existing package** (red/yellow zone), see @refactoring `<package_decomposition>` for the full 3-step design review and phased migration.
 </plan_package_structure>
 
 <design_orchestrating_types>
@@ -190,6 +230,97 @@ Check design against (see reference.md):
 - [ ] Clear separation of concerns
 - [ ] Each type owns its validation; composed self-validating types are trusted, not re-validated
 </review_against_principles>
+
+<linter_triggered_patterns>
+**When invoked by linter failures, apply these patterns:**
+
+<pattern name="options_struct" trigger="argument-limit (>4 params)">
+```go
+// BEFORE - Too many parameters
+func CreateUser(name string, email string, age int, role string, dept string) (*User, error)
+
+// AFTER - Options struct
+type CreateUserOptions struct {
+    Name  string
+    Email string
+    Age   int
+    Role  string
+    Dept  string
+}
+
+func CreateUser(opts CreateUserOptions) (*User, error)
+```
+**Design Tip**: Add validation in a constructor: `NewCreateUserOptions(...) (CreateUserOptions, error)`
+</pattern>
+
+<pattern name="result_type" trigger="function-result-limit (>3 returns)">
+```go
+// BEFORE - Too many return values
+func ParseConfig(path string) (config Config, warnings []string, version int, error)
+
+// AFTER - Result type
+type ParseConfigResult struct {
+    Config   Config
+    Warnings []string
+    Version  int
+}
+
+func ParseConfig(path string) (ParseConfigResult, error)
+```
+</pattern>
+
+<pattern name="named_result_type" trigger="confusing-results">
+```go
+// BEFORE - Confusing (string, string, error)
+func ParseAddress(raw string) (string, string, error) // Which is host? Which is port?
+
+// AFTER - Named result type
+type ParsedAddress struct {
+    Host string
+    Port string
+}
+
+func ParseAddress(raw string) (ParsedAddress, error)
+```
+</pattern>
+
+<pattern name="file_splitting" trigger="file-length-limit (revive) - file > 450 lines">
+**Step 1: Analyze file structure**
+
+| File Pattern | Action |
+|--------------|--------|
+| Multiple juicy types | Move each juicy type to its own file |
+| Single god type | Extract method clusters via composition OR extract juicy logic from methods |
+| Long functions, few types | Route to @refactoring first (storify → extract functions) |
+
+**Step 2: Apply juiciness test**
+
+"Juicy" types (deserve their own file):
+- Types with ≥2 methods
+- Types with complex validation
+- Types with transformations/parsing
+- Enums WITH methods (behavior makes them juicy)
+
+"Anemic" types (can stay grouped in types.go or similar):
+- Simple enums (const block only)
+- DTOs with no methods
+- Type aliases
+
+**Step 3: For god types** (>15 methods)
+
+| Option | When to Use | Pattern |
+|--------|-------------|---------|
+| **Storify first** | Methods are hard to read | Apply storification → reveals hidden structure |
+| **Extract via composition** | Method clusters exist | Identify cluster → extract to new type → compose |
+| **Extract juicy logic** | Primitive obsession inside methods | Find logic on primitives → extract to self-validating type |
+
+**Routing**: God types require two-phase refactoring:
+1. **@refactoring** (first): Storify methods to reveal structure
+2. **@code-designing** (then): Design service composition
+
+See @refactoring skill → `god_object_decomposition` pattern for detailed mechanics.
+</pattern>
+</linter_triggered_patterns>
 
 </workflow>
 
@@ -269,6 +400,8 @@ Design phase is complete when ALL of the following are true:
 - [ ] Core domain types identified with validation rules
 - [ ] Self-validating type design documented
 - [ ] Package structure follows vertical slice pattern
+- [ ] Package names reflect real-world domain concepts (not role names like `handlers/`/`types/` or containers like `common/`/`domain/`); `pkg.Type` reads like English
+- [ ] Import direction is strictly downward (leaf types ← sub-packages ← parent ← cmd/)
 - [ ] Design decisions documented with rationale
 - [ ] Pre-code review questions answered satisfactorily
 - [ ] Design plan output presented to user

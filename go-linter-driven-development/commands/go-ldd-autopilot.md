@@ -6,7 +6,7 @@ allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
 ---
 
-Invoke the @linter-driven-development skill to run the complete autopilot workflow from design through commit-ready.
+**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` to run the complete autopilot workflow from design through commit-ready.
 
 ⏱️ **Estimated Duration**: 5-15 minutes (depends on feature complexity and issues found)
 
