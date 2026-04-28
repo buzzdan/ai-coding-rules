@@ -137,8 +137,13 @@ Need "yes" in at least ONE category. See `reference.md` section 2.5 for over-abs
 When extracting a type to its own file, co-locate ALL related declarations:
 - Type definition + constants + constructor + all methods
 
-Verify: `grep -r "TypeName" --include="*.go" . | grep -v "type_file.go"`
-If found elsewhere → move to type's file
+Verify by searching for *declarations* tied to the type, not every usage of its name
+(usages in tests, comments, and other packages are false positives). Check for:
+- Receiver methods: `grep -RnE '^func \([^)]+\*?TypeName\)' --include="*.go" .`
+- Constructors: `grep -RnE '^func (New|Parse|Make)TypeName\b' --include="*.go" .`
+- Related `const`/`var` declarations that belong with the type.
+
+If declarations that should be co-located are found elsewhere → move them to the type's file.
 </type_cohesion>
 
 <god_object_decomposition>
@@ -251,13 +256,16 @@ If the parent needs sub-package logic AND the sub-package needs parent types →
 
 <enforcement>
 Before marking refactoring complete:
-1. List all types created: `grep -r "^type.*struct" internal/`
+1. List all types created: `grep -RnE "^type[[:space:]]+\w+[[:space:]]+struct" --include="*.go" .`
 2. Verify test file exists for each type
 3. If missing: STOP and invoke @testing skill to write tests
 4. Coverage check: `go test -cover ./...` - leaf types must show 100%
 5. Scan for nolint in all uncommitted files (staged + unstaged):
    ```bash
-   { git diff --name-only; git diff --cached --name-only; } | sort -u | xargs grep "//nolint" 2>/dev/null
+   changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
+   if [ -n "$changed_files" ]; then
+     printf '%s\n' "$changed_files" | xargs grep "//nolint" 2>/dev/null
+   fi
    ```
    If found → remove directive and fix properly (see `<nolint_prohibition>` section)
 
@@ -283,7 +291,10 @@ Instead:
 
 **Verification**: After refactoring, scan for nolint in all uncommitted files (staged + unstaged):
 ```bash
-{ git diff --name-only; git diff --cached --name-only; } | sort -u | xargs grep "//nolint" 2>/dev/null
+changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
+if [ -n "$changed_files" ]; then
+  printf '%s\n' "$changed_files" | xargs grep "//nolint" 2>/dev/null
+fi
 ```
 If found → STOP and fix properly
 
