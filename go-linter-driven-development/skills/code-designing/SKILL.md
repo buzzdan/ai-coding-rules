@@ -229,6 +229,7 @@ Check design against (see reference.md):
 - [ ] Types designed around intent, not just shape
 - [ ] Clear separation of concerns
 - [ ] Each type owns its validation; composed self-validating types are trusted, not re-validated
+- [ ] No test-only interface: every interface introduced has a real second production implementation OR breaks a real import cycle (verified by grepping the import direction) — never added merely so a test can inject a fake. Default orchestrator dependencies to concrete types; test them by wiring the real collaborators.
 </review_against_principles>
 
 <linter_triggered_patterns>
@@ -354,7 +355,7 @@ Design Decisions:
 - UserID is custom type to prevent passing empty/invalid IDs
 - Email validation centralized in NewEmail constructor
 - Vertical slice keeps all user logic in one package
-- Repository as interface allows multiple backends (Postgres, in-memory for tests)
+- Repository is a concrete type (e.g. *Store over Postgres) — make it an interface ONLY if a real second production backend exists, never merely "for tests" (tests use the real Store against embedded Postgres / httptest, not an injected double)
 
 Integration Points:
 - Consumed by: HTTP API (/users endpoints)
@@ -387,6 +388,7 @@ Before writing code, ask:
 - Have I avoided primitive obsession?
 - Is validation in the right place (constructor)?
 - Does this follow vertical slice architecture?
+- Does any interface I'm adding have a real second production implementation, or break a real import cycle (verified by grepping the import direction)? If it exists only so a test can inject a fake, drop it and depend on the concrete type.
 
 Only after satisfactory answers, proceed to implementation.
 

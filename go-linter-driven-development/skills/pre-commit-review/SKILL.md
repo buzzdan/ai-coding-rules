@@ -75,7 +75,8 @@ Returns detailed report to caller with categorized findings and fix recommendati
 - Package size zone violations: surfaced automatically by the plugin's PostToolUse hook after edits. Thresholds: ≥13 non-test `.go` files at one directory level = red (Design Debt, hard gate); 8–12 = yellow (Polish, review before adding the next file). For review-only sessions where no edit has fired the hook, verify manually before reporting. When a violation is reported, apply the 3-step design review: (1) does the package name reflect a real-world domain concept — not a role or container? (2) are there big structs with disjoint method sets or primitive-obsession fields hiding new types? (3) only after that review, decide whether to extract sub-packages, new leaf types, or both.
 - Generic package extraction opportunities
 - Design bugs (nil deref, ignored errors, resource leaks)
-- Test quality (weak assertions, missing use cases, mock overuse, conditionals in tests)
+- Test quality (weak assertions, missing use cases, mock overuse — incl. a struct that only satisfies a production interface, conditionals in tests)
+- Test-only interfaces (an interface whose only second implementation is a test double — one production impl and no real import cycle; see reference.md §9)
 
 **Division of Labor:**
 - **Linter handles**: Complexity metrics, line counts, formatting, syntax
@@ -137,6 +138,11 @@ The reviewer reads code like a senior developer and applies design principles:
 - Pattern matches against anti-patterns
 - Counts occurrences and calculates juiciness scores
 - Generates findings with specific locations and fix guidance
+
+**The checklist is a starting set, not the boundary — work evidence-first and falsify:**
+- If the project ships its own rule docs (e.g. `coding_rules.md` / `repo_rules.md` / `testing.md`), re-read the ones the diff touches and turn each rule into a falsifying question too. The violation that ships is always the rule nobody enumerated.
+- Phrase each check to surface a violation ("what would make this wrong, and is it true here?"), not to confirm compliance — and answer it with a concrete artifact (a `grep`/count/`file:line`), never a bare verdict.
+- Treat a new `//nolint` or `.golangci.yaml` exclusion in the diff as a finding to justify with evidence.
 </detection_approach>
 
 <report_format>
@@ -323,7 +329,9 @@ See [reference.md](./reference.md) for detailed principles and examples for each
 - [ ] Reviewed comment quality (explaining WHY not WHAT?)
 - [ ] Checked file structure (too long? too many types?)
 - [ ] Searched for missing domain concepts (implicit types that should be explicit)
-- [ ] Validated test quality (weak assertions? conditionals in tests? mock overuse?)
+- [ ] Validated test quality (weak assertions? conditionals in tests? mock overuse — incl. a struct that only satisfies a production interface?)
+- [ ] Checked for test-only interfaces (one production impl + a test double as the only other implementer, no real import cycle — reference.md §9)
+- [ ] Derived extra checks from the project's own rule docs (coding_rules/repo_rules/testing) for the rules the diff touches; answered each with evidence, not a verdict
 - [ ] Scanned for design bugs (nil deref, ignored errors, resource leaks)
 - [ ] Package size check reflected in report — hook's red/yellow output (or manual count for review-only sessions) categorized as Design Debt / Polish
 
