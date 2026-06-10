@@ -229,7 +229,7 @@ Check design against (see reference.md):
 - [ ] Types designed around intent, not just shape
 - [ ] Clear separation of concerns
 - [ ] Each type owns its validation; composed self-validating types are trusted, not re-validated
-- [ ] No test-only interface: every interface introduced has a real second production implementation OR breaks a real import cycle (verified by grepping the import direction) — never added merely so a test can inject a fake. Default orchestrator dependencies to concrete types; test them by wiring the real collaborators.
+- [ ] No test-only interface: every interface introduced has a real second production implementation OR breaks a real import cycle (verified by grepping the import direction: `grep -rn '"<module>/<consumer-pkg>"' <dependency-pkg-dir>/*.go` — no match ⇒ no cycle) — never added merely so a test can inject a fake. Default orchestrator dependencies to concrete types; test them by wiring the real collaborators.
 </review_against_principles>
 
 <linter_triggered_patterns>
@@ -388,7 +388,7 @@ Before writing code, ask:
 - Have I avoided primitive obsession?
 - Is validation in the right place (constructor)?
 - Does this follow vertical slice architecture?
-- Does any interface I'm adding have a real second production implementation, or break a real import cycle (verified by grepping the import direction)? If it exists only so a test can inject a fake, drop it and depend on the concrete type.
+- Does any interface I'm adding have a real second production implementation, or break a real import cycle (verified by grepping the import direction — does the dependency's package import the consumer's package back? see @pre-commit-review reference.md §9 for the exact command)? If it exists only so a test can inject a fake, drop it and depend on the concrete type.
 
 Only after satisfactory answers, proceed to implementation.
 

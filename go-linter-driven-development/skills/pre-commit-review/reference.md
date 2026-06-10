@@ -26,7 +26,7 @@ This checklist is applied by the pre-commit-review skill using LLM reasoning to 
 - What's the better pattern? → Provide example
 - How much effort to fix? → Estimate time
 
-**Derive checks from the project's own rules — this checklist is a starting set, not the boundary.** If the project ships rule docs (e.g. `coding_rules.md` / `repo_rules.md` / `testing.md`), re-read the ones the diff touches and turn each rule into a falsifying question too. The violation that ships is always the rule nobody enumerated. A new `//nolint` or `.golangci.yaml` exclusion in the diff is itself a finding — make the change justify, with evidence, that the rule genuinely doesn't apply rather than that the design is bending to fit it.
+**Derive checks from the project's own rules — this checklist is a starting set, not the boundary.** If the project ships rule docs (e.g. `coding_rules.md` / `repo_rules.md` / `testing.md`), re-read the ones the diff touches and turn each rule into a falsifying question too. If the project ships no rule docs, apply this checklist (#1–9) as-is — the falsify-with-evidence method still applies to every item. The violation that ships is always the rule nobody enumerated. A new `//nolint` or `.golangci.yaml` exclusion in the diff is itself a finding — make the change justify, with evidence, that the rule genuinely doesn't apply rather than that the design is bending to fit it.
 
 **Tools used during detection:**
 - **Read tool**: Get file contents for analysis
@@ -1209,14 +1209,18 @@ An interface is a smell when it exists only so a test can inject a fake. This is
 ### Detection
 Look for:
 - [ ] An interface introduced in this change that has exactly ONE production implementation
-- [ ] The only OTHER implementer is a test struct (a hand-written `*_test.go` type satisfying it)
+- [ ] The only OTHER implementer is a test double — a hand-written type satisfying it in `*_test.go` OR in a test-support package (`fakes/`, `mocks/`, `testutil*`)
 - [ ] A consumer that already imports the dependency's package but takes it as an interface anyway
 - [ ] A comment justifying the interface with "avoids an import cycle" or "for testing"
 
 ### Falsifying questions (answer with evidence, not a verdict)
 - How many **production** implementations exist today? `grep` the implementers. One ⇒ smell.
-- Is the only other implementer a test double? `grep` `*_test.go` for the type. Yes ⇒ smell.
-- Would depending on the concrete type cause a **real** import cycle? `grep` the import direction — does the depended-on package import the consumer's package? If not, there is no cycle and the interface is unjustified. (Do not trust a "cycle" comment; verify it.)
+- Is the only other implementer a test double? `grep` for implementers in `*_test.go` **and** in test-support packages (`fakes/`, `mocks/`, `testutil*`). Yes ⇒ smell.
+- Would depending on the concrete type cause a **real** import cycle? `grep` the import direction — does the depended-on package import the consumer's package back? (Do not trust a "cycle" comment; verify it.)
+  ```bash
+  # a real cycle exists only if the dependency package imports the consumer back:
+  grep -rn '"<module>/<consumer-pkg>"' <dependency-pkg-dir>/*.go   # no match ⇒ no cycle ⇒ interface unjustified
+  ```
 
 ### ❌ Design Debt: interface exists only for a test fake
 ```go

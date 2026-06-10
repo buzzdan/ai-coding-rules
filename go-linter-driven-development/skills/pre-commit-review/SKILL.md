@@ -140,7 +140,7 @@ The reviewer reads code like a senior developer and applies design principles:
 - Generates findings with specific locations and fix guidance
 
 **The checklist is a starting set, not the boundary — work evidence-first and falsify:**
-- If the project ships its own rule docs (e.g. `coding_rules.md` / `repo_rules.md` / `testing.md`), re-read the ones the diff touches and turn each rule into a falsifying question too. The violation that ships is always the rule nobody enumerated.
+- If the project ships its own rule docs (e.g. `coding_rules.md` / `repo_rules.md` / `testing.md`), re-read the ones the diff touches and turn each rule into a falsifying question too. If the project ships no rule docs, apply this skill's checklist as-is — the falsify-with-evidence method still applies to every item. The violation that ships is always the rule nobody enumerated.
 - Phrase each check to surface a violation ("what would make this wrong, and is it true here?"), not to confirm compliance — and answer it with a concrete artifact (a `grep`/count/`file:line`), never a bare verdict.
 - Treat a new `//nolint` or `.golangci.yaml` exclusion in the diff as a finding to justify with evidence.
 </detection_approach>
