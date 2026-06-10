@@ -7,7 +7,7 @@ Complete validation guide with debt-based categorization.
 This checklist is applied by the pre-commit-review skill using LLM reasoning to analyze code:
 
 ### Application Process
-1. For each file under review, systematically apply all 8 categories below
+1. For each file under review, systematically apply all 9 categories below
 2. For each detected issue, generate a finding with:
    - **Category**: Bug, Design Debt, Readability Debt, or Polish
    - **Location**: file:line with specific line numbers
@@ -19,11 +19,14 @@ This checklist is applied by the pre-commit-review skill using LLM reasoning to 
 
 ### Detection Strategy
 
-**LLM analyzes code by asking questions for each principle:**
-- Does this code violate a design principle? → Flag it
+**LLM analyzes code by asking questions for each principle — phrased to falsify, answered with evidence:**
+- What would make this a violation of the principle, and is that true here? (Falsify, don't confirm — reasonable-sounding code passes "is this OK?" and fails "prove it isn't a violation.")
+- Back every answer with a concrete artifact — a `grep`/count/`file:line`, never a bare verdict. "Looks fine" with no evidence is neither a finding nor a clearance.
 - How severe is the impact? → Categorize (Bug > Design > Readability > Polish)
 - What's the better pattern? → Provide example
 - How much effort to fix? → Estimate time
+
+**Derive checks from the project's own rules — this checklist is a starting set, not the boundary.** If the project ships rule docs (e.g. `coding_rules.md` / `repo_rules.md` / `testing.md`), re-read the ones the diff touches and turn each rule into a falsifying question too. If the project ships no rule docs, apply this checklist (#1–9) as-is — the falsify-with-evidence method still applies to every item. The violation that ships is always the rule nobody enumerated. A new `//nolint` or `.golangci.yaml` exclusion in the diff is itself a finding — make the change justify, with evidence, that the rule genuinely doesn't apply rather than that the design is bending to fit it.
 
 **Tools used during detection:**
 - **Read tool**: Get file contents for analysis
@@ -915,6 +918,7 @@ When reviewing tests, check:
 - HTTP: Use `httptest.Server` (not mocks)
 - External services: Use real test instances or testcontainers
 - Only mock when absolutely necessary (external APIs you don't control)
+- **A hand-written struct that only satisfies a *production* interface to stand in for the real collaborator IS a mock** — not a "fake". A "fake" is a real implementation with fake *data* (embedded DB, `httptest` server, fake binary, temp dir). If a test needs an interface to inject such a struct, that interface is a **test-only smell** (see §9) — depend on the concrete type and wire the real collaborator instead.
 
 **2. Complete Verification**
 - Assert actual behavior, not just "no error"
@@ -1198,11 +1202,62 @@ func startWorker(ctx context.Context) {
 
 ---
 
+## 9. Test-Only Interfaces [Design Debt 🔴]
+
+An interface is a smell when it exists only so a test can inject a fake. This is the exact failure that slips past reviews: a reasonable-looking interface with a comment "explaining" it (often "avoids an import cycle" or "for testing"), one production implementation, and a test double as the only other implementer.
+
+### Detection
+Look for:
+- [ ] An interface introduced in this change that has exactly ONE production implementation
+- [ ] The only OTHER implementer is a test double — a hand-written type satisfying it in `*_test.go` OR in a test-support package (`fakes/`, `mocks/`, `testutil*`)
+- [ ] A consumer that already imports the dependency's package but takes it as an interface anyway
+- [ ] A comment justifying the interface with "avoids an import cycle" or "for testing"
+
+### Falsifying questions (answer with evidence, not a verdict)
+- How many **production** implementations exist today? `grep` the implementers. One ⇒ smell.
+- Is the only other implementer a test double? `grep` for implementers in `*_test.go` **and** in test-support packages (`fakes/`, `mocks/`, `testutil*`). Yes ⇒ smell.
+- Would depending on the concrete type cause a **real** import cycle? `grep` the import direction — does the depended-on package import the consumer's package back? (Do not trust a "cycle" comment; verify it.)
+  ```bash
+  # a real cycle exists only if the dependency package imports the consumer back:
+  grep -rn '"<module>/<consumer-pkg>"' <dependency-pkg-dir>/*.go   # no match ⇒ no cycle ⇒ interface unjustified
+  ```
+
+### ❌ Design Debt: interface exists only for a test fake
+```go
+// service.go — one prod impl (*Store); the interface exists for the test
+type Leaves interface { FindLatest(ctx context.Context, id ID) (Job, error) }
+type Service struct { leaves Leaves }
+
+// service_test.go — the ONLY other implementer is a mock
+type fakeLeaves struct{ job Job }
+func (f *fakeLeaves) FindLatest(context.Context, ID) (Job, error) { return f.job, nil }
+```
+
+### ✅ No Debt: concrete dependency, tested by wiring the real collaborator
+```go
+// service.go — concrete; no cycle (the worker package does not import this one)
+type Service struct { leaves *worker.Store }
+
+// service_test.go — construct the REAL Store over embedded Postgres + a fake (httptest) external service
+func (s *Suite) TestRerun() {
+    svc, _ := NewService(s.store, s.evaluator, s.jiraClient) // real objects, fake data
+    // ... exercise svc's public method, assert on real state
+}
+```
+
+### Principle
+**Don't create interfaces until you need them** (coding_rules.md "Interface pollution"). A test fake is not a need — orchestrators are tested by wiring their real collaborators (real Store/Evaluator over embedded Postgres + `httptest` external services), never by injecting a struct-behind-an-interface. An interface is justified only by a real second production implementation or a real import cycle.
+
+### Fix
+Drop the interface; depend on the concrete type. Rewrite the test to construct the real collaborators (use @testing). If a genuine cycle exists, fix the layering (move the package so the dependency direction is downward) — do not invert it with a test-only interface.
+
+---
+
 ## Review Process Summary
 
 For each modified file:
 
-1. **Run Checklist** (#1-8 above)
+1. **Run Checklist** (#1-9 above)
 2. **Categorize Findings**:
    - 🐛 Bugs: Nil deref, ignored errors, resource leaks (fix immediately)
    - 🔴 Design Debt: Types, architecture, validation
