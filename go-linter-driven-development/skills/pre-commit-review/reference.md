@@ -7,7 +7,7 @@ Complete validation guide with debt-based categorization.
 This checklist is applied by the pre-commit-review skill using LLM reasoning to analyze code:
 
 ### Application Process
-1. For each file under review, systematically apply all 8 categories below
+1. For each file under review, systematically apply all 9 categories below
 2. For each detected issue, generate a finding with:
    - **Category**: Bug, Design Debt, Readability Debt, or Polish
    - **Location**: file:line with specific line numbers

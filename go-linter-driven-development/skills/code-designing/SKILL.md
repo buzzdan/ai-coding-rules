@@ -347,8 +347,8 @@ Package Structure:
 user/
   ├── user.go          # UserID, Email, Age, User
   ├── service.go       # UserService
-  ├── repository.go    # Repository interface + implementations
-  ├── notifier.go      # Notifier interface + implementations
+  ├── repository.go    # Repository (concrete type over Postgres)
+  ├── notifier.go      # Notifier (concrete type over SMTP/email service)
   └── handler.go       # HTTP handlers
 
 Design Decisions:
