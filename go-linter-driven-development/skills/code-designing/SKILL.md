@@ -45,7 +45,7 @@ Ready to implement? Use @testing skill for test structure.
 - **`function-result-limit`** linter failure (>3 returns) → Design result type
 - **`confusing-results`** linter failure → Design named result type
 - **`file-length-limit`** linter failure (>450 lines) → Analyze and split juicy types to own files
-- **PostToolUse package-size hook** reports yellow/red zone → design-time intervention: re-model with sub-packages *before* the zone escalates (full decomposition playbook in @refactoring `<package_decomposition>`)
+- **Package-size check** flags yellow/red zone → design-time intervention: re-model with sub-packages *before* the zone escalates (full decomposition playbook in @refactoring `<package_decomposition>`)
 </when_to_use>
 
 <purpose>

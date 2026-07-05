@@ -96,13 +96,19 @@ Operates autonomously - no user confirmation needed during execution.
 </file_level_concerns>
 
 <package_level_concerns>
-**Detection is automatic.** This plugin ships a PostToolUse hook (`hooks/check-package-sizes.sh`) that counts non-test `.go` files per package after every Write / Edit / MultiEdit and surfaces violations directly to Claude.
+**Detection is manual, on demand.** Count non-test `.go` files per directory whenever a file lands in a package or before committing:
+
+```
+find <dir> -maxdepth 1 -type f -name '*.go' -not -name '*_test.go' -not -name '*_gen.go' -not -name '*.pb.go' | wc -l
+```
 
 | Count | Zone   | Action                                                                          |
 |-------|--------|---------------------------------------------------------------------------------|
 | ≤ 7   | Green  | Fine.                                                                           |
-| 8–12  | Yellow | Advisory from hook (non-blocking). Design review **before the next file lands** — route to `<package_decomposition>`. |
-| ≥ 13  | Red    | Blocking feedback from hook (exit 2). **Must decompose** — route to `<package_decomposition>`. |
+| 8–12  | Yellow | Advisory (non-blocking). Design review **before the next file lands** — route to `<package_decomposition>`. |
+| ≥ 13  | Red    | **Must decompose** — route to `<package_decomposition>`. |
+
+An optional PostToolUse hook (`hooks/check-package-sizes.sh`) ships with this plugin for repos that want this enforced automatically after every Write/Edit/MultiEdit — wire it into that project's own `.claude/settings.json`. It's opt-in rather than bundled by default because thresholds (and whether to enforce at all) need per-repo tuning, the same way linter configs do.
 
 **Critical**: A package-size violation is a *design* review (domain modeling + type extraction), not a mechanical file split. File count is a symptom; the disease is usually missing domain types or multiple vertical slices sharing a package.
 </package_level_concerns>
@@ -174,7 +180,7 @@ See `reference.md` for detailed example.
 </god_object_decomposition>
 
 <package_decomposition>
-**Trigger**: PostToolUse hook reports a package in the red zone (≥13 non-test `.go` files at one directory level) or yellow zone (8–12). Detection is handled by `hooks/check-package-sizes.sh`; this section is the authoritative HOW for responding.
+**Trigger**: A package lands in the red zone (≥13 non-test `.go` files at one directory level) or yellow zone (8–12) — see `<package_level_concerns>` for how to check. This section is the authoritative HOW for responding.
 
 **A package-size violation is a design review, not a mechanical file split.** Run the 3 steps *in order*:
 
@@ -370,7 +376,7 @@ Refactoring is complete when ALL are true:
 - [ ] Max nesting ≤ 2 levels
 - [ ] Code reads like a story
 - [ ] No more "juicy" abstractions to extract
-- [ ] No packages in red zone (the plugin's PostToolUse hook passes with no RED output; see `<package_level_concerns>`)
+- [ ] No packages in red zone (see `<package_level_concerns>` for how to check)
 - [ ] Tests written for new types/functions (via @testing skill)
 - [ ] Ready for @pre-commit-review phase
 </success_criteria>

@@ -19,7 +19,7 @@ Returns detailed report to caller with categorized findings and fix recommendati
 
 <quick_start>
 1. **Read files** under review (all staged or specific files)
-2. **Check package sizes** — normally surfaced automatically by the plugin's PostToolUse hook (`hooks/check-package-sizes.sh`). For review-only sessions (no recent edits), count non-test `.go` files per touched directory: red (≥13) → Design Debt; yellow (8–12) → Polish.
+2. **Check package sizes** — count non-test `.go` files per touched directory: red (≥13) → Design Debt; yellow (8–12) → Polish. (An optional PostToolUse hook, `hooks/check-package-sizes.sh`, can automate this per-repo — see @refactoring.)
 3. **Apply design principles** checklist from reference.md (LLM reasoning)
 4. **Search usage patterns** with Grep tool
 5. **Categorize findings**: Bugs, Design Debt, Readability Debt, Polish
@@ -72,7 +72,7 @@ Returns detailed report to caller with categorized findings and fix recommendati
 - Non-self-validating types (defensive code in methods, reliance on upstream validation, re-validation of composed types)
 - Poor comment quality (explaining what instead of why)
 - File structure issues (too long, too many types)
-- Package size zone violations: surfaced automatically by the plugin's PostToolUse hook after edits. Thresholds: ≥13 non-test `.go` files at one directory level = red (Design Debt, hard gate); 8–12 = yellow (Polish, review before adding the next file). For review-only sessions where no edit has fired the hook, verify manually before reporting. When a violation is reported, apply the 3-step design review: (1) does the package name reflect a real-world domain concept — not a role or container? (2) are there big structs with disjoint method sets or primitive-obsession fields hiding new types? (3) only after that review, decide whether to extract sub-packages, new leaf types, or both.
+- Package size zone violations: count non-test `.go` files per directory. Thresholds: ≥13 = red (Design Debt, hard gate); 8–12 = yellow (Polish, review before adding the next file). When a violation is found, apply the 3-step design review: (1) does the package name reflect a real-world domain concept — not a role or container? (2) are there big structs with disjoint method sets or primitive-obsession fields hiding new types? (3) only after that review, decide whether to extract sub-packages, new leaf types, or both.
 - Generic package extraction opportunities
 - Design bugs (nil deref, ignored errors, resource leaks)
 - Test quality (weak assertions, missing use cases, mock overuse, conditionals in tests)
@@ -88,7 +88,7 @@ See [reference.md](./reference.md) for complete detection checklist with example
 
 <full_review_mode context="First Run">
 1. Read all files under review (using Read tool)
-2. Check package sizes: the plugin's PostToolUse hook surfaces yellow/red zones automatically after edits; for review-only sessions, count non-test `.go` files per touched directory. Red (≥13) → Design Debt finding. Yellow (8–12) → Polish finding.
+2. Check package sizes: count non-test `.go` files per touched directory. Red (≥13) → Design Debt finding. Yellow (8–12) → Polish finding.
 3. Apply design principles checklist from reference.md (LLM reasoning)
 4. Search for usage patterns across codebase (using Grep tool)
 5. Categorize findings:
@@ -325,7 +325,7 @@ See [reference.md](./reference.md) for detailed principles and examples for each
 - [ ] Searched for missing domain concepts (implicit types that should be explicit)
 - [ ] Validated test quality (weak assertions? conditionals in tests? mock overuse?)
 - [ ] Scanned for design bugs (nil deref, ignored errors, resource leaks)
-- [ ] Package size check reflected in report — hook's red/yellow output (or manual count for review-only sessions) categorized as Design Debt / Polish
+- [ ] Package size check reflected in report — red/yellow count categorized as Design Debt / Polish
 
 **Report Quality:**
 - [ ] All findings categorized by severity (Bugs, Design Debt, Readability Debt, Polish)
