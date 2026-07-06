@@ -157,8 +157,9 @@ feature's port names is not shared vocabulary, it is leaked policy.
 
 Before, exercising `managementPort()` meant constructing a `kubeService` around a
 full Service fixture — building a Kubernetes object to check a range predicate.
-After, the logic is a leaf and unit tests are slice literals against
-`networking.Ports`; no big-object construction:
+After, the logic is a leaf and its rung-0 unit tests (the composition ladder's
+bottom rung — see @testing) are slice literals against `networking.Ports`; no
+big-object construction:
 
 ```go
 func TestPorts_FirstNamed(t *testing.T) {

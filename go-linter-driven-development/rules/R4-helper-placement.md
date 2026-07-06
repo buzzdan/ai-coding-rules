@@ -124,7 +124,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    (rung 2/3).
 
 2. **Are unexported helpers tested directly?**
-   Detection: `grep -rLn '^package .*_test$' --include='*_test.go' .` to find
+   Detection: `grep -rL '^package .*_test$' --include='*_test.go' .` to find
    internal test packages, then grep those files for calls to lowercase functions
    defined in the package.
    Violation: any direct test of a private helper — that urge is the promotion

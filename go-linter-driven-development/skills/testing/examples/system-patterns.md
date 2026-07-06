@@ -1,5 +1,7 @@
 # System Test Patterns
 
+Rung: top (the whole system composed, black-box via CLI/API; only the true external boundary faked)
+
 ## Purpose
 
 System tests are black-box tests that verify the entire application works correctly from an external perspective. They test via CLI or API, simulating real user interactions.

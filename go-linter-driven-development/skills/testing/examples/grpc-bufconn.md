@@ -1,5 +1,7 @@
 # gRPC Testing with bufconn and Rich Client Mocks
 
+Rung: 1 (first real layer over leaf types — real gRPC transport in-process via bufconn)
+
 ## When to Use This Example
 
 Use this when:

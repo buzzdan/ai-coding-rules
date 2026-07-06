@@ -1,5 +1,7 @@
 # JSON-RPC Server Mock with DSL
 
+Rung: 1 (first real layer over leaf types — real JSON-RPC over httptest; fake data only at the external boundary)
+
 ## When to Use This Example
 
 Use this when:

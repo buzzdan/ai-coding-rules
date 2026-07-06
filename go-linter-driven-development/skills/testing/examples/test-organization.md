@@ -1,5 +1,7 @@
 # Test Organization and File Structure
 
+Rung: all (organization and build-tag scaffolding for every rung, 0 through top)
+
 ## File Organization
 
 ### Basic Structure
