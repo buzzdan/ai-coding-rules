@@ -1,410 +1,135 @@
 ---
 name: code-designing
 description: |
-  Domain type design and architectural planning for Go code.
+  FORWARD view over rules/ — domain type design and architectural planning for Go code BEFORE it exists.
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
-  Focuses on vertical slice architecture and type safety.
+  Dispatches into the Design guidance sections of rules/R1-R8.
 allowed-tools:
   - Skill(go-linter-driven-development:testing)
 ---
 
 <objective>
-Domain type design and architectural planning for Go code.
-Use when planning new features or identifying need for new types during refactoring.
+The design phase applied BEFORE code exists. This skill is a thin directional view:
+every design principle lives exactly once in `../../rules/` — this protocol says
+which rule to open at which design step, and what shape the output takes.
 
-**Reference**: See `reference.md` for complete design principles and examples.
+Backward counterpart (fixing code that already fails lint/review): @refactoring.
 </objective>
 
 <skill_invocation>
-**CRITICAL**: When this skill says "Use @skill-name" or routes to "@skill-name", you MUST use the **Skill tool** explicitly.
+**CRITICAL**: When this skill says "Use @skill-name", you MUST invoke it with the
+**Skill tool** — do not just mention it.
 
 | Notation | Skill Tool Call |
 |----------|-----------------|
 | @testing | `Skill(go-linter-driven-development:testing)` |
-
-**DO NOT** just reference the skill - actually invoke it using the Skill tool.
 </skill_invocation>
-
-<quick_start>
-1. **Analyze Architecture**: Check for vertical vs horizontal slicing
-2. **Understand Domain**: Identify problem domain, concepts, invariants
-3. **Identify Core Types**: Find primitives that need type wrappers
-4. **Design Self-Validating Types**: Create types with validating constructors
-5. **Plan Package Structure**: Vertical slices by feature
-6. **Output Design Plan**: Present structured plan before implementation
-
-Ready to implement? Use @testing skill for test structure.
-</quick_start>
 
 <when_to_use>
 - Planning a new feature (before writing code)
-- Refactoring reveals need for new types (complexity extraction)
-- Linter failures suggest types should be introduced
-- When you need to think through domain modeling
-- **`argument-limit`** linter failure (>4 parameters) → Design options struct
-- **`function-result-limit`** linter failure (>3 returns) → Design result type
-- **`confusing-results`** linter failure → Design named result type
-- **`file-length-limit`** linter failure (>450 lines) → Analyze and split juicy types to own files
-- **Package-size check** flags yellow/red zone → design-time intervention: re-model with sub-packages *before* the zone escalates (full decomposition playbook in @refactoring `<package_decomposition>`)
+- Refactoring reveals need for new types (@refactoring escalates here)
+- Linter failures that need a design decision, not a mechanical fix:
+  - `argument-limit` (>4 params) → design an options struct (grouping data that travels together — score it per `../../rules/R1-primitive-obsession.md`)
+  - `function-result-limit` (>3 returns) / `confusing-results` → design a named result type (same R1 scoring)
+  - `file-length-limit` (>450 lines) → split juicy types into their own files (juiciness per R1; file-per-type per `../../rules/R5-vertical-slice.md`); a single god type routes to @refactoring's god-object decomposition procedure first
+  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring `<package_decomposition>`)
 </when_to_use>
 
-<purpose>
-Design clean, self-validating types that:
-- Prevent primitive obsession
-- Ensure type safety
-- Make validation explicit
-- Follow vertical slice architecture
-</purpose>
+<protocol>
 
-<workflow>
+<architecture_scan priority="FIRST_STEP">
+**Default: vertical slice architecture** — `../../rules/R5-vertical-slice.md`.
 
-<architecture_pattern_analysis priority="FIRST_STEP">
-**Default: Always use vertical slice architecture** (feature-first, not layer-first).
+Scan the codebase structure: vertical (`internal/feature/{handler,service}.go`) vs
+horizontal (`internal/{handlers,services}/feature.go`)?
 
-Scan codebase structure:
-- **Vertical slicing**: `internal/feature/{handler,service,repository,models}.go`
-- **Horizontal layering**: `internal/{handlers,services,domain}/feature.go`
+1. **Pure vertical** → continue the pattern: implement as `internal/<new-feature>/`.
+2. **Pure horizontal** → propose starting migration (template in R5's Design
+   guidance); implement the new feature as the first vertical slice.
+3. **Mixed** → check `docs/architecture/vertical-slice-migration.md`, continue as a slice.
 
-<decision_flow>
-1. **Pure vertical** → Continue pattern, implement as `internal/[new-feature]/`
-2. **Pure horizontal** → Propose: Start migration with `docs/architecture/vertical-slice-migration.md`, implement new feature as first vertical slice
-3. **Mixed (migrating)** → Check for migration docs, continue pattern as vertical slice
-</decision_flow>
-
-**Always ask user approval with options:**
-- Option A: Vertical slice (recommended for cohesion/maintainability)
-- Option B: Match existing pattern (if time-constrained)
-- Acknowledge: Time pressure, team decisions, consistency needs are valid
-
-**If migration needed**, create/update `docs/architecture/vertical-slice-migration.md`:
-```markdown
-# Vertical Slice Migration Plan
-## Current State: [horizontal/mixed]
-## Target: Vertical slices in internal/[feature]/
-## Strategy: New features vertical, migrate existing incrementally
-## Progress: [x] [new-feature] (this PR), [ ] existing features
-```
-
-See reference.md section #3 for detailed patterns.
-</architecture_pattern_analysis>
+Architecture advises, it doesn't veto (R5's advisory posture). Ask the user:
+Option A — vertical slice (recommended); Option B — match the existing pattern
+(time pressure and team conventions are valid reasons).
+</architecture_scan>
 
 <understand_domain>
-- What is the problem domain?
-- What are the main concepts/entities?
-- What are the invariants and rules?
-- How does this fit into existing architecture?
+What is the problem domain? The main concepts/entities? The invariants and rules?
+How does this fit the existing architecture?
 </understand_domain>
 
-<identify_core_types>
-Ask for each concept:
-- Is this currently a primitive (string, int, float)?
-- Does it have validation rules?
-- Does it have behavior beyond simple data?
-- Is it used across multiple places?
+<rule_dispatch>
+For each concept in the design, open the rule that owns the question and apply its
+**Design guidance** section:
 
-If yes to any → Consider creating a type
-</identify_core_types>
+| Rule | When designing, apply... |
+|------|--------------------------|
+| `../../rules/R1-primitive-obsession.md` | Which primitives become types — score every candidate with R1's juiciness scorecard; reject ceremony wrappers (over-abstraction trap). |
+| `../../rules/R2-self-validating-types.md` | Constructor-only entry, validation ownership, trusting composed values, nil is not a value, no defensive checks in methods. |
+| `../../rules/R3-storifying.md` | Plan orchestration functions as 3–5 named steps at one conceptual level; honest names for mutators. |
+| `../../rules/R4-helper-placement.md` | WHERE each helper/type lands — the placement ladder (unexported → feature sub-package → shared domain package). |
+| `../../rules/R5-vertical-slice.md` | Package structure and naming: feature slices with roles inside, flatcase domain vocabulary, migration template. |
+| `../../rules/R6-test-only-interfaces.md` | Default dependencies to concrete types; an interface must be earned by a second production implementation or a grep-verified import cycle. |
+| `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors; orchestrators integration-tested over real collaborators. |
+| `../../rules/R8-no-globals.md` | Dependencies injected via constructors, `ctx` threaded from callers, globals only at entry points. |
+</rule_dispatch>
 
-<design_self_validating_types>
-For each type:
-```go
-// Type definition
-type TypeName underlyingType
+<design_checklist>
+Before presenting the plan, verify against the rules (cite, don't restate):
 
-// Validating constructor
-func NewTypeName(input underlyingType) (TypeName, error) {
-    // Validate input
-    if /* validation fails */ {
-        return zero, errors.New("why it failed")
-    }
-    return TypeName(input), nil
-}
+- [ ] No primitive obsession; every proposed type scored, ceremony rejected (R1)
+- [ ] Types are self-validating; composed types trusted, never re-validated (R2)
+- [ ] Orchestration planned as a story; most logic pushed into leaf types (R3, R7)
+- [ ] **Placement decided** for every helper and type via the ladder — unexported helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
+- [ ] Vertical slice structure; package names are flatcase domain vocabulary, never roles/containers (R5)
+- [ ] No test-only interfaces: every interface has a second production implementation OR breaks a real import cycle, verified by grepping the import direction (detection command in `../../rules/R6-test-only-interfaces.md`); otherwise depend on the concrete type
+- [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in @refactoring `<package_decomposition>`)
+- [ ] Dependencies constructor-injected and validated; ctx flows down; no new globals (R8, R2)
+</design_checklist>
 
-// Methods on type (if behavior needed)
-func (t TypeName) SomeMethod() result {
-    // Type-specific logic
-}
-```
-
-**Composed types trust their parts** — never re-validate self-validating types:
-```go
-// ❌ Re-validates composed types
-func NewAddress(host Host, port Port) (Address, error) {
-    if host == "" { return Address{}, errors.New("host required") }  // Host owns this
-    return Address{host: host, port: port}, nil
-}
-
-// ✅ Trusts composed self-validating types
-func NewAddress(host Host, port Port) Address {
-    return Address{host: host, port: port}
-}
-```
-</design_self_validating_types>
-
-<plan_package_structure>
-- **Vertical slices**: Group by feature, not layer
-- Each feature gets its own package
-- Within package: separate by role (service, repository, handler)
-
-Good structure:
-```
-user/
-├── user.go          # Domain types
-├── service.go       # Business logic
-├── repository.go    # Persistence
-└── handler.go       # HTTP/API
-```
-
-Bad structure:
-```
-domain/user.go
-services/user_service.go
-repository/user_repository.go
-```
-
-**Package naming method** (for feature and sub-package design):
-
-1. **Model the real-world relationship.** Ask: "What IS this system? What does it DO? What does it operate ON?"
-   - A worker HAS a job → `worker/` + `worker/job/` (`job.ID`, `job.Status`)
-   - A compiler HAS tokens → `compiler/` + `compiler/token/`
-   - A scheduler HAS tasks → `scheduler/` + `scheduler/task/`
-2. **The parent names the actor/system** (the thing that does the work).
-3. **The sub-package names the domain object** (the thing being acted upon) — this is where your `pkg.Type` call sites live.
-4. **Test**: say `pkg.Type` out loud. `job.ID` sounds right. `domain.ID` sounds like Java.
-
-**Package-name anti-patterns** (never use — they describe roles or act as dumping grounds):
-- Role names: `handlers/`, `types/`, `model/`
-- Generic containers: `common/`, `shared/`, `core/`, `base/`, `util/`, `helpers/`, `domain/`
-
-**Import direction** (strictly downward — plan this up front to avoid cycles):
-```
-leaf types (domain)  ← (nothing)
-sub-packages         ← leaf types
-parent               ← leaf types + sub-packages
-cmd/                 ← everything
-```
-If the parent needs sub-package logic AND the sub-package needs parent types, extract the shared types into a leaf sub-package from day one.
-
-**When decomposing an existing package** (red/yellow zone), see @refactoring `<package_decomposition>` for the full 3-step design review and phased migration.
-</plan_package_structure>
-
-<design_orchestrating_types>
-For types that coordinate others:
-- Make fields private
-- Validate dependencies in constructor
-- No nil checks in methods (constructor guarantees validity)
-
-```go
-type Service struct {
-    repo        Repository  // private
-    notifier    Notifier    // private
-}
-
-func NewService(repo Repository, notifier Notifier) (*Service, error) {
-    if repo == nil {
-        return nil, errors.New("repo required")
-    }
-    if notifier == nil {
-        return nil, errors.New("notifier required")
-    }
-    return &Service{
-        repo:     repo,
-        notifier: notifier,
-    }, nil
-}
-
-// Methods can trust fields are valid
-func (s *Service) DoSomething() error {
-    // No nil checks needed
-    return s.repo.Save(...)
-}
-```
-</design_orchestrating_types>
-
-<review_against_principles>
-Check design against (see reference.md):
-- [ ] No primitive obsession
-- [ ] Types are self-validating
-- [ ] Vertical slice architecture
-- [ ] Types designed around intent, not just shape
-- [ ] Clear separation of concerns
-- [ ] Each type owns its validation; composed self-validating types are trusted, not re-validated
-- [ ] No test-only interface: every interface introduced has a real second production implementation OR breaks a real import cycle (verified by grepping the import direction: `grep -rn '"<module>/<consumer-pkg>"' <dependency-pkg-dir>/*.go` — no match ⇒ no cycle) — never added merely so a test can inject a fake. Default orchestrator dependencies to concrete types; test them by wiring the real collaborators.
-</review_against_principles>
-
-<linter_triggered_patterns>
-**When invoked by linter failures, apply these patterns:**
-
-<pattern name="options_struct" trigger="argument-limit (>4 params)">
-```go
-// BEFORE - Too many parameters
-func CreateUser(name string, email string, age int, role string, dept string) (*User, error)
-
-// AFTER - Options struct
-type CreateUserOptions struct {
-    Name  string
-    Email string
-    Age   int
-    Role  string
-    Dept  string
-}
-
-func CreateUser(opts CreateUserOptions) (*User, error)
-```
-**Design Tip**: Add validation in a constructor: `NewCreateUserOptions(...) (CreateUserOptions, error)`
-</pattern>
-
-<pattern name="result_type" trigger="function-result-limit (>3 returns)">
-```go
-// BEFORE - Too many return values
-func ParseConfig(path string) (config Config, warnings []string, version int, error)
-
-// AFTER - Result type
-type ParseConfigResult struct {
-    Config   Config
-    Warnings []string
-    Version  int
-}
-
-func ParseConfig(path string) (ParseConfigResult, error)
-```
-</pattern>
-
-<pattern name="named_result_type" trigger="confusing-results">
-```go
-// BEFORE - Confusing (string, string, error)
-func ParseAddress(raw string) (string, string, error) // Which is host? Which is port?
-
-// AFTER - Named result type
-type ParsedAddress struct {
-    Host string
-    Port string
-}
-
-func ParseAddress(raw string) (ParsedAddress, error)
-```
-</pattern>
-
-<pattern name="file_splitting" trigger="file-length-limit (revive) - file > 450 lines">
-**Step 1: Analyze file structure**
-
-| File Pattern | Action |
-|--------------|--------|
-| Multiple juicy types | Move each juicy type to its own file |
-| Single god type | Extract method clusters via composition OR extract juicy logic from methods |
-| Long functions, few types | Route to @refactoring first (storify → extract functions) |
-
-**Step 2: Apply juiciness test**
-
-"Juicy" types (deserve their own file):
-- Types with ≥2 methods
-- Types with complex validation
-- Types with transformations/parsing
-- Enums WITH methods (behavior makes them juicy)
-
-"Anemic" types (can stay grouped in types.go or similar):
-- Simple enums (const block only)
-- DTOs with no methods
-- Type aliases
-
-**Step 3: For god types** (>15 methods)
-
-| Option | When to Use | Pattern |
-|--------|-------------|---------|
-| **Storify first** | Methods are hard to read | Apply storification → reveals hidden structure |
-| **Extract via composition** | Method clusters exist | Identify cluster → extract to new type → compose |
-| **Extract juicy logic** | Primitive obsession inside methods | Find logic on primitives → extract to self-validating type |
-
-**Routing**: God types require two-phase refactoring:
-1. **@refactoring** (first): Storify methods to reveal structure
-2. **@code-designing** (then): Design service composition
-
-See @refactoring skill → `god_object_decomposition` pattern for detailed mechanics.
-</pattern>
-</linter_triggered_patterns>
-
-</workflow>
+</protocol>
 
 <output_format>
-After design phase:
-
 ```
 DESIGN PLAN
 
 Feature: [Feature Name]
 
-Core Domain Types:
-- UserID (string) - Self-validating, prevents empty IDs
-- Email (string) - Self-validating, RFC 5322 validation
-- Age (int) - Self-validating, range 0-150
+Core Domain Types (leaf):
+- [Type] ([underlying]) — invariant it owns; juiciness verdict (R1)
 
 Orchestrating Types:
-- UserService - Coordinates user operations
-   Dependencies: Repository, Notifier
-   Methods: CreateUser, GetUser, UpdateUser
+- [Type] — dependencies (concrete unless R6-justified), methods
 
 Package Structure:
-user/
-  ├── user.go          # UserID, Email, Age, User
-  ├── service.go       # UserService
-  ├── repository.go    # Repository (concrete type over Postgres)
-  ├── notifier.go      # Notifier (concrete type over SMTP/email service)
-  └── handler.go       # HTTP handlers
+[feature]/
+  ├── [type].go        # each juicy type in its own file
+  ├── service.go
+  └── handler.go
+
+Placement Decisions (R4):
+- [helper/type] → rung 1/2/3 and why
 
 Design Decisions:
-- UserID is custom type to prevent passing empty/invalid IDs
-- Email validation centralized in NewEmail constructor
-- Vertical slice keeps all user logic in one package
-- Repository is a concrete type (e.g. *Store over Postgres) — make it an interface ONLY if a real second production backend exists, never merely "for tests" (tests use the real Store against embedded Postgres / httptest, not an injected double)
+- [decision] — rationale, citing the owning rule
 
 Integration Points:
-- Consumed by: HTTP API (/users endpoints)
-- Depends on: Database, Email service
-- Events: UserCreated event published after creation
+- Consumed by / depends on / events
 
 Next Steps:
 1. Create types with validating constructors
-2. Write unit tests for each type
-3. Implement UserService
-4. Write integration tests
-
-Ready to implement? Use @testing skill for test structure.
+2. Write unit tests for each leaf type → use @testing skill
+3. Implement orchestrators; integration tests over real collaborators
 ```
 </output_format>
 
-<key_principles>
-See reference.md for detailed principles:
-- Primitive obsession prevention (Yoke design strategy)
-- Self-validating types
-- Vertical slice architecture
-- Types around intent and behavior, not just shape
-- Single responsibility per type
-</key_principles>
-
-<pre_code_review>
-Before writing code, ask:
-- Can logic be moved into smaller custom types?
-- Is this type designed around intent and behavior?
-- Have I avoided primitive obsession?
-- Is validation in the right place (constructor)?
-- Does this follow vertical slice architecture?
-- Does any interface I'm adding have a real second production implementation, or break a real import cycle (verified by grepping the import direction — does the dependency's package import the consumer's package back? see @pre-commit-review reference.md §9 for the exact command)? If it exists only so a test can inject a fake, drop it and depend on the concrete type.
-
-Only after satisfactory answers, proceed to implementation.
-
-See reference.md for complete design principles and examples.
-</pre_code_review>
-
 <success_criteria>
-Design phase is complete when ALL of the following are true:
+Design phase is complete when ALL are true:
 
-- [ ] Architecture pattern analyzed (vertical/horizontal/mixed)
-- [ ] Core domain types identified with validation rules
-- [ ] Self-validating type design documented
-- [ ] Package structure follows vertical slice pattern
-- [ ] Package names reflect real-world domain concepts (not role names like `handlers/`/`types/` or containers like `common/`/`domain/`); `pkg.Type` reads like English
-- [ ] Import direction is strictly downward (leaf types ← sub-packages ← parent ← cmd/)
-- [ ] Design decisions documented with rationale
-- [ ] Pre-code review questions answered satisfactorily
-- [ ] Design plan output presented to user
+- [ ] Architecture pattern analyzed (vertical/horizontal/mixed) and user chose an option
+- [ ] Core domain types identified, each with its validation rules and R1 score
+- [ ] Placement decision recorded for every new type/helper (R4 ladder)
+- [ ] Package structure follows R5 (slices, naming, downward imports)
+- [ ] Design checklist answered satisfactorily (every box cites its rule)
+- [ ] Design plan presented in the output format above
 </success_criteria>
