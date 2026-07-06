@@ -21,7 +21,7 @@ go-linter-driven-development/
 ├── skills/       linter-driven-development · code-designing · refactoring ·
 │                 pre-commit-review · testing · documentation   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
-├── commands/     go-ldd-analyze · autopilot · quickfix · review · status
+├── commands/     go-ldd-analyze · autopilot · quickfix · review · status · wire-repo-brain
 └── hooks/        package-size gate
 ```
 
@@ -114,6 +114,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`/go-ldd-analyze [files]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
 | [`/go-ldd-review [files]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
 | [`/go-ldd-status`](commands/go-ldd-status.md) | Show current phase + progress | N/A | — |
+| [`/wire-repo-brain [path]`](commands/wire-repo-brain.md) | Wire the documentation network in one pass: upward edges → docs → index.md → CLAUDE.md (@documentation BOOTSTRAP) | ✅ Wiring only | ✅ Optional |
 
 ## How Auto-Detection Works
 

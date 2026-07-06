@@ -11,7 +11,7 @@ policy, index policy, root wiring, doc-root discovery — lives ONCE in
 - [Feature Doc Template](#feature-doc-template) — with `Related` edges and symbol-cited key players
 - [The Index and Root Wiring](#the-index-and-root-wiring) — index.md, map of maps, CLAUDE.md/AGENTS.md snippets
 - [Doc Roots and Monorepos](#doc-roots-and-monorepos)
-- [Bootstrap Classification](#bootstrap-classification) — feature / architecture / guide / stale
+- [Bootstrap Classification](#bootstrap-classification) — feature / architecture / guide / stale; rung-2 gap criterion; upward-edge anchor heuristic
 - [Checklists](#checklists) — feature docs, code comments, quality gates
 - [Guidelines](#guidelines) — bug-fix documentation, managing documentation size
 - [Examples](#examples) — good vs bad worked examples
@@ -290,6 +290,26 @@ on exactly two greppable signals — nothing fuzzier:
   is evidence a doc was intended (surfaces from the Q2 code→docs grep).
 - **(b) Undocumented front door**: a package with entry points has no doc citing any
   of its exported symbols.
+
+### Upward-Edge Anchor Heuristic (BOOTSTRAP step 5)
+
+Each indexed doc gets at most ONE upward edge (low density — R9 edge policy). The
+anchor is the doc's front door, chosen in this order:
+
+1. **The doc's central exported symbol** — the type or constructor the doc most
+   centrally describes: usually the first symbol its index line cites, or the type
+   in the doc's title (`spanlogger-api.md` → the `SpanLogger` type).
+2. **The package godoc** — when the doc spans a whole package rather than one
+   symbol (`versioning.md` → `package version`'s doc comment).
+3. **No confident anchor** → do not guess. Report the doc as `unwired` in the
+   advisory findings; a wrong edge is worse than a missing one (it survives Q2 —
+   it resolves — while pointing readers somewhere unhelpful).
+
+Mechanics: append the edge as the final line of the anchor's EXISTING doc comment —
+`// See <docroot>/<file>.md for <three-to-six-word reason>.` Never restructure the
+comment around it; never create a doc comment solely to host an edge (a naked symbol
+is a Q5 finding for FEATURE mode, not a wiring target); confirm the package still
+vets after the edit.
 
 ---
 

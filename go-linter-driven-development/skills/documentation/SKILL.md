@@ -7,8 +7,9 @@ description: |
   @linter-driven-development (Phase 5) — to document HOW THE PRODUCT BEHAVES and wire
   it into the network.
   BOOTSTRAP mode: on request ("set up docs", "create an index", "make this repo
-  AI-navigable") or when FEATURE mode finds no doc root — discovers the doc root,
-  builds index.md, wires CLAUDE.md, reports gaps.
+  AI-navigable", /wire-repo-brain) or when FEATURE mode finds no doc root — discovers
+  the doc root, builds index.md, wires CLAUDE.md, wires missing code→docs edges,
+  reports gaps.
   NOT a changelog - documents current behavior, not change history.
 allowed-tools:
   - Read
@@ -84,12 +85,19 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 4. **Wire the root**: add the `@<docroot>/index.md` import to CLAUDE.md (create a
    minimal CLAUDE.md section if none exists); AGENTS.md has no import syntax — use
    the plain-reference fallback. Snippets in reference.md.
-5. **Confirm and report**: re-run R9 Q1–Q3 as confirmation — a Q1 hit (a doc with no
+5. **Wire missing upward edges**: for each indexed (non-stale) doc with no code-side
+   edge, add ONE line — `// See <docroot>/<file>.md ...` — to the front-door anchor's
+   existing doc comment (anchor heuristic in reference.md), then confirm the package
+   still vets. Wiring only: never rewrite the comment around it, never wire a stale
+   doc (its ⚠️ index flag is the finding), and skip — as a reported gap — any doc
+   whose anchor you cannot identify with confidence.
+6. **Confirm and report**: re-run R9 Q1–Q3 as confirmation — a Q1 hit (a doc with no
    index line) means step 3 didn't land and a Q3 hit means step 4 didn't; repair
-   either before reporting. The ADVISORY findings list carries Q2 hits plus rung-2
-   gaps (two-signal criterion in reference.md), including a now-indexed doc that
-   still lacks a code-side edge. Bootstrap wires and maps; it NEVER mass-generates
-   content docs — those are written incrementally by FEATURE mode.
+   either before reporting, and verify every edge added in step 5 resolves. The
+   ADVISORY findings list carries Q2 hits plus rung-2 gaps (two-signal criterion in
+   reference.md) and any doc left unwired in step 5. Bootstrap wires and maps; it
+   NEVER mass-generates content docs — those are written incrementally by FEATURE
+   mode.
 </bootstrap_mode>
 
 <output_format>
@@ -119,12 +127,13 @@ BOOTSTRAP COMPLETE
 Doc root(s): <discovered/created; per sub-project if monorepo>
 Index: <docroot>/index.md built — <N> docs, <M> groups; map of maps: <yes/no>
 Root wiring: CLAUDE.md @import <added/verified> (or AGENTS.md plain reference)
+Upward edges: <K> wired — <doc> ← <anchor symbol> (<package>), ...
 
 Advisory findings (reported, not fixed — FEATURE mode writes content):
-- orphan (now indexed): <doc> — had no index line; still has no code-side edge
+- unwired: <doc> — indexed, but no confident front-door anchor; needs a human call
 - broken edge: <source> → <target> (unresolved)
 - gap: <package> — <dangling code→docs edge | entry points with no citing doc>
-- stale: <doc> — indexed with ⚠️ flag; cites unresolved <symbol>
+- stale: <doc> — indexed with ⚠️ flag; cites unresolved <symbol>; not edge-wired
 ```
 </output_format>
 
@@ -133,8 +142,8 @@ Advisory findings (reported, not fixed — FEATURE mode writes content):
   duplicated across rungs (R9 placement rule).
 - New/updated docs joined the network: indexed, root-wired, edges in both directions.
 - FEATURE: the R9 self-check ran and every hit was fixed before reporting.
-- BOOTSTRAP: root(s) + index + wiring exist; gaps reported; zero content docs
-  generated.
+- BOOTSTRAP: root(s) + index + root wiring exist; every confidently-anchorable doc
+  has an upward edge; gaps reported; zero content docs generated.
 - All prose passes the 5-year reader test; zero changelog-style entries.
 </success_criteria>
 
