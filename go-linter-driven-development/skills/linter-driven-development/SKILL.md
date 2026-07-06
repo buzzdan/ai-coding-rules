@@ -125,7 +125,8 @@ fresh-context value only pays on finished work. The REFACTOR-step greps are the
 mid-implementation net; this pass is the verification net.
 
 Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all
-advisory. Fix bugs and user-accepted findings via @refactoring, then re-invoke
+advisory. Fix bugs and user-accepted findings via @refactoring — except accepted R9
+(documentation-network) findings, whose fixer is @documentation — then re-invoke
 @pre-commit-review in INCREMENTAL mode until the delta reports clean.
 </phase_4_review>
 

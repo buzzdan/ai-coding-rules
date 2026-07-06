@@ -84,11 +84,12 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 4. **Wire the root**: add the `@<docroot>/index.md` import to CLAUDE.md (create a
    minimal CLAUDE.md section if none exists); AGENTS.md has no import syntax — use
    the plain-reference fallback. Snippets in reference.md.
-5. **Confirm and report**: re-run R9 Q1–Q3 as confirmation — Q3 failing here means
-   step 4 didn't land; repair it before reporting. The ADVISORY findings list
-   carries Q1/Q2 hits plus rung-2 gaps (two-signal criterion in reference.md).
-   Bootstrap wires and maps; it NEVER mass-generates content docs — those are
-   written incrementally by FEATURE mode.
+5. **Confirm and report**: re-run R9 Q1–Q3 as confirmation — a Q1 hit (a doc with no
+   index line) means step 3 didn't land and a Q3 hit means step 4 didn't; repair
+   either before reporting. The ADVISORY findings list carries Q2 hits plus rung-2
+   gaps (two-signal criterion in reference.md), including a now-indexed doc that
+   still lacks a code-side edge. Bootstrap wires and maps; it NEVER mass-generates
+   content docs — those are written incrementally by FEATURE mode.
 </bootstrap_mode>
 
 <output_format>
@@ -120,7 +121,7 @@ Index: <docroot>/index.md built — <N> docs, <M> groups; map of maps: <yes/no>
 Root wiring: CLAUDE.md @import <added/verified> (or AGENTS.md plain reference)
 
 Advisory findings (reported, not fixed — FEATURE mode writes content):
-- orphan: <doc> — no index line, no code-side edge
+- orphan (now indexed): <doc> — had no index line; still has no code-side edge
 - broken edge: <source> → <target> (unresolved)
 - gap: <package> — <dangling code→docs edge | entry points with no citing doc>
 - stale: <doc> — indexed with ⚠️ flag; cites unresolved <symbol>

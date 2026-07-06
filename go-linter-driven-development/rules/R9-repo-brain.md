@@ -103,6 +103,13 @@ type Policy struct {
     baseDelay   time.Duration
 }
 
+func ParsePolicy(maxAttempts int, baseDelay time.Duration) (Policy, error) {
+    if maxAttempts < 1 || baseDelay <= 0 {
+        return Policy{}, ErrInvalidPolicy
+    }
+    return Policy{maxAttempts: maxAttempts, baseDelay: baseDelay}, nil
+}
+
 func (p Policy) Do(ctx context.Context, op Op) error {
     for attempt := range p.attempts() {
         if err := op(ctx); err == nil {
@@ -235,7 +242,7 @@ rule's (Q4 below — they must carry why/context, not restate the identifier).
   (`See docs/<feature>.md`) from the package or type it describes — both invariants,
   reachability and bidirectionality, in one move.
 - **Wire the root**: add or repair the `@<docroot>/index.md` import in CLAUDE.md
-  (or AGENTS.md).
+  (AGENTS.md has no import syntax — use a plain reference line).
 - **Update the stale doc with the behavior change**: rewrite the affected section to
   describe current behavior — never append a changelog entry (the
   behavior-not-history discipline lives in @documentation).
@@ -263,6 +270,9 @@ directory.
    a **file path or line number** is itself a violation of the edge policy —
    detection: `grep -nE '\.go(:[0-9]+)?|line [0-9]+' <docroot>/*.md` — regardless
    of whether the coordinate currently resolves.
+   An index line carrying the ⚠️ stale flag (cites an unresolved `Symbol`) is a
+   recorded finding, not a broken edge — exempt from this question, since the
+   decision to refresh, remove, or keep it is the user's.
 
 3. **Is the root unwired?**
    Detection: `grep -l 'index.md' CLAUDE.md AGENTS.md 2>/dev/null`.
