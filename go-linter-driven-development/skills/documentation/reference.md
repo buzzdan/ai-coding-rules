@@ -264,11 +264,32 @@ Classify each inventoried doc; the class decides its index line and grouping:
 | **feature** | describes one capability's behavior; cites its symbols | group under its topic |
 | **architecture** | cross-feature structure, system-wide patterns | its own "Architecture" group |
 | **guide** | setup, how-to, onboarding, runbooks | "Guides" group |
-| **stale** | cites symbols/packages that no longer resolve; describes removed behavior | advisory finding — don't index as-is |
+| **stale** | cites symbols/packages that no longer resolve; describes removed behavior | index with a FLAGGED line (below); the flag is the advisory finding |
+
+**Stale never means unindexed** — R9's Q1 reachability invariant always wins. A stale
+doc gets a flagged index line naming the unresolved symbol:
+
+```markdown
+- [auth.md](auth.md) — ⚠️ stale: cites unresolved `TokenVerifier`
+```
+
+The flag names the unresolved symbol; it cannot tell an aspirational doc (written
+ahead of the code) from a doc for deleted code — choosing refresh (FEATURE mode) /
+remove / keep-as-roadmap is the user's call, made from the advisory report.
+Bootstrap never decides.
 
 When unsure between feature and architecture: one capability → feature; the seams
-between capabilities → architecture. Stale is a finding, not a deletion — the user
-decides whether to refresh it (FEATURE mode) or remove it.
+between capabilities → architecture.
+
+### Rung-2 Gap Criterion (BOOTSTRAP)
+
+FEATURE mode anchors R9 Q5 on the diff; bootstrap has no diff. Report a rung-2 gap
+on exactly two greppable signals — nothing fuzzier:
+
+- **(a) Dangling intent**: a live code→docs edge points at a missing doc — the edge
+  is evidence a doc was intended (surfaces from the Q2 code→docs grep).
+- **(b) Undocumented front door**: a package with entry points has no doc citing any
+  of its exported symbols.
 
 ---
 
