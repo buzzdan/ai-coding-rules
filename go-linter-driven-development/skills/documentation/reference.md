@@ -2,6 +2,14 @@
 
 Templates, checklists, examples, and guidelines for the documentation skill.
 
+## Contents
+
+- [Documentation Layers](#documentation-layers) — the four layers, cross-reference rules, choosing a layer
+- [Templates](#templates) — feature doc, package godoc, type/function godoc, testable examples
+- [Checklists](#checklists) — feature docs, code comments, quality gates
+- [Guidelines](#guidelines) — bug-fix documentation, managing documentation size
+- [Examples](#examples) — good vs bad worked examples
+
 ---
 
 ## Documentation Layers

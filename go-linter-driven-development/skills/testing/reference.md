@@ -2,12 +2,22 @@
 
 Complete guide to Go testing principles and patterns.
 
+## Contents
+
+- [Core Testing Principles](#core-testing-principles)
+- [Table-Driven Tests](#table-driven-tests) · [Testify Suites](#testify-suites)
+- [Synchronization in Tests](#synchronization-in-tests) · [Test Organization](#test-organization)
+- [Real Implementation Patterns](#real-implementation-patterns) · [Testable Examples](#testable-examples-godoc-examples)
+- [Testing Checklist](#testing-checklist) · [Summary](#summary)
+- Pattern index (by rung): [1 In-Memory Harness](#pattern-1-in-memory-test-harness-rung-1) · [2 Binary Dependency](#pattern-2-binary-dependency-management-rung-1) · [3 Mock Server DSL](#pattern-3-mock-server-with-generic-dsl-rung-1) · [4 Bidirectional Streaming](#pattern-4-bidirectional-streaming-with-rich-dsl-rung-1) · [5 HTTP DSL/Builder](#pattern-5-http-dsl-and-builder-pattern-rung-1) · [6 Test Organization](#pattern-6-test-organization-and-structure-all-rungs) · [7 Integration Workflows](#pattern-7-integration-test-workflows-rungs-1-2) · [8 System Test](#pattern-8-system-test-black-box-top-rung)
+- [How Claude Should Use These Files](#how-claude-should-use-these-files) · [Final Notes](#final-notes)
+
 ## Core Testing Principles
 
 ### 1. Test Only Public API
 - **Use `pkg_test` package name** - Forces external perspective
 - **Test types via constructors** - No direct struct initialization
-- **No testing private methods** - If you need to test it, make it public or rethink design
+- **No testing private methods** - the urge to test a helper directly is a promotion signal: give it its own package (see `../../rules/R4-helper-placement.md`) — never export it into the parent just for tests
 
 ```go
 // ✅ Good

@@ -26,7 +26,7 @@ Ready after tests? Run linter: `task lintwithfix`
 
 <when_to_use>
 <automatic_invocation>
-- **Automatically invoked** by @linter-driven-development during Phase 1 (Implementation Foundation)
+- **Automatically invoked** by @linter-driven-development in Phase 2's RED step — one failing test per behavior, placed by the composition ladder
 - **Automatically invoked** by @refactoring when new isolated types are created
 - **Automatically invoked** by @code-designing after designing new types
 - **After creating new leaf types** - Types that should have 100% unit test coverage
