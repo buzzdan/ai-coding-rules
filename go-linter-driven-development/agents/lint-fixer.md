@@ -58,3 +58,7 @@ FIXED: <linter> x <count>, ...
 ESCALATED: <linter> → <rule route> at <file:line>, ...
 LINT STATUS: green | escalations pending (<N>)
 ```
+
+FIXED counts every issue resolved since the first run — including those the
+linter's `--fix` pass auto-fixed (diff the first run's issue list against the
+final one), not only your hand edits.
