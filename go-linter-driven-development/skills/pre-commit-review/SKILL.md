@@ -1,344 +1,161 @@
 ---
 name: pre-commit-review
 description: |
-  ADVISORY validation of code against design principles that linters cannot enforce.
-  Loaded by go-code-reviewer agent for design analysis guidance. Also invoked by @refactoring (after pattern application).
-  Can be manually invoked for standalone code review.
-  Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+  ADVISORY pre-commit review that orchestrates parallel single-obsession rule hunters and an over-abstraction skeptic against the diff.
+  Spawns read-only agents (rule-hunter, overabstraction-skeptic); NEVER edits code.
+  Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
+  Categorizes findings as Bugs, Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
 ---
 
 <objective>
-Expert design analysis that detects issues linters can't catch.
-Returns detailed report to caller with categorized findings and fix recommendations.
-
-**Pure Analysis & Reporting** - Generates report, doesn't fix anything or invoke skills.
-
-**Reference**: See `reference.md` for complete detection checklist with examples.
-**Examples**: See `examples.md` for real-world review scenarios.
+Verify a finished diff against the plugin's rules (R1–R8) with evidence, by orchestrating
+parallel single-obsession `rule-hunter` agents and one `overabstraction-skeptic`.
+Pure orchestration and reporting: this skill may spawn agents but never edits code, never
+fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
+agents receive it as spawn-time payload — they do not invoke skills.
 </objective>
 
-<quick_start>
-1. **Read files** under review (all staged or specific files)
-2. **Check package sizes** — count non-test `.go` files per touched directory: red (≥13) → Design Debt; yellow (8–12) → Polish. (An optional PostToolUse hook, `hooks/check-package-sizes.sh`, can automate this per-repo — see @refactoring.)
-3. **Apply design principles** checklist from reference.md (LLM reasoning)
-4. **Search usage patterns** with Grep tool
-5. **Categorize findings**: Bugs, Design Debt, Readability Debt, Polish
-6. **Generate structured report** with file:line locations and fix recommendations
-7. **Return report** to caller (no fixes, no skill invocations)
-</quick_start>
+<timing>
+Run pre-commit, per completed vertical slice — NEVER mid-implementation. GREEN-step TDD
+code is supposed to look under-designed; reviewing it produces false positives. The
+per-cycle detection greps in the REFACTOR step (see @refactoring) are the
+mid-implementation net; this pass is the verification net on finished work.
+</timing>
 
-<input_output>
-<input>
-- Files to review (specific files or all staged changes)
-- Review mode: `full` (first run) or `incremental` (subsequent runs)
-- Previous findings (optional, for incremental mode)
-- Context (invoked by refactoring, orchestrator, subagent, or user)
-</input>
+<inputs>
+- **Diff scope**: staged changes by default (`git diff --cached --name-only -- '*.go'`),
+  or an explicit file list / diff range from the caller.
+- **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes — requires the
+  previous report's findings).
+</inputs>
 
-<output>
-- Structured report with categorized findings
-- Each finding: `file:line`, issue, why it matters, fix strategy, effort estimate
-- Prioritized by impact and effort
-- Format: Parseable for combined analysis (when invoked by orchestrator)
-</output>
-</input_output>
+<protocol>
 
-<invocation_modes>
-<direct_skill_invocation context="User or Orchestrator">
-- Full control, can invoke other skills
-- Can make changes based on findings
-- Interactive mode with user feedback
-</direct_skill_invocation>
+<step_1_grep_prefilter>
+In-context, cheap — no agents yet. For each rule below, read its rule file's
+**Falsifying questions** section and run the detection commands there against the diff
+scope (changed files only). The commands live in the rule files; never restate them here.
+A rule with zero hits is skipped — no hunter spawned for it.
 
-<subagent_mode context="Task tool with go-code-reviewer">
-- Read-only analysis, returns report only
-- Cannot invoke other skills
-- Used for parallel execution by orchestrator
-- Designed for speed and focused analysis
-</subagent_mode>
-</invocation_modes>
+| Rule | File | Hunt focus |
+|------|------|------------|
+| R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
+| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; nil as a value |
+| R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
+| R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the rung ladder |
+| R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
+| R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
+| R7 | `../../rules/R7-test-placement.md` | internal test packages; wantErr conditionals; wrong-rung tests; sleeps |
+| R8 | `../../rules/R8-no-globals.md` | package-level state; `context.Background()` in library code |
 
-<who_invokes>
-1. **go-code-reviewer agent** - Loads this skill for design analysis guidance during parallel quality analysis
-2. **@refactoring skill** - After applying patterns, validates design quality remains high
-3. **User** - Manual code review before commit
-</who_invokes>
+Also in-context: a new `//nolint` directive or `.golangci.yaml` exclusion in the diff is
+itself a finding — the change must justify, with evidence, that the rule genuinely does
+not apply.
+</step_1_grep_prefilter>
 
-<detection_capabilities>
-**What Reviewer Detects (That Linters Can't):**
-- Primitive obsession (with juiciness scoring)
-- Unstorified functions (mixed abstraction levels)
-- Missing domain concepts (implicit types that should be explicit)
-- Non-self-validating types (defensive code in methods, reliance on upstream validation, re-validation of composed types)
-- Poor comment quality (explaining what instead of why)
-- File structure issues (too long, too many types)
-- Package size zone violations: count non-test `.go` files per directory. Thresholds: ≥13 = red (Design Debt, hard gate); 8–12 = yellow (Polish, review before adding the next file). When a violation is found, apply the 3-step design review: (1) does the package name reflect a real-world domain concept — not a role or container? (2) are there big structs with disjoint method sets or primitive-obsession fields hiding new types? (3) only after that review, decide whether to extract sub-packages, new leaf types, or both.
-- Generic package extraction opportunities
-- Design bugs (nil deref, ignored errors, resource leaks)
-- Test quality (weak assertions, missing use cases, mock overuse — incl. a struct that only satisfies a production interface, conditionals in tests)
-- Test-only interfaces (an interface whose only second implementation is a test double — one production impl and no real import cycle; see reference.md §9)
+<step_2_spawn_hunters>
+For every rule with pre-filter hits, spawn one `rule-hunter` agent — all hunters in a
+single message, in parallel. Each spawn prompt MUST contain:
 
-**Division of Labor:**
-- **Linter handles**: Complexity metrics, line counts, formatting, syntax
-- **Reviewer handles**: Design patterns, domain modeling, conceptual issues
+1. **The rule file's FULL content, pasted** — the hunter's entire rulebook and single
+   obsession. Never a path reference alone; never more than one rule per hunter.
+2. **The diff scope** — the changed-file list or `git diff` range.
+3. **That rule's pre-filter hits** — as starting leads (the hunter re-runs the
+   detection commands itself; leads are a starting point, not a limit).
 
-See [reference.md](./reference.md) for complete detection checklist with examples.
-</detection_capabilities>
+Each hunter returns one block per finding:
+`rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
+plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
+</step_2_spawn_hunters>
 
-<workflow>
+<step_3_skeptic_pass>
+Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
+proposal — and spawn one `overabstraction-skeptic`. Its spawn prompt MUST contain:
 
-<full_review_mode context="First Run">
-1. Read all files under review (using Read tool)
-2. Check package sizes: count non-test `.go` files per touched directory. Red (≥13) → Design Debt finding. Yellow (8–12) → Polish finding.
-3. Apply design principles checklist from reference.md (LLM reasoning)
-4. Search for usage patterns across codebase (using Grep tool)
-5. Categorize findings:
-   - Bugs (nil deref, ignored errors, resource leaks)
-   - Design Debt (types, architecture, validation)
-   - Readability Debt (abstraction, flow, clarity)
-   - Polish (naming, docs, minor improvements)
-6. Generate structured report with recommendations
-7. Return report to caller (doesn't invoke other skills or make fixes)
-</full_review_mode>
+1. The extraction findings under review — the hunter blocks pasted verbatim.
+2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
+   `../../rules/R1-primitive-obsession.md`, pasted.
+3. Payload: the FULL content of `../../examples/overabstraction-cidr.md`, pasted.
 
-<incremental_review_mode context="Subsequent Runs">
-Used after fixes have been applied to verify resolution and detect new issues.
+Verdicts per finding: `CONFIRMED (score + verified evidence)` or
+`REFUTED (score 0–1 + reason) → cheaper alternative`. A refuted proposal does not ship;
+when its cheaper alternative (better naming, private fields + accessors) is still worth
+doing, report the alternative as 🟢 Polish. Only findings the skeptic cannot kill ship
+as extraction findings. Non-extraction findings (R3, R5–R8, and R1/R2 findings that
+propose no new type) skip the skeptic and go straight to the report.
+</step_3_skeptic_pass>
 
-1. Read ONLY changed files since last review (using git diff)
-2. Compare against previous findings:
-   - Mark resolved issues as Fixed
-   - Identify issues that still exist
-3. Analyze changed code for NEW issues introduced by fixes
-4. Generate delta report:
-   - Fixed: Issues from previous run that are now resolved
-   - Remaining: Issues that still need attention
-   - New: Issues introduced by recent changes
-5. Return concise delta report (not full analysis)
+<step_4_merged_report>
+Merge surviving findings into one report. Category mapping:
 
-**When to Use Incremental Mode:**
-- After @refactoring skill applies fixes
-- During iterative fix loop in Phase 4 of autopilot workflow
-- User requests re-review after making changes
+- 🐛 **Bugs** — will fail at runtime regardless of rule (nil returned as a value,
+  cancellation swallowed by `context.Background()`): fix immediately.
+- 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, and R5 (advisory — never blocks; the
+  user may have valid reasons): fix before commit recommended.
+- 🟡 **Readability Debt** — R3, unclear naming: improves maintainability.
+- 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
-**Benefits:**
-- Faster execution (only analyzes changed files)
-- Clear feedback on what was fixed vs what remains
-- Detects regressions introduced by fixes
-</incremental_review_mode>
+Every finding carries evidence — `file:line` plus the falsifying-question answer or
+command output — never a bare verdict. Effort carries over from the hunter (S/M/L).
+Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
+Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
+</step_4_merged_report>
 
-</workflow>
+</protocol>
 
-<detection_approach>
-**LLM-Powered Analysis** (not AST parsing or metrics calculation):
+<modes>
+**FULL (first run):** pre-filter all eight rules over the whole diff scope; report every
+surviving finding.
 
-The reviewer reads code like a senior developer and applies design principles:
-- Reads files with Read tool
-- Searches patterns with Grep tool (find usages, duplications)
-- Applies checklist from reference.md using LLM reasoning
-- Pattern matches against anti-patterns
-- Counts occurrences and calculates juiciness scores
-- Generates findings with specific locations and fix guidance
+**INCREMENTAL (re-run after fixes):** diff scope = only files changed since the last
+review. Run steps 1–3 on that scope, compare against the previous findings, and report a
+delta: ✅ **Fixed** (previous finding no longer reproducible — re-run its detection
+command to confirm), ⚠️ **Remaining** (still evidenced), 🆕 **New** (introduced by the
+fixes). Use after @refactoring applies fixes or whenever the caller iterates.
+</modes>
 
-**The checklist is a starting set, not the boundary — work evidence-first and falsify:**
-- If the project ships its own rule docs (e.g. `coding_rules.md` / `repo_rules.md` / `testing.md`), re-read the ones the diff touches and turn each rule into a falsifying question too. If the project ships no rule docs, apply this skill's checklist as-is — the falsify-with-evidence method still applies to every item. The violation that ships is always the rule nobody enumerated.
-- Phrase each check to surface a violation ("what would make this wrong, and is it true here?"), not to confirm compliance — and answer it with a concrete artifact (a `grep`/count/`file:line`), never a bare verdict.
-- Treat a new `//nolint` or `.golangci.yaml` exclusion in the diff as a finding to justify with evidence.
-</detection_approach>
-
-<report_format>
-
-<full_report context="First Run">
+<report_example>
 ```
 📊 CODE REVIEW REPORT
-Scope: [files reviewed]
-Mode: FULL
-
-SUMMARY
-
-Total findings: 18
-🐛 Bugs: 2 (fix immediately)
-🔴 Design Debt: 5 (fix before commit)
-🟡 Readability Debt: 8 (improves maintainability)
-🟢 Polish: 3 (nice to have)
-
-Estimated fix effort: 3.5 hours
-
-[Detailed findings by category]
-[Recommendations by priority]
-[Skills to use for fixes]
-```
-</full_report>
-
-<incremental_report context="Subsequent Runs">
-```
-📊 CODE REVIEW DELTA REPORT
-Scope: [changed files only]
-Mode: INCREMENTAL
-
-SUMMARY
-
-✅ Fixed: 4 (resolved from previous run)
-⚠️ Remaining: 2 (still need attention)
-🆕 New: 1 (introduced by recent changes)
-
-[Detailed delta findings]
-```
-</incremental_report>
-
-<structured_output context="For Orchestrator Parsing">
-When invoked as subagent for combined analysis, output follows strict format:
-
-```
-🐛 BUGS
-────────────────────────────────────────────────
-file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+Scope: user/service.go, user/auth.go (+ tests) · Mode: FULL
+Hunters: R1 (2 leads), R2 (1), R3 (1) · R4–R8 skipped (no pre-filter hits)
+Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
 
 🔴 DESIGN DEBT
-────────────────────────────────────────────────
-file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+user/service.go:67 | session token travels as raw string; emptiness check inline
+  (R1 Q1: yes; Q2: same predicate at user/auth.go:41 — two owners) | Replace
+  Primitive with Domain Type: SessionToken — skeptic CONFIRMED (score 5) | M
+user/auth.go:34 | Authenticator.HashCost exported; methods re-check its range
+  (R2 Q1: literal construction possible; Q2: re-check at auth.go:52) | validating
+  constructor NewAuthenticator | S
 
 🟡 READABILITY DEBT
-────────────────────────────────────────────────
-file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+user/auth.go:89 | Authenticate() mixes auth flow with bcrypt byte handling
+  (R3 Q1: two abstraction levels in one body) | Extract Step: comparePassword | S
 
 🟢 POLISH
-────────────────────────────────────────────────
-file:line | Issue description | Why it matters | Fix strategy | Effort: [Trivial/Moderate/Significant]
+user/auth.go:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
+  alternative to REFUTED PasswordHash wrapper (score 1: only method unwraps) | S
+
+📝 BROADER CONTEXT
+user/service.go:23 — email still a raw string (outside diff scope; same R1 pattern).
+
+Caller decides: commit as-is · fix 🔴 first · fix all. Findings are advisory.
 ```
-
-**Effort Estimates:**
-- **Trivial**: <5 minutes (extract constant, rename variable)
-- **Moderate**: 5-20 minutes (extract function, storifying, create simple type)
-- **Significant**: >20 minutes (architectural refactoring, complex type extraction)
-
-**file:line Format:** Must be exact for orchestrator to correlate with linter errors
-- Example: `pkg/parser.go:45`
-- NOT: `parser.go line 45` or `pkg/parser.go (line 45)`
-</structured_output>
-
-</report_format>
+</report_example>
 
 <constraints>
 This skill MUST NOT:
-- Invoke other skills (@refactoring, @code-designing, @testing)
-- Fix anything or make code changes
-- Make decisions on behalf of user
-- Parse AST or calculate complexity metrics (linter does this)
-- Run linter (caller does this)
-- Iterate or loop (caller decides whether to re-invoke)
-- Block commits (findings are advisory)
+- Edit code, fix findings, or invoke fix skills (@refactoring, @code-designing, @testing)
+- Run the linter or tests — the caller does (see @linter-driven-development)
+- Block commits — every finding is advisory; the caller decides what to fix
+- Restate rule content — rules live once in `../../rules/`; paste them as spawn payload
+  and cite them in findings
+- Spawn anything other than `rule-hunter` and `overabstraction-skeptic`
 </constraints>
 
-<integration>
-
-<invoked_by_refactoring>
-Refactoring completes → invoke reviewer → analyze report:
-- Bugs found? → Fix immediately, re-run linter
-- Design debt found? → Apply another refactoring pattern
-- All clean? → Return success to orchestrator
-</invoked_by_refactoring>
-
-<invoked_by_go_code_reviewer>
-During Phase 2 (Parallel Quality Analysis):
-1. go-code-reviewer agent automatically loads this skill for guidance
-2. Agent applies detection checklist from this skill
-3. Agent returns structured report to quality-analyzer
-4. quality-analyzer combines with linter/test results
-5. Orchestrator routes based on combined findings
-</invoked_by_go_code_reviewer>
-
-<invoked_by_user>
-Manual review request:
-1. User invokes: @pre-commit-review on path/to/file.go
-2. Receive detailed report
-3. User decides how to proceed
-4. User may invoke @refactoring or @code-designing for fixes
-</invoked_by_user>
-
-</integration>
-
-<review_scope>
-**Primary Scope**: Changed code in commit
-- All modified lines
-- All new files
-- Specific focus on design principle adherence
-
-**Secondary Scope**: Context around changes
-- Entire files containing modifications
-- Flag patterns/issues outside commit scope (in BROADER CONTEXT section)
-- Suggest broader refactoring opportunities if valuable
-</review_scope>
-
-<advisory_nature>
-**This review does NOT block commits.**
-
-Purpose:
-- Provide visibility into design quality
-- Offer concrete improvement suggestions with examples
-- Help maintain coding principles
-- Guide refactoring decisions
-
-Caller (or user) decides:
-- Commit as-is (accept debt knowingly)
-- Fix critical debt before commit (bugs, major design issues)
-- Fix all debt before commit (comprehensive cleanup)
-- Expand scope to broader refactor (when broader context issues found)
-</advisory_nature>
-
-<finding_categories>
-
-<bugs severity="critical">
-**Will cause runtime failures or correctness issues**
-- Nil dereferences, ignored errors, resource leaks
-- Invalid nil returns, race conditions
-- Fix immediately before any other work
-</bugs>
-
-<design_debt severity="high">
-**Will cause pain when extending/modifying code**
-- Primitive obsession, missing domain types
-- Non-self-validating types
-- Wrong architecture (horizontal vs vertical)
-- Fix before commit recommended
-</design_debt>
-
-<readability_debt severity="medium">
-**Makes code harder to understand and work with**
-- Mixed abstraction levels, not storified
-- Functions too long or complex
-- Poor naming, unclear intent
-- Fix improves team productivity
-</readability_debt>
-
-<polish severity="low">
-**Minor improvements for consistency and quality**
-- Non-idiomatic naming, missing examples
-- Comment improvements, minor refactoring
-- Low priority, nice to have
-</polish>
-
-See [reference.md](./reference.md) for detailed principles and examples for each category.
-</finding_categories>
-
-<success_criteria>
-**Code Quality Analysis Performed:**
-- [ ] Read every function - does it read like a story? (single abstraction level)
-- [ ] Checked all functions for mixed abstraction levels (storifying needed?)
-- [ ] Evaluated primitives for primitive obsession (juiciness test applied)
-- [ ] Assessed types for self-validation (defensive code in methods? relying on upstream? re-validating composed types?)
-- [ ] Reviewed comment quality (explaining WHY not WHAT?)
-- [ ] Checked file structure (too long? too many types?)
-- [ ] Searched for missing domain concepts (implicit types that should be explicit)
-- [ ] Validated test quality (weak assertions? conditionals in tests? mock overuse — incl. a struct that only satisfies a production interface?)
-- [ ] Checked for test-only interfaces (one production impl + a test double as the only other implementer, no real import cycle — reference.md §9)
-- [ ] Derived extra checks from the project's own rule docs (coding_rules/repo_rules/testing) for the rules the diff touches; answered each with evidence, not a verdict
-- [ ] Scanned for design bugs (nil deref, ignored errors, resource leaks)
-- [ ] Package size check reflected in report — red/yellow count categorized as Design Debt / Polish
-
-**Report Quality:**
-- [ ] All findings categorized by severity (Bugs, Design Debt, Readability Debt, Polish)
-- [ ] Each finding includes: file:line, issue, why it matters, fix strategy, effort estimate
-- [ ] Structured format parseable by orchestrator
-- [ ] Clear distinction between bugs (fix immediately) and advisory findings
-- [ ] Incremental mode accurately tracks fixed, remaining, and new issues
-</success_criteria>
+<who_invokes>
+1. **@linter-driven-development** — Phase 4, pre-commit / per completed vertical slice
+2. **@refactoring** — after applying patterns, to validate design quality (INCREMENTAL)
+3. **User** — manual standalone review before commit
+</who_invokes>
