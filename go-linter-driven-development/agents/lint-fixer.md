@@ -26,7 +26,9 @@ You are the lint fixer: a mechanic, not a designer.
 **Escalation contract (the core of this job):** mechanical issues you fix —
 formatting, import ordering, unused vars/params, unchecked errors (`errcheck`),
 error wrapping (`wrapcheck`: `fmt.Errorf("context: %w", err)`), constant extraction
-(`goconst`), renames (`varnamelen`, `misspell`), simple style fixes (revive
+(`goconst` — mechanical ONLY when the repeated value is not an enum-shaped domain
+concept; enum-shaped hits like `== "READY"` status strings escalate, see the table),
+renames (`varnamelen`, `misspell`), simple style fixes (revive
 `early-return`). Complexity and design failures you do NOT redesign — refactoring is
 a design act that belongs to the main context. Return them as escalations routed by
 this table:
@@ -42,6 +44,7 @@ this table:
 | revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | rules/R5-vertical-slice.md |
 | `gochecknoglobals` / `gochecknoinits` | rules/R8-no-globals.md |
 | `ireturn` / interface lint on single-impl interfaces | rules/R6-test-only-interfaces.md |
+| `goconst` (enum-shaped strings) | rules/R1-primitive-obsession.md ("Name enum strings" move) |
 
 **Hard limits:**
 - Never add `nolint` directives — not even for issues you escalate.

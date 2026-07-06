@@ -5,6 +5,11 @@ description: |
   Spawns read-only agents (rule-hunter, overabstraction-skeptic); NEVER edits code.
   Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
   Categorizes findings as Bugs, Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+allowed-tools:
+  - Read
+  - Grep
+  - Bash
+  - Task
 ---
 
 <objective>
@@ -42,7 +47,7 @@ A rule with zero hits is skipped — no hunter spawned for it.
 | R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
 | R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; nil as a value |
 | R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
-| R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the rung ladder |
+| R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
 | R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
 | R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
 | R7 | `../../rules/R7-test-placement.md` | internal test packages; wantErr conditionals; wrong-rung tests; sleeps |
@@ -62,6 +67,10 @@ single message, in parallel. Each spawn prompt MUST contain:
 2. **The diff scope** — the changed-file list or `git diff` range.
 3. **That rule's pre-filter hits** — as starting leads (the hunter re-runs the
    detection commands itself; leads are a starting point, not a limit).
+
+If the rule cites a case file by plugin-relative path (e.g. `../examples/*.md`), resolve
+it to an absolute path and include that path in the spawn prompt — the hunter runs in the
+reviewed project's cwd and cannot resolve plugin-relative paths on its own.
 
 Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`

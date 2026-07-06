@@ -96,7 +96,8 @@ disease, file count the symptom). Invoke @code-designing to validate extracted t
 </file_and_package_routing>
 
 <iteration_loop>
-1. Receive trigger (from @linter-driven-development / @pre-commit-review, or manual).
+1. Receive trigger (from @linter-driven-development, from the caller acting on accepted
+   @pre-commit-review findings, or manual).
 2. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
    least-invasive move first (sequencing in `reference.md`).
 3. Re-run the linter immediately — no user confirmation.
@@ -151,8 +152,10 @@ STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 </output_format>
 
 <integration>
-**Invoked by**: @linter-driven-development (Phase 3, lint failures), @pre-commit-review
-(design findings). **Invokes**: @code-designing (new types/design needed), @testing
-(after every extraction — mandatory), @pre-commit-review (after lint passes).
-**Loop**: lint fails → @refactoring → re-lint → @pre-commit-review → repeat until both pass.
+**Invoked by**: @linter-driven-development (Phase 3, lint failures), or the caller acting
+on accepted @pre-commit-review findings (@linter-driven-development Phase 4 accepted
+findings, or the user) — @pre-commit-review reports only and never invokes fix skills.
+**Invokes**: @code-designing (new types/design needed), @testing (after every extraction
+— mandatory), @pre-commit-review (after lint passes). **Loop**: lint fails → @refactoring
+→ re-lint → @pre-commit-review → repeat until both pass.
 </integration>

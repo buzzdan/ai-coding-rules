@@ -71,7 +71,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | R1 | [`rules/R1-primitive-obsession.md`](rules/R1-primitive-obsession.md) | Domain concepts as types, not raw primitives (incl. juiciness scoring) |
 | R2 | [`rules/R2-self-validating-types.md`](rules/R2-self-validating-types.md) | Validate in the constructor; no invalid states, nil not a value |
 | R3 | [`rules/R3-storifying.md`](rules/R3-storifying.md) | One abstraction level per function; extract named steps |
-| R4 | [`rules/R4-helper-placement.md`](rules/R4-helper-placement.md) | Helper visibility/placement on the rung ladder |
+| R4 | [`rules/R4-helper-placement.md`](rules/R4-helper-placement.md) | Helper visibility/placement on the placement ladder |
 | R5 | [`rules/R5-vertical-slice.md`](rules/R5-vertical-slice.md) | Group by feature, not layer; file-per-type |
 | R6 | [`rules/R6-test-only-interfaces.md`](rules/R6-test-only-interfaces.md) | No interface whose only second implementer is a test double |
 | R7 | [`rules/R7-test-placement.md`](rules/R7-test-placement.md) | `pkg_test` only, no wantErr conditionals, right-rung tests, no sleeps |
@@ -81,9 +81,9 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 
 | Example | Demonstrates |
 |---------|--------------|
-| [`examples/storify-leaf-type.md`](examples/storify-leaf-type.md) | R1, R3 — extracting a self-validating leaf type and storifying |
+| [`examples/storify-leaf-type.md`](examples/storify-leaf-type.md) | R3, R1, R2 — storifying a fat function; extracting a self-validating leaf type |
 | [`examples/overabstraction-cidr.md`](examples/overabstraction-cidr.md) | R1 — when an extraction is over-abstraction (the skeptic's payload) |
-| [`examples/dependency-rejection.md`](examples/dependency-rejection.md) | R6 — rejecting a test-only interface; depend on the concrete type |
+| [`examples/dependency-rejection.md`](examples/dependency-rejection.md) | R8 — dependency rejection: eliminating globals by threading dependencies |
 
 **Skills → role** (thin views):
 
@@ -159,7 +159,7 @@ Linter rules enforce objective quality standards:
 
 ### How Linter Rules Drive Design
 
-Each linter failure has an owning rule with a fix pattern — the mapping is [`@refactoring`](skills/refactoring/SKILL.md)'s routing table:
+Each linter failure has an owning rule with a fix pattern — the mapping is [`@refactoring`](skills/refactoring/SKILL.md)'s routing table; the design-decision linters (`argument-limit`, `function-result-limit`) route via [`@code-designing`](skills/code-designing/SKILL.md):
 
 **`gochecknoglobals`** → R8: dependency injection instead of global state
 **`gocognit` / `gocyclo`** → R3: extract named steps, reduce nesting
@@ -260,7 +260,7 @@ The plugin follows opinionated Go best practices, each with an owning rule:
 
 **Design:** no primitive obsession (R1), self-validating types (R2), vertical slices (R5), no globals (R8).
 **Testing:** test the public API via `pkg_test` (R7), the composition ladder over the pyramid, real in-memory dependencies over mocks, no test-only interfaces (R6).
-**Refactoring:** storify top-level functions (R3), helpers on the rung ladder (R4), let the linter say WHAT and the rules say HOW.
+**Refactoring:** storify top-level functions (R3), helpers on the placement ladder (R4), let the linter say WHAT and the rules say HOW.
 
 ## v2 Changes
 

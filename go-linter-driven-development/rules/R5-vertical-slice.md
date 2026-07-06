@@ -62,7 +62,7 @@ roles.
 - **Flatcase**: `wekatrace`, never `wekaTrace` or `weka_trace`.
 - **Domain vocabulary, not a single noun**: a package name should have room for
   siblings — `networking` can grow ports, addresses, CIDRs; `kubeport` is a
-  vocabulary of one. (This is rung 3 of `R4-helper-placement.md`; the rung ladder
+  vocabulary of one. (This is rung 3 of `R4-helper-placement.md`; the placement ladder
   lives there — cite it, don't re-derive it.)
 - **Never a role name**: `util`, `utils`, `helpers`, `common`, `shared`, `misc`,
   `domain`, `services` — a role describes no domain and becomes a dumping ground.

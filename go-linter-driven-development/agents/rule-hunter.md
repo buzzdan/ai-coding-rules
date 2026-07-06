@@ -28,7 +28,8 @@ detection commands. Never edit files, never run tests or fixers.
 2. Hunt beyond the leads: run the rule's detection commands yourself across the full
    diff scope — the pre-filter is a lead generator, not a limit.
 3. When uncertain whether a lead meets the violation criterion, Read a case file the
-   rule cites and compare against it.
+   rule cites (the spawn prompt resolves cited case files to absolute paths) and compare
+   against it.
 
 **Evidence protocol:** A finding exists only when a falsifying question is answered
 with evidence — `file:line` plus the offending code excerpt or command output. No
