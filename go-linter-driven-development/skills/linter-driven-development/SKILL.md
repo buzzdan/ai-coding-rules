@@ -1,303 +1,146 @@
 ---
 name: linter-driven-development
 description: |
-  WHEN: User requests Go code work (implement, fix, add, refactor) or mentions @ldd in a Go project.
-  Orchestrates complete workflow (Phases 1-5): design → test → implement → lint → fix → documentation.
-  Auto-triggers parallel quality analysis and iterative fix loop until code is commit-ready.
+  META ORCHESTRATOR for any Go code change that should end in a commit (features, bug fixes, refactors).
+  WHEN: User requests Go code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /go-ldd-* command in a Go project.
+  Runs the five-phase workflow: DESIGN → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
   - Skill(go-linter-driven-development:refactoring)
+  - Skill(go-linter-driven-development:pre-commit-review)
   - Skill(go-linter-driven-development:documentation)
   - Task
 ---
 
 <objective>
-Meta orchestrator for Go implementation workflow: design → test → lint → refactor → review → commit.
-Use for any commit: features, bug fixes, refactors.
-
-**Reference**: See `reference.md` for agent prompt templates, example reports, and output formats.
+Top-level protocol for Go implementation work: five phases, where Phase 2 is a
+per-behavior TDD loop. Rule knowledge lives once in `../../rules/` — this skill never
+restates it; it sequences the thin skills (which dispatch into the rules) and the
+lint-fixer agent, at the cadence each check's economics demand.
 </objective>
 
-<essential_principles>
-**Auto-Pilot Behavior**: This skill triggers automatically when Go code work is detected. After permission is granted, announce: **"Using go-ldd workflow for this Go code work"** and proceed to pre-flight check.
-
-**Trigger Conditions**:
-- User requests Go code work (implement, fix, add, refactor, update, change, modify, etc.)
-- User mentions "ldd" or "@ldd" (shorthand for linter-driven-development)
-- Working directory contains Go project (go.mod or .go files)
-</essential_principles>
+<triggers>
+- User requests Go code work (implement, fix, add, refactor, update, change) and the
+  project is Go (`go.mod` or `.go` files present)
+- User mentions "ldd" or "@ldd"
+- A `/go-ldd-*` command invokes this skill
+On trigger, announce: **"Using go-ldd workflow for this Go code work"** and run pre-flight.
+</triggers>
 
 <skill_invocation>
-**CRITICAL**: When this skill says "Invoke @skill-name" or routes to "@skill-name", you MUST use the **Skill tool** explicitly.
+"Invoke @skill-name" means: call the **Skill tool**. Never just mention the skill,
+never read its file directly.
 
 | Notation | Skill Tool Call |
 |----------|-----------------|
 | @code-designing | `Skill(go-linter-driven-development:code-designing)` |
 | @testing | `Skill(go-linter-driven-development:testing)` |
 | @refactoring | `Skill(go-linter-driven-development:refactoring)` |
+| @pre-commit-review | `Skill(go-linter-driven-development:pre-commit-review)` |
 | @documentation | `Skill(go-linter-driven-development:documentation)` |
 
-**DO NOT** just reference the skill in your response - actually invoke it using the Skill tool.
-**DO NOT** read the skill file directly - use the Skill tool to load and execute it.
-
-Example: When Phase 1 says "Invoke @testing skill to WRITE tests", you must call:
-```
-Skill(go-linter-driven-development:testing)
-```
+The lint-fixer agent is spawned with the **Task tool**:
+`subagent_type: "go-linter-driven-development:lint-fixer"`.
 </skill_invocation>
 
-<quick_start>
-**Immediate Action**: Run Pre-Flight Check, then execute phases sequentially until commit-ready.
+<flow>
+```
+1 DESIGN   @code-designing → DESIGN PLAN → user OK
+2 IMPLEMENT — per behavior:
+     ┌─> RED      one failing test, lowest rung        (@testing)
+     │   GREEN    minimum code to pass — no design work
+     │   REFACTOR pkg-scoped lint + rule greps; hits → (@refactoring)
+     └── next behavior until all done
+3 FULL LINT   ONE run via lint-fixer agent (Task)
+     mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
+4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
+5 SHIP     @documentation → commit summary → user commits
+```
+</flow>
 
-1. **Pre-Flight**: Verify Go project, find test/lint commands, identify plan context
-2. **Phase 1**: Design types (if needed) → Write tests → Implement code
-3. **Phase 2**: Run quality-analyzer agent → Route based on status
-4. **Phase 3**: Fix loop until CLEAN_STATE
-5. **Phase 4**: Documentation
-6. **Phase 5**: Present commit summary with options
-</quick_start>
+<pre_flight>
+1. **Verify Go project**: `go.mod` in root or parent directories.
+2. **Discover commands** (README.md, CLAUDE.md, Makefile, Taskfile.yaml, in that
+   order): test + lint commands. Fallbacks: `go test ./...`, `golangci-lint run --fix`.
+3. **List the behaviors** this change delivers — each becomes one Phase 2 TDD cycle.
+   No plan or unclear scope → Phase 1 produces the plan; unclear intent → ask.
+</pre_flight>
 
-<workflow>
+<phase_1_design>
+Invoke @code-designing. It runs the architecture scan, scores candidate domain types,
+records an R4 placement decision for every helper/type, and presents a DESIGN PLAN
+for user OK. **Do not start Phase 2 until the user approves the plan** — the RED
+tests target this designed public API, which is how the design reaches GREEN.
+</phase_1_design>
 
-<pre_flight_check>
-**ALWAYS RUN FIRST**
+<phase_2_implement>
+One TDD cycle per behavior:
 
-<step name="confirm_intent">
-Look for keywords: "implement", "ready", "execute", "do", "start", "continue", "next", "build", "create", "step 1", "task 2", or explicit "@linter-driven-development", "@ldd", "ldd"
-</step>
+**RED** — write ONE failing test for the behavior. Place it by the composition
+ladder — the lowest rung that contains the behavior (@testing,
+`<composition_ladder>`). Run it; confirm it fails for the right reason.
 
-<step name="verify_go_project">
-Check that `go.mod` exists in the project root or parent directories.
-</step>
+**GREEN** — minimum code to pass. Explicitly allowed to be ugly; no design polish in
+this step. **Never invoke @code-designing from GREEN**: the design already happened
+in Phase 1 and reaches GREEN through the RED test's shape. If GREEN reveals the
+design is wrong (a type doesn't fit, a hidden concept emerges): finish the cycle,
+then route through REFACTOR → @refactoring → its escalation to @code-designing.
+Design revision is a deliberate checkpoint, never a mid-GREEN detour.
 
-<step name="find_commands">
-**Search locations** (in order):
-1. Project docs: `README.md`, `CLAUDE.md`, `agents.md`
-2. Build configs: `Makefile`, `Taskfile.yaml`, `.golangci.yaml`
-3. Git repository root for workspace-level commands
+**REFACTOR (linter-driven)** — on the code just written:
+1. Package-scoped lint (fast): `golangci-lint run ./<pkg>/...`
+2. Cheap rule greps: run the detection commands from the **Falsifying questions**
+   sections of the `../../rules/R*.md` files relevant to what was written.
+Any hit → invoke @refactoring: its `<routing_table>` routes each failure to the
+owning rule's Fix pattern. The linter says WHAT to refactor; the rules say HOW.
+Fix now — these findings are mechanical and local: cheapest at this moment,
+compounding if deferred.
 
-**Extract commands**:
-- **Test command**: `go test`, `make test`, `task test`
-- **Lint command**: `golangci-lint run --fix`, `make lint`, `task lintwithfix`
-- **Fallbacks**: `go test ./...` and `golangci-lint run --fix`
-</step>
+Loop to the next behavior until all behaviors are done.
+</phase_2_implement>
 
-<step name="identify_plan">
-Scan conversation history (last 50 messages) for step-by-step plan and which step to implement.
-</step>
+<phase_3_full_lint>
+Delegate ONE full lint run to the lint-fixer agent (Task, isolated context — the
+fix loop's token noise stays out of this conversation). Full-repo lint catches what
+package-scoped runs cannot: cross-package issues and whole-file/whole-package rules
+(file-length-limit, package-size zones).
 
-<decision_tree>
-<decision condition="All conditions met" action="Announce 'Engaging autopilot mode for [description]' → Phase 1" />
-<decision condition="Unclear intent" action="Ask for confirmation" />
-<decision condition="No plan found" action="Suggest creating plan first (offer @code-designing)" />
-<decision condition="Not Go project" action="Explain limitation" />
-</decision_tree>
-</pre_flight_check>
+The agent returns `FIXED` (mechanical — done) and `ESCALATED` (design-level, each
+with a rule route from its embedded routing table). Route every escalation back
+through the Phase 2 REFACTOR step — invoke @refactoring with the routes; **never
+auto-redesign here**. Package-size escalations follow @refactoring
+`<package_decomposition>` (decomposition lands in its own commit). Repeat Phase 3
+until the agent reports `LINT STATUS: green`.
+</phase_3_full_lint>
 
-<phase name="1" title="Implementation Foundation">
-**Design Architecture** (if new types/functions needed):
-- Invoke @code-designing skill
-- Output: Type design plan with self-validating domain types
+<phase_4_review>
+Per completed vertical slice (multi-slice work reviews each slice as it completes),
+invoke @pre-commit-review — it orchestrates parallel rule hunters plus the
+over-abstraction skeptic; it spawns agents and reports, **never edits**.
 
-**Write Tests First** (MANDATORY):
-- Invoke @testing skill to WRITE tests (not just guidance)
-- Create test files for all new types/functions
-- Write table-driven tests or testify suites
-- Target: 100% coverage on new leaf types
+NOT mid-implementation (its `<timing>` contract): GREEN-step code is supposed to
+look under-designed, so reviewing it produces false positives — and the hunters'
+fresh-context value only pays on finished work. The REFACTOR-step greps are the
+mid-implementation net; this pass is the verification net.
 
-**Implement Code**:
-- Follow coding principles from coding_rules.md
-- Keep functions <50 LOC, max 2 nesting levels
-- Use self-validating types, prevent primitive obsession
+Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all
+advisory. Fix bugs and user-accepted findings via @refactoring, then re-invoke
+@pre-commit-review in INCREMENTAL mode until the delta reports clean.
+</phase_4_review>
 
-**Test Verification** (before proceeding):
-1. For each new type file created:
-   - Verify corresponding `*_test.go` exists
-   - Run: `go test -cover ./path/to/package`
-   - Verify: coverage > 0% (tests actually exercise code)
-2. For leaf types: warn if coverage < 80%
-
-**GATE**: DO NOT proceed to Phase 2 until:
-- [ ] Test files exist for all new types
-- [ ] `go test -cover` shows > 0% coverage for new packages
-- [ ] No "no test files" or "[no tests to run]" messages
-</phase>
-
-<phase name="2" title="Quality Analysis">
-**Invoke quality-analyzer agent** for parallel quality analysis.
-See `reference.md` → "Agent Prompt Templates" for full prompt.
-
-The agent automatically:
-- Executes tests, linter, and code review in parallel (40-50% faster)
-- Identifies overlapping issues with root cause analysis
-- Returns structured report with prioritized fixes
-
-<routing>
-<route status="TEST_FAILURE" action="Enter Test Focus Mode (fix tests, retry)" />
-<route status="CLEAN_STATE" action="Skip to Phase 4 (Documentation)" />
-<route status="ISSUES_FOUND" action="Continue to Phase 3 (Fix Loop)" />
-<route status="TOOLS_UNAVAILABLE" action="Report error, ask user to install tools" />
-</routing>
-
-<test_focus_mode>
-Loop until tests pass:
-1. Analyze failure root cause
-2. Apply fix to implementation or tests
-3. Re-run quality-analyzer (mode: "full")
-4. Check status → continue or exit loop
-
-Max 10 iterations. If stuck, ask user for guidance.
-</test_focus_mode>
-</phase>
-
-<phase name="3" title="Iterative Fix Loop">
-
-<linter_skill_routing>
-**Linter Error → Skill Routing Table**
-
-Route linter failures to the correct skill based on error type:
-
-| Linter Error | Route To | Pattern Priority |
-|--------------|----------|------------------|
-| `nestif` (deep nesting) | @refactoring | 1. Storify, 2. Early returns, 3. Extract function |
-| `argument-limit` (>4 params) | @code-designing | Create options struct type |
-| `function-result-limit` (>3 returns) | @code-designing | Create result type |
-| `confusing-results` | @code-designing | Create named result type |
-| `cyclop`/`gocognit` (complexity) | @refactoring | 1. Storifying, 2. Extract type |
-| `funlen` (function too long) | @refactoring | 1. Storify, 2. Extract function |
-| `wrapcheck` (unwrapped error) | Direct fix | `fmt.Errorf("context: %w", err)` |
-| `varnamelen` (short var name) | Direct fix | Rename variable to be descriptive |
-| `early-return` (revive) | @refactoring | Apply early return pattern |
-| `file-length-limit` (revive) | Analyze first → route | See file-level concerns below |
-| **package size RED (≥13 `.go` files)** | **@refactoring** | **`<package_decomposition>` 3-step design review — BLOCKING, decompose before next file** |
-| **package size YELLOW (8–12 `.go` files)** | **@refactoring** | **`<package_decomposition>` 3-step design review — *before* adding the next `.go` file to that package** |
-
-**Package-size is a first-class linter failure.** Count non-test `.go` files per directory (see `<package_level_concerns>` in @refactoring) whenever a file lands in a package or before committing. Treat the result exactly like any other linter row above:
-- RED (≥13) → blocking; route to `@refactoring` and complete `<package_decomposition>` *before* any other fix or feature step lands. Insert decomposition tasks at the front of the active todo list.
-- YELLOW (8–12) → if the *next* planned step adds a `.go` file to the named package, do `<package_decomposition>` first instead of writing the file. Skip otherwise.
-
-An optional PostToolUse hook (`hooks/check-package-sizes.sh`) ships with this plugin for repos that want this enforced automatically on every edit — wire it into that project's own `.claude/settings.json`. It's opt-in because thresholds need per-repo tuning, like a linter config.
-
-Decomposition lands in its own commit (often its own PR). Do not mix package moves with feature changes.
-
-**File-Level Concerns** (`file-length-limit` triggers at >450 lines):
-When files exceed the limit, analyze structure first:
-
-| File Pattern | Route To | Pattern |
-|--------------|----------|---------|
-| Multiple juicy types in one file | @code-designing | **Juicy type per file** - move each to own file |
-| Single god type (>15 methods) | @refactoring → @code-designing | 1. Storify (refactoring), 2. Decompose (code-designing) |
-| Long functions, few types | @refactoring | **Storify → Extract functions** |
-
-**"Juicy" types** (deserve their own file):
-- Types with ≥2 methods
-- Types with complex validation
-- Types with transformations/parsing
-- Enums WITH methods (behavior makes them juicy)
-</linter_skill_routing>
-
-**For each prioritized fix** (from agent's report):
-
-1. **Apply Fix**:
-   - Use routing table above to select correct skill
-   - Invoke @refactoring skill with file, function, issues, and root cause
-   - @refactoring applies patterns: early returns, extract function, storifying, extract type, switch extraction, extract constant
-
-2. **Verify Fix** (Incremental Mode):
-   - Re-run quality-analyzer with `mode: incremental`
-   - See `reference.md` → "Agent Prompt Templates" for prompt
-   - Agent returns delta report: fixed, remaining, new issues
-
-3. **Route Based on Status**:
-   - `TEST_FAILURE` → Enter Test Focus Mode
-   - `CLEAN_STATE` → Break loop, go to Phase 4
-   - `ISSUES_FOUND` → Continue to next fix (or retry if no progress)
-
-4. **Safety Limits**:
-   - Max 10 iterations per fix loop
-   - If stuck after 3 attempts → show status, ask user
-
-5. **Orchestrator Check** (after CLEAN_STATE):
-   - Count methods per type in modified files
-   - If any type has >15 methods:
-     - Flag as potential god object
-     - Apply @refactoring for storification (make it read like a story)
-     - Apply @code-designing for composition (extract services)
-   - Re-run quality-analyzer to verify
-
-6. **Test Extracted Types** (mandatory after type extraction):
-   - Track all new types created during refactoring
-   - For each leaf type (no external dependencies):
-     - Invoke @testing skill
-     - Write table-driven tests for constructor validation
-     - Write tests for all public methods
-     - Target: 100% coverage on leaf types
-   - For orchestrating types:
-     - Write integration-style tests covering seams
-   - Re-run `task test` to verify all pass
-
-**Loop until agent returns CLEAN_STATE**.
-</phase>
-
-<phase name="4" title="Documentation">
-Invoke @documentation skill:
-1. Add/update package-level godoc
-2. Add/update type and function documentation (WHY not WHAT)
-3. Add godoc testable examples (Example_* functions)
-4. If last plan step → add feature documentation to docs/
-
-**Verify**: Run `go doc -all ./...` and ensure examples compile.
-</phase>
-
-<phase name="5" title="Commit Ready">
-Generate comprehensive summary. See `reference.md` → "Commit Readiness Output Format" for template.
-
-Present user with options:
-1. Commit as-is
-2. Fix design debt only, then commit
-3. Fix design + readability debt, then commit
-4. Fix all findings, then commit
-5. Refactor entire file, then commit
-</phase>
-
-</workflow>
-
-<workflow_control>
-<control aspect="Phases" behavior="Sequential: 1 → 2 → 3 → 4 → 5" />
-<control aspect="Routing" behavior="Agent status determines path" />
-<control aspect="Parallelism" behavior="Phase 2 runs 3 tools simultaneously" />
-<control aspect="Incremental" behavior="After first run, agent analyzes only changed files" />
-</workflow_control>
-
-<integration>
-**Skills invoked**:
-- @code-designing (Phase 1, if needed)
-- @testing (Phase 1)
-- @refactoring (Phase 3)
-- @documentation (Phase 4)
-
-**Agents invoked**:
-- `go-linter-driven-development:quality-analyzer` (Phase 2 and Phase 3 verification)
-  - Internally delegates to `go-linter-driven-development:go-code-reviewer` for design analysis
-
-**After committing**:
-- Feature complete → Already documented in Phase 4
-- More work needed → Run this workflow again for next commit
-</integration>
+<phase_5_ship>
+1. Invoke @documentation: package/type godoc, testable examples, feature docs.
+2. Present the ship summary: tests green (`go test ./...`), lint green (Phase 3),
+   review delta (Phase 4), files changed, suggested commit message.
+3. User decides: commit as-is · fix deferred advisory findings first · defer.
+</phase_5_ship>
 
 <success_criteria>
-Workflow is complete when ALL of the following are true:
-
-- [ ] Pre-flight check passed (Go project verified, commands discovered)
-- [ ] Phase 1 complete (tests written, code implemented)
-- [ ] Quality-analyzer returns `CLEAN_STATE`:
-  - [ ] Tests pass
-  - [ ] Linter passes (0 errors)
-  - [ ] Code review clean (0 findings)
-- [ ] All extracted leaf types have tests (100% coverage)
-- [ ] No god objects (all types have ≤15 methods)
-- [ ] Phase 4 complete (documentation added/updated)
-- [ ] Commit summary presented to user with options
-- [ ] User has chosen commit action (or deferred)
+- [ ] Design plan user-approved before the first RED
+- [ ] Every behavior completed a RED → GREEN → REFACTOR cycle
+- [ ] Package-scoped lint + rule greps clean after each cycle
+- [ ] lint-fixer reported `LINT STATUS: green`; all escalations resolved via @refactoring
+- [ ] @pre-commit-review INCREMENTAL delta clean, or findings explicitly deferred by user
+- [ ] @documentation done; commit summary presented and user chose an action
 </success_criteria>
