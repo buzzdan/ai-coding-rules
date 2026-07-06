@@ -1,15 +1,16 @@
 ---
 name: go-ldd-analyze
-description: Run quality analysis only - invoke quality-analyzer agent and display combined report without auto-fixing
+description: Run quality analysis only - tests + plain lint + hunter/skeptic review, combined report, no auto-fix
 argument-hint: "[file_pattern]"
 allowed-tools:
   - Read
   - Grep
   - Bash
-  - Task
+  - Skill(go-linter-driven-development:pre-commit-review)
 ---
 
-Run comprehensive quality analysis with intelligent combining of test results, linter findings, and code review feedback.
+Run comprehensive quality analysis: tests, a report-only linter pass, and the
+hunter/skeptic design review — combined into one report, with NO changes to your code.
 
 > **🔍 READ-ONLY COMMAND**
 > This command performs analysis only and makes NO changes to your code.
@@ -25,23 +26,18 @@ Search project documentation to find test and lint commands:
    - `CLAUDE.md` (project-specific instructions)
    - `README.md` (project documentation)
    - `Makefile` (look for `test:` and `lint:` targets)
-   - `Taskfile.yaml` (look for `test:` and `lintwithfix:` tasks)
+   - `Taskfile.yaml` (look for `test:` and `lint:` tasks)
    - `.golangci.yaml` (linter configuration)
 
 2. **Extract commands**:
-   - **Test command**: Look for patterns like:
-     - `go test ./... -v -cover`
-     - `make test`
-     - `task test`
-   - **Lint command**: Look for patterns like:
-     - `golangci-lint run --fix`
-     - `golangci-lint run --config .golangci.yaml --new-from-rev=origin/dev --fix ./...`
-     - `make lint`
-     - `task lintwithfix`
+   - **Test command**: `go test ./... -cover`, `make test`, `task test`
+   - **Lint command (report-only)**: this command must NOT fix. Strip any `--fix`
+     flag and run the linter in report mode: `golangci-lint run` (or the project's
+     lint command with `--fix` removed).
 
 3. **Fallback to defaults** if not found:
    - Test: `go test ./...`
-   - Lint: `golangci-lint run --fix`
+   - Lint: `golangci-lint run` (no `--fix`)
 
 ## Step 2: Identify Files to Analyze
 
@@ -59,46 +55,35 @@ Search project documentation to find test and lint commands:
   ```
 - If no git repository or no changes, analyze all `.go` files in the project (excluding vendor/, testdata/)
 
-## Step 3: Invoke Quality Analyzer Agent
+## Step 3: Run the Three Quality Gates (report-only)
 
-Call the quality-analyzer agent with discovered commands and files:
+1. **Tests**: `Bash([discovered test command])`
+2. **Linter (report-only)**: `Bash([discovered lint command, no --fix])` — surfaces
+   what needs refactoring without changing anything. (The `lint-fixer` agent, which
+   auto-fixes, is intentionally NOT used here — this command never edits.)
+3. **Design review**: invoke `Skill(go-linter-driven-development:pre-commit-review)`
+   in FULL mode over the file scope. It grep-prefilters the diff against rules R1–R8,
+   spawns one parallel `rule-hunter` per rule with hits, runs the
+   `overabstraction-skeptic` over every type/package-extraction proposal, and returns
+   evidence-backed findings. It reports — it never edits.
 
-```
-Task(subagent_type: "quality-analyzer")
+## Step 4: Display Combined Report
 
-Prompt:
-"Analyze code quality for this Go project.
+Merge the three gates into one report:
 
-Mode: full
+- ✅/❌ **Tests**: pass/fail status with coverage
+- ✅/❌ **Linter**: clean / error count (with file:line and the failing linter)
+- ✅/⚠️ **Review**: clean / findings, categorized as the pre-commit-review report returns them:
+  - 🐛 **Bugs** — fail at runtime regardless of rule
+  - 🔴 **Design Debt** — R1, R2, R4, R5, R6, R7, R8 (advisory)
+  - 🟡 **Readability Debt** — R3, unclear naming
+  - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives
+- 🎯 **Clustered issues**: where a linter failure and a review finding land at the same
+  file:line, note the shared root cause and the single fix that resolves both.
 
-Project commands:
-- Test: [discovered test command]
-- Lint: [discovered lint command]
-
-Files to analyze:
-[list of changed .go files, one per line]
-
-Run all quality gates in parallel and return combined analysis."
-```
-
-## Step 4: Display Report
-
-The agent will return a structured report with one of four statuses:
-
-**TOOLS_UNAVAILABLE**: Display the report and suggest installing missing tools
-**TEST_FAILURE**: Display test failures and suggest fixing them before quality analysis
-**ISSUES_FOUND**: Display combined report with overlapping issues analysis and prioritized fix order
-**CLEAN_STATE**: Display success message - all quality gates passed
-
-## Report Format
-
-The agent returns:
-- ✅/❌ **Tests**: Pass/fail status with coverage
-- ✅/❌ **Linter**: Clean/errors count
-- ✅/⚠️ **Review**: Clean/findings (bugs, design debt, readability debt, polish)
-- 🎯 **Overlapping Issues**: Multiple issues at same file:line with root cause analysis
-- 📋 **Isolated Issues**: Single issues that don't overlap
-- 🔢 **Prioritized Fix Order**: Which issues to tackle first based on impact
+Each finding carries evidence (`file:line` + the falsifying-question answer or command
+output) and cites the owning rule's Fix pattern (`rules/R*.md`) for HOW to fix — this
+command does not apply the fix.
 
 ## Example Usage
 
@@ -113,42 +98,27 @@ The agent returns:
 /go-ldd-analyze ./pkg/parser/parser.go
 ```
 
-This will:
-1. Discover test and lint commands from your project docs
-2. Find changed Go files from git
-3. Run tests, linter, and code review in parallel
-4. Display intelligent combined analysis with overlapping issue detection
-
 ## Use Cases
 
 - ✅ Quick quality check before committing
 - ✅ Understand what issues exist without making changes
-- ✅ Get intelligent combined view of tests + linter + review findings
-- ✅ See overlapping issues with root cause analysis
-- ✅ Identify high-impact fixes (multiple issues at same location)
+- ✅ Get a combined view of tests + linter + design review
+- ✅ See where a linter failure and a design finding share one root cause
+- ✅ Identify high-impact fixes (multiple issues at the same location)
 
 ## Comparison with Other Commands
 
-| Command | Purpose | Auto-Fix | Agent |
-|---------|---------|----------|-------|
-| `/go-ldd-autopilot` | Complete workflow (Phase 1-6) | ✅ Yes | No |
-| `/go-ldd-quickfix` | Quality gates loop with auto-fix | ✅ Yes | No |
-| `/go-ldd-review` | Final verification, no auto-fix | ❌ No | No |
-| `/go-ldd-analyze` | Quality analysis with intelligent combining | ❌ No | ✅ Yes |
-| `/go-ldd-status` | Show workflow status | N/A | No |
-
-## Key Benefits
-
-1. **Parallel Execution**: Runs tests, linter, and code review simultaneously
-2. **Intelligent Combining**: Identifies overlapping issues at same file:line
-3. **Root Cause Analysis**: Explains why multiple issues occur at same location
-4. **Prioritized Fixes**: Suggests fix order based on impact (issues resolved)
-5. **Read-Only**: No auto-fix, just analysis and reporting
-6. **Autonomous**: Discovers commands automatically from project docs
+| Command | Purpose | Auto-Fix | Spawns agents |
+|---------|---------|----------|---------------|
+| `/go-ldd-autopilot` | Complete workflow (Phases 1–5) | ✅ Yes | lint-fixer, rule-hunter, overabstraction-skeptic |
+| `/go-ldd-quickfix` | Quality-gates loop until green | ✅ Yes | lint-fixer, rule-hunter, overabstraction-skeptic |
+| `/go-ldd-review` | Commit-readiness check | ❌ No | rule-hunter, overabstraction-skeptic (report-only) |
+| `/go-ldd-analyze` | Tests + lint + review, combined report | ❌ No | rule-hunter, overabstraction-skeptic (report-only) |
+| `/go-ldd-status` | Show workflow status | N/A | none |
 
 ## Notes
 
-- This command is equivalent to running the quality-analyzer agent standalone
-- For auto-fix capability, use `/go-ldd-quickfix` instead
-- For final commit-ready verification, use `/go-ldd-review` instead
-- For complete workflow with implementation, use `/go-ldd-autopilot` instead
+- Read-only: no auto-fix, just analysis and reporting.
+- For auto-fix capability, use `/go-ldd-quickfix` instead.
+- For a leaner commit-readiness pass, use `/go-ldd-review` instead.
+- For the complete workflow with design and implementation, use `/go-ldd-autopilot`.

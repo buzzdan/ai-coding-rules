@@ -6,37 +6,25 @@ allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
 ---
 
-Execute the quality gates loop for already-implemented code that needs cleanup.
+Execute the quality-gates loop for already-implemented code that needs cleanup.
 
 ⏱️ **Estimated Duration**: 2-5 minutes (depends on number of issues found)
 
-**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` and run these phases:
+**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)`. Because the code already exists, it skips the design and TDD-implementation phases (Phases 1–2) and runs the quality gates until green:
 
-**Phase 2**: Parallel Analysis
+**Phase 3 — FULL LINT** (via the `lint-fixer` agent, Task, isolated context)
 - Discover project test/lint commands
-- Launch 3 tools simultaneously: tests, linter, go-code-reviewer agent
-- Wait for all results
+- One full-repo lint run; mechanical issues are `FIXED` in place
+- Design-level failures come back `ESCALATED` with a rule route
+- Route each escalation through @refactoring (its `<routing_table>` maps linter failure → owning rule's Fix pattern); package-size escalations follow @refactoring `<package_decomposition>`
+- Repeat until the agent reports `LINT STATUS: green`
 
-**Phase 3**: Intelligent Combined Report
-- Merge findings from linter + review
-- Identify overlapping issues at same file:line
-- Analyze root causes
-- Generate unified fix strategies
-- Prioritize: Impact × Effort × Risk
-
-**Phase 4**: Iterative Fix Loop
-- Apply fixes using @refactoring skill (auto, no confirmation)
-- Re-verify with parallel analysis (incremental review mode)
-- Repeat until all green
-
-**Phase 5**: Orchestrator Review (after linter clean)
-- Check types with >15 methods (god object threshold)
-- If found: Apply @refactoring for storification first
-- Then apply @code-designing for composition (service extraction)
-- Re-verify with linter
+**Phase 4 — REVIEW** (via @pre-commit-review, per completed slice)
+- @pre-commit-review orchestrates parallel `rule-hunter` agents + the `overabstraction-skeptic` against the diff; it reports, never edits
+- Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all advisory
+- Fix bugs and user-accepted findings via @refactoring, then re-invoke @pre-commit-review in INCREMENTAL mode
 
 **Loop until**:
-✅ Tests pass | ✅ Linter clean | ✅ Review clean | ✅ No god objects (≤15 methods per type)
+✅ Tests pass | ✅ `LINT STATUS: green` | ✅ @pre-commit-review INCREMENTAL delta clean (or findings explicitly deferred)
 
-Use this when code is already written but needs to pass quality gates.
-Skip the implementation phase (Phase 1) and go straight to fixing issues.
+Use this when code is already written but needs to pass quality gates. It goes straight to fixing issues — no design or TDD implementation.

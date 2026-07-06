@@ -54,7 +54,7 @@ Ready after tests? Run linter: `task lintwithfix`
 - Terminology: the banned "mock" is an interface-injected struct double. The "in-memory mock servers" elsewhere in this skill (testutils DSL, `httptest` wrappers) are fakes in this sense — real servers speaking the real protocol with configurable fake data — and remain the recommended stand-in for external APIs you don't control (wired via URL/config, never via a production interface).
 - Use in-memory implementations (fastest, no external deps), HTTP test servers (httptest), temp files/directories, or the real dependency.
 - **Orchestrators are tested by wiring their real collaborators** (real Store/Evaluator over embedded DB + `httptest` external services), never by injecting doubles.
-- If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and @pre-commit-review §9).
+- If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and `../../rules/R6-test-only-interfaces.md`).
 
 **Coverage targets**
 - Rung 0 (leaf types): 100% unit test coverage
