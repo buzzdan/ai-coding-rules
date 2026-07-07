@@ -58,7 +58,10 @@ func StartWorker(ctx context.Context, workChan <-chan Work) *Worker {
         defer close(w.done)
         for {
             select {
-            case work := <-workChan:
+            case work, ok := <-workChan:
+                if !ok {
+                    return // channel closed — exit, don't spin on zero values
+                }
                 process(work)
             case <-ctx.Done():
                 return // clean exit — cancellation reaches the loop
@@ -103,6 +106,8 @@ for attempt := 0; attempt < 3; attempt++ {
 }
 
 func sleepCtx(ctx context.Context, d time.Duration) error {
+    // time.After is fine on Go 1.23+: an unfired timer is garbage-collected once
+    // unreferenced, so an early ctx exit does not retain it until d elapses.
     select {
     case <-time.After(d):
         return nil
