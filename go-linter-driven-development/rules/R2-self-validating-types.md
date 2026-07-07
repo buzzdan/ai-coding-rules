@@ -176,3 +176,14 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    `return nil, err` and `return val, nil`.
    Violation: nil returned for a non-error value, or a function nil-checking a
    parameter instead of the value being guaranteed by construction.
+
+6. **Does any call site pass a nil literal as a non-error argument?**
+   Detection: `grep -nE '\(nil[,)]|, nil[,)]' <changed files>` — exempt error
+   positions (`return X, nil`), comparisons (`== nil`, `!= nil`), and stdlib
+   idioms where nil is the documented sentinel (`http.NewRequest(..., nil)` for
+   a bodyless request, marshaling a nil slice/map).
+   Violation: nil passed where a value is expected. Q5 catches the return side
+   and Q2 catches the callee that defends; this catches the caller when the
+   callee does neither and simply panics later. Fix on the callee's side: make
+   nil unrepresentable — a concrete non-pointer parameter, or a validating
+   constructor that rejects nil (see the UserService example above).
