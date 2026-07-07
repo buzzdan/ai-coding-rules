@@ -1,5 +1,7 @@
 # HTTP Test Server with DSL Pattern
 
+Rung: 1 (first real layer over leaf types — real HTTP through an in-process httptest server)
+
 ## When to Use This Example
 
 Use this when:

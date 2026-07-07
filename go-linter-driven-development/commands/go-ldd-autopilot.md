@@ -6,16 +6,16 @@ allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
 ---
 
-**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` to run the complete autopilot workflow from design through commit-ready.
+**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` to run the complete five-phase workflow from design through commit-ready.
 
 ⏱️ **Estimated Duration**: 5-15 minutes (depends on feature complexity and issues found)
 
-The skill will automatically:
-1. Run Pre-Flight Check (detect intent, find commands, verify Go project)
-2. Execute all 5 phases with 2 quality gates
-3. Use parallel analysis (tests + linter + go-code-reviewer agent)
-4. Generate intelligent combined reports
-5. Auto-fix all issues iteratively
-6. Prepare commit-ready summary
+The skill runs all five phases:
+1. **Pre-Flight** — verify Go project, discover test/lint commands, list the behaviors to deliver
+2. **Phase 1 DESIGN** — @code-designing produces a DESIGN PLAN for your approval (no code before OK)
+3. **Phase 2 IMPLEMENT** — per behavior: RED (one failing test) → GREEN (minimum code) → REFACTOR (package-scoped lint + rule greps → @refactoring)
+4. **Phase 3 FULL LINT** — one full-repo run via the `lint-fixer` agent (isolated context); mechanical fixes done, design failures escalated back to Phase 2's REFACTOR via @refactoring
+5. **Phase 4 REVIEW** — per completed slice, @pre-commit-review orchestrates parallel `rule-hunter` agents + the `overabstraction-skeptic`; advisory findings only
+6. **Phase 5 SHIP** — @documentation, then a commit-ready summary you approve
 
-This is the full workflow - use for implementing features or fixes from start to finish.
+This is the full workflow — use for implementing features or fixes from start to finish.

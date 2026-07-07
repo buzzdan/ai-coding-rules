@@ -2,169 +2,123 @@
 
 **Stop fighting your linter. Let it guide you to better code.**
 
-This Claude Code plugin turns Go development into a smooth, automated workflow where quality gates don't slow you down—they help you write cleaner code faster. Instead of manually running tests, fixing linter errors one by one, and wondering if your design is solid, this plugin orchestrates everything in parallel and tells you exactly what to fix and why.
+This Claude Code plugin turns Go development into a smooth, test-first workflow where quality gates don't slow you down — they guide your design. Instead of manually running tests, fixing linter errors one by one, and wondering if your design is solid, the plugin sequences design, TDD, linting, and an evidence-based design review at the cadence each check's economics demand.
 
 ### The Problem It Solves
 
-You've been there: write some code, run tests (they pass!), run the linter... 15 errors. Fix those. Run again. More errors. Fix complexity here, function length there. Wonder if you're just playing whack-a-mole. Finally get it green, but is the design actually good?
+You've been there: write some code, run tests (they pass!), run the linter... 15 errors. Fix those. Run again. More errors. Fix complexity here, function length there. Finally get it green — but is the design actually good?
 
-**Traditional workflow:**
-```
-Write code → Tests (2 min) → Linter (1 min) → Fix → Linter again → Fix → Code review → Surprise design issues
-Total: 15-20 minutes of back-and-forth
-```
+The linter tells you **WHAT** to change (complexity 18, function too long). This plugin's rules tell you **HOW** — each linter failure routes to the one rule whose fix pattern owns the repair. And the checks a linter *can't* run — primitive obsession, mixed abstraction levels, test-only interfaces — are hunted by fresh-context review agents against your actual diff.
 
-**With this plugin:**
-```
-Write code → Everything runs in parallel (2 min) → Intelligent report → Targeted fixes → Done
-Total: 5-7 minutes, better results
-```
+## Architecture: Rules as Data
 
-The secret? **Intelligent combining.** When your linter says "complexity 18" and "function too long" at the same place, and the design reviewer says "mixed abstractions"—that's not 3 separate problems. It's one root cause. One strategic refactoring fixes all three.
-
-## What's Included
-
-**Six specialized skills** that work together:
-
-1. **@linter-driven-development** - Meta-orchestrator for complete workflow
-2. **@code-designing** - Domain type design and architecture planning
-3. **@testing** - Testing principles and patterns
-4. **@refactoring** - Linter-driven refactoring strategies
-5. **@pre-commit-review** - Design validation (advisory)
-6. **@documentation** - Feature documentation generation
-
-**Two autonomous agents** for parallel quality analysis:
-
-1. **quality-analyzer** - Orchestrates tests, linter, and code review in parallel; combines results intelligently
-2. **go-code-reviewer** - Specialized design analysis for primitive obsession, mixed abstractions, and architectural issues
-
-**Five slash commands** for quick access:
-
-| Command | Description | Duration | File Targeting |
-|---------|-------------|----------|----------------|
-| `/go-ldd-autopilot` | Full workflow from design to commit | 5-15 min | - |
-| `/go-ldd-quickfix [files]` | Quality gates loop with auto-fix | 2-5 min | ✅ Optional |
-| `/go-ldd-analyze [files]` | 🔍 Quality analysis only (read-only) | 1-2 min | ✅ Optional |
-| `/go-ldd-review [files]` | 🔍 Final verification (read-only) | 30-60 sec | ✅ Optional |
-| `/go-ldd-status` | Show current progress | Instant | - |
-
-## Architecture: Who Calls Who
-
-This diagram shows the complete call hierarchy of the plugin - commands, skills, and agents:
+The organising idea of v2: **the rule is the unit, not the phase.** Each design principle lives exactly **once**, as data, in `rules/`. Everything else is a thin view over those rules or an agent that receives a rule as a payload.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              SLASH COMMANDS (Entry Points)                       │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  /go-ldd-autopilot ─────┐                                                       │
-│  (Full Phase 1-5)       │                                                       │
-│                         ├──────▶ @linter-driven-development SKILL               │
-│  /go-ldd-quickfix ──────┘        (ORCHESTRATOR)                                 │
-│  (Phase 2-4 only)                      │                                        │
-│                                        ▼                                        │
-│  /go-ldd-analyze ──────────────▶ quality-analyzer AGENT ◀────────────────┐     │
-│  (Read-only analysis)                                                     │     │
-│                                                                           │     │
-│  /go-ldd-review ───────────────▶ [Parallel: Bash + go-code-reviewer]     │     │
-│  (Final verification)                                                     │     │
-│                                                                           │     │
-│  /go-ldd-status ───────────────▶ [Status display - no agents]            │     │
-│                                                                           │     │
-└───────────────────────────────────────────────────────────────────────────┼─────┘
-                                                                            │
-┌───────────────────────────────────────────────────────────────────────────┼─────┐
-│                     @linter-driven-development SKILL                      │     │
-│                           (Main Orchestrator)                             │     │
-├───────────────────────────────────────────────────────────────────────────┼─────┤
-│                                                                           │     │
-│  Phase 1: Pre-Flight ───▶ @code-designing SKILL (design phase)           │     │
-│                     └───▶ @testing SKILL (test-first)                    │     │
-│                                                                           │     │
-│  Phase 2: Analysis ─────▶ quality-analyzer AGENT ─────────────────────────┘     │
-│  (Full Mode)                    │                                               │
-│                                 │                                               │
-│  Phase 3: Fix Loop ─────▶ quality-analyzer AGENT (Incremental Mode)            │
-│                     └───▶ @refactoring SKILL (apply fixes)                     │
-│                                                                                 │
-│  Phase 4: Docs ─────────▶ @documentation SKILL                                 │
-│                                                                                 │
-│  Phase 5: Commit Ready ─▶ [Generate summary + options]                         │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                          quality-analyzer AGENT                                  │
-│                      (Parallel Quality Gate Orchestrator)                        │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  Executes 3 tools IN PARALLEL (single message):                                 │
-│                                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────────────┐               │
-│  │ Bash         │  │ Bash         │  │ Task                    │               │
-│  │ (tests)      │  │ (linter)     │  │ go-code-reviewer AGENT  │               │
-│  │              │  │              │  │                         │               │
-│  │ go test ./...│  │ golangci-lint│  │ Design debt analysis    │               │
-│  └──────────────┘  └──────────────┘  └───────────┬─────────────┘               │
-│         │                │                        │                             │
-│         └────────────────┼────────────────────────┘                             │
-│                          ▼                                                      │
-│              ┌─────────────────────────┐                                        │
-│              │ Normalize + Combine     │                                        │
-│              │ Find Overlapping Issues │                                        │
-│              │ Root Cause Analysis     │                                        │
-│              │ Prioritized Report      │                                        │
-│              └─────────────────────────┘                                        │
-│                          │                                                      │
-│                          ▼                                                      │
-│  Returns: TOOLS_UNAVAILABLE | TEST_FAILURE | ISSUES_FOUND | CLEAN_STATE        │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                          go-code-reviewer AGENT                                  │
-│                       (Design-Focused Code Analysis)                             │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  Tools Used:                    Skill Loaded:                                   │
-│  ┌──────────┐ ┌──────────┐     ┌────────────────────────┐                      │
-│  │ Read     │ │ Grep     │ ──▶ │ @pre-commit-review     │                      │
-│  │ (files)  │ │ (usage)  │     │ SKILL (guidance)       │                      │
-│  └──────────┘ └──────────┘     └────────────────────────┘                      │
-│                                          │                                      │
-│                                          ▼                                      │
-│  Detects (what linters can't):                                                  │
-│  🐛 Bugs: nil deref, ignored errors, resource leaks, race conditions           │
-│  🔴 Design: primitive obsession, non-self-validating types, wrong architecture │
-│  🟡 Readability: mixed abstraction, poor naming, comment quality               │
-│  🟢 Polish: non-idiomatic naming, missing godoc examples                       │
-│                                                                                  │
-│  Returns: Structured report with file:line, category, effort estimates         │
-│                                                                                  │
-└─────────────────────────────────────────────────────────────────────────────────┘
+go-linter-driven-development/
+├── rules/        R1-primitive-obsession … R9-repo-brain   (single source of truth)
+├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection   (case law)
+├── skills/       linter-driven-development · code-designing · refactoring ·
+│                 pre-commit-review · testing · documentation   (thin directional views)
+├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
+├── commands/     go-ldd-analyze · autopilot · quickfix · review · status · wire-repo-brain
+└── hooks/        package-size gate
 ```
 
-### Component Summary
+**Four layers, one fact per fact:**
 
-| Component | Type | Calls | Called By |
-|-----------|------|-------|-----------|
-| `/go-ldd-autopilot` | Command | @linter-driven-development | User |
-| `/go-ldd-quickfix` | Command | @linter-driven-development (phases 2-4) | User |
-| `/go-ldd-analyze` | Command | quality-analyzer agent | User |
-| `/go-ldd-review` | Command | Bash (×2) + go-code-reviewer | User |
-| `/go-ldd-status` | Command | (none) | User |
-| `@linter-driven-development` | Skill | 5 skills + quality-analyzer agent | Commands |
-| `quality-analyzer` | Agent | go-code-reviewer + Bash (×2) | Skill, Commands |
-| `go-code-reviewer` | Agent | @pre-commit-review (guidance) | quality-analyzer |
-| `@code-designing` | Skill | - | @linter-driven-development |
-| `@testing` | Skill | - | @linter-driven-development |
-| `@refactoring` | Skill | - | @linter-driven-development |
-| `@documentation` | Skill | - | @linter-driven-development |
-| `@pre-commit-review` | Skill | - | go-code-reviewer (guidance) |
+- **[`rules/`](rules/)** — R1–R9, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
+- **[`examples/`](examples/)** — deep worked case studies (full before/after code + the reasoning). Rules cite them by relative path instead of inlining long studies.
+- **[`skills/`](skills/)** — thin directional views (~100–150 lines) that *sequence* and *route* into the rules. They never restate rule content.
+- **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated contexts. **Agents get knowledge as spawn-time payload — the relevant rule file's content is pasted into the prompt. Agents do NOT invoke skills.**
+
+### The Five-Phase Flow
+
+The [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) skill is the meta-orchestrator. It sequences the thin skills and the `lint-fixer` agent at the cadence each check's economics demand:
+
+```
+1 DESIGN     @code-designing → DESIGN PLAN → user OK
+2 IMPLEMENT  per behavior:
+      ┌─> RED      one failing test, lowest rung on the composition ladder   (@testing)
+      │   GREEN    minimum code to pass — no design work
+      │   REFACTOR package-scoped lint + rule greps; any hit → @refactoring
+      └── next behavior until all done
+3 FULL LINT  ONE full-repo run via the lint-fixer agent (isolated context)
+      mechanical → FIXED · design → ESCALATED → back to Phase 2's REFACTOR (@refactoring)
+4 REVIEW     per completed slice: @pre-commit-review spawns hunters + skeptic → advisory report
+5 SHIP       @documentation → commit summary → user commits
+```
+
+Design happens once, up front (Phase 1); the RED test's shape carries that design into GREEN. The cheap per-cycle greps in Phase 2's REFACTOR are the mid-implementation net; the Phase 4 hunter/skeptic pass is the verification net on finished work.
+
+### The Hunter / Skeptic Review Model
+
+Phase 4 ([`@pre-commit-review`](skills/pre-commit-review/SKILL.md)) is pure orchestration — it spawns agents and reports, but **never edits code and never blocks a commit**:
+
+1. **Grep pre-filter** (in-context, cheap): run each rule's detection commands against the diff. A rule with zero hits gets no hunter.
+2. **Parallel hunters**: for every rule with hits, spawn one [`rule-hunter`](agents/rule-hunter.md) — single obsession, single rule file pasted in full as its entire rulebook. Each returns evidence-backed findings (`rule | file:line | falsifying-question answers | fix pattern | effort`).
+3. **Skeptic pass**: every "create a type/package" proposal goes to one [`overabstraction-skeptic`](agents/overabstraction-skeptic.md), which tries to *kill* each extraction using R1's juiciness scorecard and the CIDR case file. A refuted proposal ships only its cheaper alternative (better naming, private fields + accessors).
+4. **Merged report**: surviving findings categorized as 🐛 Bugs / 🔴 Design Debt / 🟡 Readability Debt / 🟢 Polish. All advisory — the caller decides what to fix.
+
+Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your conversation, and each hunter's fresh context is exactly what makes its findings trustworthy on finished work.
+
+## Link Map
+
+**Rules → file** (single source of truth):
+
+| Rule | File | Enforces |
+|------|------|----------|
+| R1 | [`rules/R1-primitive-obsession.md`](rules/R1-primitive-obsession.md) | Domain concepts as types, not raw primitives (incl. juiciness scoring) |
+| R2 | [`rules/R2-self-validating-types.md`](rules/R2-self-validating-types.md) | Validate in the constructor; no invalid states, nil not a value |
+| R3 | [`rules/R3-storifying.md`](rules/R3-storifying.md) | One abstraction level per function; extract named steps |
+| R4 | [`rules/R4-helper-placement.md`](rules/R4-helper-placement.md) | Helper visibility/placement on the placement ladder |
+| R5 | [`rules/R5-vertical-slice.md`](rules/R5-vertical-slice.md) | Group by feature, not layer; file-per-type |
+| R6 | [`rules/R6-test-only-interfaces.md`](rules/R6-test-only-interfaces.md) | No interface whose only second implementer is a test double |
+| R7 | [`rules/R7-test-placement.md`](rules/R7-test-placement.md) | `pkg_test` only, no wantErr conditionals, right-rung tests, no sleeps |
+| R8 | [`rules/R8-no-globals.md`](rules/R8-no-globals.md) | No package-level state; no `context.Background()` in library code |
+| R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md |
+
+**Examples → rules demonstrated** (case law):
+
+| Example | Demonstrates |
+|---------|--------------|
+| [`examples/storify-leaf-type.md`](examples/storify-leaf-type.md) | R3, R1, R2 — storifying a fat function; extracting a self-validating leaf type |
+| [`examples/overabstraction-cidr.md`](examples/overabstraction-cidr.md) | R1 — when an extraction is over-abstraction (the skeptic's payload) |
+| [`examples/dependency-rejection.md`](examples/dependency-rejection.md) | R8 — dependency rejection: eliminating globals by threading dependencies |
+
+**Skills → role** (thin views):
+
+| Skill | Role |
+|-------|------|
+| [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) | Meta-orchestrator — sequences the five phases |
+| [`@code-designing`](skills/code-designing/SKILL.md) | FORWARD view — which rule to open at each design step (Phase 1) |
+| [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern |
+| [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) | Orchestrates the hunter/skeptic review (Phase 4); reports, never edits |
+| [`@testing`](skills/testing/SKILL.md) | The composition ladder — test each behavior at the lowest rung that contains it |
+| [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring; FEATURE mode (Phase 5) / BOOTSTRAP mode |
+
+**Agents → spawned by** (payload-fed, isolated):
+
+| Agent | Spawned by | Gets as payload | Edits? |
+|-------|-----------|-----------------|--------|
+| [`rule-hunter`](agents/rule-hunter.md) | `@pre-commit-review` (one per rule with hits, in parallel) | ONE full `rules/R*.md` file + diff scope | No (read-only) |
+| [`overabstraction-skeptic`](agents/overabstraction-skeptic.md) | `@pre-commit-review` (after hunters report) | R1 juiciness scorecard + `examples/overabstraction-cidr.md` | No (read-only) |
+| [`lint-fixer`](agents/lint-fixer.md) | `@linter-driven-development` (Phase 3) | routing table (linter failure → rule) | Yes (mechanical only; escalates design) |
+
+## Slash Commands
+
+| Command | Purpose | Auto-Fix | File targeting |
+|---------|---------|----------|----------------|
+| [`/go-ldd-autopilot`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
+| [`/go-ldd-quickfix [files]`](commands/go-ldd-quickfix.md) | Quality-gates loop until green (code exists) | ✅ Yes | ✅ Optional |
+| [`/go-ldd-analyze [files]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
+| [`/go-ldd-review [files]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
+| [`/go-ldd-status`](commands/go-ldd-status.md) | Show current phase + progress | N/A | — |
+| [`/wire-repo-brain [path]`](commands/wire-repo-brain.md) | Wire the documentation network in one pass: upward edges → docs → index.md → CLAUDE.md (@documentation BOOTSTRAP) | ✅ Wiring only | ✅ Optional |
 
 ## How Auto-Detection Works
 
-When you request Go code work (e.g., "implement feature X", "fix bug in handler.go"), Claude will detect that the linter-driven-development skill applies and **ask for permission**:
+When you request Go code work (e.g., "implement feature X", "fix bug in handler.go"), Claude detects that the linter-driven-development skill applies and **asks for permission**:
 
 ```
 Use skill "go-linter-driven-development:linter-driven-development"?
@@ -176,122 +130,46 @@ Do you want to proceed?
   3. No, and tell Claude what to do differently
 ```
 
-**Recommended:** Select option 2 on first use. After that, the skill will run automatically in that directory without asking again—giving you a seamless experience while maintaining control.
+**Recommended:** Select option 2 on first use — the skill then runs automatically in that directory.
 
 **Triggers auto-detection:**
 - Action verbs: `implement`, `fix`, `build`, `add`, `refactor`, `update`, `change`, `modify`
-- Working in Go project (detects `go.mod` or `.go` files)
+- Working in a Go project (detects `go.mod` or `.go` files)
+- Mentions "ldd" or "@ldd"
 
-**Example workflow:**
-```bash
-# First time in a project
-You: "implement the auth feature"
-Claude: [Asks permission]
-You: "Yes, and don't ask again" ✓
-
-# All subsequent times
-You: "fix bug in handler.go"
-Claude: "Using go-ldd workflow..." → Runs immediately
-```
-
-## TL;DR - Should I Use This?
-
-**You should use this plugin if:**
-
-✅ You're tired of manually running tests, then linter, then fixing issues one by one
-✅ Your linter gives you 15 errors and you're not sure which to fix first
-✅ You want your code to be maintainable, not just "working"
-✅ You're using Go and want to follow best practices without memorizing them
-✅ You want AI to handle the boring parts (quality gates) so you can focus on features
-
-**This plugin might be overkill if:**
-
-❌ You're writing quick scripts that won't be maintained
-❌ Your project doesn't use `golangci-lint` and you don't plan to
-❌ You prefer complete manual control over every single quality check
-
-**What makes it special:**
-
-- 🚀 **40-50% faster** than running quality gates sequentially
-- 🧠 **Intelligent combining** - 10+ issues become 3-4 strategic fixes
-- 🤖 **Zero configuration** - discovers your project setup automatically
-- 🔄 **Auto-fix loop** - doesn't stop until all quality gates pass
-- 📊 **Root cause analysis** - tells you WHY issues cluster together
+On trigger, the skill announces **"Using go-ldd workflow for this Go code work"** and runs pre-flight.
 
 ## Why Linter-Driven Development?
 
 ### Code Written for Understanding, Not Just Execution
 
-The philosophy: **If code takes more than 10-15 seconds to understand, it's too complex.**
+The philosophy: **if code takes more than 10–15 seconds to understand, it's too complex.**
 
 Modern development involves two readers:
-- **Humans** - Limited by working memory (4-7 items, Miller's Law)
-- **AI** - Works on heuristics from clean, well-documented code
+- **Humans** — limited by working memory (4–7 items, Miller's Law)
+- **AI** — works on heuristics from clean, well-documented code
 
-Clean, storified code with clear abstractions and documentation provides:
-- **Lower cognitive load** → Faster human understanding
-- **Better heuristics** → More accurate AI assistance
+Clean, storified code with clear abstractions gives both lower cognitive load and better heuristics.
 
 ### The Three Pillars of Maintainability
 
 Linter rules enforce objective quality standards:
 
-**1. Cyclomatic Complexity ≤ 10**
-- Counts independent execution paths through code
-- Higher complexity = more places for bugs to hide
-- Forces breaking down complex logic into testable units
-
-**2. Cognitive Complexity ≤ 15**
-- Measures human effort required to understand code
-- Penalizes deeply nested structures and mixed abstractions
-- Enforces "storified" functions that read like prose
-
-**3. High Maintainability Index**
-- Composite metric predicting long-term code health
-- Reflects how easy code is to modify without breaking
-- Studies show: maintenance costs grow exponentially with complexity
+**1. Cyclomatic Complexity ≤ 10** — independent execution paths; higher = more places for bugs to hide.
+**2. Cognitive Complexity ≤ 15** — human effort to understand; penalizes nesting and mixed abstractions.
+**3. High Maintainability Index** — composite metric predicting long-term code health.
 
 ### How Linter Rules Drive Design
 
-Beyond complexity metrics, linter rules enforce architectural decisions:
+Each linter failure has an owning rule with a fix pattern — the mapping is [`@refactoring`](skills/refactoring/SKILL.md)'s routing table; the design-decision linters (`argument-limit`, `function-result-limit`) route via [`@code-designing`](skills/code-designing/SKILL.md):
 
-**`gochecknoglobals`** → Dependency injection instead of global state
-**`gocognit`** → Extract functions, reduce nesting
-**`gocyclo`** → Break switch statements into strategy patterns
-**`funlen`** → Functions < 50 LOC, single responsibility
-**`nestif`** → Max 2 nesting levels, use early returns
+**`gochecknoglobals`** → R8: dependency injection instead of global state
+**`gocognit` / `gocyclo`** → R3: extract named steps, reduce nesting
+**`funlen`** → R3: functions < 50 LOC, single responsibility
+**`argument-limit` / `function-result-limit`** → R1: options/result types
+**`file-length-limit` / package-size zones** → R5: file-per-type, sub-packages
 
-**The result**: Design decisions aren't subjective—they're driven by measurable quality metrics.
-
-### Why This Matters
-
-**For Humans:**
-- Developers spend far more time reading code than writing it
-- Lower complexity = faster onboarding, easier debugging, fewer errors
-- Code reviews focus on design, not comprehension struggles
-
-**For AI:**
-- Clean abstractions provide better context for code generation
-- Well-named types and functions improve AI suggestions
-- Documentation and comments enhance AI understanding of intent
-
-**For Teams:**
-- Objective quality standards reduce bike-shedding
-- Linter failures signal technical debt accumulation
-- Consistent style across contributors
-
-### The Workflow Philosophy
-
-Instead of writing code then hoping it passes review, **let the linter guide refactoring**:
-
-1. **Design** - Plan types around behavior (prevent primitive obsession)
-2. **Implement** - Write tests, implement with full coverage
-3. **Lint** - Run linter (cyclomatic, cognitive, maintainability checks)
-4. **Refactor** - Let linter failures drive extraction into cleaner abstractions
-5. **Review** - Validate design principles linters can't catch
-6. **Commit** - Code is guaranteed maintainable by objective metrics
-
-This plugin automates this workflow, ensuring every commit meets quality standards.
+Design decisions aren't subjective — they're driven by measurable quality metrics, and each metric routes to a named fix.
 
 ## Installation
 
@@ -313,11 +191,11 @@ Should show: `go-linter-driven-development (enabled)`
 
 ## Quick Start
 
-**Good news:** Zero configuration required! The plugin is smart enough to discover your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
+**Zero configuration required.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
 
-### 🚀 The Easiest Way: Just Talk to It
+### The Easiest Way: Just Talk to It
 
-Seriously, that's it. Just tell Claude what you want:
+Tell Claude what you want:
 
 ```
 "implement step 1"
@@ -326,351 +204,76 @@ Seriously, that's it. Just tell Claude what you want:
 "execute the authentication feature"
 ```
 
-The plugin recognizes these phrases and **automatically engages autopilot mode**. You don't need to remember commands or invoke anything special.
-
-**What happens next (without you doing anything):**
-
-1. 🔍 **Discovery** - Finds your test and lint commands
-2. ⚡ **Parallel Analysis** - Runs tests, linter, and design review simultaneously (40-50% faster)
-3. 🧠 **Intelligent Combining** - Identifies overlapping issues with root cause analysis
-4. 🔧 **Auto-Fix Loop** - Applies strategic fixes, re-verifies, repeats until green
-5. 📚 **Documentation** - Generates godoc and examples
-6. ✅ **Commit Ready** - Presents summary with suggested commit message
-
-You just implement your feature. The plugin handles quality gates.
+The plugin recognizes these phrases and **automatically engages the five-phase workflow**. You don't need to remember commands.
 
 ### Want More Control? Use Slash Commands
 
-If you prefer explicit commands over automatic detection, use these:
-
-| Command | Perfect For | What It Does | Auto-Fix? | Duration |
-|---------|------------|--------------|-----------|----------|
-| `/go-ldd-autopilot` | New feature from scratch | Full workflow: design → implement → fix → document → commit | ✅ Yes | 5-15 min |
-| `/go-ldd-quickfix [files]` | Existing code needs cleanup | Skips implementation, just runs quality gates and fixes | ✅ Yes | 2-5 min |
-| `/go-ldd-analyze [files]` | "What's wrong with my code?" | 🔍 Analysis report only, no changes made | ❌ No | 1-2 min |
-| `/go-ldd-review [files]` | Pre-commit sanity check | 🔍 Quick verification: are we green? | ❌ No | 30-60 sec |
-| `/go-ldd-status` | "Where are we?" | Shows current progress + suggests next steps | N/A | Instant |
-
-**File targeting:** Commands marked with `[files]` accept optional file patterns to analyze specific files instead of all git changes:
-
 ```bash
-# Analyze specific package
-/go-ldd-analyze ./pkg/parser/
-
-# Fix issues in specific file only
-/go-ldd-quickfix ./pkg/handler.go
-
-# Review single file before commit
-/go-ldd-review ./cmd/main.go
-```
-
-**Which one should I use?**
-
-```bash
-# Starting fresh? Full autopilot (5-15 min)
+# Starting fresh? Full workflow (5-15 min)
 /go-ldd-autopilot
 
 # Code is written, just needs to pass linter/tests? (2-5 min)
 /go-ldd-quickfix
 
-# Want to see what's wrong before deciding whether to fix? (1-2 min)
+# Want to see what's wrong before deciding whether to fix? (read-only)
 /go-ldd-analyze
 
-# About to commit, want one final check? (30-60 sec)
+# About to commit, want one final check? (read-only)
 /go-ldd-review
 
-# Lost track of where we are in a complex feature?
+# Lost track of where we are?
 /go-ldd-status
 ```
 
-**Pro tip:** Most of the time, you won't need these. Just say "implement X" and autopilot mode kicks in automatically.
+**File targeting:** commands marked `[files]` accept an optional pattern to scope the run:
+
+```bash
+/go-ldd-analyze ./pkg/parser/
+/go-ldd-quickfix ./pkg/handler.go
+/go-ldd-review ./cmd/main.go
+```
 
 ### Need Just One Piece? Use Individual Skills
 
-Sometimes you don't need the full workflow—just help with one specific thing:
+Skills are expert consultants you can call on demand:
 
 ```
-# Planning phase? Get help designing types
 "Use @code-designing to plan types for payment processing"
-
-# Writing tests? Get expert guidance
 "Use @testing to structure tests for UserService"
-
-# Linter complaining about complexity? Get strategic refactoring help
 "Use @refactoring to reduce complexity in HandleRequest"
-
-# Want a second opinion on your design?
 "Use @pre-commit-review to validate this code"
-
-# Feature done, need documentation?
 "Use @documentation to document the auth feature"
 ```
 
-Think of skills as expert consultants you can call on demand. The full workflow uses them automatically, but you can invoke them individually when you need specific help.
-
-## How It Works: Visual Overview
-
-Here's the complete workflow from "I want to implement X" to commit-ready code:
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ Phase 1: Implementation Foundation                                      │
-│                                                                          │
-│  You write code (or say "implement step 1")                            │
-│         ↓                                                               │
-│  Plugin helps with design → tests → implementation                     │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│ Phase 2: Parallel Quality Analysis (⚡ This is the magic)               │
-│                                                                          │
-│                    ┌──────────────────────┐                            │
-│                    │  quality-analyzer    │                            │
-│                    │       agent          │                            │
-│                    └──────────────────────┘                            │
-│                             │                                           │
-│              ┌──────────────┼──────────────┐                          │
-│              ↓              ↓               ↓                          │
-│        ┌─────────┐    ┌─────────┐    ┌──────────────┐               │
-│        │  Tests  │    │ Linter  │    │ go-code-     │               │
-│        │ go test │    │golangci │    │ reviewer     │               │
-│        └─────────┘    └─────────┘    └──────────────┘               │
-│              │              │               │                          │
-│              └──────────────┼───────────────┘                          │
-│                             ↓                                           │
-│              ┌────────────────────────────┐                           │
-│              │ Intelligent Combining:     │                           │
-│              │ • Find overlaps at file:line│                          │
-│              │ • Root cause analysis       │                           │
-│              │ • Priority ranking          │                           │
-│              └────────────────────────────┘                           │
-│                             ↓                                           │
-│              📊 Combined Report with Fix Strategy                      │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│ Phase 3: Auto-Fix Loop                                                  │
-│                                                                          │
-│  Apply highest priority fix → Re-verify in parallel → Next fix         │
-│                   ↓                      ↓                              │
-│              Still issues?          All green?                          │
-│                   ↓                      ↓                              │
-│            Loop continues           Exit to Phase 4                     │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────────────┐
-│ Phase 4: Documentation → Phase 5: Commit Ready ✅                       │
-│                                                                          │
-│  godoc + examples → Summary + suggested commit message                 │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### What Makes This Different: Intelligent Combining
-
-Instead of dumping separate test/linter/review outputs, the quality-analyzer agent combines them intelligently:
-
-**Without intelligent combining (traditional approach):**
-```
-❌ Linter says:
-   • pkg/parser.go:45 - cognitive complexity 18 (limit: 15)
-   • pkg/parser.go:45 - function length 58 lines (limit: 50)
-
-❌ Code reviewer says:
-   • pkg/parser.go:45 - mixed abstraction levels
-   • pkg/parser.go:45 - defensive null checking pattern
-
-You see: 4 separate problems to fix one by one
-Reality: You might fix them separately, create inconsistent solutions
-```
-
-**With intelligent combining (this plugin):**
-```
-✨ quality-analyzer agent says:
-
-┌─────────────────────────────────────────────────────┐
-│ pkg/parser.go:45 - OVERLAPPING (4 issues)           │
-│                                                      │
-│ 🎯 ROOT CAUSE:                                      │
-│ This function handles multiple responsibilities at  │
-│ different abstraction levels (parsing, validation,  │
-│ building result). The complexity and length issues  │
-│ stem from doing too much. The defensive checking    │
-│ and mixed abstractions are symptoms of the same     │
-│ underlying problem.                                  │
-│                                                      │
-│ Impact: HIGH (4 issues resolved with one fix)       │
-│ Complexity: MODERATE                                 │
-│ Priority: #1 CRITICAL                                │
-│                                                      │
-│ 💡 Strategy: Apply STORIFYING pattern - extract     │
-│    parseRawInput(), validateFields(), buildResult() │
-└─────────────────────────────────────────────────────┘
-
-Result: One strategic refactoring fixes all 4 issues at once
-```
-
-This is why the plugin turns **10+ scattered issues** into **3-4 strategic fixes**. You're not playing whack-a-mole anymore—you're fixing root causes.
-
-### Smart Routing: The Plugin Adapts to Your Code
-
-The quality-analyzer agent checks your code and decides what to do next based on what it finds:
-
-```
-🔍 Running analysis...
-
-Status: TOOLS_UNAVAILABLE
-  └─> "Looks like golangci-lint isn't installed. Here's how to install it..."
-
-Status: TEST_FAILURE
-  └─> "Tests are failing. Let's fix those first before worrying about quality."
-      (Enters Test Focus Mode - nothing else matters until tests pass)
-
-Status: ISSUES_FOUND
-  └─> "Tests pass! Found 13 issues. Good news: 10 of them cluster into
-       3 root causes. Let's fix those strategically."
-      (Enters Auto-Fix Loop)
-
-Status: CLEAN_STATE
-  └─> "Everything's green! Tests pass, linter clean, design looks good.
-       Let's document this and prepare for commit."
-      (Skips directly to documentation)
-```
-
-The workflow isn't rigid—it adapts to what your code actually needs right now.
-
-### Fast Iteration: Incremental Mode
-
-The plugin is smart about re-analysis. After the initial full scan, it only re-checks files that changed:
-
-```
-🔄 Fix Loop in Action:
-
-Iteration 1: Full analysis (8 files, 60 seconds)
-  └─> Found 13 issues across 8 files
-  └─> Applied fix to pkg/parser.go:45
-
-Iteration 2: Incremental (1 file, 20 seconds)  ⚡ 3x faster
-  ✅ Fixed: 4 issues from pkg/parser.go:45
-  ⚠️ Remaining: 9 issues in other files
-  🆕 New: 0 issues introduced
-  └─> Applied fix to pkg/validator.go:23
-
-Iteration 3: Incremental (1 file, 18 seconds)
-  ✅ Fixed: 3 issues from pkg/validator.go:23
-  ⚠️ Remaining: 6 issues
-  🆕 New: 0 issues introduced
-  └─> Continue...
-```
-
-No wasted time re-analyzing unchanged code. Fast feedback keeps you in flow state.
-
-### Example: Quality Analysis Report
-
-Here's what the quality-analyzer agent returns:
-
-```
-═══════════════════════════════════════════════════════
-QUALITY ANALYSIS REPORT
-Mode: FULL
-Files analyzed: 8
-═══════════════════════════════════════════════════════
-
-📊 SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Tests: ✅ PASS (coverage: 87%)
-Linter: ❌ FAIL (5 errors)
-Review: ⚠️ FINDINGS (8 issues: 0 bugs, 3 design, 4 readability, 1 polish)
-
-Total issues: 13 from 3 sources
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OVERLAPPING ISSUES ANALYSIS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Found 3 locations with overlapping issues:
-
-┌─────────────────────────────────────────────────────┐
-│ pkg/parser.go:45 - function Parse                   │
-│ OVERLAPPING (4 issues):                             │
-│                                                      │
-│ ⚠️ Linter: Cognitive complexity 18 (>15)           │
-│ ⚠️ Linter: Function length 58 statements (>50)     │
-│ 🔴 Review: Mixed abstraction levels                 │
-│ 🔴 Review: Defensive null checking                  │
-│                                                      │
-│ 🎯 ROOT CAUSE:                                      │
-│ Function handles multiple responsibilities at       │
-│ different abstraction levels (parsing, validation,  │
-│ building result).                                   │
-│                                                      │
-│ Impact: HIGH (4 issues) | Complexity: MODERATE      │
-│ Priority: #1 CRITICAL                               │
-└─────────────────────────────────────────────────────┘
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRIORITIZED FIX ORDER
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Priority #1: pkg/parser.go:45 (4 issues, HIGH impact)
-Priority #2: pkg/validator.go:23 (3 issues, HIGH impact)
-Priority #3: pkg/handler.go:67 (2 issues, MEDIUM impact)
-
-Isolated issues: 6 (fix individually)
-
-Total fix targets: 3 overlapping groups + 6 isolated = 9 fixes
-
-STATUS: ISSUES_FOUND
-```
-
-The orchestrator then invokes @refactoring skill to fix Priority #1, which resolves all 4 issues at once. After each fix, quality-analyzer re-runs in incremental mode to verify progress.
-
 ## How the Plugin Categorizes Issues
 
-When reviewing your code, issues are grouped by urgency:
+The [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) report groups findings by urgency — all advisory, none block a commit:
 
-- 🔴 **Design Debt** - Will cause pain when extending (fix before commit recommended)
-- 🟡 **Readability Debt** - Hard to understand now (improves maintainability)
-- 🟢 **Polish Opportunities** - Minor improvements (nice to have)
+- 🐛 **Bugs** — fail at runtime regardless of rule (fix immediately)
+- 🔴 **Design Debt** — R1, R2, R4, R5, R6, R7, R8 (fix before commit recommended)
+- 🟡 **Readability Debt** — R3, R9, unclear naming (improves maintainability)
+- 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives
 
-This helps you decide what to tackle now vs. what can wait.
+Every finding carries evidence (`file:line` + the falsifying-question answer or command output) and cites its rule's Fix pattern for HOW to fix.
 
 ## The Design Principles Behind This
 
-The plugin follows opinionated Go best practices:
+The plugin follows opinionated Go best practices, each with an owning rule:
 
-**Design Philosophy:**
-- **No primitive obsession** - String IDs? Make them types. Validates once, safe everywhere.
-- **Vertical slices** - Group by feature (`user/service.go`, `user/repository.go`), not by layer (`services/`, `repositories/`)
-- **Intent-revealing types** - Types should express business rules, not just data shapes
+**Design:** no primitive obsession (R1), self-validating types (R2), vertical slices (R5), no globals (R8).
+**Testing:** test the public API via `pkg_test` (R7), the composition ladder over the pyramid, real in-memory dependencies over mocks, no test-only interfaces (R6).
+**Refactoring:** storify top-level functions (R3), helpers on the placement ladder (R4), let the linter say WHAT and the rules say HOW.
+**Documentation:** a networked repo brain — each fact at its lowest rung, reachable from the root, edges pointing both ways (R9).
 
-**Testing Philosophy:**
-- **Test behavior, not implementation** - Use `pkg_test` package to only test public API
-- **Real dependencies** - HTTP test servers, temp files, in-memory DBs. Mocks are a last resort.
-- **100% coverage on leaf types** - Types with no dependencies should be bulletproof
+## v2 Changes
 
-**Refactoring Philosophy:**
-- **Let the linter guide you** - Complexity errors? Extract functions. It's not subjective.
-- **Storifying** - Top-level functions read like a story: `parseInput() → validate() → process()`
-- **Early returns** - Reduce nesting, make the happy path obvious
+Earlier versions organised knowledge by *phase* and centralised analysis in two generalist agents: **`quality-analyzer`** (a parallel tests+linter+review orchestrator) and **`go-code-reviewer`** (a single design reviewer that loaded the review skill for guidance). v2 replaces both:
 
-These aren't arbitrary rules. They're patterns that consistently lead to maintainable code.
+- Knowledge moved out of the skills and into `rules/` as data — stated once, cited everywhere.
+- The single design reviewer became **parallel single-obsession `rule-hunter` agents** plus the **`overabstraction-skeptic`**, each fed the relevant rule file as a spawn-time payload rather than loading a skill.
+- The lint loop moved into the isolated **`lint-fixer`** agent.
 
-## What Happens After You Use This
-
-After a few features built with this plugin, you'll notice:
-
-1. **Your code reviews get faster** - Less "what does this do?" and more "should we handle X?"
-2. **Onboarding is easier** - New team members understand code faster
-3. **Bugs hide less** - Lower complexity = fewer places for bugs to lurk
-4. **Refactoring becomes safer** - Good test coverage means you can change code confidently
-5. **AI assistance improves** - Clean, well-documented code = better AI suggestions
-
-The goal isn't just passing the linter. It's code that's a joy to work with six months from now.
+If you have muscle memory for `quality-analyzer` or `go-code-reviewer`, the closest v2 entry points are `/go-ldd-analyze` (read-only combined report) and `@pre-commit-review` (the hunter/skeptic review).
 
 ## Updating
 
@@ -678,30 +281,26 @@ The goal isn't just passing the linter. It's code that's a joy to work with six 
 /plugin update go-linter-driven-development@ai-coding-rules
 ```
 
-Or update through the plugin menu:
-```
-/plugin
-```
-Select "go-linter-driven-development" and choose "Update"
+See [CHANGELOG.md](CHANGELOG.md) for what changed between versions — including the v2.0.0 breaking changes and migration notes.
 
 ## Uninstalling
 
 ```
 /plugin
 ```
-Select "go-linter-driven-development" and choose "Uninstall"
+Select "go-linter-driven-development" and choose "Uninstall".
 
 ## Need Help or Want to Contribute?
 
-**Documentation:** Full details, examples, and advanced usage in the [main repository](https://github.com/buzzdan/ai-coding-rules)
+**Documentation:** Full details in the [main repository](https://github.com/buzzdan/ai-coding-rules)
 
-**Found a bug or have an idea?** [Open an issue on GitHub](https://github.com/buzzdan/ai-coding-rules/issues) - I'd love to hear from you!
+**Found a bug or have an idea?** [Open an issue](https://github.com/buzzdan/ai-coding-rules/issues)
 
-**Want to contribute?** PRs welcome! Whether it's fixing typos, adding examples, or improving the skills themselves.
+**Want to contribute?** PRs welcome — typos, examples, or improvements to the rules and skills.
 
 ## License
 
-MIT - Use it however you want!
+MIT — Use it however you want!
 
 ---
 

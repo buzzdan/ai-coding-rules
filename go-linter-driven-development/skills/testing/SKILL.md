@@ -3,7 +3,7 @@ name: testing
 description: |
   Use when creating leaf types, after refactoring, during implementation, or when testing advice is needed.
   Automatically invoked to write tests for new types, or use as testing expert advisor.
-  Covers unit, integration, and system tests with emphasis on in-memory dependencies.
+  Covers the composition ladder from rung-0 unit tests to whole-system tests, with emphasis on real in-memory dependencies.
   Ensures 100% coverage on leaf types with public API testing.
 ---
 
@@ -15,10 +15,10 @@ Writes tests autonomously based on code structure and type design, and serves as
 </objective>
 
 <quick_start>
-1. **Identify test level** needed (unit/integration/system)
+1. **Find the lowest rung** that contains the behavior (see composition_ladder)
 2. **Choose structure**: table-driven (simple) or testify suites (complex setup)
 3. **Write in pkg_test package** - test public API only
-4. **Use in-memory implementations** from testutils
+4. **Compose real layers** - in-memory/in-process implementations from testutils
 5. **Avoid pitfalls**: No time.Sleep, no conditionals in test cases
 
 Ready after tests? Run linter: `task lintwithfix`
@@ -26,7 +26,7 @@ Ready after tests? Run linter: `task lintwithfix`
 
 <when_to_use>
 <automatic_invocation>
-- **Automatically invoked** by @linter-driven-development during Phase 1 (Implementation Foundation)
+- **Automatically invoked** by @linter-driven-development in Phase 2's RED step — one failing test per behavior, placed by the composition ladder
 - **Automatically invoked** by @refactoring when new isolated types are created
 - **Automatically invoked** by @code-designing after designing new types
 - **After creating new leaf types** - Types that should have 100% unit test coverage
@@ -47,46 +47,63 @@ Ready after tests? Run linter: `task lintwithfix`
 **Test only the public API**
 - Use `pkg_test` package name
 - Test types through their constructors
-- No testing private methods/functions
+- No testing private methods/functions — the urge to unit-test an unexported helper directly is a promotion signal: give the helper its own package (`../../rules/R4-helper-placement.md`), never test privates.
 
 **No mocks — and a struct that only satisfies a production interface in a test IS a mock**
 - A "fake" is a *real implementation with fake data* (embedded DB, `httptest` server, fake binary, temp dir) — NOT a struct written to satisfy a dependency interface.
 - Terminology: the banned "mock" is an interface-injected struct double. The "in-memory mock servers" elsewhere in this skill (testutils DSL, `httptest` wrappers) are fakes in this sense — real servers speaking the real protocol with configurable fake data — and remain the recommended stand-in for external APIs you don't control (wired via URL/config, never via a production interface).
 - Use in-memory implementations (fastest, no external deps), HTTP test servers (httptest), temp files/directories, or the real dependency.
 - **Orchestrators are tested by wiring their real collaborators** (real Store/Evaluator over embedded DB + `httptest` external services), never by injecting doubles.
-- If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and @pre-commit-review §9).
+- If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and `../../rules/R6-test-only-interfaces.md`).
 
 **Coverage targets**
-- Leaf types: 100% unit test coverage
-- Orchestrating types: Integration tests
-- Critical workflows: System tests
+- Rung 0 (leaf types): 100% unit test coverage
+- Higher rungs (orchestrating types): cover the delta each rung adds — its seams and emergent behaviors
+- Critical workflows: top-rung (system) tests
+
+**Assertions**: testify is the default, but project convention wins (e.g. goweka uses stdlib assertions) — match the codebase you're in.
 </philosophy>
 
-<test_pyramid>
-Three levels of testing, each serving a specific purpose:
+<composition_ladder>
+Tests sit on a ladder of real composition, not a pyramid of layer percentages.
 
-<unit_tests level="base">
-- Test leaf types in isolation
-- Fast, focused, no external dependencies
-- 100% coverage target for leaf types
-- Use `pkg_test` package, test public API only
-</unit_tests>
+**Rung 0 — pure leaf types.** No I/O, no goroutines, no production dependencies.
+Tests are plain constructions plus assertions: slice literals, value tables.
+100% coverage is expected here — leaf types own most of the logic.
 
-<integration_tests level="middle">
-- Test seams between components
-- Test workflows across package boundaries
-- Use real or in-memory implementations
-- Verify components work together correctly
-</integration_tests>
+**Each rung above adds exactly one real production layer** — the real
+implementation, never a mock. In-memory/in-process infrastructure counts as the
+real layer: httptest server, bufconn gRPC, in-memory NATS, temp files, embedded
+VictoriaMetrics.
 
-<system_tests level="top">
-- Black box testing from `tests/` folder
-- Test entire system via CLI/API
-- Test critical end-to-end workflows
-- **Dependency options**: in-memory mocks, binaries (exec.Command), or test-containers
-- Prefer in-memory when possible, but use appropriate level for the test
-</system_tests>
-</test_pyramid>
+**Fake only the true external boundary** — the thing you genuinely cannot run
+in-process (a third-party SaaS API, a hardware device). Everything inside the
+boundary composes real.
+
+**Placement rule: test each behavior at the lowest rung that contains it.** A
+behavior expressible at rung 0 never gets tested through a rung-2 harness.
+
+**Each rung tests its delta plus emergent behaviors**: the wiring/seams that rung
+adds and behaviors that only exist through composition — not a re-test of
+lower-rung logic (some overlap with leaf coverage is acceptable for orchestrators,
+per `../../rules/R7-test-placement.md`).
+
+The **top rung** is the whole system composed: black-box tests from `tests/` via
+CLI/API, only the external boundary faked.
+
+**Obligation table** — a template; adapt the rows per project and keep the adapted
+table in the project docs:
+
+| Kind of change | Owes a test at |
+|---|---|
+| New leaf type, or new behavior on one | Rung 0 |
+| New seam between components X and Y | Rung 1 — the first rung containing the seam |
+| New wiring through an infrastructure layer (queue, DB, RPC) | The rung that adds that layer |
+| New externally observable behavior | Top rung |
+
+The ladder is defined here; the placement review contract (falsifying questions)
+lives in `../../rules/R7-test-placement.md`.
+</composition_ladder>
 
 <reusable_infrastructure>
 Build shared test infrastructure in `internal/testutils/`:
@@ -109,7 +126,7 @@ See reference.md for comprehensive testutils patterns and DSL examples.
 <workflow>
 
 <unit_tests_workflow>
-**Purpose**: Test leaf types in isolation, 100% coverage target
+**Purpose**: Rung 0 — test leaf types in isolation, 100% coverage target
 
 1. **Identify leaf types** - Self-contained types with logic
 2. **Choose structure** - Table-driven (simple) or testify suites (complex setup)
@@ -126,7 +143,7 @@ See reference.md for detailed patterns and examples.
 </unit_tests_workflow>
 
 <integration_tests_workflow>
-**Purpose**: Test seams between components, verify they work together
+**Purpose**: Middle rungs — each adds one real layer; test the seams and emergent behaviors that layer brings
 
 1. **Identify integration points** - Where packages/components interact
 2. **Choose dependencies** - Prefer: in-memory > binary > test-containers
@@ -147,7 +164,7 @@ See reference.md for integration test patterns with dependencies.
 </integration_tests_workflow>
 
 <system_tests_workflow>
-**Purpose**: Black box test entire system, critical end-to-end workflows
+**Purpose**: Top rung — black box test the entire system, critical end-to-end workflows
 
 1. **Place in tests/ folder** - At project root, separate from packages
 2. **Test via CLI/API** - exec.Command for CLI, HTTP client for APIs
@@ -202,55 +219,7 @@ See reference.md for comprehensive system test patterns including test-container
 - **Max complexity = 1 inside t.Run()** - No if/else, no switch, no conditionals
 - Separate success and error test functions (TestFoo_Success, TestFoo_Error)
 - Always use named struct fields (linter reorders fields)
-
-```go
-// BAD - wantErr adds conditional, complexity > 1
-tests := []struct {
-    input   string
-    want    string
-    wantErr bool  // NEVER DO THIS
-}{...}
-for _, tt := range tests {
-    t.Run(tt.name, func(t *testing.T) {
-        got, err := Parse(tt.input)
-        if tt.wantErr {  // <- Conditional! Complexity > 1
-            require.Error(t, err)
-        } else {
-            require.NoError(t, err)
-            require.Equal(t, tt.want, got)
-        }
-    })
-}
-
-// GOOD - Separate functions, complexity = 1
-func TestParse_Success(t *testing.T) {
-    tests := []struct {
-        name  string
-        input string
-        want  string
-    }{...}
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            got, err := Parse(tt.input)
-            require.NoError(t, err)      // No conditionals
-            require.Equal(t, tt.want, got)
-        })
-    }
-}
-
-func TestParse_Error(t *testing.T) {
-    tests := []struct {
-        name  string
-        input string
-    }{...}
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            _, err := Parse(tt.input)
-            require.Error(t, err)  // No conditionals
-        })
-    }
-}
-```
+- Canonical violation, detection commands, and split pattern: `../../rules/R7-test-placement.md`; worked example in reference.md
 
 **Testify Suites:**
 - Only for complex infrastructure (HTTP servers, DBs, OpenTelemetry)

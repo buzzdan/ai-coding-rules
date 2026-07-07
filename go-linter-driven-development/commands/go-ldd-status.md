@@ -14,13 +14,13 @@ Display current implementation status:
 
 📍 Current Context:
   - Active plan: [file path or "conversation"]
-  - Current step: [step number]
-  - Phase: [design/testing/linting/refactoring/review/docs/commit]
+  - Current behavior/slice: [which behavior's TDD cycle, if mid-implementation]
+  - Phase: [pre-flight / 1 DESIGN / 2 IMPLEMENT (RED→GREEN→REFACTOR) / 3 FULL LINT / 4 REVIEW / 5 SHIP]
 
 📊 Last Results:
   Tests: [status + coverage]
-  Linter: [status + error count]
-  Review: [status + finding count]
+  Linter: [status + error count — lint-fixer FIXED/ESCALATED or LINT STATUS: green]
+  Review: [status + finding count — Bugs / Design / Readability / Polish]
 
 📝 Files Modified:
   [list with +/- lines]

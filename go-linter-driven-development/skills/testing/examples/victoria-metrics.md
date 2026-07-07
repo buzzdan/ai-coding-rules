@@ -1,5 +1,7 @@
 # Victoria Metrics Binary Test Server
 
+Rung: 1 (one real layer over the code under test — the real VictoriaMetrics binary; out-of-process is Dependency Level 2, an orthogonal heaviness axis, not extra composition depth)
+
 ## When to Use This Example
 
 Use this when:

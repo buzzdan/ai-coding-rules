@@ -1,5 +1,7 @@
 # NATS In-Memory Test Server
 
+Rung: 1 (first real layer over leaf types — in-memory NATS via the official test harness)
+
 ## When to Use This Example
 
 Use this when:

@@ -1,747 +1,123 @@
-# Refactoring Patterns Reference
+# Multi-Rule Refactoring Procedures
 
-Complete guide for linter-driven refactoring with decision tree and patterns.
+Single-rule moves live in the rules' **Fix pattern** sections
+(`../../rules/R1-primitive-obsession.md` … `R8-no-globals.md`) — apply them from
+there. This file holds only the procedures that genuinely span multiple rules.
+Deep worked case law: `../../examples/`.
 
-## Refactoring Decision Tree
+## Sequencing: which pattern first, and when to stop
 
-When linter fails or code feels complex, use this decision tree:
+Spans R3 × R1 × R2 × R4. Apply least-invasive first; re-run the linter after each move.
 
-### Question 1: Does this code read like a story?
-**Check**: Does it mix different levels of abstractions?
+1. **Storify first** (R3). Mixed abstraction levels are the most common root cause of
+   complexity failures, and storifying *reveals* the structure the later moves need:
+   comment-named blocks become functions, boolean loop flags surface as candidate
+   types. Never extract a type from a function you haven't storified — you'll extract
+   the wrong seams.
+2. **Early returns** (R3) — invert conditions, flatten nesting to ≤2 levels.
+3. **Extract function** (R3) — split remaining long bodies by responsibility.
+4. **Extract type** (R1 + R2) — only when extracted steps share data (loop flags,
+   accumulated state) or named behavior runs on a primitive. Score the candidate with
+   R1's scorecard *before* creating it; the new type gets a validating constructor
+   per R2. Worked pair of moves 1+4: `../../examples/storify-leaf-type.md`.
+5. **Place it** (R4) — the ladder decides where the extraction lands: unexported
+   helper, feature sub-package, or shared domain package.
 
-```go
-// ❌ No - Mixes abstractions
-func CreatePizza(order Order) Pizza {
-    pizza := Pizza{Base: order.Size}  // High-level
+**When to stop**: linter green + top-level reads like a story + every remaining type
+candidate scores LOW on R1's scorecard → STOP. Warning signs you went past the
+sweet spot: types with one method that merely unwraps, functions that only call
+another function, more abstraction layers than domain concepts. The worked rejection:
+`../../examples/overabstraction-cidr.md`.
 
-    // Low-level temperature control
-    for oven.Temp < cookingTemp {
-        time.Sleep(checkOvenInterval)
-        oven.Temp = getOvenTemp(oven)
-    }
+**Cohesion > coupling**: put logic where it belongs even if that adds a dependency.
 
-    return pizza
-}
+## God-object decomposition
 
-// ✅ Yes - Story-like
-func CreatePizza(order Order) Pizza {
-    pizza := prepare(order)
-    bake(pizza)
-    return pizza
-}
-```
+Spans R3 × R1 × R4. **Trigger**: a type with >15 methods or >500 LOC.
 
-**Action**: Break it down to same level of abstraction. Hide nitty-gritty details behind methods with proper names.
+1. **Storify the methods first** (R3) — reveals the hidden method clusters.
+2. **Extract generic logic into leaf types** (R1): string/URL/path handling, retry
+   and timeout logic, date formatting, validation. These become independently
+   testable islands and often turn out reusable — place them per R4's ladder.
+3. **Group the remaining methods by noun** — user methods → `UserService`, cache
+   methods → `CacheService` — and extract each group into a focused service type.
+4. **Compose the services in an orchestrator** that delegates, not implements.
 
-### Question 2: Can this be broken into smaller pieces?
-**By what**: Responsibility? Task? Category?
+Key insight: step 2 usually reveals the god object was mixing infrastructure concerns
+with domain logic — that mix, not size, is the disease. Forward design of the
+composition: @code-designing.
 
-Breaking down can be done at all levels:
-- Extract a variable
-- Extract a function
-- Create a new type
-- Create a new package
+## Package decomposition
 
-```go
-// ❌ Multiple responsibilities
-func HandleUserRequest(w http.ResponseWriter, r *http.Request) {
-    // Parse request
-    var user User
-    json.NewDecoder(r.Body).Decode(&user)
+Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `.go`
+files at one directory level) or yellow zone (8–12) — detection command and zone
+table in SKILL.md `<package_decomposition>`.
 
-    // Validate
-    if user.Email == "" { /* ... */ }
+**A package-size violation is a design review, not a mechanical file split.** File
+count is the symptom; the disease is usually missing domain types or multiple
+vertical slices sharing one package. Run the 3 steps *in order*:
 
-    // Save to DB
-    db.Exec("INSERT INTO...")
+### Step 1 — Does the package name reflect a real-world domain concept?
 
-    // Send response
-    json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-}
+Role names and generic containers (never acceptable — the list and naming method are
+R5's Design guidance) get renamed *first*; the split follows from the new model.
 
-// ✅ Separated by responsibility
-func HandleUserRequest(w http.ResponseWriter, r *http.Request) {
-    user, err := parseUser(r)
-    if err != nil {
-        respondError(w, err)
-        return
-    }
+Naming method for the split — model the real-world relationship:
+- The **parent** names the actor/system (the thing that does the work).
+- The **sub-package** names the domain object (the thing acted upon) — that's where
+  your `pkg.Type` call sites live.
+- A worker HAS a job → `worker/` + `worker/job/` (`job.ID`, `job.Status`); a compiler
+  HAS tokens → `compiler/` + `compiler/token/`.
+- Test: say `pkg.Type` out loud. `job.ID` sounds right; `domain.ID` sounds like Java.
 
-    if err := validateUser(user); err != nil {
-        respondError(w, err)
-        return
-    }
+### Step 2 — Are the existing types well-scoped?
 
-    if err := saveUser(user); err != nil {
-        respondError(w, err)
-        return
-    }
+Look *inside* the package before looking at the file list:
+- **Primitive obsession** (R1): `apiKey string`, `timeout int` fields with validation
+  scattered through top-level functions → extract self-validating types (R2) with
+  the behavior attached.
+- **Big structs with disjoint method sets**: methods `A() B()` use fields `x y` while
+  `D() E()` use `z w` — two types fused together; split them.
+- **Top-level functions that belong on a type**: `func normalizeFoo(s string) string`
+  wants to be `(f Foo) Normalize()`.
 
-    respondSuccess(w)
-}
-```
+Extracting types often shrinks the package below threshold with no sub-package split.
+Invoke @code-designing to validate the extractions.
 
-### Question 3: Does logic run on a primitive?
-**Check**: Is this primitive obsession?
+### Step 3 — Only now, decide the physical split
 
-If logic operates on string/int/float, consider creating a type.
+- Multiple vertical slices in one package → extract sub-packages (Step 1 naming).
+- One slice with undermodeled internals → types into their own files, possibly a leaf
+  sub-package for pure domain types.
+- Often: both.
 
-```go
-// ❌ Primitive obsession
-func ValidateEmail(email string) bool {
-    return strings.Contains(email, "@")
-}
+**Persistence naming**: `Store`, not `Repository` (Go-idiomatic, concrete). Each
+sub-package gets its own Store with focused queries; constructor everywhere:
+`NewStore(db *sql.DB, opts ...StoreOption)`.
 
-func SendEmail(email string, subject, body string) error {
-    if !ValidateEmail(email) {
-        return errors.New("invalid email")
-    }
-    // Send
-}
+**Function stutter**: when moving a function into a named package, drop the prefix —
+the package provides context. `jira.SanitizeTicketJSON()` → `sanitize.TicketJSON()`;
+`job.NewJobID()` → `job.ParseID()`.
 
-// ✅ Custom type
-type Email string
-
-func NewEmail(s string) (Email, error) {
-    if !strings.Contains(s, "@") {
-        return "", errors.New("invalid email")
-    }
-    return Email(s), nil
-}
-
-func SendEmail(email Email, subject, body string) error {
-    // No validation needed - type guarantees validity
-    // Send
-}
-```
-
-**Note**: Cohesion is more important than coupling. Put logic where it belongs, even if it creates dependencies.
-
-### Question 4: Is function long due to switch statement?
-**Check**: Can cases be categorized and extracted?
-
-```go
-// ❌ Long switch statement
-func ProcessEvent(eventType string, data interface{}) error {
-    switch eventType {
-    case "user_created":
-        // 20 lines
-    case "user_updated":
-        // 25 lines
-    case "user_deleted":
-        // 15 lines
-    // ... more cases
-    }
-}
-
-// ✅ Extracted case handlers
-func ProcessEvent(eventType string, data interface{}) error {
-    switch eventType {
-    case "user_created":
-        return handleUserCreated(data)
-    case "user_updated":
-        return handleUserUpdated(data)
-    case "user_deleted":
-        return handleUserDeleted(data)
-    default:
-        return errors.New("unknown event type")
-    }
-}
-
-func handleUserCreated(data interface{}) error { /* ... */ }
-func handleUserUpdated(data interface{}) error { /* ... */ }
-func handleUserDeleted(data interface{}) error { /* ... */ }
-```
-
-### Question 5: Types with logic?
-**Rule**: Types with logic should be in their own file. Name file after type.
+**Import direction** (strictly downward — prevents cycles):
 
 ```
-user/
-├── user.go          # User type
-├── user_id.go       # UserID type with logic
-├── email.go         # Email type with logic
-└── service.go       # UserService
+leaf types (domain)  ← (nothing)
+sub-packages         ← leaf types
+parent               ← leaf types + sub-packages
+cmd/                 ← everything
 ```
 
----
-
-## Detailed Refactoring Patterns
-
-### 1. Storifying (Abstraction Levels)
-
-**Signal:**
-- Linter: High cognitive complexity
-- Code smell: Mixed high-level and low-level code
-
-**Pattern:**
-```go
-// Before
-func ProcessOrder(order Order) error {
-    // Validation
-    if order.ID == "" { return errors.New("invalid") }
-    if len(order.Items) == 0 { return errors.New("no items") }
-    for _, item := range order.Items {
-        if item.Price < 0 { return errors.New("negative price") }
-    }
-
-    // Database
-    db, err := sql.Open("postgres", os.Getenv("DB_URL"))
-    if err != nil { return err }
-    defer db.Close()
-
-    tx, err := db.Begin()
-    if err != nil { return err }
-
-    // SQL queries
-    _, err = tx.Exec("INSERT INTO orders...")
-    // ... many more lines
-
-    // Email
-    smtp, err := mail.Dial("smtp.example.com:587")
-    // ... email sending logic
-
-    return nil
-}
-
-// After
-func ProcessOrder(order Order) error {
-    if err := validateOrder(order); err != nil {
-        return err
-    }
-
-    if err := saveToDatabase(order); err != nil {
-        return err
-    }
-
-    if err := notifyCustomer(order); err != nil {
-        return err
-    }
-
-    return nil
-}
-```
-
-**Benefits:**
-- Clear flow (validate → save → notify)
-- Each function single responsibility
-- Easy to test
-- Easy to modify
-
-**Real-world example:** See [Example 1 in examples.md](./examples.md#example-1-storifying-mixed-abstractions-and-extracting-logic-into-leaf-types) for a production case of storifying mixed abstractions and extracting a leaf type for IP collection logic
-
-### 2. Extract Type (Primitive Obsession)
-
-**Signal:**
-- Linter: High cyclomatic complexity (due to validation)
-- Code smell: Validation repeated across codebase
-
-**Pattern:**
-```go
-// Before: Validation scattered
-func CreateServer(host string, port int) (*Server, error) {
-    if host == "" {
-        return nil, errors.New("host required")
-    }
-    if port <= 0 || port > 65535 {
-        return nil, errors.New("invalid port")
-    }
-    // ...
-}
-
-func ConnectToServer(host string, port int) error {
-    if host == "" {
-        return errors.New("host required")
-    }
-    if port <= 0 || port > 65535 {
-        return errors.New("invalid port")
-    }
-    // ...
-}
-
-// After: Self-validating types
-type Host string
-type Port int
-
-func NewHost(s string) (Host, error) {
-    if s == "" {
-        return "", errors.New("host required")
-    }
-    return Host(s), nil
-}
-
-func NewPort(p int) (Port, error) {
-    if p <= 0 || p > 65535 {
-        return 0, errors.New("port must be 1-65535")
-    }
-    return Port(p), nil
-}
-
-type ServerAddress struct {
-    host Host
-    port Port
-}
-
-func NewServerAddress(host Host, port Port) ServerAddress {
-    // No validation needed - types are already valid
-    return ServerAddress{host: host, port: port}
-}
-
-func (a ServerAddress) String() string {
-    return fmt.Sprintf("%s:%d", a.host, a.port)
-}
-
-func CreateServer(addr ServerAddress) (*Server, error) {
-    // No validation needed
-    // ...
-}
-
-func ConnectToServer(addr ServerAddress) error {
-    // No validation needed
-    // ...
-}
-```
-
-**Benefits:**
-- Validation centralized
-- Type safety
-- Reduced complexity
-- Self-documenting
-
-**Composed types trust each other:** Note how `NewServerAddress(host Host, port Port)` above needs no validation — `Host` and `Port` are already self-validating. Each type owns its validation; composing types never re-validate their parts.
-
-**Real-world example:** See [Example 2 in examples.md](./examples.md#example-2-primitive-obsession-with-multiple-types-and-storifying-switch-statements) for extracting multiple types from a 60-line function with primitive obsession. Shows the Type Alias Pattern for creating config-friendly types and eliminating switch statement duplication.
-
----
-
-### 2.5. The Over-Abstraction Trap ⚠️
-
-**Critical**: Not every primitive needs a type. The goal is **clarity**, not **type proliferation**.
-
-#### Quick Decision Checklist
-
-**Create types when they**:
-- ✅ Have multiple meaningful methods (>1) with real logic
-- ✅ Enforce invariants/validation at construction
-- ✅ Hide complex implementation
-- ✅ Need controlled mutation → use **private fields**, NOT wrappers
-
-**DON'T create types when they**:
-- ❌ Just wrap primitives with one trivial method
-- ❌ Add ceremony without benefit
-- ❌ Good naming achieves same clarity
-
-#### Bad vs Good: One Example
-
-```go
-// ❌ Bad: Trivial wrapper - 8 lines, no benefit
-type CIDRPresence bool
-func (p CIDRPresence) IsSet() bool { return bool(p) }
-
-// ✅ Good: Private fields - same safety, less code
-type CIDRConfig struct {
-    clusterCIDRSet bool  // Only parser can set
-    serviceCIDRSet bool
-}
-func (c CIDRConfig) ClusterCIDRSet() bool { return c.clusterCIDRSet }
-```
-
-#### Complete Teaching & Examples
-
-**→ See [Example 2: Over-Abstraction Section](./examples.md#first-refactoring-attempt-the-over-abstraction-trap)**
-
-Full case study includes:
-- Complete thought process & comparisons
-- 6 questions before creating a type
-- Balance diagram & decision tree
-- When to stop refactoring
-
----
-
-### 3. Early Returns (Reduce Nesting)
-
-**Signal:**
-- Linter: High cyclomatic complexity
-- Code smell: Nesting > 2 levels
-
-**Pattern:**
-```go
-// Before: Deep nesting
-func ProcessRequest(req Request) error {
-    if req.IsValid() {
-        if req.HasAuth() {
-            if req.HasPermission() {
-                // Do work
-                result, err := doWork(req)
-                if err != nil {
-                    return err
-                }
-                return saveResult(result)
-            } else {
-                return errors.New("no permission")
-            }
-        } else {
-            return errors.New("not authenticated")
-        }
-    } else {
-        return errors.New("invalid request")
-    }
-}
-
-// After: Early returns
-func ProcessRequest(req Request) error {
-    if !req.IsValid() {
-        return errors.New("invalid request")
-    }
-
-    if !req.HasAuth() {
-        return errors.New("not authenticated")
-    }
-
-    if !req.HasPermission() {
-        return errors.New("no permission")
-    }
-
-    result, err := doWork(req)
-    if err != nil {
-        return err
-    }
-
-    return saveResult(result)
-}
-```
-
-**Benefits:**
-- Reduced nesting (max 1 level)
-- Easier to read (guard clauses up front)
-- Lower cyclomatic complexity
-
-### 4. Extract Function (Long Functions)
-
-**Signal:**
-- Function > 50 LOC
-- Multiple distinct concerns
-
-**Pattern:**
-```go
-// Before: Long function (80 LOC)
-func RegisterUser(data map[string]interface{}) error {
-    // Parsing (15 lines)
-    email, ok := data["email"].(string)
-    if !ok { return errors.New("email required") }
-    // ... more parsing
-
-    // Validation (20 lines)
-    if email == "" { return errors.New("email required") }
-    if !strings.Contains(email, "@") { return errors.New("invalid email") }
-    // ... more validation
-
-    // Database (25 lines)
-    db, err := getDB()
-    if err != nil { return err }
-    // ... DB operations
-
-    // Email (15 lines)
-    smtp := getSMTP()
-    // ... email sending
-
-    // Logging (5 lines)
-    log.Printf("User registered: %s", email)
-    // ...
-
-    return nil
-}
-
-// After: Extracted functions
-func RegisterUser(data map[string]interface{}) error {
-    user, err := parseUserData(data)
-    if err != nil {
-        return err
-    }
-
-    if err := validateUser(user); err != nil {
-        return err
-    }
-
-    if err := saveUserToDB(user); err != nil {
-        return err
-    }
-
-    if err := sendWelcomeEmail(user); err != nil {
-        return err
-    }
-
-    logUserRegistration(user)
-    return nil
-}
-
-func parseUserData(data map[string]interface{}) (*User, error) {
-    // 15 lines
-}
-
-func validateUser(user *User) error {
-    // 20 lines
-}
-
-func saveUserToDB(user *User) error {
-    // 25 lines
-}
-
-func sendWelcomeEmail(user *User) error {
-    // 15 lines
-}
-
-func logUserRegistration(user *User) {
-    // 5 lines
-}
-```
-
-**Guidelines:**
-- Aim for functions under 50 LOC
-- Each function single responsibility
-- Top-level function reads like a story
-
-### 5. Switch Statement Extraction
-
-**Signal:**
-- Long function due to switch statement
-- Each case is complex
-
-**Pattern:**
-```go
-// Before
-func RouteHandler(action string, params map[string]string) error {
-    switch action {
-    case "create":
-        // Validate create params
-        if params["name"] == "" { return errors.New("name required") }
-        // ... 15 more lines
-        return db.Create(...)
-
-    case "update":
-        // Validate update params
-        if params["id"] == "" { return errors.New("id required") }
-        // ... 20 more lines
-        return db.Update(...)
-
-    case "delete":
-        // Validate delete params
-        // ... 12 more lines
-        return db.Delete(...)
-
-    default:
-        return errors.New("unknown action")
-    }
-}
-
-// After
-func RouteHandler(action string, params map[string]string) error {
-    switch action {
-    case "create":
-        return handleCreate(params)
-    case "update":
-        return handleUpdate(params)
-    case "delete":
-        return handleDelete(params)
-    default:
-        return errors.New("unknown action")
-    }
-}
-
-func handleCreate(params map[string]string) error {
-    // All create logic (15 lines)
-}
-
-func handleUpdate(params map[string]string) error {
-    // All update logic (20 lines)
-}
-
-func handleDelete(params map[string]string) error {
-    // All delete logic (12 lines)
-}
-```
-
-### 6. Defer Complexity Extraction
-
-**Signal:**
-- Linter: Defer function has cyclomatic complexity > 1
-
-**Pattern:**
-```go
-// Before: Complex defer
-func ProcessFile(filename string) error {
-    f, err := os.Open(filename)
-    if err != nil {
-        return err
-    }
-
-    defer func() {
-        if err := f.Close(); err != nil {
-            if !errors.Is(err, fs.ErrClosed) {
-                log.Printf("Error closing file: %v", err)
-            }
-        }
-    }()
-
-    // Process file
-    return nil
-}
-
-// After: Extracted cleanup function
-func ProcessFile(filename string) error {
-    f, err := os.Open(filename)
-    if err != nil {
-        return err
-    }
-    defer closeFile(f)
-
-    // Process file
-    return nil
-}
-
-func closeFile(f *os.File) {
-    if err := f.Close(); err != nil {
-        if !errors.Is(err, fs.ErrClosed) {
-            log.Printf("Error closing file: %v", err)
-        }
-    }
-}
-```
-
----
-
-## Linter-Specific Refactoring
-
-### Cyclomatic Complexity
-**Cause**: Too many decision points (if, switch, for, &&, ||)
-
-**Solutions:**
-1. Extract functions for different branches
-2. Use early returns to reduce nesting
-3. Extract type with methods for primitive logic
-4. Simplify boolean expressions
-
-### Cognitive Complexity
-**Cause**: Code hard to understand (nested logic, mixed abstractions)
-
-**Solutions:**
-1. Storifying (clarify abstraction levels)
-2. Extract nested logic to named functions
-3. Use early returns
-4. Break into smaller, focused functions
-
-### Maintainability Index
-**Cause**: Code difficult to maintain
-
-**Solutions:**
-1. All of the above
-2. Improve naming
-3. Add comments for complex logic
-4. Reduce coupling
-
----
-
-## Guidelines for Effective Refactoring
-
-### Keep Functions Small
-- Target: Under 50 LOC
-- Max 2 nesting levels
-- Single responsibility
-
-### Prefer Simplicity
-- Simple, straightforward solutions over complex ones
-- Descriptive variable and function names
-- Avoid magic numbers and strings
-
-### Maintain Tests
-- Tests should pass after refactoring
-- Add tests for new functions if needed
-- Maintain or improve coverage
-
-### Avoid Global State
-- No global variables
-- Inject dependencies through constructors
-- Keep state localized
-
----
-
-## Common Refactoring Scenarios
-
-### Scenario 1: Linter Says "Cyclomatic Complexity Too High"
-1. Identify decision points (if, switch, loops)
-2. Extract branches to separate functions
-3. Consider early returns
-4. Check for primitive obsession (move logic to type)
-
-### Scenario 2: Function Feels Hard to Test
-1. Probably doing too much → Extract functions
-2. Might have hidden dependencies → Inject through constructor
-3. Might mix concerns → Separate responsibilities
-
-### Scenario 3: Code Duplicated Across Functions
-1. Extract common logic to shared function
-2. Consider if primitives should be types (with methods)
-3. Check if behavior belongs on existing type
-
-### Scenario 4: Can't Name Function Clearly
-1. Probably doing too much → Split responsibilities
-2. Might be at wrong abstraction level
-3. Reconsider what the function should do
-
----
-
-## After Refactoring Checklist
-
-- [ ] Linter passes (`task lintwithfix`)
-- [ ] Tests pass (`go test ./...`)
-- [ ] Coverage maintained or improved
-- [ ] Code more readable
-- [ ] Functions under 50 LOC
-- [ ] Max 2 nesting levels
-- [ ] Each function has clear purpose
-
----
-
-## Integration with Design Principles
-
-Refactoring often reveals design issues. After refactoring, consider:
-
-**Created new types?**
-→ Use @code-designing to validate type design
-
-**Changed architecture?**
-→ Ensure still following vertical slice structure
-
-**Extracted significant logic?**
-→ Ensure tests cover new functions (100% for leaf types)
-
----
-
-## Summary: Refactoring Decision Tree
-
-```
-Linter fails or code complex
-    ↓
-1. Does it read like a story?
-    No → Extract functions for abstraction levels
-    ↓
-2. Can it be broken into smaller pieces?
-    Yes → By responsibility/task/category?
-          Extract functions/types/packages
-    ↓
-3. Does logic run on primitives?
-    Yes → Is this primitive obsession?
-          Create custom type with methods
-    ↓
-4. Is it long due to switch statement?
-    Yes → Extract case handlers
-    ↓
-5. Deeply nested if/else?
-    Yes → Early returns or extract functions
-    ↓
-Re-run linter → Should pass
-Run tests → Should pass
-If new types → Validate with @code-designing
-```
-
-**Remember**: Cohesion > Coupling. Put logic where it belongs.
+If the parent needs sub-package logic AND the sub-package needs parent types →
+extract the shared types into a leaf sub-package both can import. Never invert the
+arrow with an interface (`../../rules/R6-test-only-interfaces.md`).
+
+**Phased migration** (each phase must pass tests + linter):
+1. Extract leaf types first (domain sub-package) — biggest import update, zero
+   behavior change.
+2. Extract the simplest sub-package (e.g. pure UPDATE queries, no shared scanner).
+3. Extract complex sub-packages (minimal duplication of shared utilities is allowed).
+4. Rename the parent last — update all remaining imports.
+
+**PR strategy**: land the decomposition in its own PR, then rebase the feature on the
+decomposed structure. Never mix feature changes with package moves.

@@ -2,12 +2,22 @@
 
 Complete guide to Go testing principles and patterns.
 
+## Contents
+
+- [Core Testing Principles](#core-testing-principles)
+- [Table-Driven Tests](#table-driven-tests) · [Testify Suites](#testify-suites)
+- [Synchronization in Tests](#synchronization-in-tests) · [Test Organization](#test-organization)
+- [Real Implementation Patterns](#real-implementation-patterns) · [Testable Examples](#testable-examples-godoc-examples)
+- [Testing Checklist](#testing-checklist) · [Summary](#summary)
+- Pattern index (by rung): [1 In-Memory Harness](#pattern-1-in-memory-test-harness-rung-1) · [2 Binary Dependency](#pattern-2-binary-dependency-management-rung-1) · [3 Fake Server DSL](#pattern-3-fake-server-with-generic-dsl-rung-1) · [4 Bidirectional Streaming](#pattern-4-bidirectional-streaming-with-rich-dsl-rung-1) · [5 HTTP DSL/Builder](#pattern-5-http-dsl-and-builder-pattern-rung-1) · [6 Test Organization](#pattern-6-test-organization-and-structure-all-rungs) · [7 Integration Workflows](#pattern-7-integration-test-workflows-rungs-1-2) · [8 System Test](#pattern-8-system-test-black-box-top-rung)
+- [How Claude Should Use These Files](#how-claude-should-use-these-files) · [Final Notes](#final-notes)
+
 ## Core Testing Principles
 
 ### 1. Test Only Public API
 - **Use `pkg_test` package name** - Forces external perspective
 - **Test types via constructors** - No direct struct initialization
-- **No testing private methods** - If you need to test it, make it public or rethink design
+- **No testing private methods** - the urge to test a helper directly is a promotion signal: give it its own package (see `../../rules/R4-helper-placement.md`) — never export it into the parent just for tests
 
 ```go
 // ✅ Good
@@ -35,17 +45,22 @@ Instead of mocks, use:
 - Tests verify actual behavior
 - Easier to maintain
 
-### 3. Coverage Strategy
+**What the fake cannot catch:** with fake-backed tests (a mock server standing in
+for the true external boundary), the author writes both sides of the wire — so
+contract drift between your client and the real service is invisible: the fake
+keeps agreeing with the client no matter how wrong both are. Mitigate it:
+- Cross-check the fake against the source of truth (API spec, proto file, recorded
+  real responses) whenever either side changes.
+- Keep one real smoke test against the actual service (tagged/optional in CI) so
+  drift eventually surfaces.
 
-**Leaf Types** (self-contained):
-- **Target**: 100% unit test coverage
-- **Why**: Core logic must be bulletproof
+### 3. Coverage Strategy — by rung
 
-**Orchestrating Types** (coordinate others):
-- **Target**: Integration test coverage
-- **Why**: Test seams between components
+The composition ladder is defined in SKILL.md; coverage follows it:
 
-**Goal**: Most logic in leaf types (easier to test and maintain)
+- **Rung 0 (leaf types)**: 100% unit test coverage — core logic must be bulletproof, and rung-0 tables are the cheapest tests you will ever write.
+- **Higher rungs (orchestrators, composed layers)**: cover the delta each rung adds — the seams/wiring and behaviors that only exist through composition — not a re-test of lower-rung logic. Some overlap with leaf coverage is acceptable for orchestrators.
+- **Goal**: most logic in leaf types, so most coverage lives at rung 0.
 
 ---
 
@@ -56,40 +71,12 @@ Instead of mocks, use:
 - No conditionals inside t.Run()
 - Simple, focused testing scenarios
 
-### ❌ Anti-Pattern: wantErr bool
-
-**DO NOT** use `wantErr bool` pattern - it violates complexity = 1 rule:
-
-```go
-// ❌ BAD - Has conditionals (complexity > 1)
-func TestNewUserID(t *testing.T) {
-    tests := []struct {
-        name    string
-        input   string
-        want    UserID
-        wantErr bool  // ❌ Anti-pattern
-    }{
-        {name: "valid ID", input: "usr_123", want: UserID("usr_123"), wantErr: false},
-        {name: "empty ID", input: "", wantErr: true},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            got, err := NewUserID(tt.input)
-            if tt.wantErr {  // ❌ Conditional
-                assert.Error(t, err)
-                return
-            }
-            assert.NoError(t, err)
-            assert.Equal(t, tt.want, got)
-        })
-    }
-}
-```
-
 ### ✅ Correct Pattern: Separate Functions
 
-**Always separate success and error cases:**
+**Always separate success and error cases.** Folding them into one table forces a
+conditional inside `t.Run()` — the canonical violation (an error-flag bool field)
+and its detection commands live in `../../rules/R7-test-placement.md`
+(falsifying question 1). The split looks like this:
 
 ```go
 // ✅ Success cases - Complexity = 1
@@ -402,8 +389,8 @@ func Example_UserID_validation() {
 - [ ] Testify suites only for complex setup
 
 **Coverage:**
-- [ ] Leaf types: 100% unit test coverage
-- [ ] Orchestrating types: Integration tests
+- [ ] Rung 0 (leaf types): 100% unit test coverage
+- [ ] Higher rungs: each rung's delta covered (seams, emergent behaviors)
 - [ ] Happy path, edge cases, error cases covered
 
 ---
@@ -419,8 +406,8 @@ func Example_UserID_validation() {
 **Test Philosophy:**
 - Test only public API (`pkg_test` package)
 - Use real implementations, not mocks
-- Leaf types: 100% coverage
-- Orchestrating types: Integration tests
+- Rung 0 (leaf types): 100% coverage
+- Higher rungs: cover each rung's delta (seams, emergent behaviors)
 
 **Common Pitfalls to Avoid:**
 - ❌ Testing private methods
@@ -433,9 +420,9 @@ func Example_UserID_validation() {
 
 # Example Files - Reusable Testing Patterns
 
-The following example files contain **transferable patterns** that apply to many scenarios, not just the specific technologies shown. Claude should read these files based on the **pattern needed**, not the specific technology mentioned.
+The following example files contain **transferable patterns** that apply to many scenarios, not just the specific technologies shown. Claude should read these files based on the **pattern needed**, not the specific technology mentioned. Each pattern is tagged with the composition-ladder rung it serves (matching the `Rung:` tag inside each file; ladder defined in SKILL.md). Rung measures composition depth — how many real production layers the test composes — and is orthogonal to dependency heaviness (in-memory vs binary vs containers): a real binary wired directly to the code under test is still one real layer, Rung 1.
 
-## Pattern 1: In-Memory Test Harness (Level 1)
+## Pattern 1: In-Memory Test Harness (Rung 1)
 
 **File**: `examples/nats-in-memory.md`
 
@@ -461,7 +448,7 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 2: Binary Dependency Management (Level 2)
+## Pattern 2: Binary Dependency Management (Rung 1)
 
 **File**: `examples/victoria-metrics.md`
 
@@ -491,14 +478,14 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 3: Mock Server with Generic DSL (Level 1)
+## Pattern 3: Fake Server with Generic DSL (Rung 1)
 
 **File**: `examples/jsonrpc-mock.md`
 
-**Pattern**: Building generic mock servers with configurable responses using `AddMockResponse()`
+**Pattern**: Building generic fake servers — real `httptest` servers with configurable responses — using `AddMockResponse()` (the DSL keeps the real API's historical name; per SKILL.md terminology these are fakes, not interface-injected mocks)
 
 **When to read:**
-- Need to mock ANY request/response protocol
+- Need to fake ANY request/response protocol
 - Want readable test setup with DSL
 - Testing clients that call external APIs
 
@@ -519,7 +506,7 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 4: Bidirectional Streaming with Rich DSL (Level 1)
+## Pattern 4: Bidirectional Streaming with Rich DSL (Rung 1)
 
 **File**: `examples/grpc-bufconn.md`
 
@@ -547,7 +534,7 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 5: HTTP DSL and Builder Pattern (Level 1)
+## Pattern 5: HTTP DSL and Builder Pattern (Rung 1)
 
 **File**: `examples/httptest-dsl.md`
 
@@ -573,7 +560,7 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 6: Test Organization and Structure
+## Pattern 6: Test Organization and Structure (All rungs)
 
 **File**: `examples/test-organization.md`
 
@@ -592,7 +579,7 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 7: Integration Test Workflows
+## Pattern 7: Integration Test Workflows (Rungs 1-2)
 
 **File**: `examples/integration-patterns.md`
 
@@ -609,7 +596,7 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 8: System Test (Black Box)
+## Pattern 8: System Test (Black Box, Top rung)
 
 **File**: `examples/system-patterns.md`
 

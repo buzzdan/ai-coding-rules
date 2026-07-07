@@ -1,5 +1,7 @@
 # Integration Test Patterns
 
+Rung: 1-2 (orchestrators wired to real collaborators; multi-component workflows sit one rung higher)
+
 ## Purpose
 
 Integration tests verify that components work together correctly. They test the seams between packages, ensure proper data flow, and validate that integrated components behave as expected.
