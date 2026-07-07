@@ -199,17 +199,32 @@ rule's (Q4 below — they must carry why/context, not restate the identifier).
   `See docs/retry-policy.md`. Paths to docs are fine; docs move rarely and Q2
   verifies them mechanically.
 - **Docs → code** (rung 2 → rungs 0–1): cite by **exported symbol** (`Policy`,
-  `ParsePolicy`); a **package path** (`retry/`) only when a location is genuinely
-  needed; **file paths never, line numbers never** — they are the most churn-prone
-  coordinates in the repo (`R5-vertical-slice.md`'s slice reshaping renames and
-  splits files as a matter of course). A renamed exported symbol is a deliberate,
-  repo-wide-grep act, and a symbol is one grep or IDE-jump from its file — symbols
-  are the stable coordinates.
+  `ParsePolicy`); a **package or directory path** (`retry/`) only when a location
+  is genuinely needed; **file paths never, line numbers never** — they are the most
+  churn-prone coordinates in the repo (`R5-vertical-slice.md`'s slice reshaping
+  renames and splits files as a matter of course). A renamed exported symbol is a
+  deliberate, repo-wide-grep act, and a symbol is one grep or IDE-jump from its
+  file — symbols are the stable coordinates. Cite the **shortest token that greps
+  uniquely**: bare symbol by default; package-qualify only when the bare name is
+  ambiguous under repo-wide grep. Headers especially — a header is a landmark, not
+  a coordinate dump.
+- **Symbol-less artifacts** (examples/, scripts/, testdata/, configs) are cited by
+  **directory**, paired with the exported symbols the artifact demonstrates when
+  any exist — a bare directory link loses drift detection; the paired symbols
+  restore it.
+- **Test references** cite the test **package** (`the logger/ package tests`),
+  optionally its suite entry point (`TestSpanLoggerAPISuite`) — never individual
+  test functions. Test functions have no external callers and no deprecation
+  pressure, making them the repo's least stable symbols. Name one only when the
+  doc's point is that specific test's design.
 - **Every docs→code edge is a literal, greppable token** — never a prose paraphrase
   of code structure. Greppable edges make drift mechanically detectable (Q2);
   paraphrases fail silently.
 - **Edge density stays low**: entry points and key players only. The doc maps the
-  front doors; it does not mirror the tree.
+  front doors; it does not mirror the tree. ASCII trees are welcome as orientation
+  devices at **package/directory granularity** — a directories-only tree is just a
+  set of package-path citations; file-level leaf entries are the violation. Prune
+  the leaves, keep the tree.
 
 ### The index (rung 3) and the root
 
@@ -265,14 +280,17 @@ directory.
    plus `.md`-to-`.md` links inside `<docroot>`; `test -f` each target.
    Detection, docs→code: for each backticked symbol a doc cites,
    `grep -rn "type <Sym>\|func <Sym>" --include='*.go' .` (for methods, grep the
-   method name); for a cited package path, check the directory exists.
+   method name); for a cited package or directory path, `test -d` it.
    Violation: any unresolved target in either direction. Additionally, a doc citing
    a **file path or line number** is itself a violation of the edge policy —
-   detection: `grep -nE '\.go(:[0-9]+)?|line [0-9]+' <docroot>/*.md` — regardless
-   of whether the coordinate currently resolves.
-   An index line carrying the ⚠️ stale flag (cites an unresolved `Symbol`) is a
-   recorded finding, not a broken edge — exempt from this question, since the
-   decision to refresh, remove, or keep it is the user's.
+   detection: `grep -nE '\.go(:[0-9]+)?|line [0-9]+' <docroot>/*.md | grep -v '://'`
+   (the `://` filter exempts URLs, e.g. pkg.go.dev links) — regardless of whether
+   the coordinate currently resolves.
+   Two exemptions: an index line carrying the ⚠️ stale flag (cites an unresolved
+   `Symbol`) is a recorded finding, not a broken edge — the decision to refresh,
+   remove, or keep it is the user's. And backticks are a resolvability contract —
+   a future/roadmap symbol is written in prose or explicitly marked *(planned)*,
+   and *(planned)*-marked citations are exempt from resolution.
 
 3. **Is the root unwired?**
    Detection: `grep -l 'index.md' CLAUDE.md AGENTS.md 2>/dev/null`.

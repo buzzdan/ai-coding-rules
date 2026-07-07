@@ -129,8 +129,10 @@ feature docs.
 
 The sections are a menu too: a small feature may need only Problem & Solution, Entry
 Points, and Related. All code citations follow R9's edge policy: exported symbols
-first, package paths when a location is genuinely needed, file paths and line numbers
-never.
+first — the shortest token that greps uniquely, package-qualified only on ambiguity;
+package or directory paths when a location is genuinely needed (directories for
+symbol-less artifacts like examples/, paired with the symbols they demonstrate);
+file paths and line numbers never.
 
 ```markdown
 # [Feature Name]
@@ -179,7 +181,8 @@ Input → Validation → Processing → Storage → Output
 [Edge cases — only if they exist]
 
 ## Testing Strategy
-- **Unit tests**: [What's covered, approach]
+- **Unit tests**: [What's covered, approach — cite the test package or its suite
+  entry point, never individual test functions (R9 edge policy)]
 - **Integration tests**: [What's covered, approach]
 
 ## Future Considerations
