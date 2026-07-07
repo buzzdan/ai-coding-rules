@@ -3,7 +3,7 @@ name: refactoring
 description: |
   BACKWARD view over rules/ — routes linter and review failures to the rule whose Fix pattern owns the repair.
   Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain.
-  Applies storifying, type extraction, and function extraction patterns via rules/R1-R8.
+  Applies storifying, type extraction, and function extraction patterns via rules/R1-R8 and R10.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
@@ -45,6 +45,7 @@ table in `../../agents/lint-fixer.md` — keep them consistent.)
 | revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
 | `gochecknoglobals` / `gochecknoinits` | `../../rules/R8-no-globals.md` |
 | `ireturn` / interface lint on single-impl interfaces | `../../rules/R6-test-only-interfaces.md` |
+| `go test -race` failures; `govet` `copylocks` | `../../rules/R10-concurrency-safety.md` |
 | `wrapcheck`, `errcheck`, `goconst`, revive `early-return`, renames | Mechanical — fix directly (`fmt.Errorf("context: %w", err)`, handle the error, extract constant, invert & return early). Enum-shaped `goconst` strings → R1's "Name enum strings" move. |
 </routing_table>
 
@@ -62,6 +63,7 @@ from there, never from memory:
 | Inline the interface, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
 | Move test down a rung, Split `wantErr` tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
 | Extract Clean Island, Push Global Up One Level, Replace `init()` with constructor, Thread `ctx` | `../../rules/R8-no-globals.md` |
+| Inject the Exit Path, Make the Goroutine Joinable, Extract Synchronized Owner, Replace Sleep with Timer Select, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
 
 **Multi-rule procedures** (sequencing, god-object decomposition, package
 decomposition): `reference.md` in this directory.

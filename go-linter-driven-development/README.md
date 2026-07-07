@@ -16,7 +16,7 @@ The organising idea of v2: **the rule is the unit, not the phase.** Each design 
 
 ```
 go-linter-driven-development/
-├── rules/        R1-primitive-obsession … R9-repo-brain   (single source of truth)
+├── rules/        R1-primitive-obsession … R10-concurrency-safety   (single source of truth)
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection   (case law)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
 │                 pre-commit-review · testing · documentation   (thin directional views)
@@ -27,7 +27,7 @@ go-linter-driven-development/
 
 **Four layers, one fact per fact:**
 
-- **[`rules/`](rules/)** — R1–R9, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
+- **[`rules/`](rules/)** — R1–R10, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
 - **[`examples/`](examples/)** — deep worked case studies (full before/after code + the reasoning). Rules cite them by relative path instead of inlining long studies.
 - **[`skills/`](skills/)** — thin directional views (~100–150 lines) that *sequence* and *route* into the rules. They never restate rule content.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated contexts. **Agents get knowledge as spawn-time payload — the relevant rule file's content is pasted into the prompt. Agents do NOT invoke skills.**
@@ -77,6 +77,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | R7 | [`rules/R7-test-placement.md`](rules/R7-test-placement.md) | `pkg_test` only, no wantErr conditionals, right-rung tests, no sleeps |
 | R8 | [`rules/R8-no-globals.md`](rules/R8-no-globals.md) | No package-level state; no `context.Background()` in library code |
 | R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md |
+| R10 | [`rules/R10-concurrency-safety.md`](rules/R10-concurrency-safety.md) | Goroutines with owners and exit paths; shared state guarded where it lives; no production sleeps |
 
 **Examples → rules demonstrated** (case law):
 
@@ -260,7 +261,7 @@ Every finding carries evidence (`file:line` + the falsifying-question answer or 
 
 The plugin follows opinionated Go best practices, each with an owning rule:
 
-**Design:** no primitive obsession (R1), self-validating types (R2), vertical slices (R5), no globals (R8).
+**Design:** no primitive obsession (R1), self-validating types (R2), vertical slices (R5), no globals (R8), owned goroutines and guarded shared state (R10).
 **Testing:** test the public API via `pkg_test` (R7), the composition ladder over the pyramid, real in-memory dependencies over mocks, no test-only interfaces (R6).
 **Refactoring:** storify top-level functions (R3), helpers on the placement ladder (R4), let the linter say WHAT and the rules say HOW.
 **Documentation:** a networked repo brain — each fact at its lowest rung, reachable from the root, edges pointing both ways (R9).

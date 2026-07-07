@@ -3,7 +3,7 @@ name: code-designing
 description: |
   FORWARD view over rules/ — domain type design and architectural planning for Go code BEFORE it exists.
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
-  Dispatches into the Design guidance sections of rules/R1-R8.
+  Dispatches into the Design guidance sections of rules/R1-R8 and R10.
 allowed-tools:
   - Skill(go-linter-driven-development:testing)
 ---
@@ -72,6 +72,7 @@ For each concept in the design, open the rule that owns the question and apply i
 | `../../rules/R6-test-only-interfaces.md` | Default dependencies to concrete types; an interface must be earned by a second production implementation or a grep-verified import cycle. |
 | `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors; orchestrators integration-tested over real collaborators. |
 | `../../rules/R8-no-globals.md` | Dependencies injected via constructors, `ctx` threaded from callers, globals only at entry points. |
+| `../../rules/R10-concurrency-safety.md` | Every planned goroutine gets an owner (stop + wait) and an exit path at construction time; shared state designed with its guard on one type — or designed away via handoff/confinement. |
 </rule_dispatch>
 
 <design_checklist>
@@ -85,6 +86,7 @@ Before presenting the plan, verify against the rules (cite, don't restate):
 - [ ] No test-only interfaces: every interface has a second production implementation OR breaks a real import cycle, verified by grepping the import direction (detection command in `../../rules/R6-test-only-interfaces.md`); otherwise depend on the concrete type
 - [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in @refactoring `<package_decomposition>`)
 - [ ] Dependencies constructor-injected and validated; ctx flows down; no new globals (R8, R2)
+- [ ] Every goroutine has an owner and exit path; shared state guarded where it lives, or confined (R10)
 </design_checklist>
 
 </protocol>

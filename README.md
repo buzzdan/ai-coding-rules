@@ -18,7 +18,7 @@ Plus the standalone rule documents the plugins grew out of:
 
 The organising idea: **the rule is the unit, not the phase.** Each design principle lives exactly once, as data:
 
-- **`rules/` R1–R9** — single source of truth: primitive obsession, self-validating types, storifying, helper placement, vertical slices, test-only interfaces, test placement, no globals, repo-brain documentation.
+- **`rules/` R1–R10** — single source of truth: primitive obsession, self-validating types, storifying, helper placement, vertical slices, test-only interfaces, test placement, no globals, repo-brain documentation, concurrency safety.
 - **`skills/`** — six thin directional views that sequence and route into the rules (orchestrator, design, testing, refactoring, review, documentation).
 - **`agents/`** — payload-fed isolated workers: parallel single-obsession `rule-hunter`s, an `overabstraction-skeptic` that tries to kill proposed extractions, and a `lint-fixer` that keeps the lint loop out of your conversation.
 - **`commands/`** — `/go-ldd-autopilot`, `/go-ldd-quickfix`, `/go-ldd-analyze`, `/go-ldd-review`, `/go-ldd-status`, `/wire-repo-brain`.

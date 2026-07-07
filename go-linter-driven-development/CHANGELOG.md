@@ -3,6 +3,21 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-07-07
+
+### Added
+
+- **`rules/R10-concurrency-safety.md`** — restores the concurrency coverage that v2.0.0 dropped when the generalist reviewer was retired (v1's "Design Bugs" checklist §8 and anti-patterns §9 had no rule home). R10 owns what static analysis cannot prove:
+  - every goroutine has an owner (stop + wait) and a provable exit path
+  - shared mutable state is guarded where it lives (mutex next to the data, or confined/handed off)
+  - no `time.Sleep` on cancellable production paths — timer `select` with `ctx.Done()`
+  - the inverse trap: guards and goroutines that are ceremony (single-goroutine mutexes) get deleted, mirroring R1's over-abstraction symmetry
+- Wiring: pre-commit-review hunts R10 (leaks/races categorized as 🐛 Bugs; sleeps/ownership/mutex-placement as 🔴 Design Debt), its "Extract Synchronized Owner" proposals face the over-abstraction skeptic, code-designing dispatches R10 at design time, refactoring + lint-fixer route `go test -race` failures and `govet copylocks` to it.
+
+### Explicitly out of R10's scope
+
+Mechanical error-handling checks (ignored errors, unclosed response bodies, copied locks) stay with the linter — `errcheck`, `bodyclose`, `govet` — per the "linter says WHAT" division. Judgment-level silent-failure review (fallback legitimacy, error-message quality) is served by external review tooling, not duplicated as a rule.
+
 ## [2.0.0] - 2026-07-07
 
 The **rules-as-data** release. The unit of knowledge is now the rule, not the phase: each design principle lives exactly once in `rules/`, and every skill, agent, and command is a thin view or worker over those rules.
@@ -43,5 +58,6 @@ Initial release as a Claude Code plugin: five-phase linter-driven workflow (desi
 
 Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
 
+[2.1.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.1.0
 [2.0.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0
 [1.0.0]: https://github.com/buzzdan/ai-coding-rules/commit/746ae7d
