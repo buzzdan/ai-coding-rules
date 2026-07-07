@@ -7,7 +7,7 @@
     {
       "name": "go-linter-driven-development",
       "source": "./go-linter-driven-development",
-      "description": "Linter-driven development workflow for Go with 6 specialized skills: meta orchestrator, design, testing, refactoring, review, and documentation"
+      "description": "Rules-as-data linter-driven development workflow for Go: 9 single-source rule files, thin directional skills (design, TDD implementation, refactoring, testing, review, documentation), and a hunter/skeptic review architecture with parallel single-rule reviewers and an over-abstraction skeptic"
     },
     {
       "name": "ts-react-linter-driven-development",
