@@ -63,7 +63,7 @@ Search project documentation to find test and lint commands:
    what needs refactoring without changing anything. (The `lint-fixer` agent, which
    auto-fixes, is intentionally NOT used here — this command never edits.)
 3. **Design review**: invoke `Skill(go-linter-driven-development:pre-commit-review)`
-   in FULL mode over the file scope. It grep-prefilters the diff against rules R1–R9,
+   in FULL mode over the file scope. It grep-prefilters the diff against rules R1–R10,
    spawns one parallel `rule-hunter` per rule with hits, runs the
    `overabstraction-skeptic` over every type/package-extraction proposal, and returns
    evidence-backed findings. It reports — it never edits.
@@ -75,8 +75,8 @@ Merge the three gates into one report:
 - ✅/❌ **Tests**: pass/fail status with coverage
 - ✅/❌ **Linter**: clean / error count (with file:line and the failing linter)
 - ✅/⚠️ **Review**: clean / findings, categorized as the pre-commit-review report returns them:
-  - 🐛 **Bugs** — fail at runtime regardless of rule
-  - 🔴 **Design Debt** — R1, R2, R4, R5, R6, R7, R8 (advisory)
+  - 🐛 **Bugs** — fail at runtime regardless of rule (incl. R10 goroutine leaks and unguarded concurrent writes)
+  - 🔴 **Design Debt** — R1, R2, R4, R5, R6, R7, R8, R10's non-crash findings (advisory)
   - 🟡 **Readability Debt** — R3, R9, unclear naming
   - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives
 - 🎯 **Clustered issues**: where a linter failure and a review finding land at the same

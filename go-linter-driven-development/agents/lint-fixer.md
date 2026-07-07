@@ -44,6 +44,7 @@ this table:
 | revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | rules/R5-vertical-slice.md |
 | `gochecknoglobals` / `gochecknoinits` | rules/R8-no-globals.md |
 | `ireturn` / interface lint on single-impl interfaces | rules/R6-test-only-interfaces.md |
+| `go test -race` failures; `govet` `copylocks` | rules/R10-concurrency-safety.md (via @refactoring) |
 | `goconst` (enum-shaped strings) | rules/R1-primitive-obsession.md ("Name enum strings" move) |
 
 **Hard limits:**
