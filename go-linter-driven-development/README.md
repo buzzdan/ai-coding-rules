@@ -16,18 +16,18 @@ The organising idea of v2: **the rule is the unit, not the phase.** Each design 
 
 ```
 go-linter-driven-development/
-├── rules/        R1-primitive-obsession … R8-no-globals   (single source of truth)
+├── rules/        R1-primitive-obsession … R9-repo-brain   (single source of truth)
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection   (case law)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
 │                 pre-commit-review · testing · documentation   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
-├── commands/     go-ldd-analyze · autopilot · quickfix · review · status
+├── commands/     go-ldd-analyze · autopilot · quickfix · review · status · wire-repo-brain
 └── hooks/        package-size gate
 ```
 
 **Four layers, one fact per fact:**
 
-- **[`rules/`](rules/)** — R1–R8, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
+- **[`rules/`](rules/)** — R1–R9, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
 - **[`examples/`](examples/)** — deep worked case studies (full before/after code + the reasoning). Rules cite them by relative path instead of inlining long studies.
 - **[`skills/`](skills/)** — thin directional views (~100–150 lines) that *sequence* and *route* into the rules. They never restate rule content.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated contexts. **Agents get knowledge as spawn-time payload — the relevant rule file's content is pasted into the prompt. Agents do NOT invoke skills.**
@@ -76,6 +76,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | R6 | [`rules/R6-test-only-interfaces.md`](rules/R6-test-only-interfaces.md) | No interface whose only second implementer is a test double |
 | R7 | [`rules/R7-test-placement.md`](rules/R7-test-placement.md) | `pkg_test` only, no wantErr conditionals, right-rung tests, no sleeps |
 | R8 | [`rules/R8-no-globals.md`](rules/R8-no-globals.md) | No package-level state; no `context.Background()` in library code |
+| R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md |
 
 **Examples → rules demonstrated** (case law):
 
@@ -94,7 +95,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern |
 | [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) | Orchestrates the hunter/skeptic review (Phase 4); reports, never edits |
 | [`@testing`](skills/testing/SKILL.md) | The composition ladder — test each behavior at the lowest rung that contains it |
-| [`@documentation`](skills/documentation/SKILL.md) | Behavior-focused docs, godoc, testable examples (Phase 5) |
+| [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring; FEATURE mode (Phase 5) / BOOTSTRAP mode |
 
 **Agents → spawned by** (payload-fed, isolated):
 
@@ -113,6 +114,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`/go-ldd-analyze [files]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
 | [`/go-ldd-review [files]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
 | [`/go-ldd-status`](commands/go-ldd-status.md) | Show current phase + progress | N/A | — |
+| [`/wire-repo-brain [path]`](commands/wire-repo-brain.md) | Wire the documentation network in one pass: upward edges → docs → index.md → CLAUDE.md (@documentation BOOTSTRAP) | ✅ Wiring only | ✅ Optional |
 
 ## How Auto-Detection Works
 
@@ -249,7 +251,7 @@ The [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) report groups find
 
 - 🐛 **Bugs** — fail at runtime regardless of rule (fix immediately)
 - 🔴 **Design Debt** — R1, R2, R4, R5, R6, R7, R8 (fix before commit recommended)
-- 🟡 **Readability Debt** — R3, unclear naming (improves maintainability)
+- 🟡 **Readability Debt** — R3, R9, unclear naming (improves maintainability)
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives
 
 Every finding carries evidence (`file:line` + the falsifying-question answer or command output) and cites its rule's Fix pattern for HOW to fix.
@@ -261,6 +263,7 @@ The plugin follows opinionated Go best practices, each with an owning rule:
 **Design:** no primitive obsession (R1), self-validating types (R2), vertical slices (R5), no globals (R8).
 **Testing:** test the public API via `pkg_test` (R7), the composition ladder over the pyramid, real in-memory dependencies over mocks, no test-only interfaces (R6).
 **Refactoring:** storify top-level functions (R3), helpers on the placement ladder (R4), let the linter say WHAT and the rules say HOW.
+**Documentation:** a networked repo brain — each fact at its lowest rung, reachable from the root, edges pointing both ways (R9).
 
 ## v2 Changes
 

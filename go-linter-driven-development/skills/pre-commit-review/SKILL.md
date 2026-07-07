@@ -13,7 +13,7 @@ allowed-tools:
 ---
 
 <objective>
-Verify a finished diff against the plugin's rules (R1–R8) with evidence, by orchestrating
+Verify a finished diff against the plugin's rules (R1–R9) with evidence, by orchestrating
 parallel single-obsession `rule-hunter` agents and one `overabstraction-skeptic`.
 Pure orchestration and reporting: this skill may spawn agents but never edits code, never
 fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
@@ -52,6 +52,7 @@ A rule with zero hits is skipped — no hunter spawned for it.
 | R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
 | R7 | `../../rules/R7-test-placement.md` | internal test packages; wantErr conditionals; wrong-rung tests; sleeps |
 | R8 | `../../rules/R8-no-globals.md` | package-level state; `context.Background()` in library code |
+| R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root |
 
 Also in-context: a new `//nolint` directive or `.golangci.yaml` exclusion in the diff is
 itself a finding — the change must justify, with evidence, that the rule genuinely does
@@ -90,8 +91,9 @@ Verdicts per finding: `CONFIRMED (score + verified evidence)` or
 `REFUTED (score 0–1 + reason) → cheaper alternative`. A refuted proposal does not ship;
 when its cheaper alternative (better naming, private fields + accessors) is still worth
 doing, report the alternative as 🟢 Polish. Only findings the skeptic cannot kill ship
-as extraction findings. Non-extraction findings (R3, R5–R8, and R1/R2 findings that
-propose no new type) skip the skeptic and go straight to the report.
+as extraction findings. Non-extraction findings (R3, R5–R9, and R1/R2 findings that
+propose no new type) skip the skeptic and go straight to the report — R9 findings
+(orphans, broken edges, WHAT-comments, unwired root) propose no type extractions.
 </step_3_skeptic_pass>
 
 <step_4_merged_report>
@@ -101,7 +103,7 @@ Merge surviving findings into one report. Category mapping:
   cancellation swallowed by `context.Background()`): fix immediately.
 - 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, and R5 (advisory — never blocks; the
   user may have valid reasons): fix before commit recommended.
-- 🟡 **Readability Debt** — R3, unclear naming: improves maintainability.
+- 🟡 **Readability Debt** — R3, R9, unclear naming: improves maintainability.
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
 Every finding carries evidence — `file:line` plus the falsifying-question answer or
@@ -113,7 +115,7 @@ Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as fi
 </protocol>
 
 <modes>
-**FULL (first run):** pre-filter all eight rules over the whole diff scope; report every
+**FULL (first run):** pre-filter all nine rules over the whole diff scope; report every
 surviving finding.
 
 **INCREMENTAL (re-run after fixes):** diff scope = only files changed since the last

@@ -125,12 +125,15 @@ fresh-context value only pays on finished work. The REFACTOR-step greps are the
 mid-implementation net; this pass is the verification net.
 
 Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all
-advisory. Fix bugs and user-accepted findings via @refactoring, then re-invoke
+advisory. Fix bugs and user-accepted findings via @refactoring — except accepted R9
+(documentation-network) findings, whose fixer is @documentation — then re-invoke
 @pre-commit-review in INCREMENTAL mode until the delta reports clean.
 </phase_4_review>
 
 <phase_5_ship>
-1. Invoke @documentation: package/type godoc, testable examples, feature docs.
+1. Invoke @documentation (FEATURE mode): godoc + feature docs, wired into the
+   documentation network (index line, edges both directions, root import), plus its
+   R9 self-check over the diff.
 2. Present the ship summary: tests green (`go test ./...`), lint green (Phase 3),
    review delta (Phase 4), files changed, suggested commit message.
 3. User decides: commit as-is · fix deferred advisory findings first · defer.
@@ -142,5 +145,6 @@ advisory. Fix bugs and user-accepted findings via @refactoring, then re-invoke
 - [ ] Package-scoped lint + rule greps clean after each cycle
 - [ ] lint-fixer reported `LINT STATUS: green`; all escalations resolved via @refactoring
 - [ ] @pre-commit-review INCREMENTAL delta clean, or findings explicitly deferred by user
-- [ ] @documentation done; commit summary presented and user chose an action
+- [ ] @documentation (FEATURE mode) done — docs wired into the network, R9 self-check
+      clean; commit summary presented and user chose an action
 </success_criteria>
