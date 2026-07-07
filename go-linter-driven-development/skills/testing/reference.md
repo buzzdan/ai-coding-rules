@@ -9,7 +9,7 @@ Complete guide to Go testing principles and patterns.
 - [Synchronization in Tests](#synchronization-in-tests) · [Test Organization](#test-organization)
 - [Real Implementation Patterns](#real-implementation-patterns) · [Testable Examples](#testable-examples-godoc-examples)
 - [Testing Checklist](#testing-checklist) · [Summary](#summary)
-- Pattern index (by rung): [1 In-Memory Harness](#pattern-1-in-memory-test-harness-rung-1) · [2 Binary Dependency](#pattern-2-binary-dependency-management-rung-1) · [3 Mock Server DSL](#pattern-3-mock-server-with-generic-dsl-rung-1) · [4 Bidirectional Streaming](#pattern-4-bidirectional-streaming-with-rich-dsl-rung-1) · [5 HTTP DSL/Builder](#pattern-5-http-dsl-and-builder-pattern-rung-1) · [6 Test Organization](#pattern-6-test-organization-and-structure-all-rungs) · [7 Integration Workflows](#pattern-7-integration-test-workflows-rungs-1-2) · [8 System Test](#pattern-8-system-test-black-box-top-rung)
+- Pattern index (by rung): [1 In-Memory Harness](#pattern-1-in-memory-test-harness-rung-1) · [2 Binary Dependency](#pattern-2-binary-dependency-management-rung-1) · [3 Fake Server DSL](#pattern-3-fake-server-with-generic-dsl-rung-1) · [4 Bidirectional Streaming](#pattern-4-bidirectional-streaming-with-rich-dsl-rung-1) · [5 HTTP DSL/Builder](#pattern-5-http-dsl-and-builder-pattern-rung-1) · [6 Test Organization](#pattern-6-test-organization-and-structure-all-rungs) · [7 Integration Workflows](#pattern-7-integration-test-workflows-rungs-1-2) · [8 System Test](#pattern-8-system-test-black-box-top-rung)
 - [How Claude Should Use These Files](#how-claude-should-use-these-files) · [Final Notes](#final-notes)
 
 ## Core Testing Principles
@@ -478,14 +478,14 @@ The following example files contain **transferable patterns** that apply to many
 
 ---
 
-## Pattern 3: Mock Server with Generic DSL (Rung 1)
+## Pattern 3: Fake Server with Generic DSL (Rung 1)
 
 **File**: `examples/jsonrpc-mock.md`
 
-**Pattern**: Building generic mock servers with configurable responses using `AddMockResponse()`
+**Pattern**: Building generic fake servers — real `httptest` servers with configurable responses — using `AddMockResponse()` (the DSL keeps the real API's historical name; per SKILL.md terminology these are fakes, not interface-injected mocks)
 
 **When to read:**
-- Need to mock ANY request/response protocol
+- Need to fake ANY request/response protocol
 - Want readable test setup with DSL
 - Testing clients that call external APIs
 
