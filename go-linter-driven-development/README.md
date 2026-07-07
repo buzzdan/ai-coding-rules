@@ -281,6 +281,8 @@ If you have muscle memory for `quality-analyzer` or `go-code-reviewer`, the clos
 /plugin update go-linter-driven-development@ai-coding-rules
 ```
 
+See [CHANGELOG.md](CHANGELOG.md) for what changed between versions — including the v2.0.0 breaking changes and migration notes.
+
 ## Uninstalling
 
 ```

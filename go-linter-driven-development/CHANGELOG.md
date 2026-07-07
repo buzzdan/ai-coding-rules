@@ -1,0 +1,47 @@
+# Changelog
+
+All notable changes to the `go-linter-driven-development` plugin are documented here.
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
+
+## [2.0.0] - 2026-07-07
+
+The **rules-as-data** release. The unit of knowledge is now the rule, not the phase: each design principle lives exactly once in `rules/`, and every skill, agent, and command is a thin view or worker over those rules.
+
+### Breaking
+
+- **Removed the `quality-analyzer` and `go-code-reviewer` agents.** Anything that invoked them directly ("use the quality-analyzer agent", custom commands, references in your CLAUDE.md) will fail with "unknown agent".
+  **Migration:** `/go-ldd-analyze` replaces quality-analyzer's combined tests+lint+review report; `@pre-commit-review` replaces go-code-reviewer with the hunter/skeptic review.
+
+### Added
+
+- **`rules/` — R1–R9, the single source of truth.** Each rule file states its Principle, Why, a canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions with grep-able detection commands:
+  R1 primitive obsession · R2 self-validating types · R3 storifying · R4 helper placement · R5 vertical slice · R6 test-only interfaces · R7 test placement · R8 no globals · R9 repo-brain (documentation network).
+- **`examples/` — case law.** Deep worked studies cited by the rules: `storify-leaf-type`, `overabstraction-cidr`, `dependency-rejection`.
+- **New agents** (spawned programmatically, payload-fed, isolated contexts):
+  - `rule-hunter` — single-obsession reviewer; gets ONE rule file pasted in full, hunts only that rule across the diff, returns evidence-backed findings.
+  - `overabstraction-skeptic` — devil's advocate that tries to kill every "extract a type/package" proposal using R1's juiciness scorecard; refuted proposals ship a cheaper alternative instead.
+  - `lint-fixer` — runs the full-repo lint-fix loop in an isolated context (token noise stays out of your conversation); fixes mechanical issues, escalates design failures with a rule route.
+- **`/wire-repo-brain [path]` command** — bootstrap the R9 documentation network on an existing repo in one pass: code→docs edges, `index.md`, CLAUDE.md wiring.
+- **Composition-ladder testing model** in `@testing`: test each behavior at the lowest rung that contains it; rung-tagged reusable patterns in the testing reference.
+
+### Changed
+
+- **Review is now hunter/skeptic and advisory.** `@pre-commit-review` grep-prefilters the diff per rule, spawns one parallel `rule-hunter` per rule with hits, then the skeptic pass; the merged report categorizes findings (🐛 Bugs / 🔴 Design Debt / 🟡 Readability / 🟢 Polish) and **never blocks a commit**. Expect more parallel subagent activity during review than v1's single reviewer.
+- **The orchestrator runs a per-behavior RED→GREEN→REFACTOR loop** (Phase 2) with package-scoped lint each cycle, instead of phase-batched implementation. Full-repo lint runs once, in Phase 3, via `lint-fixer`.
+- **Skills were thinned to directional views** (~100–150 lines) that sequence and route into the rules — `@code-designing` is the forward view (design before code exists), `@refactoring` the backward view (linter failure → owning rule's Fix pattern). Duplicated reference content was deleted; skill names are unchanged.
+- **`@documentation` is now the R9 repo-brain author** with FEATURE mode (Phase 5, document behavior after a change) and BOOTSTRAP mode (wire a repo's documentation network).
+- Commands (`/go-ldd-analyze`, `/go-ldd-autopilot`, `/go-ldd-quickfix`, `/go-ldd-review`, `/go-ldd-status`) updated to the new phase model; names and file-targeting behavior unchanged.
+
+### Unchanged — no action required on upgrade
+
+- Plugin name, all six skill names, all five pre-existing slash commands, auto-detection triggers, and the zero-configuration promise (test/lint commands discovered from Makefile/Taskfile/README).
+- The opt-in package-size hook.
+
+## [1.0.0] - 2025-10-28
+
+Initial release as a Claude Code plugin: five-phase linter-driven workflow (design, TDD, lint, review, document) with skills, the `quality-analyzer`/`go-code-reviewer` agents, `/go-ldd-*` commands, and the package-size hook.
+
+Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
+
+[2.0.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0
+[1.0.0]: https://github.com/buzzdan/ai-coding-rules/commit/746ae7d
