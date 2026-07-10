@@ -3,7 +3,7 @@ name: refactoring
 description: |
   BACKWARD view over rules/ — routes linter and review failures to the rule whose Fix pattern owns the repair.
   Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain.
-  Applies storifying, type extraction, and function extraction patterns via rules/R1-R8 and R10.
+  Applies storifying, type extraction, function extraction, and conditional-dispatch patterns via rules/R1-R8 and R10-R11.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
@@ -41,7 +41,8 @@ table in `../../agents/lint-fixer.md` — keep them consistent.)
 | `funlen` | `../../rules/R3-storifying.md` |
 | `nestif` | `../../rules/R3-storifying.md` |
 | `maintidx` | `../../rules/R3-storifying.md` + `../../rules/R1-primitive-obsession.md` |
-| `dupl` | `../../rules/R1-primitive-obsession.md` (extract shared type/logic) |
+| `dupl` | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated blocks that switch on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
+| `exhaustive` (missing enum cases) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site; a second switch appearing is the R11 violation itself |
 | revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
 | `gochecknoglobals` / `gochecknoinits` | `../../rules/R8-no-globals.md` |
 | `ireturn` / interface lint on single-impl interfaces | `../../rules/R6-test-only-interfaces.md` |
@@ -64,6 +65,7 @@ from there, never from memory:
 | Move test down a rung, Split `wantErr` tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
 | Extract Clean Island, Push Global Up One Level, Replace `init()` with constructor, Thread `ctx` | `../../rules/R8-no-globals.md` |
 | Inject the Exit Path, Make the Goroutine Joinable, Extract Synchronized Owner, Replace Sleep with Timer Select, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
+| Replace Duplicated Switch with Interface Dispatch, Replace If-Chain with Strategy Map, Introduce Null Object, Split Flag Argument, Keep the Single Exhaustive Switch | `../../rules/R11-conditional-dispatch.md` |
 
 **Multi-rule procedures** (sequencing, god-object decomposition, package
 decomposition): `reference.md` in this directory.
@@ -72,6 +74,7 @@ decomposition): `reference.md` in this directory.
 - Storify → leaf type discovery: `../../examples/storify-leaf-type.md`
 - Over-abstraction rejection + cheaper alternatives: `../../examples/overabstraction-cidr.md`
 - Incremental global elimination: `../../examples/dependency-rejection.md`
+- Duplicated kind-switch → interface dispatch (and the kept-switch rejection): `../../examples/anti-if-dispatch.md`
 </pattern_index>
 
 <file_and_package_routing>

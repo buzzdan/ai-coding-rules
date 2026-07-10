@@ -512,6 +512,7 @@ See reference.md for detailed principles:
 - Custom hooks for reusable logic
 - Context for shared state (use sparingly)
 - Props interfaces and type safety
+- One dispatch owner per variant family (Anti-IF): model variants as discriminated unions; render them via component/lookup maps, never the same kind-conditional in multiple components
 
 ## Pre-Code Review Questions
 
@@ -521,6 +522,7 @@ Before writing code, ask:
 - Should state be local or context?
 - Have I avoided primitive obsession?
 - Is validation in the right place?
+- Does each variant family (kind/status/type) have exactly one dispatch owner — a discriminated union rendered through a component map or one exhaustive switch?
 - Does this follow the existing codebase architecture?
 - Are components small and focused?
 

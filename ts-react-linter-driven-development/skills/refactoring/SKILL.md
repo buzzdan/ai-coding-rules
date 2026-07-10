@@ -529,6 +529,105 @@ function LoginForm() {
 }
 ```
 
+### Pattern 8: Replace Tag-Based Conditionals with Dispatch (Anti-IF)
+
+**Signal**: The same discriminator (`kind`, `status`, `type` field) inspected in more than one place; ternary/if-else chains in JSX selecting between renderings; switch statements duplicated across files
+
+The Anti-IF principle: a conditional that asks what a value *is* may exist once. The second copy of the same `switch (x.kind)` is a missing abstraction — dispatch through a lookup map or let a discriminated union carry the decision.
+
+```typescript
+// ❌ Before - Same discriminator inspected in three places
+function StatusBadge({ status }: { status: Status }) {
+  return status === 'active' ? (
+    <Badge color='green'>Active</Badge>
+  ) : status === 'pending' ? (
+    <Badge color='yellow'>Pending</Badge>
+  ) : (
+    <Badge color='red'>Suspended</Badge>
+  )
+}
+
+function statusLabel(status: Status) {
+  if (status === 'active') return 'Active'
+  if (status === 'pending') return 'Pending approval'
+  return 'Suspended' // drifts independently of StatusBadge
+}
+
+function canLogin(status: Status) {
+  if (status === 'active') return true
+  if (status === 'pending') return true
+  return false
+}
+
+// ✅ After - One dispatch owner: a config map keyed by the discriminator
+const STATUS_CONFIG: Record<Status, { color: BadgeColor; label: string; canLogin: boolean }> = {
+  active: { color: 'green', label: 'Active', canLogin: true },
+  pending: { color: 'yellow', label: 'Pending approval', canLogin: true },
+  suspended: { color: 'red', label: 'Suspended', canLogin: false }
+}
+
+function StatusBadge({ status }: { status: Status }) {
+  const { color, label } = STATUS_CONFIG[status]
+  return <Badge color={color}>{label}</Badge>
+}
+
+// Adding a status = adding one entry; TypeScript errors until every
+// Record key is present — the compiler enforces completeness.
+```
+
+For variant components, dispatch through a component map instead of ternary chains in JSX:
+
+```typescript
+// ❌ Before - Nested ternaries selecting components
+function NotificationItem({ notification }: { notification: Notification }) {
+  return notification.kind === 'message' ? (
+    <MessageNotification data={notification} />
+  ) : notification.kind === 'mention' ? (
+    <MentionNotification data={notification} />
+  ) : (
+    <SystemNotification data={notification} />
+  )
+}
+
+// ✅ After - Component map, one entry per variant
+const NOTIFICATION_VIEWS: Record<Notification['kind'], FC<{ data: Notification }>> = {
+  message: MessageNotification,
+  mention: MentionNotification,
+  system: SystemNotification
+}
+
+function NotificationItem({ notification }: { notification: Notification }) {
+  const View = NOTIFICATION_VIEWS[notification.kind]
+  return <View data={notification} />
+}
+```
+
+When a switch legitimately stays (single site, variant-specific payloads), make it a **discriminated union with an exhaustiveness check** — the compiler then does what an if-chain never could: fail the build when a variant is added but not handled:
+
+```typescript
+type PaymentEvent =
+  | { kind: 'charge'; amountCents: number }
+  | { kind: 'refund'; amountCents: number; reason: string }
+  | { kind: 'dispute'; caseId: string }
+
+function describe(event: PaymentEvent): string {
+  switch (event.kind) {
+    case 'charge':
+      return `Charged ${formatCents(event.amountCents)}`
+    case 'refund':
+      return `Refunded ${formatCents(event.amountCents)}: ${event.reason}`
+    case 'dispute':
+      return `Dispute opened (${event.caseId})`
+    default: {
+      const unhandled: never = event // compile error if a variant is missed
+      return unhandled
+    }
+  }
+}
+```
+
+**The dividing line**: dispatch is bought with the deletion of duplicated decisions. One switch at one site over a discriminated union is healthy — keep it exhaustive. The violation is the *second* copy of the discriminator, or `boolean` props that select between behaviors (`<Button isLink />` wants to be two components or a variant prop dispatched through a map). Guard clauses and value checks (`if (!user) return null`) are healthy control flow — never "fix" those.
+
 ## Refactoring Decision Tree
 
 When linter fails, follow this decision tree:
@@ -543,6 +642,7 @@ Linter Failure
     ├─ Cyclomatic Complexity > 10
     │   ├─ Many branches? → Early returns
     │   ├─ Complex switch? → Use object mapping or extract functions
+    │   ├─ Same discriminator switched in 2+ places? → Lookup map / component map (Pattern 8)
     │   └─ Multiple &&/|| chains? → Extract conditions to variables
     │
     ├─ Expression Complexity > 5
@@ -578,6 +678,7 @@ See reference.md for detailed principles:
 - Custom Hooks: Reusable logic outside components
 - Zod for Validation: Move validation out of components
 - Self-Validation Ownership: Extracted types own their validation; composed validated types (Zod/branded) are trusted, not re-validated
+- One Dispatch Owner (Anti-IF): A discriminator is inspected in one place — lookup/component maps for duplicated conditionals, discriminated unions with `never` exhaustiveness checks for the switch that stays
 
 ## After Refactoring
 

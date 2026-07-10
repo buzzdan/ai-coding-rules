@@ -13,7 +13,7 @@ allowed-tools:
 ---
 
 <objective>
-Verify a finished diff against the plugin's rules (R1–R10) with evidence, by orchestrating
+Verify a finished diff against the plugin's rules (R1–R11) with evidence, by orchestrating
 parallel single-obsession `rule-hunter` agents and one `overabstraction-skeptic`.
 Pure orchestration and reporting: this skill may spawn agents but never edits code, never
 fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
@@ -54,6 +54,7 @@ A rule with zero hits is skipped — no hunter spawned for it.
 | R8 | `../../rules/R8-no-globals.md` | package-level state; `context.Background()` in library code |
 | R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root |
 | R10 | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
 
 Also in-context: a new `//nolint` directive or `.golangci.yaml` exclusion in the diff is
 itself a finding — the change must justify, with evidence, that the rule genuinely does
@@ -81,8 +82,8 @@ plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
 
 <step_3_skeptic_pass>
 Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
-proposal, and R10 "Extract Synchronized Owner" proposals — and spawn one
-`overabstraction-skeptic`. Its spawn prompt MUST contain:
+proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
+"Strategy Map" proposals — and spawn one `overabstraction-skeptic`. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
 2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
@@ -91,11 +92,14 @@ proposal, and R10 "Extract Synchronized Owner" proposals — and spawn one
 
 Verdicts per finding: `CONFIRMED (score + verified evidence)` or
 `REFUTED (score 0–1 + reason) → cheaper alternative`. A refuted proposal does not ship;
-when its cheaper alternative (better naming, private fields + accessors) is still worth
-doing, report the alternative as 🟢 Polish. Only findings the skeptic cannot kill ship
-as extraction findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10 findings
-that propose no new type) skip the skeptic and go straight to the report — R9 findings
-(orphans, broken edges, WHAT-comments, unwired root) propose no type extractions.
+when its cheaper alternative (better naming, private fields + accessors, or R11's
+Keep the Single Exhaustive Switch) is still worth doing, report the alternative as
+🟢 Polish. When R11 dispatch proposals are under review, additionally paste the FULL
+content of `../../examples/anti-if-dispatch.md` — its Move 3 is the rejection case law
+for dispatch extractions. Only findings the skeptic cannot kill ship as extraction
+findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
+no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
+broken edges, WHAT-comments, unwired root) propose no type extractions.
 </step_3_skeptic_pass>
 
 <step_4_merged_report>
@@ -105,8 +109,9 @@ Merge surviving findings into one report. Category mapping:
   cancellation swallowed by `context.Background()`, R10 goroutine leaks and
   unguarded concurrent writes): fix immediately.
 - 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, R10's non-crash findings (production
-  sleeps, fire-and-forget ownership, mutex placement), and R5 (advisory — never
-  blocks; the user may have valid reasons): fix before commit recommended.
+  sleeps, fire-and-forget ownership, mutex placement), R11 (duplicated discriminators,
+  boundary leaks), and R5 (advisory — never blocks; the user may have valid reasons):
+  fix before commit recommended.
 - 🟡 **Readability Debt** — R3, R9, unclear naming: improves maintainability.
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
@@ -119,7 +124,7 @@ Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as fi
 </protocol>
 
 <modes>
-**FULL (first run):** pre-filter all ten rules over the whole diff scope; report every
+**FULL (first run):** pre-filter all eleven rules over the whole diff scope; report every
 surviving finding.
 
 **INCREMENTAL (re-run after fixes):** diff scope = only files changed since the last

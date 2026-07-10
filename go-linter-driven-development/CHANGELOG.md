@@ -3,7 +3,30 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
-## [2.1.0] - 2026-07-07
+## [2.2.0] - 2026-07-10
+
+### Added
+
+- **`rules/R11-conditional-dispatch.md`** — the Anti-IF rule, adapting the Anti-IF
+  movement's core insight (Cirillo, 2007) to the rules-as-data architecture: a
+  conditional that asks what a value *is* may exist once; the second copy of a
+  kind/type discriminator is a missing polymorphic type. R11 owns:
+  - Replace Duplicated Switch with Interface Dispatch — variants become leaf types, the decision moves to a `ParseX` boundary constructor (R2's behavioral twin: *decide* once at the edge)
+  - Replace If-Chain with Strategy Map — single-behavior variance dispatches through a map, comma-ok at the boundary only
+  - Introduce Null Object and Split Flag Argument
+  - the sanctioned form: Keep the Single Exhaustive Switch — one site over a closed enum stays, named per R1 and proven complete by the `exhaustive` linter
+  - the inverse trap: dispatch abstractions that delete no duplication are ceremony — one switching site with trivial variance keeps its switch (mirroring R1's over-abstraction symmetry and R6's earned-interface test)
+- **`examples/anti-if-dispatch.md`** — case law: a three-site channel switch (already
+  drifted) collapsed to interface dispatch, the strategy-map variant, and the worked
+  rejection where the skeptic kills the extraction and the switch goes exhaustive
+  instead. Pasted to the skeptic alongside R11 dispatch proposals.
+- Wiring: pre-commit-review hunts R11 (🔴 Design Debt), its dispatch proposals face
+  the over-abstraction skeptic with the new case file as payload, code-designing
+  dispatches R11 at design time (one dispatch owner per variant family in the
+  checklist), refactoring + lint-fixer route `exhaustive` failures and
+  discriminator-shaped `dupl` hits to it.
+
+
 
 ### Added
 
@@ -58,6 +81,7 @@ Initial release as a Claude Code plugin: five-phase linter-driven workflow (desi
 
 Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
 
+[2.2.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.2.0
 [2.1.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.1.0
 [2.0.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0
 [1.0.0]: https://github.com/buzzdan/ai-coding-rules/commit/746ae7d
