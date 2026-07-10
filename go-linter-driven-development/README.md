@@ -16,6 +16,7 @@ The organising idea of v2: **the rule is the unit, not the phase.** Each design 
 
 ```
 go-linter-driven-development/
+├── maxims.md     the uncompiled layer — named design questions above the rules
 ├── rules/        R1-primitive-obsession … R12-mutation-discipline   (single source of truth)
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism   (case law)
@@ -26,8 +27,9 @@ go-linter-driven-development/
 └── hooks/        package-size gate
 ```
 
-**Four layers, one fact per fact:**
+**Five layers, one fact per fact:**
 
+- **[`maxims.md`](maxims.md)** — the layer above the rules: named design maxims ("Tell, don't ask", "Duplication is far cheaper than the wrong abstraction", "Make the change easy…") as *questions*, each pointing at the rules that compile it. Maxims live only at the judgment points — design interrogation (@code-designing), escalation vocabulary (@refactoring), the skeptic's doctrine — and are banned from hunters: **maxims propose, evidence disposes.** A maxim that keeps convicting graduates into a rule.
 - **[`rules/`](rules/)** — R1–R12, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
 - **[`examples/`](examples/)** — deep worked case studies (full before/after code + the reasoning). Rules cite them by relative path instead of inlining long studies.
 - **[`skills/`](skills/)** — thin directional views (~100–150 lines) that *sequence* and *route* into the rules. They never restate rule content.

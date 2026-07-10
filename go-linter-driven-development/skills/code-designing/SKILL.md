@@ -58,6 +58,27 @@ What is the problem domain? The main concepts/entities? The invariants and rules
 How does this fit the existing architecture?
 </understand_domain>
 
+<maxim_interrogation>
+Design happens before a diff exists — no detection command can run yet, so questions
+are the tool. Interrogate the plan with `../../maxims.md` (the questions live there,
+once; ask them, don't restate them):
+
+- Every function that receives another type's data → **Tell, don't ask**: does the
+  decision it makes belong on that type?
+- Every planned interface → **The bigger the interface, the weaker the abstraction**:
+  could it be one method?
+- Every planned type → **Make illegal states unrepresentable** vs **Make the zero
+  value useful**: validated domain type (constructor) or mechanism type (useful
+  zero)? Pick a family.
+- Every planned check → **Parse, don't validate**: does it return a more-typed value
+  or a boolean someone must remember?
+- Every shared helper → **A little copying is better than a little dependency**: is
+  the third strike actually here?
+
+Answers shape the plan; they are never findings. Maxims propose, evidence disposes —
+the review phases convict only via rules (`maxims.md`, contract section).
+</maxim_interrogation>
+
 <rule_dispatch>
 For each concept in the design, open the rule that owns the question and apply its
 **Design guidance** section:

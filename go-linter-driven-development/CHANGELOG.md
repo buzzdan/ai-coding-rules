@@ -3,7 +3,36 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
-## [2.4.0] - 2026-07-10
+## [2.5.0] - 2026-07-10
+
+### Added
+
+- **`maxims.md` — the uncompiled layer above the rules.** Rules are compiled
+  judgment (detection command + violation criterion + fix pattern); maxims are the
+  named questions that *generate* such rules in situations no rule anticipated:
+  "Tell, don't ask", the Law of Demeter, "Make illegal states unrepresentable",
+  "Parse, don't validate", "Duplication is far cheaper than the wrong abstraction",
+  "YAGNI", "Three strikes", "A little copying is better than a little dependency",
+  "The bigger the interface, the weaker the abstraction", "Make the zero value
+  useful" (held in explicit tension with R2), "Make the change easy…", "If a test
+  is hard to write, the design is wrong", "If it hurts, do it more often",
+  "Premature optimization…", "Clear is better than clever", "Once and only once",
+  "Depend in the direction of stability". Each entry: the quote, attribution, the
+  question it makes you ask, and the rules that compile it (or *uncompiled* status).
+- **The contract: maxims propose, evidence disposes.** Maxims are wired into the
+  three judgment points and banned from the evidence path:
+  - @code-designing gains `<maxim_interrogation>` — the plan is questioned with the
+    maxims before types are committed (design has no diff to grep; questions are
+    the only tool there)
+  - @refactoring's escalation now frames *why code resists* in maxim vocabulary
+  - the `overabstraction-skeptic` cites Metz/Pike/YAGNI by name in verdicts — a
+    named principle is an argument, "feels unnecessary" is not
+  - the `rule-hunter` evidence protocol explicitly forbids maxim-justified findings
+- **Graduation path**: a maxim that keeps generating findings no rule can express
+  gets compiled into an R-file — R11 and R4's feature-envy question are graduates
+  of exactly this path.
+
+
 
 ### Added
 
@@ -153,6 +182,7 @@ Initial release as a Claude Code plugin: five-phase linter-driven workflow (desi
 
 Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
 
+[2.5.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.5.0
 [2.4.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.4.0
 [2.3.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.3.0
 [2.2.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.2.0

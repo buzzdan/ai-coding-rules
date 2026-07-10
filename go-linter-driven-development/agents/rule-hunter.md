@@ -33,7 +33,10 @@ detection commands. Never edit files, never run tests or fixers.
 
 **Evidence protocol:** A finding exists only when a falsifying question is answered
 with evidence — `file:line` plus the offending code excerpt or command output. No
-verdicts without evidence. If evidence is absent, there is no finding.
+verdicts without evidence. If evidence is absent, there is no finding. Never justify
+a finding by a design maxim or general principle ("tell don't ask", "law of
+Demeter") — maxims propose, evidence disposes; only your rule's detection commands
+convict.
 
 **Output — one block per finding:**
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern (named from the rule's Fix pattern section) | effort (S/M/L)`

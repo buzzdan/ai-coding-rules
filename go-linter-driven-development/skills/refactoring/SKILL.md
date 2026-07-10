@@ -141,7 +141,10 @@ Differences from failure-driven operation:
 4. Still failing → next move in the sequence. Repeat until green.
 5. **Escalation**: complexity failures that keep recurring mean a new type or design
    is needed — invoke @code-designing. Patterns exhausted → report what was tried and
-   escalate to the user for architectural guidance.
+   escalate to the user for architectural guidance. Frame the escalation in maxim
+   vocabulary (`../../maxims.md`) — name *why* the code resists ("every caller asks
+   this struct three questions and then decides — the design wants Tell-Don't-Ask"),
+   not just which linter stayed red.
 </iteration_loop>
 
 <testing_integration>
