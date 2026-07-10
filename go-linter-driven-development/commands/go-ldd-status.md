@@ -15,7 +15,7 @@ Display current implementation status:
 📍 Current Context:
   - Active plan: [file path or "conversation"]
   - Current behavior/slice: [which behavior's TDD cycle, if mid-implementation]
-  - Phase: [pre-flight / 1 DESIGN / 2 IMPLEMENT (RED→GREEN→REFACTOR) / 3 FULL LINT / 4 REVIEW / 5 SHIP]
+  - Phase: [pre-flight / 1 DESIGN / 1.5 PREPARE / 2 IMPLEMENT (RED→GREEN→REFACTOR) / 3 FULL LINT / 4 REVIEW / 5 SHIP]
 
 📊 Last Results:
   Tests: [status + coverage]

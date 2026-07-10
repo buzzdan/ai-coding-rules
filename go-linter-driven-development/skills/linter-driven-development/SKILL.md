@@ -3,7 +3,7 @@ name: linter-driven-development
 description: |
   META ORCHESTRATOR for any Go code change that should end in a commit (features, bug fixes, refactors).
   WHEN: User requests Go code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /go-ldd-* command in a Go project.
-  Runs the five-phase workflow: DESIGN → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
+  Runs the five-phase workflow: DESIGN → PREPARE (autonomous preparatory refactoring) → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
@@ -47,8 +47,11 @@ The lint-fixer agent is spawned with the **Task tool**:
 <flow>
 ```
 1 DESIGN   @code-designing → DESIGN PLAN → user OK
+1.5 PREPARE   survey plan's touch points → four gates decide autonomously →
+     (@refactoring, preparatory mode) → prep commit(s) · PREPARATION LOG (record, no stop)
 2 IMPLEMENT — per behavior:
      ┌─> RED      one failing test, lowest rung        (@testing)
+     │            test resists? → prep signal → @refactoring (preparatory) → re-enter RED
      │   GREEN    minimum code to pass — no design work
      │   REFACTOR pkg-scoped lint + rule greps; hits → (@refactoring)
      └── next behavior until all done
@@ -74,12 +77,73 @@ for user OK. **Do not start Phase 2 until the user approves the plan** — the R
 tests target this designed public API, which is how the design reaches GREEN.
 </phase_1_design>
 
+<phase_1_5_prepare>
+Preparatory refactoring (Fowler: "make the change easy, then make the easy change"):
+reshape what the approved plan is about to touch, BEFORE the first RED, so the
+feature lands as add-only. Runs **autonomously** — the four gates below decide;
+this phase never asks the user.
+
+**Survey**: for each file/package the DESIGN PLAN touches (integration points,
+functions it extends, packages receiving new code), run the rule detection greps from
+the `../../rules/R*.md` Falsifying questions, scoped to those files only. Same
+commands as the REFACTOR step, different premise: this code is probably lint-green
+and can still be hostile to the plan.
+
+**Four gates per finding — all mechanical, no user questions:**
+
+1. **MULTIPLY** — would landing the plan add an instance of this violation or force a
+   workaround (a new case in an already-duplicated switch, R11; new behavior on a raw
+   primitive, R1; a new step in an at-limit function, R3; new code testable only by
+   mutating a global, R8)? No → not preparation; leave it for Phase 4's advisory
+   report.
+2. **SAFE** — are the paths to reshape covered (`go test -cover` on the touched
+   packages)? Uncovered → write characterization tests through the public API first
+   (@testing); they are the move's safety net and keep their value after. When the
+   missing test seam IS the finding (globals block testing), the prep move creates
+   the seam — R8's Extract Clean Island exists for exactly this.
+3. **BOUNDED** — effort S/M (hunter scale) → proceed. L → defer to Phase 4's report
+   as `PREP-DEFERRED`, UNLESS gate 2 showed the feature cannot be tested at all
+   without it — then it is not preparation but a design-plan gap: return to Phase 1.
+4. **SKEPTICIZED** — any prep move that creates a type/interface/package is judged by
+   the `overabstraction-skeptic` (Task; payload per @pre-commit-review step 3), with
+   one sharpening in the spawn prompt: the justification is the approved plan in
+   hand, not an imagined future — score the extraction as if the feature already
+   existed. REFUTED → apply the cheaper alternative or defer.
+
+**Apply** the survivors via @refactoring (`<preparatory_mode>`); full test suite and
+lint green after every move; land the prep work as its own commit(s) before the first
+RED — the Two Hats at commit granularity, and the reviewer sees reshaping and feature
+separately.
+
+**Emit a PREPARATION LOG** — a record, not a question; the loop continues:
+
+```
+PREPARATION LOG
+Touch points surveyed: [files] · findings: N
+Applied: [rule → move → commit] (gates: multiply ✓ safe ✓ bounded ✓ skeptic ✓/n-a)
+Deferred to Phase 4: [finding — failed gate]
+Feature landing shape after prep: [add-only / near-add-only / unchanged]
+```
+
+Zero findings passing the gates is the common case — say so in one line and move on.
+
+Inverse trap: reshaping files the plan does not touch is litter-pickup wearing prep's
+clothes — a different activity on a different budget; pre-building abstractions this
+plan does not need is speculative generality — gate 4 exists to kill it.
+</phase_1_5_prepare>
+
 <phase_2_implement>
 One TDD cycle per behavior:
 
 **RED** — write ONE failing test for the behavior. Place it by the composition
 ladder — the lowest rung that contains the behavior (@testing,
 `<composition_ladder>`). Run it; confirm it fails for the right reason.
+
+If the test *resists* — fixture surgery, mutating globals to reach the behavior,
+driving three layers to observe one seam — do not force it: that friction is a prep
+signal Phase 1.5's survey missed. Suspend the cycle, route the friction through the
+same four PREPARE gates, apply via @refactoring (`<preparatory_mode>`), land the prep
+commit, re-enter RED. Autonomous, like Phase 1.5 — no user question.
 
 **GREEN** — minimum code to pass. Explicitly allowed to be ugly; no design polish in
 this step. **Never invoke @code-designing from GREEN**: the design already happened
@@ -141,6 +205,8 @@ advisory. Fix bugs and user-accepted findings via @refactoring — except accept
 
 <success_criteria>
 - [ ] Design plan user-approved before the first RED
+- [ ] PREPARE ran its survey over the plan's touch points; every applied prep move
+      passed all four gates and landed in its own commit; PREPARATION LOG emitted
 - [ ] Every behavior completed a RED → GREEN → REFACTOR cycle
 - [ ] Package-scoped lint + rule greps clean after each cycle
 - [ ] lint-fixer reported `LINT STATUS: green`; all escalations resolved via @refactoring

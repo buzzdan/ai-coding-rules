@@ -39,8 +39,11 @@ The [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) sk
 
 ```
 1 DESIGN     @code-designing → DESIGN PLAN → user OK
+1.5 PREPARE  preparatory refactoring (Fowler): survey the plan's touch points,
+      four autonomous gates decide, @refactoring reshapes → prep commit(s), no user stop
 2 IMPLEMENT  per behavior:
       ┌─> RED      one failing test, lowest rung on the composition ladder   (@testing)
+      │            test resists? → late prep signal → same gates → prep commit → re-enter
       │   GREEN    minimum code to pass — no design work
       │   REFACTOR package-scoped lint + rule greps; any hit → @refactoring
       └── next behavior until all done
@@ -50,7 +53,7 @@ The [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) sk
 5 SHIP       @documentation → commit summary → user commits
 ```
 
-Design happens once, up front (Phase 1); the RED test's shape carries that design into GREEN. The cheap per-cycle greps in Phase 2's REFACTOR are the mid-implementation net; the Phase 4 hunter/skeptic pass is the verification net on finished work.
+Design happens once, up front (Phase 1); the RED test's shape carries that design into GREEN. PREPARE makes the change easy before making the easy change — reshaping only what the plan touches and only violations the plan would multiply, gated autonomously (the over-abstraction skeptic judges any extraction) so autopilot never stops to ask. The cheap per-cycle greps in Phase 2's REFACTOR are the mid-implementation net; the Phase 4 hunter/skeptic pass is the verification net on finished work.
 
 ### The Hunter / Skeptic Review Model
 
@@ -98,7 +101,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 |-------|------|
 | [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) | Meta-orchestrator — sequences the five phases |
 | [`@code-designing`](skills/code-designing/SKILL.md) | FORWARD view — which rule to open at each design step (Phase 1) |
-| [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern |
+| [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern; preparatory mode reshapes ahead of a planned change (Phase 1.5) |
 | [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) | Orchestrates the hunter/skeptic review (Phase 4); reports, never edits |
 | [`@testing`](skills/testing/SKILL.md) | The composition ladder — test each behavior at the lowest rung that contains it |
 | [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring; FEATURE mode (Phase 5) / BOOTSTRAP mode |
@@ -117,6 +120,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 |---------|---------|----------|----------------|
 | [`/go-ldd-autopilot`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
 | [`/go-ldd-quickfix [files]`](commands/go-ldd-quickfix.md) | Quality-gates loop until green (code exists) | ✅ Yes | ✅ Optional |
+| [`/go-ldd-prepare <change> [files]`](commands/go-ldd-prepare.md) | Preparatory refactoring: reshape what a planned change touches, so it lands add-only | ✅ Yes | ✅ Optional |
 | [`/go-ldd-analyze [files]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
 | [`/go-ldd-review [files]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
 | [`/go-ldd-status`](commands/go-ldd-status.md) | Show current phase + progress | N/A | — |

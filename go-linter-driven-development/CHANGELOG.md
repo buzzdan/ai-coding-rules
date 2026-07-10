@@ -3,6 +3,31 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.4.0] - 2026-07-10
+
+### Added
+
+- **Phase 1.5 PREPARE — autonomous preparatory refactoring** (Fowler: "make the
+  change easy, then make the easy change"). After the user approves the design plan,
+  the orchestrator surveys the plan's touch points with the existing rule detection
+  greps and reshapes what the change is about to hit — before the first RED, in its
+  own commit(s). Decisions are made by four mechanical gates, never by stopping to
+  ask: **MULTIPLY** (only violations the plan would multiply qualify), **SAFE**
+  (characterization tests first on uncovered paths), **BOUNDED** (S/M efforts
+  proceed, L defers to the Phase 4 report), **SKEPTICIZED** (any extraction is
+  judged by the over-abstraction skeptic, scored against the plan in hand).
+  Autopilot never pauses; the PREPARATION LOG is a record, not a question.
+- **RED-friction escape hatch** (Phase 2): a RED test that resists — fixture
+  surgery, global mutation, driving layers to reach a seam — is a prep signal the
+  survey missed; suspend the cycle, run the same gates, land the prep commit,
+  re-enter RED.
+- **`@refactoring` `<preparatory_mode>`**: same routing table and moves, different
+  trigger (the plan, not the linter — targets are usually lint-green) and different
+  stopping criterion: not "linter green" but "the feature now lands add-only";
+  full suite green after every move; prep commits segregated from feature commits.
+- **`/go-ldd-prepare <change> [files]`** — standalone entry: describe the impending
+  change, get the survey + gates + reshaping without the full five-phase workflow.
+
 ## [2.3.0] - 2026-07-10
 
 The Fowler wave — adopting the *Refactoring* (2nd ed.) ideas the rule set didn't
@@ -128,6 +153,7 @@ Initial release as a Claude Code plugin: five-phase linter-driven workflow (desi
 
 Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
 
+[2.4.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.4.0
 [2.3.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.3.0
 [2.2.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.2.0
 [2.1.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.1.0

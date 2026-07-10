@@ -3,6 +3,7 @@ name: refactoring
 description: |
   BACKWARD view over rules/ — routes linter and review failures to the rule whose Fix pattern owns the repair.
   Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain.
+  Also runs PREPARATORY mode: reshape code an approved plan touches, before the first RED, so the feature lands add-only.
   Applies storifying, type extraction, function extraction, conditional-dispatch, and mutation-discipline patterns via rules/R1-R8 and R10-R12.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
@@ -102,6 +103,35 @@ disease, file count the symptom). Invoke @code-designing to validate extracted t
 </package_decomposition>
 </file_and_package_routing>
 
+<preparatory_mode>
+Fowler's preparatory refactoring — "make the change easy, then make the easy change":
+reshape code an approved plan is about to touch, before the first RED, so the feature
+lands as add-only. Invoked by @linter-driven-development (Phase 1.5, or Phase 2 RED
+friction) or `/go-ldd-prepare`, with a DESIGN PLAN, the touch-point file list, and
+findings that already passed the four PREPARE gates (multiply / safe / bounded /
+skeptic — the gates live in @linter-driven-development `<phase_1_5_prepare>`; this
+mode trusts their verdicts and re-runs none of them). Fully autonomous — no user
+confirmation, same as the rest of this skill.
+
+Differences from failure-driven operation:
+
+- **The trigger is the plan, not the linter.** Targets are usually lint-green;
+  "still failing → next move" does not apply. Route each finding by its rule (the
+  same `<routing_table>` rules own the same fix patterns) and apply.
+- **Safety before motion.** Uncovered paths get characterization tests through the
+  public API first (@testing); the full suite — not just the touched package — runs
+  green after every move, because prep edits existing behavior by definition.
+- **Stopping criterion — landing shape, not lint.** Stop when the planned change
+  lands as add-only or near-add-only: a new variant = one new file plus one case at
+  the dispatch boundary (R11); new behavior = a method on an existing type (R1); new
+  code = testable without touching globals (R8). Re-check against the plan after
+  each move; shape reached → STOP, even with findings left — those were never
+  preparation and belong to Phase 4's advisory report.
+- **Commits are segregated.** Prep work lands in its own commit(s), never mixed with
+  feature code — the reviewer sees behavior-preserving reshaping and new behavior as
+  separate diffs.
+</preparatory_mode>
+
 <iteration_loop>
 1. Receive trigger (from @linter-driven-development, from the caller acting on accepted
    @pre-commit-review findings, or manual).
@@ -159,7 +189,8 @@ STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 </output_format>
 
 <integration>
-**Invoked by**: @linter-driven-development (Phase 3, lint failures), or the caller acting
+**Invoked by**: @linter-driven-development (Phase 1.5 / RED friction → `<preparatory_mode>`;
+Phase 3, lint failures), or the caller acting
 on accepted @pre-commit-review findings (@linter-driven-development Phase 4 accepted
 findings, or the user) — @pre-commit-review reports only and never invokes fix skills.
 **Invokes**: @code-designing (new types/design needed), @testing (after every extraction

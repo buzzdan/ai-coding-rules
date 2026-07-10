@@ -6,7 +6,7 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 
 | | Plugin | Version | For |
 |---|--------|---------|-----|
-| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.3.0 | Go |
+| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.4.0 | Go |
 | ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.2.0 | TypeScript + React |
 
 Plus the standalone rule documents the plugins grew out of:
