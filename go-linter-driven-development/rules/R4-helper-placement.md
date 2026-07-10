@@ -113,6 +113,26 @@ vocabulary of one — fold it into the vocabulary it belongs to. A role name (`u
   move it there, then place the enriched type on the ladder as usual. If the envied
   type is foreign (another module's DTO), wrap it first (`R1-primitive-obsession.md`)
   and hang the behavior on the wrapper.
+- **A message chain is a placement signal, not a wrapper order** (Fowler: Message
+  Chains). Before "fixing" `order.Customer().Address().City()` by adding a
+  `CustomerCity()` forwarder, ask what the caller *does* with the endpoint (Tell,
+  Don't Ask — `../maxims.md`): a decision or computation → that behavior moves onto
+  the chain's owner (Move Method to the Envied Type, above), where the chain
+  collapses into a one-hop walk of the type's own composition — which was never the
+  problem. Only data egress at a boundary (rendering, serialization, wire mapping)
+  legitimately keeps the chain, and there it lives as a one-shot mapping inside the
+  adapter, not scattered through domain code.
+- **A type speaks for its parts only when it has something to add** (Fowler: Middle
+  Man). A method whose entire body is `return o.x.Method()` — no decision, no
+  combination, no invariant — is R1's ceremony verdict applied per method: the
+  indirection owns nothing, so it goes. A type whose surface is mostly such forwards
+  is a worse copy of its field's API — delete the forwards and hand callers the part
+  (`o.Customer()`), keeping only delegations that carry a rule (`ShippingAddress()`
+  choosing gift recipient over buyer earns its place; `CustomerEmail()` does not).
+  The Go accelerant: embedding a domain type (`type Order struct{ Customer }`)
+  manufactures this smell in one line by promoting the entire foreign API onto the
+  outer type — embed for genuine is-a (interface embedding, `sync` primitives per
+  `R10-concurrency-safety.md`), never to save typing `o.customer.`.
 - Multi-rule extraction sequencing: `../skills/refactoring/reference.md`. Forward
   design of the promoted package: @code-designing.
 

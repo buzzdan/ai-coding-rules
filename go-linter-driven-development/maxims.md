@@ -50,9 +50,12 @@ knowing? First apply Tell-Don't-Ask — moving the *behavior* usually dissolves 
 chain. What survives is data egress at a boundary, where a one-shot adapter mapping
 is the honest form.
 
-**Compiled into:** partially `rules/R4-helper-placement.md` Q6. Uncompiled residue:
-chains crossing ownership boundaries outside egress adapters; domain-type struct
-embedding that promotes a foreign API (`has-a` wearing `is-a`'s clothes).
+**Compiled into:** `rules/R4-helper-placement.md` — Q6 (feature envy) plus the
+message-chain and middle-man bullets in its Fix pattern (Hide Delegate subordinated
+to Tell-Don't-Ask; Remove Middle Man as the per-method ceremony verdict; the
+domain-type embedding trap). Uncompiled residue: detection commands for
+forward-heavy types and boundary-crossing chains — graduates to an R4 falsifying
+question if the hunter keeps stumbling over them.
 
 ## State and construction
 
@@ -88,6 +91,21 @@ difference.
 **Uncompiled** — lives here as a design-time question.
 
 ## Abstraction economics
+
+### Every indirection must earn its keep
+— this plugin's own synthesis (the generalized juiciness test)
+
+**Ask:** what does this indirection *own* — a validation, a decision, a second
+production implementation, a deleted duplication, a real race, a real escaping
+alias? If the answer is nothing, it is ceremony: delete it.
+
+**Compiled into:** every inverse trap in the rule set — one principle at six
+granularities: type (R1's scorecard and ceremony wrappers), interface (R6's
+earned-interface test), method (R4's middle-man bullet), dispatch (R11's unearned
+abstractions), guard (R10's decorative mutexes), copy (R12's ceremony copies). The
+`overabstraction-skeptic` is its enforcement agent. Nuance: the R1 scorecard is the
+*prospective* form (score before the type is born); the inverse traps are the
+*retrospective* form (this indirection exists — does it still own anything?).
 
 ### Duplication is far cheaper than the wrong abstraction
 — Sandi Metz

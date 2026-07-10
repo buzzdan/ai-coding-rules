@@ -31,6 +31,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - **Graduation path**: a maxim that keeps generating findings no rule can express
   gets compiled into an R-file — R11 and R4's feature-envy question are graduates
   of exactly this path.
+- **The Message Chains ↔ Middle Man pair** (Fowler's opposing smells), compiled to
+  its post-Tell-Don't-Ask residue as two R4 fix-pattern bullets: a chain is a
+  placement signal (move the behavior; only boundary egress keeps the chain, inside
+  the adapter), and a pure-forward method is R1's ceremony verdict applied per
+  method (delete forwards that own no rule; domain-type embedding manufactures the
+  smell in one line). No R13 — after the behavior moves, nothing detectable
+  remains, so the pair is guidance, not a rule.
+- **House maxim: "Every indirection must earn its keep"** — the generalized
+  juiciness test, named as the plugin's own synthesis: one principle at six
+  granularities (type/interface/method/dispatch/guard/copy), enforcement agent the
+  `overabstraction-skeptic`; each rule's inverse trap is its retrospective form.
 
 
 
