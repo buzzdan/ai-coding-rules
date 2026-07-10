@@ -1,6 +1,6 @@
 {
   "name": "ts-react-linter-driven-development",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Linter-driven development workflow for TypeScript + React with six specialized skills: component design, testing, refactoring, review, and documentation",
   "author": {
     "name": "Dan Mordechay"

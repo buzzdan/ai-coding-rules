@@ -16,7 +16,7 @@ The organising idea of v2: **the rule is the unit, not the phase.** Each design 
 
 ```
 go-linter-driven-development/
-├── rules/        R1-primitive-obsession … R11-conditional-dispatch   (single source of truth)
+├── rules/        R1-primitive-obsession … R12-mutation-discipline   (single source of truth)
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism   (case law)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
@@ -28,7 +28,7 @@ go-linter-driven-development/
 
 **Four layers, one fact per fact:**
 
-- **[`rules/`](rules/)** — R1–R11, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
+- **[`rules/`](rules/)** — R1–R12, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
 - **[`examples/`](examples/)** — deep worked case studies (full before/after code + the reasoning). Rules cite them by relative path instead of inlining long studies.
 - **[`skills/`](skills/)** — thin directional views (~100–150 lines) that *sequence* and *route* into the rules. They never restate rule content.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated contexts. **Agents get knowledge as spawn-time payload — the relevant rule file's content is pasted into the prompt. Agents do NOT invoke skills.**
@@ -80,6 +80,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md |
 | R10 | [`rules/R10-concurrency-safety.md`](rules/R10-concurrency-safety.md) | Goroutines with owners and exit paths; shared state guarded where it lives; no production sleeps |
 | R11 | [`rules/R11-conditional-dispatch.md`](rules/R11-conditional-dispatch.md) | One dispatch owner per kind/variant family (Anti-IF): duplicated kind-switches become interface/map dispatch chosen once at the boundary; a single switch stays and goes exhaustive |
+| R12 | [`rules/R12-mutation-discipline.md`](rules/R12-mutation-discipline.md) | Mutation only through invariant-owning methods: constructors copy collections in, queries copy (or iterate) out, no query/modifier hybrids, no setters around validating constructors |
 
 **Examples → rules demonstrated** (case law):
 
@@ -255,7 +256,7 @@ Skills are expert consultants you can call on demand:
 The [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) report groups findings by urgency — all advisory, none block a commit:
 
 - 🐛 **Bugs** — fail at runtime regardless of rule (fix immediately)
-- 🔴 **Design Debt** — R1, R2, R4, R5, R6, R7, R8, R11 (fix before commit recommended)
+- 🔴 **Design Debt** — R1, R2, R4, R5, R6, R7, R8, R11, R12 (fix before commit recommended)
 - 🟡 **Readability Debt** — R3, R9, unclear naming (improves maintainability)
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives
 
@@ -265,7 +266,7 @@ Every finding carries evidence (`file:line` + the falsifying-question answer or 
 
 The plugin follows opinionated Go best practices, each with an owning rule:
 
-**Design:** no primitive obsession (R1), self-validating types (R2), vertical slices (R5), no globals (R8), owned goroutines and guarded shared state (R10), one dispatch owner per variant family — the Anti-IF rule (R11).
+**Design:** no primitive obsession (R1), self-validating types (R2), vertical slices (R5), no globals (R8), owned goroutines and guarded shared state (R10), one dispatch owner per variant family — the Anti-IF rule (R11), closed mutation surfaces — no leaked aliases or unvalidated setters (R12).
 **Testing:** test the public API via `pkg_test` (R7), the composition ladder over the pyramid, real in-memory dependencies over mocks, no test-only interfaces (R6).
 **Refactoring:** storify top-level functions (R3), helpers on the placement ladder (R4), let the linter say WHAT and the rules say HOW.
 **Documentation:** a networked repo brain — each fact at its lowest rung, reachable from the root, edges pointing both ways (R9).

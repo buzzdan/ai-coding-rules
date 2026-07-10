@@ -3,7 +3,7 @@ name: code-designing
 description: |
   FORWARD view over rules/ — domain type design and architectural planning for Go code BEFORE it exists.
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
-  Dispatches into the Design guidance sections of rules/R1-R8 and R10-R11.
+  Dispatches into the Design guidance sections of rules/R1-R8 and R10-R12.
 allowed-tools:
   - Skill(go-linter-driven-development:testing)
 ---
@@ -74,6 +74,7 @@ For each concept in the design, open the rule that owns the question and apply i
 | `../../rules/R8-no-globals.md` | Dependencies injected via constructors, `ctx` threaded from callers, globals only at entry points. |
 | `../../rules/R10-concurrency-safety.md` | Every planned goroutine gets an owner (stop + wait) and an exit path at construction time; shared state designed with its guard on one type — or designed away via handoff/confinement. |
 | `../../rules/R11-conditional-dispatch.md` | How each kind/variant family dispatches: behavior-heavy or open set → interface chosen once at the boundary; single-behavior variance → strategy map; single-site closed enum → one exhaustive switch (named enum per R1). |
+| `../../rules/R12-mutation-discipline.md` | Each type's mutation surface: constructors copy slice/map arguments; queries return copies or iterators, never internal references; no setters around validating constructors; query and modifier as separate methods. |
 </rule_dispatch>
 
 <design_checklist>
@@ -89,6 +90,7 @@ Before presenting the plan, verify against the rules (cite, don't restate):
 - [ ] Dependencies constructor-injected and validated; ctx flows down; no new globals (R8, R2)
 - [ ] Every goroutine has an owner and exit path; shared state guarded where it lives, or confined (R10)
 - [ ] Every kind/variant family has ONE dispatch owner — interface, strategy map, or a single exhaustive switch; no discriminator inspected in two places (R11)
+- [ ] Every validated type's mutation surface is closed: slice/map arguments copied in, internal collections never returned by reference, no unvalidated setters (R12)
 </design_checklist>
 
 </protocol>

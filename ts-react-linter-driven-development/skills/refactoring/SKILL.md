@@ -628,6 +628,41 @@ function describe(event: PaymentEvent): string {
 
 **The dividing line**: dispatch is bought with the deletion of duplicated decisions. One switch at one site over a discriminated union is healthy — keep it exhaustive. The violation is the *second* copy of the discriminator, or `boolean` props that select between behaviors (`<Button isLink />` wants to be two components or a variant prop dispatched through a map). Guard clauses and value checks (`if (!user) return null`) are healthy control flow — never "fix" those.
 
+### Pattern 9: Replace Loop with Pipeline
+
+**Signal**: Imperative loops with accumulators, flags, and conditionals pushing into arrays; cyclomatic complexity from loop bodies
+
+Fowler's Replace Loop with Pipeline: each `filter`/`map` stage states one transformation, where a loop body interleaves them all.
+
+```typescript
+// ❌ Before - Accumulator loop, three concerns interleaved (Cyclomatic: 5)
+function activeAdminEmails(users: User[]): string[] {
+  const result: string[] = []
+  for (const user of users) {
+    if (user.isActive) {
+      if (user.roles.includes('admin')) {
+        result.push(user.email.toLowerCase())
+      }
+    }
+  }
+  return result
+}
+
+// ✅ After - Pipeline, one concern per stage (Cyclomatic: 1 per stage)
+function activeAdminEmails(users: User[]): string[] {
+  return users
+    .filter(user => user.isActive)
+    .filter(user => user.roles.includes('admin'))
+    .map(user => user.email.toLowerCase())
+}
+```
+
+**Guardrails**:
+- Name complex stage predicates (`filter(isActiveAdmin)`) instead of inlining multi-line arrows — the pipeline should read as a story
+- Don't force `reduce` where a loop is clearer: a `reduce` with a mutating accumulator object is the same loop wearing a costume; prefer `Object.groupBy`/`Map` construction or keep the loop
+- Early-exit searches use `find`/`some`/`every`, not `filter(...)[0]`
+- Async work per item is not a pipeline stage — `for...of` with `await` stays a loop (or `Promise.all(items.map(...))` when parallel is intended)
+
 ## Refactoring Decision Tree
 
 When linter fails, follow this decision tree:
@@ -637,6 +672,7 @@ Linter Failure
     ├─ Cognitive Complexity > 15
     │   ├─ Mixed abstractions? → Extract custom hooks
     │   ├─ Complex conditions? → Extract to helper functions
+    │   ├─ Accumulator loop with conditionals? → Replace Loop with Pipeline (Pattern 9)
     │   └─ Deep nesting? → Early returns, guard clauses
     │
     ├─ Cyclomatic Complexity > 10

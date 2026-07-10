@@ -3,6 +3,45 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.3.0] - 2026-07-10
+
+The Fowler wave — adopting the *Refactoring* (2nd ed.) ideas the rule set didn't
+already embody. (Much of the catalog was already here under other names: Extract
+Function → R3, Replace Primitive with Object → R1, Repeated Switches → R11,
+Speculative Generality → the over-abstraction skeptic, the Two Hats → the
+RED→GREEN→REFACTOR loop.)
+
+### Added
+
+- **`rules/R12-mutation-discipline.md`** — Fowler's Mutable Data smell family with
+  Go aliasing teeth: a validated value changes state only through methods that own
+  its invariants. In Go, `return g.perms` returns a mutable alias into the
+  "validated" state — R2's validate-once guarantee is void the moment an internal
+  slice escapes. R12 owns:
+  - Copy on the Way In — constructors clone slice/map arguments (or build fresh)
+  - Copy on the Way Out / Encapsulate Collection — queries return clones or `iter.Seq` iterators, never internal references
+  - Separate Query from Modifier — split hybrids; pure naming cases stay with R3's Honest Rename
+  - Remove Setting Method — no unvalidated mutation paths around a validating constructor (construction itself stays R2's)
+  - Split Variable — one assignment per meaning
+  - the inverse trap: ceremony copies of data that never escapes, mirroring R1's over-abstraction symmetry
+- **Split Phase move in R3** (Fowler's opening example): a function interleaving
+  parsing with computation splits into phase 1 producing an intermediate domain
+  structure and phase 2 consuming it — distinct from Extract Function because it
+  introduces a data structure *between* the steps; collapses into R2's `ParseX`
+  when phase 1 validates.
+- **Data Clumps question in R1** (Introduce Parameter Object / Preserve Whole
+  Object): the same parameter group in ≥2 signatures is a type asking to exist —
+  the scorecard already rewarded grouping; now a falsifying question hunts it.
+- **Feature Envy in R4** (Move Function): a new fix pattern (Move Method to the
+  Envied Type) and falsifying question — a function reading a foreign type's data
+  more than its own moves onto that type, then re-places via the ladder.
+- Wiring: pre-commit-review hunts R12 (🔴 Design Debt), code-designing dispatches
+  R12 at design time (closed mutation surface in the checklist), refactoring's
+  pattern index owns the five R12 moves. R12 has no owning linter (like R9) — no
+  routing-table row.
+
+
+
 ## [2.2.0] - 2026-07-10
 
 ### Added
@@ -89,6 +128,7 @@ Initial release as a Claude Code plugin: five-phase linter-driven workflow (desi
 
 Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
 
+[2.3.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.3.0
 [2.2.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.2.0
 [2.1.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.1.0
 [2.0.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0

@@ -108,6 +108,11 @@ vocabulary of one — fold it into the vocabulary it belongs to. A role name (`u
   example).
 - **Split policy from vocabulary during promotion**: feature constants and preference
   logic stay in the feature; only the domain-generic types and queries move.
+- **Move Method to the Envied Type** (Fowler: Feature Envy → Move Function): a
+  function that reads another type's data more than its own belongs on that type —
+  move it there, then place the enriched type on the ladder as usual. If the envied
+  type is foreign (another module's DTO), wrap it first (`R1-primitive-obsession.md`)
+  and hang the behavior on the wrapper.
 - Multi-rule extraction sequencing: `../skills/refactoring/reference.md`. Forward
   design of the promoted package: @code-designing.
 
@@ -146,3 +151,12 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Violation: any feature-specific literal or preference decision inside a
    domain-generic package — policy stays in the feature (Stage 2 of
    `R1-primitive-obsession.md`).
+
+6. **Does a changed function envy another type's data?**
+   Detection: for each changed function/method, count field/method accesses per
+   value: `grep -o '<recv>\.[a-zA-Z]*' <func body> | sort | uniq -c` versus the same
+   count for its most-touched parameter or field.
+   Violation: accesses on one foreign value outnumber accesses on the receiver (or
+   on all local data, for a free function) and the foreign type is yours to extend —
+   Move Method to the Envied Type, then re-place via the ladder. A function that
+   merely *reads* a foreign DTO once to adapt it at a boundary is not envy.

@@ -256,6 +256,11 @@ Stage 2 shows it applied.
   absence/invalidity → `(X, bool)` or `(X, error)`.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
   `const StatusReady Status = "READY"`.
+- **Introduce Parameter Object** (Fowler): the same group of parameters traveling
+  through multiple signatures (`host string, port int, useTLS bool`) becomes one
+  type — that is the scorecard's "grouping related data that travels together" made
+  concrete. Prefer passing the whole object over re-exploding its fields at the next
+  call (Preserve Whole Object).
 - **Over-abstraction found instead?** Apply the cheaper alternative — better naming,
   or private fields + accessors — per `../examples/overabstraction-cidr.md`.
 - Multi-rule refactoring procedure (sequencing extraction with storifying):
@@ -289,7 +294,15 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    whose signature has no `bool` or `error` result.
    Violation: validity encoded in-band — requires comma-ok or `(X, error)`.
 
-5. **Inverse — is a NEW type in the diff mere ceremony?**
+5. **Do the same parameters travel together across signatures?**
+   Detection: for each changed function with ≥3 parameters, grep the package for the
+   same parameter-name pair/trio in other signatures, e.g.
+   `grep -rnE 'func .*host string.*port int' --include='*.go' .`
+   Violation: the same group of ≥2–3 parameters co-occurs in ≥2 signatures — a data
+   clump; Introduce Parameter Object (score it: grouping-that-travels is +2 on the
+   scorecard, plus its usage points).
+
+6. **Inverse — is a NEW type in the diff mere ceremony?**
    Detection: count its methods (`grep -c 'func ([a-z0-9]* *\*\?<Type>)' <file>`) and
    check whether any method does more than unwrap or rename the primitive; score it
    with the scorecard above.
