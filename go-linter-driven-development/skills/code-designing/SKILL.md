@@ -33,6 +33,13 @@ Backward counterpart (fixing code that already fails lint/review): @refactoring.
   - `function-result-limit` (>3 returns) / `confusing-results` → design a named result type (same R1 scoring)
   - `file-length-limit` (>450 lines) → split juicy types into their own files (juiciness per R1; file-per-type per `../../rules/R5-vertical-slice.md`); a single god type routes to @refactoring's god-object decomposition procedure first
   - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring `<package_decomposition>`)
+- A Phase 4 review CLUSTER (≥2 hunters converging on one anchor —
+  @linter-driven-development routes it here) → **cluster-scoped mode**: skip
+  `<architecture_scan>` and the user-OK step (acceptance was inherited when the
+  findings were accepted); design only the one concept the cluster names — its
+  type or dispatch shape (R11), constructor (R2), mutation surface (R12), and
+  placement (R4) — so every member finding resolves as a consequence of that one
+  design. Return the mini DESIGN PLAN to the caller; @refactoring implements it.
 </when_to_use>
 
 <protocol>

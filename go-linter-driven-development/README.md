@@ -64,7 +64,7 @@ Phase 4 ([`@pre-commit-review`](skills/pre-commit-review/SKILL.md)) is pure orch
 1. **Grep pre-filter** (in-context, cheap): run each rule's detection commands against the diff. A rule with zero hits gets no hunter.
 2. **Parallel hunters**: for every rule with hits, spawn one [`rule-hunter`](agents/rule-hunter.md) — single obsession, single rule file pasted in full as its entire rulebook. Each returns evidence-backed findings (`rule | file:line | falsifying-question answers | fix pattern | effort`).
 3. **Skeptic pass**: every "create a type/package" proposal goes to one [`overabstraction-skeptic`](agents/overabstraction-skeptic.md), which tries to *kill* each extraction using R1's juiciness scorecard and the CIDR case file. A refuted proposal ships only its cheaper alternative (better naming, private fields + accessors).
-4. **Merged report**: surviving findings categorized as 🐛 Bugs / 🔴 Design Debt / 🟡 Readability Debt / 🟢 Polish. All advisory — the caller decides what to fix.
+4. **Merged report**: surviving findings categorized as 🐛 Bugs / 🔴 Design Debt / 🟡 Readability Debt / 🟢 Polish. All advisory — the caller decides what to fix. Findings from *different* rules converging on one anchor (the same type, field, or function) are additionally reported as a 🔗 **CLUSTER** — each hunter is blind to the others, so independent convergence is evidence of a missing domain concept, and the cluster routes design-first (`@code-designing` scoped to the concept, then `@refactoring` implements) instead of being fixed member-by-member.
 
 Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your conversation, and each hunter's fresh context is exactly what makes its findings trustworthy on finished work.
 

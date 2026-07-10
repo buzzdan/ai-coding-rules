@@ -3,6 +3,29 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.6.0] - 2026-07-10
+
+### Added
+
+- **Finding clusters — design-first routing for related review findings.** Hunters
+  are single-obsession and blind to each other, so when findings from ≥2 different
+  rules converge on one anchor (the same type, field/discriminator, or function),
+  that independent convergence is evidence of a missing domain concept — a
+  juiciness scorecard that filled itself in. Fixing such findings member-by-member
+  produces partial patches that undo each other (R1 names an enum that R11's move
+  then replaces; R2 places validation that R11's move relocates).
+  - `@pre-commit-review` step 4 gains a **cluster pass**: convergent findings are
+    reported as first-class 🔗 CLUSTER entries with a root-cause hypothesis and a
+    design-first routing note; members stay in their categories, tagged. Clustering
+    is reporting — the skill still never edits.
+  - The orchestrator's Phase 4 gains **cluster routing**: clusters go to
+    `@code-designing` in a new **cluster-scoped mode** (skips the architecture scan
+    and user-OK gate — acceptance was inherited when the findings were accepted;
+    designs only the one concept the cluster names), then `@refactoring` implements
+    the mini plan; member findings resolve as consequences of one design.
+    Singletons route directly to `@refactoring`, unchanged.
+  - `/go-ldd-quickfix` Phase 4 follows the same routing.
+
 ## [2.5.0] - 2026-07-10
 
 ### Added
@@ -193,6 +216,7 @@ Initial release as a Claude Code plugin: five-phase linter-driven workflow (desi
 
 Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
 
+[2.6.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.6.0
 [2.5.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.5.0
 [2.4.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.4.0
 [2.3.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.3.0

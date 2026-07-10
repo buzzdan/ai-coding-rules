@@ -107,7 +107,28 @@ broken edges, WHAT-comments, unwired root) propose no type extractions.
 </step_3_skeptic_pass>
 
 <step_4_merged_report>
-Merge surviving findings into one report. Category mapping:
+Merge surviving findings into one report.
+
+**Cluster pass (before categorizing):** group surviving findings by shared anchor —
+the same type, field/discriminator, or function named in ≥2 findings from *different*
+rules. Each hunter is single-obsession and blind to the others, so independent
+convergence on one anchor is evidence that a domain concept is missing there — the
+cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
+primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
+jurisdictions). Render each cluster as a first-class entry above the categories:
+
+```
+🔗 CLUSTER: Alert.Channel (4 findings: R1, R11, R2, R7)
+   Hypothesis: missing domain concept — a Channel type wants to exist
+   Routing: design-first — @code-designing (cluster-scoped), then @refactoring
+   implements; do NOT fix members independently (partial fixes undo each other)
+```
+
+Member findings still appear under their categories below, tagged
+`[cluster: <anchor>]`. Clustering is *reporting* — this skill still never edits and
+never invokes fix skills; the caller routes.
+
+Category mapping:
 
 - 🐛 **Bugs** — will fail at runtime regardless of rule (nil returned as a value,
   cancellation swallowed by `context.Background()`, R10 goroutine leaks and

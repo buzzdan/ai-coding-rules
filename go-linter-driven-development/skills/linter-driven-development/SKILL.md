@@ -192,6 +192,16 @@ Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), al
 advisory. Fix bugs and user-accepted findings via @refactoring — except accepted R9
 (documentation-network) findings, whose fixer is @documentation — then re-invoke
 @pre-commit-review in INCREMENTAL mode until the delta reports clean.
+
+**Cluster routing**: report entries marked 🔗 CLUSTER (≥2 hunters converging on one
+anchor) are fixed design-first, never member-by-member — partial fixes undo each
+other (R1 names an enum that R11's move then replaces; R2 places validation that
+R11's move relocates). Invoke @code-designing in cluster-scoped mode (it skips the
+architecture scan and the user-OK gate — acceptance was inherited when the cluster's
+findings were accepted; output is a mini DESIGN PLAN for the one concept the cluster
+names), then @refactoring implements that plan; the member findings resolve as
+consequences of one design. Singleton findings route directly to @refactoring as
+before.
 </phase_4_review>
 
 <phase_5_ship>
