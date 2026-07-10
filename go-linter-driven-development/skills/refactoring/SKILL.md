@@ -75,6 +75,7 @@ decomposition): `reference.md` in this directory.
 - Over-abstraction rejection + cheaper alternatives: `../../examples/overabstraction-cidr.md`
 - Incremental global elimination: `../../examples/dependency-rejection.md`
 - Duplicated kind-switch → interface dispatch (and the kept-switch rejection): `../../examples/anti-if-dispatch.md`
+- Type switch over an owned interface → fill-style method (and the dependency-direction rejection): `../../examples/switch-to-polymorphism.md`
 </pattern_index>
 
 <file_and_package_routing>

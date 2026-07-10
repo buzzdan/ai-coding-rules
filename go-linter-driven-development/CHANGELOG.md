@@ -20,13 +20,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   drifted) collapsed to interface dispatch, the strategy-map variant, and the worked
   rejection where the skeptic kills the extraction and the switch goes exhaustive
   instead. Pasted to the skeptic alongside R11 dispatch proposals.
+- **`examples/switch-to-polymorphism.md`** — second R11 case file (real production
+  code), the type-switch sibling of anti-if-dispatch: an already-polymorphic value
+  un-dispatched by a field-unpacking type switch becomes a fill-style interface
+  method. Covers the tempting wrong fix (extract-per-case as ceiling, not cure),
+  fill-don't-construct ownership, the earned + sealed interface (R6), and the
+  dependency-direction rejection — orthogonal to the juiciness rejection — where
+  the consumer owns the wire format and the switch legitimately stays as pure
+  dispatch.
 - Wiring: pre-commit-review hunts R11 (🔴 Design Debt), its dispatch proposals face
   the over-abstraction skeptic with the new case file as payload, code-designing
   dispatches R11 at design time (one dispatch owner per variant family in the
   checklist), refactoring + lint-fixer route `exhaustive` failures and
   discriminator-shaped `dupl` hits to it.
 
-
+## [2.1.0] - 2026-07-07
 
 ### Added
 

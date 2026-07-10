@@ -123,7 +123,20 @@ Full worked study including the strategy-map variant and the rejection counter-c
 - **Decide once, at the edge.** The one legitimate inspection of the raw discriminator
   is the constructor/parser that picks the implementation
   (`R2-self-validating-types.md` for the constructor discipline). Downstream code
-  holds the chosen behavior and never re-asks.
+  holds the chosen behavior and never re-asks. The corollary: a type switch over an
+  interface the same package owns is always a re-ask — the decision was made when
+  the value was constructed; cases that unpack the variants' fields are behavior
+  asking to live on the interface (`../examples/switch-to-polymorphism.md`).
+- **Dispatch requires owning the output.** An interface method can only be written
+  in the package that declares the interface, and it cannot reference another
+  package's unexported types. When the switch's output format belongs to a consumer
+  (a private wire request in a client package) and the variants live in a shared API
+  package, the move is unavailable — and forcing it (exporting the wire type,
+  per-consumer `fill<X>Request` methods on domain types) inverts the dependency.
+  There the switch is the honest boundary tax: shrink it to pure dispatch (one
+  converter call per case) and stop. Worked counter-case, including the fill-style
+  method shape for when the move IS available:
+  `../examples/switch-to-polymorphism.md`.
 - **Interface vs strategy map.** Variants with several behaviors or state → interface
   with one type per variant. Variants that differ by a single function → a map
   (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
@@ -154,7 +167,11 @@ Full worked study including the strategy-map variant and the rejection counter-c
   union of what all copies of the switch do (one method per switching site is a
   starting point, then collapse); one type per variant; move each `case` body into
   its variant; introduce `ParseX(raw) (X, error)` as the single decision point and
-  migrate call sites to method calls.
+  migrate call sites to method calls. When the dispatch produces an output that
+  carries fields the variants don't own (shared name/TLS on a wire request), give
+  the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
+  the caller owns the shared fields, each variant fills its own
+  (`../examples/switch-to-polymorphism.md`).
 - **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
   `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
 - **Introduce Null Object**: absent-collaborator nil-checks → a no-op implementation
@@ -166,8 +183,10 @@ Full worked study including the strategy-map variant and the rejection counter-c
   sanctioned form — record it as the decision, not a TODO.
 - New types this creates must pass R1's juiciness scorecard, land per
   `R4-helper-placement.md`, and never become test-only interfaces
-  (`R6-test-only-interfaces.md`). Rejection case law:
-  `../examples/anti-if-dispatch.md`.
+  (`R6-test-only-interfaces.md`). Rejection case law — juiciness (the switch stays,
+  goes exhaustive): `../examples/anti-if-dispatch.md`; dependency direction (the
+  move is unavailable across the package boundary):
+  `../examples/switch-to-polymorphism.md`.
 
 ## Falsifying questions
 
@@ -185,7 +204,15 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Detection: `grep -rn 'switch .* := .*\.(type)' --include='*.go' .` — for each hit,
    is it in a `ParseX`/decoder/boundary adapter, or in business logic?
    Violation: a type switch in domain logic whose cases call variant-specific
-   behavior — the behavior belongs on the variants.
+   behavior or unpack the variants' fields — the behavior belongs on the variants.
+   A switch over an interface the *same package* owns is a violation even at a
+   single site and even in a converter: the decision was already made at
+   construction, and interface satisfaction gives the completeness proof a
+   switch can't (`../examples/switch-to-polymorphism.md`). The boundary exemption
+   applies only when the output format belongs to a *different* package than the
+   cased types (that example's boundary counter) — there, the finding is limited
+   to shrinking the switch to pure dispatch. `errors.As`/`errors.Is` chains and
+   decode/unmarshal of foreign types are not this pattern.
 
 3. **Does a `default:` (or trailing `else`) handle "unknown kind" away from the boundary?**
    Detection: for each switch found in Q1, check the `default` arm for

@@ -17,7 +17,8 @@ The organising idea of v2: **the rule is the unit, not the phase.** Each design 
 ```
 go-linter-driven-development/
 ├── rules/        R1-primitive-obsession … R11-conditional-dispatch   (single source of truth)
-├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection · anti-if-dispatch   (case law)
+├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
+│                 anti-if-dispatch · switch-to-polymorphism   (case law)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
 │                 pre-commit-review · testing · documentation   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
@@ -88,6 +89,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`examples/overabstraction-cidr.md`](examples/overabstraction-cidr.md) | R1 — when an extraction is over-abstraction (the skeptic's payload) |
 | [`examples/dependency-rejection.md`](examples/dependency-rejection.md) | R8 — dependency rejection: eliminating globals by threading dependencies |
 | [`examples/anti-if-dispatch.md`](examples/anti-if-dispatch.md) | R11 — duplicated kind-switch → interface dispatch / strategy map, plus the kept-switch rejection (the skeptic's dispatch payload) |
+| [`examples/switch-to-polymorphism.md`](examples/switch-to-polymorphism.md) | R11, R6 — type switch over an owned interface → fill-style method; the earned/sealed interface; the dependency-direction rejection |
 
 **Skills → role** (thin views):
 
