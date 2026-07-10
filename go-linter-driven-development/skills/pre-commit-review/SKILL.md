@@ -95,8 +95,11 @@ Verdicts per finding: `CONFIRMED (score + verified evidence)` or
 when its cheaper alternative (better naming, private fields + accessors, or R11's
 Keep the Single Exhaustive Switch) is still worth doing, report the alternative as
 🟢 Polish. When R11 dispatch proposals are under review, additionally paste the FULL
-content of `../../examples/anti-if-dispatch.md` — its Move 3 is the rejection case law
-for dispatch extractions. Only findings the skeptic cannot kill ship as extraction
+content of both R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
+juiciness rejection: the switch stays, goes exhaustive) and
+`../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the
+move is unavailable when the consumer owns the output format; the switch shrinks to
+pure dispatch). Only findings the skeptic cannot kill ship as extraction
 findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
 no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
 broken edges, WHAT-comments, unwired root) propose no type extractions.
