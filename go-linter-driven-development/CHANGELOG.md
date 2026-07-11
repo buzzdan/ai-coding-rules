@@ -66,7 +66,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   granularities (type/interface/method/dispatch/guard/copy), enforcement agent the
   `overabstraction-skeptic`; each rule's inverse trap is its retrospective form.
 
-
+## [2.4.0] - 2026-07-10
 
 ### Added
 

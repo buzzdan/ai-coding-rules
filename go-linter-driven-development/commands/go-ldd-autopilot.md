@@ -6,11 +6,11 @@ allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
 ---
 
-**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` to run the complete five-phase workflow from design through commit-ready.
+**Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` to run the complete workflow — Phases 1–5 plus the autonomous PREPARE sub-phase (1.5) — from design through commit-ready.
 
 ⏱️ **Estimated Duration**: 5-15 minutes (depends on feature complexity and issues found)
 
-The skill runs all five phases:
+The skill runs, in order:
 1. **Pre-Flight** — verify Go project, discover test/lint commands, list the behaviors to deliver
 2. **Phase 1 DESIGN** — @code-designing produces a DESIGN PLAN for your approval (no code before OK)
 3. **Phase 1.5 PREPARE** — autonomous preparatory refactoring: survey the plan's touch points, four gates decide (multiply/safe/bounded/skeptic), reshape via @refactoring in its own commit(s) — no pause for approval

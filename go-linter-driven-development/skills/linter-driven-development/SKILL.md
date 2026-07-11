@@ -3,7 +3,7 @@ name: linter-driven-development
 description: |
   META ORCHESTRATOR for any Go code change that should end in a commit (features, bug fixes, refactors).
   WHEN: User requests Go code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /go-ldd-* command in a Go project.
-  Runs the five-phase workflow: DESIGN → PREPARE (autonomous preparatory refactoring) → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
+  Runs the five-phase workflow (PREPARE is an autonomous sub-phase, 1.5): DESIGN → PREPARE → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
@@ -14,8 +14,8 @@ allowed-tools:
 ---
 
 <objective>
-Top-level protocol for Go implementation work: five phases, where Phase 2 is a
-per-behavior TDD loop. Rule knowledge lives once in `../../rules/` — this skill never
+Top-level protocol for Go implementation work: five phases plus the autonomous
+PREPARE sub-phase (1.5), where Phase 2 is a per-behavior TDD loop. Rule knowledge lives once in `../../rules/` — this skill never
 restates it; it sequences the thin skills (which dispatch into the rules) and the
 lint-fixer agent, at the cadence each check's economics demand.
 </objective>

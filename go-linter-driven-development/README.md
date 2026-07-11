@@ -101,7 +101,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 
 | Skill | Role |
 |-------|------|
-| [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) | Meta-orchestrator — sequences the five phases |
+| [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) | Meta-orchestrator — sequences the five phases (plus the autonomous PREPARE sub-phase, 1.5) |
 | [`@code-designing`](skills/code-designing/SKILL.md) | FORWARD view — which rule to open at each design step (Phase 1) |
 | [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern; preparatory mode reshapes ahead of a planned change (Phase 1.5) |
 | [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) | Orchestrates the hunter/skeptic review (Phase 4); reports, never edits |

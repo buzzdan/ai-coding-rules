@@ -589,15 +589,24 @@ function NotificationItem({ notification }: { notification: Notification }) {
   )
 }
 
-// ✅ After - Component map, one entry per variant
-const NOTIFICATION_VIEWS: Record<Notification['kind'], FC<{ data: Notification }>> = {
+// ✅ After - Component map, one entry per variant.
+// `satisfies` a mapped type: each component is checked against ITS OWN variant
+// (MessageNotification must accept Extract<Notification, { kind: 'message' }>),
+// and a missing kind is a compile error — don't widen every view to the union,
+// which would force each component to re-narrow internally (re-asking).
+const NOTIFICATION_VIEWS = {
   message: MessageNotification,
   mention: MentionNotification,
   system: SystemNotification
+} satisfies {
+  [K in Notification['kind']]: FC<{ data: Extract<Notification, { kind: K }> }>
 }
 
 function NotificationItem({ notification }: { notification: Notification }) {
-  const View = NOTIFICATION_VIEWS[notification.kind]
+  // TypeScript cannot correlate the map entry with the narrowed union here
+  // (correlated-union limitation), so ONE localized cast sits at the single
+  // dispatch site — made safe in practice by the `satisfies` check above.
+  const View = NOTIFICATION_VIEWS[notification.kind] as FC<{ data: Notification }>
   return <View data={notification} />
 }
 ```
