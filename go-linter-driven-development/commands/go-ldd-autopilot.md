@@ -1,6 +1,6 @@
 ---
 name: go-ldd-autopilot
-description: Start complete linter-driven autopilot workflow (Phase 1-5)
+description: Start complete linter-driven autopilot workflow (Phases 1-5, incl. the autonomous PREPARE sub-phase 1.5)
 argument-hint: ""
 allowed-tools:
   - Skill(go-linter-driven-development:linter-driven-development)
