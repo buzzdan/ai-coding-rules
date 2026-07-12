@@ -23,7 +23,7 @@ go-linter-driven-development/
 ├── skills/       linter-driven-development · code-designing · refactoring ·
 │                 pre-commit-review · testing · documentation   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
-├── commands/     go-ldd-analyze · autopilot · quickfix · review · status · wire-repo-brain
+├── commands/     go-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
 └── hooks/        package-size gate
 ```
 

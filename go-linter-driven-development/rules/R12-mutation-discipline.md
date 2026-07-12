@@ -89,7 +89,9 @@ func ParseGrants(raw []string) (Grants, error) {
 // All returns a copy; callers may do anything with it.
 func (g Grants) All() []Permission { return slices.Clone(g.perms) }
 
-// Or expose iteration instead of the collection (no copy, no alias):
+// Or expose iteration instead of the collection (no copy, no alias).
+// iter.Seq / slices.Values require Go 1.23+; on older Go, a walker method
+// (func (g Grants) Each(yield func(Permission) bool)) is the same move.
 func (g Grants) Each() iter.Seq[Permission] { return slices.Values(g.perms) }
 
 func NewSchedule(days []Weekday) (Schedule, error) {
