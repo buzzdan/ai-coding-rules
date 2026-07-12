@@ -3,7 +3,7 @@ name: code-designing
 description: |
   FORWARD view over rules/ — domain type design and architectural planning for Go code BEFORE it exists.
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
-  Dispatches into the Design guidance sections of rules/R1-R8 and R10.
+  Dispatches into the Design guidance sections of rules/R1-R8 and R10-R12.
 allowed-tools:
   - Skill(go-linter-driven-development:testing)
 ---
@@ -33,6 +33,13 @@ Backward counterpart (fixing code that already fails lint/review): @refactoring.
   - `function-result-limit` (>3 returns) / `confusing-results` → design a named result type (same R1 scoring)
   - `file-length-limit` (>450 lines) → split juicy types into their own files (juiciness per R1; file-per-type per `../../rules/R5-vertical-slice.md`); a single god type routes to @refactoring's god-object decomposition procedure first
   - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring `<package_decomposition>`)
+- A Phase 4 review CLUSTER (≥2 hunters converging on one anchor —
+  @linter-driven-development routes it here) → **cluster-scoped mode**: skip
+  `<architecture_scan>` and the user-OK step (acceptance was inherited when the
+  findings were accepted); design only the one concept the cluster names — its
+  type or dispatch shape (R11), constructor (R2), mutation surface (R12), and
+  placement (R4) — so every member finding resolves as a consequence of that one
+  design. Return the mini DESIGN PLAN to the caller; @refactoring implements it.
 </when_to_use>
 
 <protocol>
@@ -58,6 +65,27 @@ What is the problem domain? The main concepts/entities? The invariants and rules
 How does this fit the existing architecture?
 </understand_domain>
 
+<maxim_interrogation>
+Design happens before a diff exists — no detection command can run yet, so questions
+are the tool. Interrogate the plan with `../../maxims.md` (the questions live there,
+once; ask them, don't restate them):
+
+- Every function that receives another type's data → **Tell, don't ask**: does the
+  decision it makes belong on that type?
+- Every planned interface → **The bigger the interface, the weaker the abstraction**:
+  could it be one method?
+- Every planned type → **Make illegal states unrepresentable** vs **Make the zero
+  value useful**: validated domain type (constructor) or mechanism type (useful
+  zero)? Pick a family.
+- Every planned check → **Parse, don't validate**: does it return a more-typed value
+  or a boolean someone must remember?
+- Every shared helper → **A little copying is better than a little dependency**: is
+  the third strike actually here?
+
+Answers shape the plan; they are never findings. Maxims propose, evidence disposes —
+the review phases convict only via rules (`maxims.md`, contract section).
+</maxim_interrogation>
+
 <rule_dispatch>
 For each concept in the design, open the rule that owns the question and apply its
 **Design guidance** section:
@@ -73,6 +101,8 @@ For each concept in the design, open the rule that owns the question and apply i
 | `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors; orchestrators integration-tested over real collaborators. |
 | `../../rules/R8-no-globals.md` | Dependencies injected via constructors, `ctx` threaded from callers, globals only at entry points. |
 | `../../rules/R10-concurrency-safety.md` | Every planned goroutine gets an owner (stop + wait) and an exit path at construction time; shared state designed with its guard on one type — or designed away via handoff/confinement. |
+| `../../rules/R11-conditional-dispatch.md` | How each kind/variant family dispatches: behavior-heavy or open set → interface chosen once at the boundary; single-behavior variance → strategy map; single-site closed enum → one exhaustive switch (named enum per R1). |
+| `../../rules/R12-mutation-discipline.md` | Each type's mutation surface: constructors copy slice/map arguments; queries return copies or iterators, never internal references; no setters around validating constructors; query and modifier as separate methods. |
 </rule_dispatch>
 
 <design_checklist>
@@ -87,6 +117,8 @@ Before presenting the plan, verify against the rules (cite, don't restate):
 - [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in @refactoring `<package_decomposition>`)
 - [ ] Dependencies constructor-injected and validated; ctx flows down; no new globals (R8, R2)
 - [ ] Every goroutine has an owner and exit path; shared state guarded where it lives, or confined (R10)
+- [ ] Every kind/variant family has ONE dispatch owner — interface, strategy map, or a single exhaustive switch; no discriminator inspected in two places (R11)
+- [ ] Every validated type's mutation surface is closed: slice/map arguments copied in, internal collections never returned by reference, no unvalidated setters (R12)
 </design_checklist>
 
 </protocol>

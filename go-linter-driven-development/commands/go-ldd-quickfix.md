@@ -23,7 +23,8 @@ Execute the quality-gates loop for already-implemented code that needs cleanup.
 **Phase 4 — REVIEW** (via @pre-commit-review, per completed slice)
 - @pre-commit-review orchestrates parallel `rule-hunter` agents + the `overabstraction-skeptic` against the diff; it reports, never edits
 - Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all advisory
-- Fix bugs and user-accepted findings via @refactoring, then re-invoke @pre-commit-review in INCREMENTAL mode
+- 🔗 CLUSTER entries (≥2 rules converging on one anchor) are fixed design-first: @code-designing (cluster-scoped) produces one mini plan, @refactoring implements it — never member-by-member
+- Fix bugs and user-accepted singleton findings via @refactoring, then re-invoke @pre-commit-review in INCREMENTAL mode
 
 **Loop until**:
 ✅ Tests pass | ✅ `LINT STATUS: green` | ✅ @pre-commit-review INCREMENTAL delta clean (or findings explicitly deferred)

@@ -126,6 +126,15 @@ helpers were renamed `alignIPv4`/`alignIPv6` — "align" admits the side effect 
   full move, and `R1-primitive-obsession.md` to score whether the type is warranted.
 - **Replace Nesting with Early Returns**: invert conditions, return early, flatten to
   ≤2 levels.
+- **Split Phase** (Fowler): when one function interleaves decoding/parsing with
+  computation — wire fields and business decisions in the same body — split it into
+  phase 1, which parses input into an intermediate domain structure, and phase 2,
+  which computes over that structure alone. The intermediate type is a leaf
+  candidate (score per `R1-primitive-obsession.md`); when phase 1 validates, it is a
+  `ParseX` constructor and the move collapses into `R2-self-validating-types.md`.
+  Split Phase differs from Extract Function: extraction names a step in place, Split
+  Phase introduces a data structure *between* the steps so each phase can change —
+  and be tested — without the other.
 - **Honest Rename**: mutating helpers get mutating names (`parseIP4` → `alignIPv4`).
 - Multi-rule sequencing (storify first or extract first, and when to stop):
   `../skills/refactoring/reference.md`. Forward design of the new types:

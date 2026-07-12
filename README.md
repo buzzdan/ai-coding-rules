@@ -6,8 +6,8 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 
 | | Plugin | Version | For |
 |---|--------|---------|-----|
-| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.0.0 | Go |
-| ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.0.0 | TypeScript + React |
+| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.6.0 | Go |
+| ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.2.0 | TypeScript + React |
 
 Plus the standalone rule documents the plugins grew out of:
 
@@ -18,10 +18,10 @@ Plus the standalone rule documents the plugins grew out of:
 
 The organising idea: **the rule is the unit, not the phase.** Each design principle lives exactly once, as data:
 
-- **`rules/` R1–R10** — single source of truth: primitive obsession, self-validating types, storifying, helper placement, vertical slices, test-only interfaces, test placement, no globals, repo-brain documentation, concurrency safety.
+- **`rules/` R1–R12** — single source of truth: primitive obsession, self-validating types, storifying, helper placement, vertical slices, test-only interfaces, test placement, no globals, repo-brain documentation, concurrency safety, conditional dispatch (Anti-IF), mutation discipline (Fowler's Mutable Data).
 - **`skills/`** — six thin directional views that sequence and route into the rules (orchestrator, design, testing, refactoring, review, documentation).
 - **`agents/`** — payload-fed isolated workers: parallel single-obsession `rule-hunter`s, an `overabstraction-skeptic` that tries to kill proposed extractions, and a `lint-fixer` that keeps the lint loop out of your conversation.
-- **`commands/`** — `/go-ldd-autopilot`, `/go-ldd-quickfix`, `/go-ldd-analyze`, `/go-ldd-review`, `/go-ldd-status`, `/wire-repo-brain`.
+- **`commands/`** — `/go-ldd-autopilot`, `/go-ldd-quickfix`, `/go-ldd-prepare`, `/go-ldd-analyze`, `/go-ldd-review`, `/go-ldd-status`, `/wire-repo-brain`.
 
 Full architecture, workflow, and usage: [plugin README](go-linter-driven-development/README.md) · what changed between versions: [CHANGELOG](go-linter-driven-development/CHANGELOG.md).
 

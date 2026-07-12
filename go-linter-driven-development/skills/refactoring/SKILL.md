@@ -3,7 +3,8 @@ name: refactoring
 description: |
   BACKWARD view over rules/ — routes linter and review failures to the rule whose Fix pattern owns the repair.
   Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain.
-  Applies storifying, type extraction, and function extraction patterns via rules/R1-R8 and R10.
+  Also runs PREPARATORY mode: reshape code an approved plan touches, before the first RED, so the feature lands add-only.
+  Applies storifying, type extraction, function extraction, conditional-dispatch, and mutation-discipline patterns via rules/R1-R8 and R10-R12.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
@@ -41,7 +42,8 @@ table in `../../agents/lint-fixer.md` — keep them consistent.)
 | `funlen` | `../../rules/R3-storifying.md` |
 | `nestif` | `../../rules/R3-storifying.md` |
 | `maintidx` | `../../rules/R3-storifying.md` + `../../rules/R1-primitive-obsession.md` |
-| `dupl` | `../../rules/R1-primitive-obsession.md` (extract shared type/logic) |
+| `dupl` | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated blocks that switch on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
+| `exhaustive` (missing enum cases) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site; a second switch appearing is the R11 violation itself |
 | revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
 | `gochecknoglobals` / `gochecknoinits` | `../../rules/R8-no-globals.md` |
 | `ireturn` / interface lint on single-impl interfaces | `../../rules/R6-test-only-interfaces.md` |
@@ -64,6 +66,8 @@ from there, never from memory:
 | Move test down a rung, Split `wantErr` tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
 | Extract Clean Island, Push Global Up One Level, Replace `init()` with constructor, Thread `ctx` | `../../rules/R8-no-globals.md` |
 | Inject the Exit Path, Make the Goroutine Joinable, Extract Synchronized Owner, Replace Sleep with Timer Select, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
+| Replace Duplicated Switch with Interface Dispatch, Replace If-Chain with Strategy Map, Introduce Null Object, Split Flag Argument, Keep the Single Exhaustive Switch | `../../rules/R11-conditional-dispatch.md` |
+| Copy on the Way In, Copy on the Way Out / Encapsulate Collection, Separate Query from Modifier, Remove Setting Method, Split Variable | `../../rules/R12-mutation-discipline.md` |
 
 **Multi-rule procedures** (sequencing, god-object decomposition, package
 decomposition): `reference.md` in this directory.
@@ -72,6 +76,8 @@ decomposition): `reference.md` in this directory.
 - Storify → leaf type discovery: `../../examples/storify-leaf-type.md`
 - Over-abstraction rejection + cheaper alternatives: `../../examples/overabstraction-cidr.md`
 - Incremental global elimination: `../../examples/dependency-rejection.md`
+- Duplicated kind-switch → interface dispatch (and the kept-switch rejection): `../../examples/anti-if-dispatch.md`
+- Type switch over an owned interface → fill-style method (and the dependency-direction rejection): `../../examples/switch-to-polymorphism.md`
 </pattern_index>
 
 <file_and_package_routing>
@@ -97,6 +103,35 @@ disease, file count the symptom). Invoke @code-designing to validate extracted t
 </package_decomposition>
 </file_and_package_routing>
 
+<preparatory_mode>
+Fowler's preparatory refactoring — "make the change easy, then make the easy change":
+reshape code an approved plan is about to touch, before the first RED, so the feature
+lands as add-only. Invoked by @linter-driven-development (Phase 1.5, or Phase 2 RED
+friction) or `/go-ldd-prepare`, with a DESIGN PLAN, the touch-point file list, and
+findings that already passed the four PREPARE gates (multiply / safe / bounded /
+skeptic — the gates live in @linter-driven-development `<phase_1_5_prepare>`; this
+mode trusts their verdicts and re-runs none of them). Fully autonomous — no user
+confirmation, same as the rest of this skill.
+
+Differences from failure-driven operation:
+
+- **The trigger is the plan, not the linter.** Targets are usually lint-green;
+  "still failing → next move" does not apply. Route each finding by its rule (the
+  same `<routing_table>` rules own the same fix patterns) and apply.
+- **Safety before motion.** Uncovered paths get characterization tests through the
+  public API first (@testing); the full suite — not just the touched package — runs
+  green after every move, because prep edits existing behavior by definition.
+- **Stopping criterion — landing shape, not lint.** Stop when the planned change
+  lands as add-only or near-add-only: a new variant = one new file plus one case at
+  the dispatch boundary (R11); new behavior = a method on an existing type (R1); new
+  code = testable without touching globals (R8). Re-check against the plan after
+  each move; shape reached → STOP, even with findings left — those were never
+  preparation and belong to Phase 4's advisory report.
+- **Commits are segregated.** Prep work lands in its own commit(s), never mixed with
+  feature code — the reviewer sees behavior-preserving reshaping and new behavior as
+  separate diffs.
+</preparatory_mode>
+
 <iteration_loop>
 1. Receive trigger (from @linter-driven-development, from the caller acting on accepted
    @pre-commit-review findings, or manual).
@@ -106,7 +141,10 @@ disease, file count the symptom). Invoke @code-designing to validate extracted t
 4. Still failing → next move in the sequence. Repeat until green.
 5. **Escalation**: complexity failures that keep recurring mean a new type or design
    is needed — invoke @code-designing. Patterns exhausted → report what was tried and
-   escalate to the user for architectural guidance.
+   escalate to the user for architectural guidance. Frame the escalation in maxim
+   vocabulary (`../../maxims.md`) — name *why* the code resists ("every caller asks
+   this struct three questions and then decides — the design wants Tell-Don't-Ask"),
+   not just which linter stayed red.
 </iteration_loop>
 
 <testing_integration>
@@ -154,7 +192,8 @@ STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 </output_format>
 
 <integration>
-**Invoked by**: @linter-driven-development (Phase 3, lint failures), or the caller acting
+**Invoked by**: @linter-driven-development (Phase 1.5 / RED friction → `<preparatory_mode>`;
+Phase 3, lint failures), or the caller acting
 on accepted @pre-commit-review findings (@linter-driven-development Phase 4 accepted
 findings, or the user) — @pre-commit-review reports only and never invokes fix skills.
 **Invokes**: @code-designing (new types/design needed), @testing (after every extraction

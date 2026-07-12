@@ -13,7 +13,7 @@ allowed-tools:
 ---
 
 <objective>
-Verify a finished diff against the plugin's rules (R1–R10) with evidence, by orchestrating
+Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
 parallel single-obsession `rule-hunter` agents and one `overabstraction-skeptic`.
 Pure orchestration and reporting: this skill may spawn agents but never edits code, never
 fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
@@ -54,6 +54,8 @@ A rule with zero hits is skipped — no hunter spawned for it.
 | R8 | `../../rules/R8-no-globals.md` | package-level state; `context.Background()` in library code |
 | R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root |
 | R10 | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
+| R12 | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
 
 Also in-context: a new `//nolint` directive or `.golangci.yaml` exclusion in the diff is
 itself a finding — the change must justify, with evidence, that the rule genuinely does
@@ -81,8 +83,8 @@ plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
 
 <step_3_skeptic_pass>
 Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
-proposal, and R10 "Extract Synchronized Owner" proposals — and spawn one
-`overabstraction-skeptic`. Its spawn prompt MUST contain:
+proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
+"Strategy Map" proposals — and spawn one `overabstraction-skeptic`. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
 2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
@@ -91,22 +93,51 @@ proposal, and R10 "Extract Synchronized Owner" proposals — and spawn one
 
 Verdicts per finding: `CONFIRMED (score + verified evidence)` or
 `REFUTED (score 0–1 + reason) → cheaper alternative`. A refuted proposal does not ship;
-when its cheaper alternative (better naming, private fields + accessors) is still worth
-doing, report the alternative as 🟢 Polish. Only findings the skeptic cannot kill ship
-as extraction findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10 findings
-that propose no new type) skip the skeptic and go straight to the report — R9 findings
-(orphans, broken edges, WHAT-comments, unwired root) propose no type extractions.
+when its cheaper alternative (better naming, private fields + accessors, or R11's
+Keep the Single Exhaustive Switch) is still worth doing, report the alternative as
+🟢 Polish. When R11 dispatch proposals are under review, additionally paste the FULL
+content of both R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
+juiciness rejection: the switch stays, goes exhaustive) and
+`../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the
+move is unavailable when the consumer owns the output format; the switch shrinks to
+pure dispatch). Only findings the skeptic cannot kill ship as extraction
+findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
+no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
+broken edges, WHAT-comments, unwired root) propose no type extractions.
 </step_3_skeptic_pass>
 
 <step_4_merged_report>
-Merge surviving findings into one report. Category mapping:
+Merge surviving findings into one report.
+
+**Cluster pass (before categorizing):** group surviving findings by shared anchor —
+the same type, field/discriminator, or function named in ≥2 findings from *different*
+rules. Each hunter is single-obsession and blind to the others, so independent
+convergence on one anchor is evidence that a domain concept is missing there — the
+cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
+primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
+jurisdictions). Render each cluster as a first-class entry above the categories:
+
+```
+🔗 CLUSTER: Alert.Channel (4 findings: R1, R11, R2, R7)
+   Hypothesis: missing domain concept — a Channel type wants to exist
+   Routing: design-first — @code-designing (cluster-scoped), then @refactoring
+   implements; do NOT fix members independently (partial fixes undo each other)
+```
+
+Member findings still appear under their categories below, tagged
+`[cluster: <anchor>]`. Clustering is *reporting* — this skill still never edits and
+never invokes fix skills; the caller routes.
+
+Category mapping:
 
 - 🐛 **Bugs** — will fail at runtime regardless of rule (nil returned as a value,
   cancellation swallowed by `context.Background()`, R10 goroutine leaks and
   unguarded concurrent writes): fix immediately.
 - 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, R10's non-crash findings (production
-  sleeps, fire-and-forget ownership, mutex placement), and R5 (advisory — never
-  blocks; the user may have valid reasons): fix before commit recommended.
+  sleeps, fire-and-forget ownership, mutex placement), R11 (duplicated discriminators,
+  boundary leaks), R12 (leaked mutable internals, unvalidated setters), and R5
+  (advisory — never blocks; the user may have valid reasons): fix before commit
+  recommended.
 - 🟡 **Readability Debt** — R3, R9, unclear naming: improves maintainability.
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
@@ -119,7 +150,7 @@ Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as fi
 </protocol>
 
 <modes>
-**FULL (first run):** pre-filter all ten rules over the whole diff scope; report every
+**FULL (first run):** pre-filter all twelve rules over the whole diff scope; report every
 surviving finding.
 
 **INCREMENTAL (re-run after fixes):** diff scope = only files changed since the last

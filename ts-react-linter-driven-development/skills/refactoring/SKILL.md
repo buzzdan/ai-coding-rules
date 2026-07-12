@@ -529,6 +529,149 @@ function LoginForm() {
 }
 ```
 
+### Pattern 8: Replace Tag-Based Conditionals with Dispatch (Anti-IF)
+
+**Signal**: The same discriminator (`kind`, `status`, `type` field) inspected in more than one place; ternary/if-else chains in JSX selecting between renderings; switch statements duplicated across files
+
+The Anti-IF principle: a conditional that asks what a value *is* may exist once. The second copy of the same `switch (x.kind)` is a missing abstraction — dispatch through a lookup map or let a discriminated union carry the decision.
+
+```typescript
+// ❌ Before - Same discriminator inspected in three places
+function StatusBadge({ status }: { status: Status }) {
+  return status === 'active' ? (
+    <Badge color='green'>Active</Badge>
+  ) : status === 'pending' ? (
+    <Badge color='yellow'>Pending</Badge>
+  ) : (
+    <Badge color='red'>Suspended</Badge>
+  )
+}
+
+function statusLabel(status: Status) {
+  if (status === 'active') return 'Active'
+  if (status === 'pending') return 'Pending approval'
+  return 'Suspended' // drifts independently of StatusBadge
+}
+
+function canLogin(status: Status) {
+  if (status === 'active') return true
+  if (status === 'pending') return true
+  return false
+}
+
+// ✅ After - One dispatch owner: a config map keyed by the discriminator
+const STATUS_CONFIG: Record<Status, { color: BadgeColor; label: string; canLogin: boolean }> = {
+  active: { color: 'green', label: 'Active', canLogin: true },
+  pending: { color: 'yellow', label: 'Pending approval', canLogin: true },
+  suspended: { color: 'red', label: 'Suspended', canLogin: false }
+}
+
+function StatusBadge({ status }: { status: Status }) {
+  const { color, label } = STATUS_CONFIG[status]
+  return <Badge color={color}>{label}</Badge>
+}
+
+// Adding a status = adding one entry; TypeScript errors until every
+// Record key is present — the compiler enforces completeness.
+```
+
+For variant components, dispatch through a component map instead of ternary chains in JSX:
+
+```typescript
+// ❌ Before - Nested ternaries selecting components
+function NotificationItem({ notification }: { notification: Notification }) {
+  return notification.kind === 'message' ? (
+    <MessageNotification data={notification} />
+  ) : notification.kind === 'mention' ? (
+    <MentionNotification data={notification} />
+  ) : (
+    <SystemNotification data={notification} />
+  )
+}
+
+// ✅ After - Component map, one entry per variant.
+// `satisfies` a mapped type: each component is checked against ITS OWN variant
+// (MessageNotification must accept Extract<Notification, { kind: 'message' }>),
+// and a missing kind is a compile error — don't widen every view to the union,
+// which would force each component to re-narrow internally (re-asking).
+const NOTIFICATION_VIEWS = {
+  message: MessageNotification,
+  mention: MentionNotification,
+  system: SystemNotification
+} satisfies {
+  [K in Notification['kind']]: FC<{ data: Extract<Notification, { kind: K }> }>
+}
+
+function NotificationItem({ notification }: { notification: Notification }) {
+  // TypeScript cannot correlate the map entry with the narrowed union here
+  // (correlated-union limitation), so ONE localized cast sits at the single
+  // dispatch site — made safe in practice by the `satisfies` check above.
+  const View = NOTIFICATION_VIEWS[notification.kind] as FC<{ data: Notification }>
+  return <View data={notification} />
+}
+```
+
+When a switch legitimately stays (single site, variant-specific payloads), make it a **discriminated union with an exhaustiveness check** — the compiler then does what an if-chain never could: fail the build when a variant is added but not handled:
+
+```typescript
+type PaymentEvent =
+  | { kind: 'charge'; amountCents: number }
+  | { kind: 'refund'; amountCents: number; reason: string }
+  | { kind: 'dispute'; caseId: string }
+
+function describe(event: PaymentEvent): string {
+  switch (event.kind) {
+    case 'charge':
+      return `Charged ${formatCents(event.amountCents)}`
+    case 'refund':
+      return `Refunded ${formatCents(event.amountCents)}: ${event.reason}`
+    case 'dispute':
+      return `Dispute opened (${event.caseId})`
+    default: {
+      const unhandled: never = event // compile error if a variant is missed
+      return unhandled
+    }
+  }
+}
+```
+
+**The dividing line**: dispatch is bought with the deletion of duplicated decisions. One switch at one site over a discriminated union is healthy — keep it exhaustive. The violation is the *second* copy of the discriminator, or `boolean` props that select between behaviors (`<Button isLink />` wants to be two components or a variant prop dispatched through a map). Guard clauses and value checks (`if (!user) return null`) are healthy control flow — never "fix" those.
+
+### Pattern 9: Replace Loop with Pipeline
+
+**Signal**: Imperative loops with accumulators, flags, and conditionals pushing into arrays; cyclomatic complexity from loop bodies
+
+Fowler's Replace Loop with Pipeline: each `filter`/`map` stage states one transformation, where a loop body interleaves them all.
+
+```typescript
+// ❌ Before - Accumulator loop, three concerns interleaved (Cyclomatic: 5)
+function activeAdminEmails(users: User[]): string[] {
+  const result: string[] = []
+  for (const user of users) {
+    if (user.isActive) {
+      if (user.roles.includes('admin')) {
+        result.push(user.email.toLowerCase())
+      }
+    }
+  }
+  return result
+}
+
+// ✅ After - Pipeline, one concern per stage (Cyclomatic: 1 per stage)
+function activeAdminEmails(users: User[]): string[] {
+  return users
+    .filter(user => user.isActive)
+    .filter(user => user.roles.includes('admin'))
+    .map(user => user.email.toLowerCase())
+}
+```
+
+**Guardrails**:
+- Name complex stage predicates (`filter(isActiveAdmin)`) instead of inlining multi-line arrows — the pipeline should read as a story
+- Don't force `reduce` where a loop is clearer: a `reduce` with a mutating accumulator object is the same loop wearing a costume; prefer `Object.groupBy`/`Map` construction or keep the loop
+- Early-exit searches use `find`/`some`/`every`, not `filter(...)[0]`
+- Async work per item is not a pipeline stage — `for...of` with `await` stays a loop (or `Promise.all(items.map(...))` when parallel is intended)
+
 ## Refactoring Decision Tree
 
 When linter fails, follow this decision tree:
@@ -538,11 +681,13 @@ Linter Failure
     ├─ Cognitive Complexity > 15
     │   ├─ Mixed abstractions? → Extract custom hooks
     │   ├─ Complex conditions? → Extract to helper functions
+    │   ├─ Accumulator loop with conditionals? → Replace Loop with Pipeline (Pattern 9)
     │   └─ Deep nesting? → Early returns, guard clauses
     │
     ├─ Cyclomatic Complexity > 10
     │   ├─ Many branches? → Early returns
     │   ├─ Complex switch? → Use object mapping or extract functions
+    │   ├─ Same discriminator switched in 2+ places? → Lookup map / component map (Pattern 8)
     │   └─ Multiple &&/|| chains? → Extract conditions to variables
     │
     ├─ Expression Complexity > 5
@@ -578,6 +723,7 @@ See reference.md for detailed principles:
 - Custom Hooks: Reusable logic outside components
 - Zod for Validation: Move validation out of components
 - Self-Validation Ownership: Extracted types own their validation; composed validated types (Zod/branded) are trusted, not re-validated
+- One Dispatch Owner (Anti-IF): A discriminator is inspected in one place — lookup/component maps for duplicated conditionals, discriminated unions with `never` exhaustiveness checks for the switch that stays
 
 ## After Refactoring
 
