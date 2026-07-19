@@ -17,3 +17,7 @@ Thumbs.db
 # Backup files
 *.backup
 *.bak
+
+.planning/
+.ideas/
+.superpowers/

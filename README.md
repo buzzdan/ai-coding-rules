@@ -13,6 +13,7 @@ Plus the standalone rule documents the plugins grew out of:
 
 - [`coding_rules.md`](coding_rules.md) — Go coding principles (types, testing, refactoring, anti-patterns)
 - [`coding_rules_ts_react.md`](coding_rules_ts_react.md) — TypeScript + React principles
+- [`testing_rules_ts_react.md`](testing_rules_ts_react.md) — TypeScript + React testing strategy (Vitest, RTL, MSW)
 
 ### Go plugin (v2 — rules as data)
 
