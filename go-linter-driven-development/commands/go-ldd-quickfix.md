@@ -12,7 +12,7 @@ Execute the quality-gates loop for already-implemented code that needs cleanup.
 
 **Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)`. Because the code already exists, it skips the design and TDD-implementation phases (Phases 1–2) and runs the quality gates until green:
 
-**Phase 3 — TESTS + FULL LINT** (via the `lint-fixer` agent, Task, isolated context)
+**Phase 3 — TESTS + FULL LINT** (via the `lint-fixer` agent, Agent tool, isolated context)
 - Discover project test/lint commands (`task test` / `make test` / `go test ./...`; lint from Taskfile/Makefile or `golangci-lint run --fix`)
 - Run the discovered test command first; all tests must pass before the lint pass proceeds (a test failure is a fix target, not a skip)
 - One full-repo lint run; mechanical issues are `FIXED` in place

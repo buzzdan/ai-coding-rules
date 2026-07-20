@@ -36,6 +36,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   - **@pre-commit-review** spawns the critic on the standalone/PR path whenever
     the diff contains comments; verdicts land as 🟡 Readability Debt, advisory.
 
+### Changed
+
+- **`Task` → `Agent` tool rename** across all skill and command frontmatter and
+  prose: Claude Code renamed the subagent-spawning tool in v2.1.63; `Task` still
+  works as a backward-compat alias, but the plugin now uses the canonical name.
+
 ## [2.7.0] - 2026-07-20
 
 ### Changed

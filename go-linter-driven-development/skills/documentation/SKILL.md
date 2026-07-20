@@ -18,7 +18,7 @@ allowed-tools:
   - Bash
   - Write
   - Edit
-  - Task
+  - Agent
 ---
 
 <objective>
@@ -83,7 +83,7 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    Q4–Q6 over the diff (WHAT-comments, naked exported API, silently-changed doc).
    The detection commands live in R9; never restate them. Fix every hit before
    reporting.
-7. **Comment critique**: spawn the `comment-critic` agent (Task) on the full diff —
+7. **Comment critique**: spawn the `comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
    are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
    section pasted verbatim (toolbox kinds, three-test standard, tiers, budget

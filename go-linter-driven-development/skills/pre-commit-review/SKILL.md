@@ -9,7 +9,7 @@ allowed-tools:
   - Read
   - Grep
   - Bash
-  - Task
+  - Agent
 ---
 
 <objective>
