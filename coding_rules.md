@@ -98,6 +98,10 @@ Plan → Write Tests → Implement → Pass Tests → Run Linter → Refactor un
 #### Comments
 - Package-level documentation explaining the package's purpose and main concepts
 - Top-level types and exported functions must explain **why**, not just how
+- godoc comments are 1–5 prose lines, scaled to the symbol's importance (a tiny
+  helper gets one line; a crucial entry point gets up to five); anything longer
+  moves to the repo docs with a `See docs/<feature>.md` reference. Package docs
+  that earn more may use a dedicated `doc.go` (~20–30 lines).
 - Comment on complex logic blocks
 - Include external references for unfamiliar patterns or libraries
 
