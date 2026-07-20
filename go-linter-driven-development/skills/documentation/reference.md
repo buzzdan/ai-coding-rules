@@ -25,17 +25,22 @@ policy, index policy, root wiring, doc-root discovery — lives ONCE in
 
 ## Godoc Menus
 
-**These are MENUS, not forms** (normative: R9's comment policy). The WHY is the
-default content; every other section is picked only when it earns its place for THIS
-symbol:
+**These are MENUS, not forms** (normative: R9's tiered comment-budget policy —
+**1–5 prose lines** scaled to the symbol's role; blank `//` lines, the See-edge, and
+short inline examples of 2–4 lines are free). The WHY is the default content; the
+tier caps how much of a menu any one symbol can order:
 
-- **Parsing constructor** (`ParsePort`, `ParsePolicy`) → input dos/don'ts and a short
-  example often earn their place: callers need the boundary contract.
-- **Logic-heavy type** (orchestrator, state machine) → use cases or a flow sketch.
-- **Small method, plain constructor, obvious accessor** → one line, or nothing.
+- **Helper** (small method, plain constructor, obvious accessor) → 0–1 line, or
+  nothing; a tiny example only if it clarifies.
+- **Contract** (parsing constructor like `ParsePort`, self-validating type, ordinary
+  exported API) → 2–3 lines; a dos/don'ts example is free and often earns its place.
+- **Crossroads** (entry point, orchestrator, state machine, feature front door) →
+  up to 5 lines: WHY, architectural context, use cases.
 
-The one near-constant: keep the `See docs/<feature>.md` edge whenever a feature doc
-exists.
+Overflow never stays inline — it moves to the feature doc; the
+`See docs/<feature>.md` edge (kept whenever the doc exists) carries the pointer. A
+crossroads that deserves more than 5 lines inline gets an expand recommendation in
+the FEATURE report instead of extra lines — a human decides (R9's escape hatch).
 
 ### Package Godoc Menu
 
@@ -58,6 +63,11 @@ Pick only the lines this package needs:
 // See docs/[feature].md for architecture and usage.      <- whenever the doc exists
 package name
 ```
+
+**The `doc.go` hatch (R9):** when a package genuinely earns more than the standard
+budget — flow sketch, core-types list, and design decisions all pulling their
+weight — move the package godoc to a dedicated `doc.go`, bounded at ~20–30 lines.
+A package comment inline in a regular file stays within the standard tier budget.
 
 ### Type Godoc Menu
 
@@ -335,8 +345,13 @@ vets after the edit.
       unnecessary? (R9 placement rule)
 - [ ] Exported symbols carry WHY — rationale, incident, constraint — never a restated
       identifier
-- [ ] Menu sections included only where they earn their place for that symbol
-      (relevance-scaled, per R9's comment policy)
+- [ ] Every doc comment fits its tier budget — helper 0–1 / contract 2–3 /
+      crossroads ≤5 prose lines (R9's tiered comment policy); overflow moved to the
+      feature doc, `doc.go` (~20–30 lines) used for package docs that earn it
+- [ ] Menu sections included only where they earn their place for that symbol,
+      within the tier budget
+- [ ] Crossroads that deserve richer inline godoc got an expand recommendation in
+      the report — never extra lines beyond budget
 - [ ] `See docs/<feature>.md` edge present wherever a feature doc exists
 - [ ] Testable examples: at least one `Example_*` per complex/core type; runnable;
       happy path only; `// Output:` comments included
@@ -445,6 +460,41 @@ create orphaned fragments; sub-docs would be too thin to stand alone.
 - Invalid input returns ErrInvalidInput with descriptive message
 - Empty input is explicitly rejected (not silently ignored)
 ```
+
+---
+
+#### ❌ Over-Budget Godoc (depth at the wrong rung)
+```go
+// Scheduler coordinates periodic report generation across tenants.
+// It was introduced after the v2 incident where per-tenant cron jobs
+// drifted and overlapped, causing duplicate report emails.
+// The scheduler holds a min-heap of next-run times and wakes on the
+// earliest deadline. Each tick it drains all due tenants, submits
+// them to the worker pool, and re-heaps with jittered next-run times.
+// Jitter is +/-10% to avoid thundering herd on shared storage.
+// Thread safety: all public methods lock the internal mutex; callbacks
+// run outside the lock. Do not call Schedule from inside a callback.
+// See docs/report-scheduling.md.
+type Scheduler struct { /* ... */ }
+```
+*Why bad?*: nine prose lines — the heap mechanics and tick flow are implementation
+narration (rung-2 material at best) drowning the two facts a reader at this symbol
+actually needs. Reviewers scroll past comments like this, then miss the one that
+matters.
+
+#### ✅ Trimmed to Tier (crossroads: ≤5 prose lines)
+```go
+// Scheduler coordinates periodic report generation across tenants.
+// It exists because independent per-tenant cron jobs drifted and overlapped
+// (duplicate report emails — the v2 incident); one coordinator with jittered
+// next-run times replaced them.
+// Do not call Schedule from inside a callback — callbacks run outside the lock.
+// See docs/report-scheduling.md for the tick flow and jitter math.
+type Scheduler struct { /* ... */ }
+```
+*The overflow moved, not died*: tick flow, heap mechanics, and jitter math now live
+in `docs/report-scheduling.md`; the comment keeps the WHY, the one caller-facing
+constraint, and the edge that points at the depth.
 
 ---
 

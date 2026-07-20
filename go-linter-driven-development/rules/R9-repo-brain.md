@@ -157,7 +157,7 @@ Forward guidance — what @documentation applies when writing docs after a featu
 | Rung | Layer | Drift | Owns |
 |---|---|---|---|
 | 0 | Storified code | none — it IS the behavior | the story; names carry context (owned by `R3-storifying.md`, cited not restated) |
-| 1 | Code comments (godoc) | low — lives beside the code, reviewed with diffs | the WHY, plus extras scaled to relevance (policy below); network edges: `See docs/<feature>.md` |
+| 1 | Code comments (godoc) | low — lives beside the code, reviewed with diffs | the WHY within a tiered 1–5 prose-line budget (policy below); network edges: `See docs/<feature>.md` |
 | 2 | Repo docs | medium — drifts unless networked | feature/architecture docs in the doc root; point back down via greppable symbol references (edge policy below) |
 | 3 | The map | minimal — short and regenerable | `index.md` in the doc root: one line per doc, grouped by topic; wired into CLAUDE.md / AGENTS.md |
 
@@ -172,20 +172,45 @@ same paragraph pasted at two rungs; it *will* drift. Before writing any comment,
 first ask whether a rename or extraction (`R3-storifying.md`) makes it unnecessary —
 rung 0 beats rung 1.
 
-### Comment policy (rung 1 — relevance-scaled)
+### Comment policy (rung 1 — tiered budget)
 
-The WHY is the default content of a doc comment. Every other ingredient — context,
-use cases, flow sketches, dos/don'ts, usage examples — is included only when it
-earns its place *for that symbol*:
+The WHY is the default content of a doc comment, and it lives inside a hard budget:
+**1–5 prose lines**, scaled to the symbol's importance. Not all symbols are born
+equal — the budget forces each comment to carry only the most important facts *for
+that symbol*; everything else moves up to the feature doc (rung 2), where depth is
+cheap, and the `See docs/<feature>.md` edge carries the pointer. This is the
+placement rule made operational at write time.
 
-- **Parsing constructor** (`ParsePolicy`, `ParsePort`) → input dos/don'ts and a
-  short example often earn their place: callers need the boundary contract.
-- **Logic-heavy type** (an orchestrator, a state machine) → use cases or a flow
-  sketch may earn theirs.
-- **Small method, plain constructor, obvious accessor** → one line, or nothing.
+**Budget accounting** — prose lines count; these are free:
+
+- blank `//` separator lines
+- the `See docs/<feature>.md` network-edge line
+- short inline example lines, bounded at 2–4 lines — anything bigger belongs in an
+  `Example_*` testable example
+
+**Role-based tiers** — judge the tier from the symbol's role in the code:
+
+| Tier | Role signals | Budget | Typical content |
+|---|---|---|---|
+| **Helper** | small method, plain constructor, obvious accessor | 0–1 prose line | one-line summary; tiny example only if it clarifies |
+| **Contract** | parsing constructor (`ParsePolicy`, `ParsePort`), self-validating type, ordinary exported API | 2–3 prose lines | WHY + boundary contract; dos/don'ts example (free) |
+| **Crossroads** | entry point, orchestrator, state machine, feature front door | up to 5 prose lines | WHY, architectural context, use cases + See-edge |
+
+**Two bounded escape hatches:**
+
+- **Package docs in `doc.go`**: a package that genuinely earns more (data-flow
+  sketch, core-types list, design decisions all pulling their weight) moves its
+  package godoc to a dedicated `doc.go`, bounded at ~20–30 lines. A package comment
+  inline in a regular file stays within the standard budget.
+- **Crossroads expand recommendation**: the writer never self-exceeds the 5-line
+  cap. When a critical crossroads would benefit from richer inline godoc beyond the
+  doc reference, write within budget and append an optional, end-of-report
+  recommendation — `consider expanding <Symbol>'s godoc inline — <rationale>` —
+  for a human to decide later (@documentation's report carries it).
 
 Never fill a template for its own sake — @documentation's templates are menus to
-pick from, not forms to fill. The one near-constant is the network edge: keep the
+pick from, not forms to fill, and the tier budget caps how much of a menu any one
+symbol can order. The one near-constant is the network edge: keep the
 `See docs/<feature>.md` reference whenever a feature doc exists.
 
 Boundary with `R3-storifying.md`, stated precisely: block comments *inside*

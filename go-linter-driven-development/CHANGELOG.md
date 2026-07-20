@@ -3,6 +3,29 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.7.0] - 2026-07-20
+
+### Changed
+
+- **Tiered godoc budget — R9's comment policy now has hard numbers.** Generated
+  godoc comments were verbose enough to slow human review; "menus, not forms" was
+  guidance without a bound. R9's rung-1 comment policy is now a **1–5 prose-line
+  budget scaled by the symbol's role**: helpers 0–1 line, contract types (parsing
+  constructors, self-validating types) 2–3, crossroads (entry points, orchestrators,
+  feature front doors) up to 5. Blank `//` lines, the `See docs/<feature>.md` edge,
+  and short inline examples (2–4 lines) are free; overflow moves to the feature
+  doc — the placement rule made operational at write time. Two bounded escape
+  hatches: a package that genuinely earns more moves its godoc to a dedicated
+  `doc.go` (~20–30 lines), and a crossroads that deserves richer inline godoc gets
+  an optional **expand recommendation** in @documentation's FEATURE report instead
+  of extra lines — a human decides. Guidance-only: falsifying questions, hunters,
+  and the skeptic are unchanged.
+  - `@documentation` FEATURE step 3 applies the budget; its report format gains an
+    optional `Expand recommendations` section.
+  - reference.md godoc menus annotated with tier budgets; new `doc.go` hatch note,
+    checklist budget items, and an over-budget → trimmed-to-tier worked example.
+  - Root `coding_rules.md` Comments section aligned with the budget.
+
 ## [2.6.0] - 2026-07-10
 
 ### Added

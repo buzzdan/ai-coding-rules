@@ -55,10 +55,15 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 2. **Place each fact on the documentation ladder**: apply R9's rung table and
    placement rule (`../../rules/R9-repo-brain.md`, Design guidance). Before writing
    any comment, first check whether a rename or extraction makes it unnecessary.
-3. **Rung 1 — godoc**: write/refresh doc comments per R9's relevance-scaled comment
-   policy, keeping the `See docs/<feature>.md` edge wherever a feature doc exists.
-   Pick from reference.md's godoc menus only what earns its place for THIS symbol.
-   Add testable examples (`Example_*`) for complex/core types.
+3. **Rung 1 — godoc**: write/refresh doc comments per R9's tiered comment-budget
+   policy — 1–5 prose lines scaled to the symbol's role (helper / contract /
+   crossroads); overflow moves to the feature doc — keeping the
+   `See docs/<feature>.md` edge wherever a feature doc exists. Pick from
+   reference.md's godoc menus only what fits THIS symbol's tier. A package that
+   earns more moves its godoc to `doc.go` (R9's ~20–30 line bound). A crossroads
+   that deserves richer inline godoc stays within budget and gets an expand
+   recommendation in the report (step 7) — never extra lines. Add testable
+   examples (`Example_*`) for complex/core types.
 4. **Rung 2 — feature doc**: create/update `<docroot>/<feature>.md` from the
    reference.md template: `Related` edges to sibling docs; key players as
    `Symbol | Role | Package`; entry points cite symbols — never file paths or line
@@ -119,6 +124,10 @@ Network edges added:
 
 R9 self-check: Q1–Q3 clean · Q4–Q6 clean over diff
   (or per hit: <Qn>: <evidence> — fixed by <R9 fix-pattern move>)
+
+Expand recommendations (optional — omit the section when none):
+- <Symbol> — consider expanding its godoc inline beyond the doc reference:
+  <one-line rationale>
 ```
 
 BOOTSTRAP mode:
