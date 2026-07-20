@@ -7,6 +7,7 @@ policy, index policy, root wiring, doc-root discovery — lives ONCE in
 
 ## Contents
 
+- [Comment Value Toolbox](#comment-value-toolbox) — the growable catalog of ways a comment delivers value
 - [Godoc Menus](#godoc-menus) — package, type, function menus; testable examples
 - [Feature Doc Template](#feature-doc-template) — with `Related` edges and symbol-cited key players
 - [The Index and Root Wiring](#the-index-and-root-wiring) — index.md, map of maps, CLAUDE.md/AGENTS.md snippets
@@ -20,6 +21,77 @@ policy, index policy, root wiring, doc-root discovery — lives ONCE in
 > rules, cross-reference conventions) now lives normatively in
 > `../../rules/R9-repo-brain.md` — see its Design guidance (rung table, placement
 > rule, edge conventions).
+
+---
+
+## Comment Value Toolbox
+
+The catalog behind R9's toolbox-value test. The normative list of kinds lives in
+R9's comment policy; **this catalog is the growable half** — when a new kind of
+valuable comment proves itself, add it here with a worked example. Two consumers:
+the writer picks from this toolbox when composing a comment (step 3), and the
+`comment-critic` cites the specific toolbox item a rewrite should deliver ("swap
+narrated implementation for the boundary contract this parsing constructor
+needs").
+
+Each entry: when it earns its place, and what it looks like.
+
+### WHY, not WHAT
+
+Rationale, incident, or constraint the code cannot carry. The default value — when
+in doubt, this is the one to reach for.
+
+```go
+// ❌ ParseAddress parses an address string.            (restates the name)
+// ✅ ParseAddress rejects ports below 1024: the collector runs unprivileged.
+```
+
+### Wider context
+
+Where this sits architecturally; what depends on it. Earns its place on crossroads
+symbols — the reader landing here from a grep needs to know what they're standing
+on.
+
+```go
+// ❌ Queue is a queue used by the system.               (generic filler)
+// ✅ Every exporter ships through this queue — backpressure starts here.
+```
+
+### Important use cases / flows
+
+When to reach for this symbol instead of its neighbors. Earns its place when the
+choice is not obvious from the names alone.
+
+```go
+// ✅ Use Snapshot for reads during a rebalance; direct reads block until it ends.
+```
+
+### Boundary contract
+
+Dos/don'ts, valid inputs, error behavior. Earns its place on parsing constructors
+and any API whose caller needs the contract before the first call.
+
+```go
+// ✅ Accepts "3x100ms"-style specs. Zero attempts and negative delays are rejected.
+```
+
+### Guarantees
+
+Thread safety, nil handling, invariants — promises the signature cannot express.
+
+```go
+// ✅ Safe for concurrent use; callbacks run outside the lock.
+```
+
+### Network edge
+
+The `See docs/<feature>.md` line wiring a critical point into the repo brain.
+Near-constant: keep it whenever a feature doc exists (R9 edge policy). Free under
+the budget.
+
+```go
+// ✅ See docs/retry-policy.md for the incident and the cap math.
+```
 
 ---
 
@@ -41,6 +113,10 @@ Overflow never stays inline — it moves to the feature doc; the
 `See docs/<feature>.md` edge (kept whenever the doc exists) carries the pointer. A
 crossroads that deserves more than 5 lines inline gets an expand recommendation in
 the FEATURE report instead of extra lines — a human decides (R9's escape hatch).
+
+What fills the chosen menu lines comes from the [Comment Value Toolbox](#comment-value-toolbox)
+above — every prose line must deliver one of its values, in plain English (R9's
+three-test standard).
 
 ### Package Godoc Menu
 
@@ -343,6 +419,11 @@ vets after the edit.
 
 - [ ] Every comment survived the placement test: would a rename or extraction make it
       unnecessary? (R9 placement rule)
+- [ ] Every prose line delivers a Comment Value Toolbox item (floor), and the comment
+      carries the highest-value items for its symbol's tier (ceiling) — R9's
+      toolbox-value test
+- [ ] Plain English throughout: everyday words, short sentences — no vocabulary a
+      non-native reader would need a dictionary for (R9's plain-English test)
 - [ ] Exported symbols carry WHY — rationale, incident, constraint — never a restated
       identifier
 - [ ] Every doc comment fits its tier budget — helper 0–1 / contract 2–3 /

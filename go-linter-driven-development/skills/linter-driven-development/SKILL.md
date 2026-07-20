@@ -207,7 +207,10 @@ before.
 <phase_5_ship>
 1. Invoke @documentation (FEATURE mode): godoc + feature docs, wired into the
    documentation network (index line, edges both directions, root import), plus its
-   R9 self-check over the diff.
+   R9 self-check over the diff and its comment-critic critique loop (the critic
+   reviews every comment in the diff against R9's three-test standard;
+   @documentation applies the verdicts and re-critiques once — R3 routes from the
+   critic go back through @refactoring like any R3 finding).
 2. Present the ship summary: tests green (`go test ./...`), lint green (Phase 3),
    review delta (Phase 4), files changed, suggested commit message.
 3. User decides: commit as-is · fix deferred advisory findings first · defer.
@@ -222,5 +225,6 @@ before.
 - [ ] lint-fixer reported `LINT STATUS: green`; all escalations resolved via @refactoring
 - [ ] @pre-commit-review INCREMENTAL delta clean, or findings explicitly deferred by user
 - [ ] @documentation (FEATURE mode) done — docs wired into the network, R9 self-check
-      clean; commit summary presented and user chose an action
+      clean, comment-critic critique loop applied and confirmed clean (or remainder
+      reported); commit summary presented and user chose an action
 </success_criteria>

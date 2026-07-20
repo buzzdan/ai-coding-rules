@@ -21,7 +21,7 @@ The organising idea: **the rule is the unit, not the phase.** Each design princi
 
 - **`rules/` R1–R12** — single source of truth: primitive obsession, self-validating types, storifying, helper placement, vertical slices, test-only interfaces, test placement, no globals, repo-brain documentation, concurrency safety, conditional dispatch (Anti-IF), mutation discipline (Fowler's Mutable Data).
 - **`skills/`** — six thin directional views that sequence and route into the rules (orchestrator, design, testing, refactoring, review, documentation).
-- **`agents/`** — payload-fed isolated workers: parallel single-obsession `rule-hunter`s, an `overabstraction-skeptic` that tries to kill proposed extractions, and a `lint-fixer` that keeps the lint loop out of your conversation.
+- **`agents/`** — payload-fed isolated workers: parallel single-obsession `rule-hunter`s, an `overabstraction-skeptic` that tries to kill proposed extractions, a `comment-critic` that makes every comment prove it earns its lines (Comment Value Toolbox), and a `lint-fixer` that keeps the lint loop out of your conversation.
 - **`commands/`** — `/go-ldd-autopilot`, `/go-ldd-quickfix`, `/go-ldd-prepare`, `/go-ldd-analyze`, `/go-ldd-review`, `/go-ldd-status`, `/wire-repo-brain`.
 
 Full architecture, workflow, and usage: [plugin README](go-linter-driven-development/README.md) · what changed between versions: [CHANGELOG](go-linter-driven-development/CHANGELOG.md).

@@ -181,6 +181,39 @@ that symbol*; everything else moves up to the feature doc (rung 2), where depth 
 cheap, and the `See docs/<feature>.md` edge carries the pointer. This is the
 placement rule made operational at write time.
 
+**The Comment Value Toolbox** — a comment earns its lines by delivering one or
+more of these values (the growable catalog with worked examples lives in
+@documentation's reference.md; this list is the normative set of kinds):
+
+- **WHY, not WHAT** — rationale, incident, constraint the code cannot carry
+- **Wider context** — where this sits architecturally; what depends on it
+- **Important use cases / flows** — when to reach for it
+- **Boundary contract** — dos/don'ts, valid inputs, error behavior
+- **Guarantees** — thread safety, nil handling, invariants
+- **Network edge** — `See docs/<feature>.md` wiring a critical point into the
+  repo brain
+
+**The three-test standard** — every comment (and every rung-2 doc, for test 3)
+must pass all three; @documentation applies them at write time and its
+comment-critic agent enforces them adversarially after writing:
+
+1. **Toolbox-value test**, two-sided:
+   - *Floor (delete test):* a prose line that delivers none of the toolbox values
+     is trash — cut it. Named failure modes: restated identifiers, generic filler
+     ("provides validation functionality"), narrated implementation, menu sections
+     filled without earning their place.
+   - *Ceiling (smart choice):* the comment as a whole must carry the
+     highest-value toolbox items for that symbol's tier within its budget. A
+     crossroads whose five lines are all boundary trivia while the architectural
+     WHY is missing fails, even though each line individually "adds something".
+2. **Budget test** — the comment fits its tier budget (accounting and tiers
+   below).
+3. **Plain-English test** — plain English only: everyday words, short sentences,
+   one idea per sentence. Not all readers are native English speakers; a comment
+   that needs a dictionary fails even when true and within budget. Failure modes:
+   fancy vocabulary where a common word exists ("utilize" → "use", "leverages" →
+   "uses"), stacked clauses, academic phrasing.
+
 **Budget accounting** — prose lines count; these are free:
 
 - blank `//` separator lines

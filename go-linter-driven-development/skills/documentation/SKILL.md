@@ -18,6 +18,7 @@ allowed-tools:
   - Bash
   - Write
   - Edit
+  - Task
 ---
 
 <objective>
@@ -39,6 +40,11 @@ entry (worked examples in reference.md, "Bug Fix Documentation").
 
 **Conciseness over completeness**: a focused doc that gets read beats an exhaustive
 doc that gets skipped.
+
+**Plain words over clever words**: everyday English, short sentences, one idea per
+sentence. Not all readers are native English speakers — a doc that needs a
+dictionary fails even when it is true (R9's plain-English test; applies to godocs
+and feature docs alike).
 </philosophy>
 
 <mode_selection>
@@ -55,15 +61,16 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 2. **Place each fact on the documentation ladder**: apply R9's rung table and
    placement rule (`../../rules/R9-repo-brain.md`, Design guidance). Before writing
    any comment, first check whether a rename or extraction makes it unnecessary.
-3. **Rung 1 — godoc**: write/refresh doc comments per R9's tiered comment-budget
-   policy — 1–5 prose lines scaled to the symbol's role (helper / contract /
-   crossroads); overflow moves to the feature doc — keeping the
-   `See docs/<feature>.md` edge wherever a feature doc exists. Pick from
-   reference.md's godoc menus only what fits THIS symbol's tier. A package that
+3. **Rung 1 — godoc**: write/refresh doc comments per R9's comment policy — every
+   comment must pass R9's three-test standard BEFORE it is written (toolbox-value,
+   tier budget, plain English), with content picked FROM the Comment Value Toolbox
+   (catalog in reference.md) for the symbol's tier: 1–5 prose lines, helper /
+   contract / crossroads; overflow moves to the feature doc. Keep the
+   `See docs/<feature>.md` edge wherever a feature doc exists. A package that
    earns more moves its godoc to `doc.go` (R9's ~20–30 line bound). A crossroads
    that deserves richer inline godoc stays within budget and gets an expand
-   recommendation in the report (step 7) — never extra lines. Add testable
-   examples (`Example_*`) for complex/core types.
+   recommendation in the report — never extra lines. Add testable examples
+   (`Example_*`) for complex/core types.
 4. **Rung 2 — feature doc**: create/update `<docroot>/<feature>.md` from the
    reference.md template: `Related` edges to sibling docs; key players as
    `Symbol | Role | Package`; entry points cite symbols — never file paths or line
@@ -76,7 +83,18 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    Q4–Q6 over the diff (WHAT-comments, naked exported API, silently-changed doc).
    The detection commands live in R9; never restate them. Fix every hit before
    reporting.
-7. **Report** in the FEATURE output format below.
+7. **Comment critique**: spawn the `comment-critic` agent (Task) on the full diff —
+   not just the comments this run wrote; in-body comments left by earlier phases
+   are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
+   section pasted verbatim (toolbox kinds, three-test standard, tiers, budget
+   accounting); (b) reference.md's Comment Value Toolbox catalog pasted verbatim;
+   (c) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
+   fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
+   `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the
+   caller — never fixed here (extraction is @refactoring's move). Then re-spawn
+   the critic ONCE to confirm clean; a still-dirty re-critique is reported as-is,
+   never looped further.
+8. **Report** in the FEATURE output format below.
 </feature_mode>
 
 <bootstrap_mode>
@@ -125,6 +143,10 @@ Network edges added:
 R9 self-check: Q1–Q3 clean · Q4–Q6 clean over diff
   (or per hit: <Qn>: <evidence> — fixed by <R9 fix-pattern move>)
 
+Comment critic: <N> reviewed — <D> deleted · <T> trimmed · <R> rewritten ·
+  clean on re-critique (or: <remaining verdicts, reported as-is>)
+  R3 leads (in-body extraction candidates, for the caller): <file:line, ...> (omit when none)
+
 Expand recommendations (optional — omit the section when none):
 - <Symbol> — consider expanding its godoc inline beyond the doc reference:
   <one-line rationale>
@@ -151,6 +173,9 @@ Advisory findings (reported, not fixed — FEATURE mode writes content):
   duplicated across rungs (R9 placement rule).
 - New/updated docs joined the network: indexed, root-wired, edges in both directions.
 - FEATURE: the R9 self-check ran and every hit was fixed before reporting.
+- FEATURE: the comment-critic ran over the full diff, every non-KEEP verdict was
+  applied (R3 routes reported, not fixed), and the one re-critique confirmed clean
+  — or the remainder is reported as-is.
 - BOOTSTRAP: root(s) + index + root wiring exist; every confidently-anchorable doc
   has an upward edge; gaps reported; zero content docs generated.
 - All prose passes the 5-year reader test; zero changelog-style entries.
@@ -164,4 +189,7 @@ This skill MUST NOT:
 - Mass-generate content docs in BOOTSTRAP mode — advisory gap report only.
 - Fill templates for their own sake — reference.md's templates are menus; R9's
   comment policy decides what earns its place.
+- Spawn anything other than `comment-critic`, loop the critique more than one
+  fix-and-recheck round, or fix `DELETE → route R3` verdicts itself (extraction
+  belongs to @refactoring).
 </constraints>
