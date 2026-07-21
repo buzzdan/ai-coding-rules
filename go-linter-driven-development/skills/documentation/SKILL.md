@@ -32,7 +32,10 @@ actor that applies it. Templates live in `reference.md` — they are menus, neve
 
 <philosophy>
 **The 5-Year Reader Test**: someone reading this in 5 years doesn't care that "we
-fixed a bug where X happened" — they want to know how X works NOW.
+fixed a bug where X happened" — they want to know how X works NOW. This holds for
+comments as much as docs: a PR number, review item, or "the previous behavior"
+narration in a godoc is provenance, not behavior (R9's floor names it a failure
+mode).
 
 **Behavior over history**: document what the product DOES, not what changed. A bug fix
 updates the affected section to describe correct behavior; it never appends a "Fixed:"

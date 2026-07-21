@@ -201,7 +201,14 @@ comment-critic agent enforces them adversarially after writing:
    - *Floor (delete test):* a prose line that delivers none of the toolbox values
      is trash — cut it. Named failure modes: restated identifiers, generic filler
      ("provides validation functionality"), narrated implementation, menu sections
-     filled without earning their place.
+     filled without earning their place, and **provenance** — PR numbers, review
+     items, "the previous behavior" narration, "matching what <old system> did".
+     The floor's lens is the 5-year reader test: a reader five years out cares how
+     the product behaves NOW, never which PR or review round produced it. History
+     is rewritten as present-tense rationale ("silently resolving by precedence
+     would pick a TLS mode the caller didn't ask for"), and an incident/ticket
+     reference survives only when it IS the rationale for a constraint — never as
+     provenance.
    - *Ceiling (smart choice):* the comment as a whole must carry the
      highest-value toolbox items for that symbol's tier within its budget. A
      crossroads whose five lines are all boundary trivia while the architectural

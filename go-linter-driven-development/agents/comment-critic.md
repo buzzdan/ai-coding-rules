@@ -43,6 +43,15 @@ them.
    the toolbox item it delivers ("swap narrated implementation for the boundary
    contract this parsing constructor needs"). A bare "too long" is not a verdict.
 
+**Provenance is not value (the 5-year reader lens):** PR numbers, review-item
+citations, "the previous behavior" narration, and "matching what <old system>
+did" fail the floor even when the surrounding WHY is good — a reader five years
+out cares how the product behaves now, not which review round shaped it. Verdict
+TRIM (cut the provenance tail) or REWRITE (restate the history as present-tense
+rationale: "silently resolving by precedence would pick a mode the caller didn't
+ask for"). An incident/ticket reference survives only when it IS the rationale
+for a constraint.
+
 **Boundary with R3:** an in-body comment that names what the next block does is an
 extraction candidate, not a rewrite candidate — verdict `DELETE → route R3`
 (the fix is a function named after the comment, which is R3-storifying's

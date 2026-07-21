@@ -22,7 +22,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
     highest-value items for its symbol's tier — short-but-dodging fails too),
     tier budget (from v2.7.0), and plain English (everyday words, short
     sentences — not all readers are native speakers; applies to godocs AND
-    feature docs). Falsifying questions unchanged.
+    feature docs). The floor names **provenance** a failure mode — PR numbers,
+    review items, "the previous behavior" narration — under the 5-year reader
+    lens: readers care how the product behaves now, not which review round
+    produced it; history is rewritten as present-tense rationale, and
+    incident/ticket refs survive only as rationale. Falsifying questions
+    unchanged.
   - **New `comment-critic` agent**: read-only, single obsession — comment value.
     Judges every comment in the diff (godoc, in-body, test) against the three
     tests; verdicts KEEP / TRIM / REWRITE / DELETE with evidence; every rewrite

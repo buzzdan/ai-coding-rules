@@ -93,6 +93,27 @@ the budget.
 // ✅ See docs/retry-policy.md for the incident and the cap math.
 ```
 
+### What never earns a line: provenance
+
+The anti-toolbox. PR numbers, review items, "the previous behavior" narration,
+"matching what <old system> did" — change history, not behavior. The 5-year
+reader test (R9's floor): a reader five years out cares how the product behaves
+NOW, never which PR or review round produced it. Rewrite history as
+present-tense rationale; keep an incident/ticket reference only when it IS the
+rationale for a constraint.
+
+```go
+// ❌ ...must be rejected, matching the D backend ("more than one TLS option
+//    passed"), REST v2 (which forwarded the conflict), and the CLI's own
+//    client-side mutual exclusion. Silently resolving by precedence — the
+//    previous behavior — picks a TLS mode the caller didn't ask for
+//    (PR #1088 review item 5a).
+
+// ✅ Naming more than one mutually-exclusive TLS option is rejected (422):
+//    silently resolving by precedence would pick a mode the caller didn't
+//    ask for.
+```
+
 ---
 
 ## Godoc Menus
