@@ -3,6 +3,50 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.8.0] - 2026-07-20
+
+### Added
+
+- **Comment Value Toolbox + comment-critic — comments now have an adversarial
+  reviewer.** Reviewers reported ldd-written comments as noise: restated code,
+  filled templates, no context. Root cause was architectural: @pre-commit-review
+  runs in Phase 4, @documentation writes godocs in Phase 5 — comments were never
+  adversarially reviewed, only self-checked by their writer.
+  - **The Comment Value Toolbox**: a named, growable catalog of the ways a comment
+    delivers value — WHY-not-WHAT, wider context, use cases/flows, boundary
+    contract, guarantees, network edge. Normative kinds list in R9's comment
+    policy; the catalog with worked examples lives in @documentation's
+    reference.md and is designed to grow.
+  - **Three-test standard** (normative in R9): toolbox-value (floor: a prose line
+    delivering no toolbox value is cut; ceiling: the comment must carry the
+    highest-value items for its symbol's tier — short-but-dodging fails too),
+    tier budget (from v2.7.0), and plain English (everyday words, short
+    sentences — not all readers are native speakers; applies to godocs AND
+    feature docs). The floor names **provenance** a failure mode — PR numbers,
+    review items, "the previous behavior" narration — under the 5-year reader
+    lens: readers care how the product behaves now, not which review round
+    produced it; history is rewritten as present-tense rationale, and
+    incident/ticket refs survive only as rationale. Falsifying questions
+    unchanged.
+  - **New `comment-critic` agent**: read-only, single obsession — comment value.
+    Judges every comment in the diff (godoc, in-body, test) against the three
+    tests; verdicts KEEP / TRIM / REWRITE / DELETE with evidence; every rewrite
+    names the toolbox item it delivers. In-body block-narration comments route to
+    R3 (extraction candidates). Adversarial default: uncertain → fails.
+  - **@documentation closes the timing gap**: write-time three-test gate in
+    step 3, then a critique loop — spawn the critic on the full diff, auto-apply
+    every non-KEEP verdict, re-critique once to confirm; report carries the delta
+    (N deleted · M trimmed · K rewritten). Philosophy gains "plain words over
+    clever words".
+  - **@pre-commit-review** spawns the critic on the standalone/PR path whenever
+    the diff contains comments; verdicts land as 🟡 Readability Debt, advisory.
+
+### Changed
+
+- **`Task` → `Agent` tool rename** across all skill and command frontmatter and
+  prose: Claude Code renamed the subagent-spawning tool in v2.1.63; `Task` still
+  works as a backward-compat alias, but the plugin now uses the canonical name.
+
 ## [2.7.0] - 2026-07-20
 
 ### Changed

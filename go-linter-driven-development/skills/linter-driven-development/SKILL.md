@@ -10,7 +10,7 @@ allowed-tools:
   - Skill(go-linter-driven-development:refactoring)
   - Skill(go-linter-driven-development:pre-commit-review)
   - Skill(go-linter-driven-development:documentation)
-  - Task
+  - Agent
 ---
 
 <objective>
@@ -40,7 +40,7 @@ never read its file directly.
 | @pre-commit-review | `Skill(go-linter-driven-development:pre-commit-review)` |
 | @documentation | `Skill(go-linter-driven-development:documentation)` |
 
-The lint-fixer agent is spawned with the **Task tool**:
+The lint-fixer agent is spawned with the **Agent tool**:
 `subagent_type: "go-linter-driven-development:lint-fixer"`.
 </skill_invocation>
 
@@ -55,7 +55,7 @@ The lint-fixer agent is spawned with the **Task tool**:
      │   GREEN    minimum code to pass — no design work
      │   REFACTOR pkg-scoped lint + rule greps; hits → (@refactoring)
      └── next behavior until all done
-3 FULL LINT   ONE run via lint-fixer agent (Task)
+3 FULL LINT   ONE run via lint-fixer agent (Agent tool)
      mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
 4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
 5 SHIP     @documentation → commit summary → user commits
@@ -105,7 +105,7 @@ and can still be hostile to the plan.
    as `PREP-DEFERRED`, UNLESS gate 2 showed the feature cannot be tested at all
    without it — then it is not preparation but a design-plan gap: return to Phase 1.
 4. **SKEPTICIZED** — any prep move that creates a type/interface/package is judged by
-   the `overabstraction-skeptic` (Task; payload per @pre-commit-review step 3), with
+   the `overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
    one sharpening in the spawn prompt: the justification is the approved plan in
    hand, not an imagined future — score the extraction as if the feature already
    existed. REFUTED → apply the cheaper alternative or defer.
@@ -165,7 +165,7 @@ Loop to the next behavior until all behaviors are done.
 </phase_2_implement>
 
 <phase_3_full_lint>
-Delegate ONE full lint run to the lint-fixer agent (Task, isolated context — the
+Delegate ONE full lint run to the lint-fixer agent (Agent tool, isolated context — the
 fix loop's token noise stays out of this conversation). Full-repo lint catches what
 package-scoped runs cannot: cross-package issues and whole-file/whole-package rules
 (file-length-limit, package-size zones).
@@ -207,7 +207,10 @@ before.
 <phase_5_ship>
 1. Invoke @documentation (FEATURE mode): godoc + feature docs, wired into the
    documentation network (index line, edges both directions, root import), plus its
-   R9 self-check over the diff.
+   R9 self-check over the diff and its comment-critic critique loop (the critic
+   reviews every comment in the diff against R9's three-test standard;
+   @documentation applies the verdicts and re-critiques once — R3 routes from the
+   critic go back through @refactoring like any R3 finding).
 2. Present the ship summary: tests green (`go test ./...`), lint green (Phase 3),
    review delta (Phase 4), files changed, suggested commit message.
 3. User decides: commit as-is · fix deferred advisory findings first · defer.
@@ -222,5 +225,6 @@ before.
 - [ ] lint-fixer reported `LINT STATUS: green`; all escalations resolved via @refactoring
 - [ ] @pre-commit-review INCREMENTAL delta clean, or findings explicitly deferred by user
 - [ ] @documentation (FEATURE mode) done — docs wired into the network, R9 self-check
-      clean; commit summary presented and user chose an action
+      clean, comment-critic critique loop applied and confirmed clean (or remainder
+      reported); commit summary presented and user chose an action
 </success_criteria>

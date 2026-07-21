@@ -6,7 +6,7 @@ allowed-tools:
   - Read
   - Grep
   - Bash
-  - Task
+  - Agent
   - Skill(go-linter-driven-development:pre-commit-review)
 ---
 

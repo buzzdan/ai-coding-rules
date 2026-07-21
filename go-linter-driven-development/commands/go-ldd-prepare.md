@@ -6,7 +6,7 @@ allowed-tools:
   - Skill(go-linter-driven-development:refactoring)
   - Skill(go-linter-driven-development:code-designing)
   - Skill(go-linter-driven-development:testing)
-  - Task
+  - Agent
 ---
 
 Run standalone preparatory refactoring (Fowler: "make the change easy, then make the

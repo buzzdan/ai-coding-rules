@@ -1,20 +1,21 @@
 ---
 name: pre-commit-review
 description: |
-  ADVISORY pre-commit review that orchestrates parallel single-obsession rule hunters and an over-abstraction skeptic against the diff.
-  Spawns read-only agents (rule-hunter, overabstraction-skeptic); NEVER edits code.
+  ADVISORY pre-commit review that orchestrates parallel single-obsession rule hunters, an over-abstraction skeptic, and a comment critic against the diff.
+  Spawns read-only agents (rule-hunter, overabstraction-skeptic, comment-critic); NEVER edits code.
   Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
   Categorizes findings as Bugs, Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
 allowed-tools:
   - Read
   - Grep
   - Bash
-  - Task
+  - Agent
 ---
 
 <objective>
 Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
-parallel single-obsession `rule-hunter` agents and one `overabstraction-skeptic`.
+parallel single-obsession `rule-hunter` agents, one `overabstraction-skeptic`, and one
+`comment-critic`.
 Pure orchestration and reporting: this skill may spawn agents but never edits code, never
 fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
 agents receive it as spawn-time payload — they do not invoke skills.
@@ -106,6 +107,29 @@ no new type) skip the skeptic and go straight to the report — R9 findings (orp
 broken edges, WHAT-comments, unwired root) propose no type extractions.
 </step_3_skeptic_pass>
 
+<step_3b_comment_critic>
+When the diff contains comment lines — prefilter:
+`git diff --cached -- '*.go' | grep -E '^\+.*//' | grep -vE '//(go:|nolint| Output:)'`
+(any hit qualifies; directives don't count) — spawn one `comment-critic` alongside
+the skeptic (same message when both run). Its spawn prompt MUST contain:
+
+1. Payload: R9's **Comment policy** section (`../../rules/R9-repo-brain.md`,
+   Design guidance) pasted verbatim — the Comment Value Toolbox kinds, the
+   three-test standard, the tier table and budget accounting.
+2. Payload: the **Comment Value Toolbox** catalog section of
+   `../documentation/reference.md` (resolve to an absolute path) pasted verbatim.
+3. The diff scope.
+
+It judges every comment in the diff (godoc, in-body, test) against the three-test
+standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
+`DELETE → route R3` for in-body extraction candidates) with evidence and proposed
+replacement text. Non-KEEP verdicts land in the report as 🟡 Readability Debt;
+`DELETE → route R3` verdicts merge with any R3 hunter findings on the same lines
+(one finding, not two). The critic is advisory like everything else — accepted
+verdicts are fixed by @documentation (the rung-1 fixer), except R3 routes, which
+go to @refactoring.
+</step_3b_comment_critic>
+
 <step_4_merged_report>
 Merge surviving findings into one report.
 
@@ -138,7 +162,9 @@ Category mapping:
   boundary leaks), R12 (leaked mutable internals, unvalidated setters), and R5
   (advisory — never blocks; the user may have valid reasons): fix before commit
   recommended.
-- 🟡 **Readability Debt** — R3, R9, unclear naming: improves maintainability.
+- 🟡 **Readability Debt** — R3, R9, unclear naming, and the comment-critic's
+  non-KEEP verdicts (trash or over-budget or hard-to-read comments): improves
+  maintainability.
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
 Every finding carries evidence — `file:line` plus the falsifying-question answer or
@@ -166,6 +192,7 @@ fixes). Use after @refactoring applies fixes or whenever the caller iterates.
 Scope: user/service.go, user/auth.go (+ tests) · Mode: FULL
 Hunters: R1 (2 leads), R2 (1), R3 (1) · R4–R8 skipped (no pre-filter hits)
 Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
+Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
 🔴 DESIGN DEBT
 user/service.go:67 | session token travels as raw string; emptiness check inline
@@ -178,6 +205,10 @@ user/auth.go:34 | Authenticator.HashCost exported; methods re-check its range
 🟡 READABILITY DEBT
 user/auth.go:89 | Authenticate() mixes auth flow with bcrypt byte handling
   (R3 Q1: two abstraction levels in one body) | Extract Step: comparePassword | S
+user/service.go:15 | godoc restates the name ("UserService provides user services")
+  (critic: toolbox-value floor — no toolbox item delivered) | REWRITE → wider
+  context: "Every user mutation flows through this service — auth, quota, and
+  audit hooks attach here." | S
 
 🟢 POLISH
 user/auth.go:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
@@ -197,7 +228,8 @@ This skill MUST NOT:
 - Block commits — every finding is advisory; the caller decides what to fix
 - Restate rule content — rules live once in `../../rules/`; paste them as spawn payload
   and cite them in findings
-- Spawn anything other than `rule-hunter` and `overabstraction-skeptic`
+- Spawn anything other than `rule-hunter`, `overabstraction-skeptic`, and
+  `comment-critic`
 </constraints>
 
 <who_invokes>
