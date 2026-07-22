@@ -190,6 +190,19 @@ imagined 30%. (R12's ceremony-copy inverse is one instance: don't "optimize" *or
 
 **Uncompiled** — no rule owns profile-first optimization discipline yet.
 
+### When in Rome, code as the Romans do
+— folk wisdom; sharpened by a repo owner's hard review of a large generated PR
+
+**Ask:** does this diff arrive in the host repo's existing style, or does it
+import mine? A new test mechanism, dependency, framework, or convention — however
+good — is an *adoption decision* that belongs to the repo owner, not a side
+effect of a feature PR. Strong opinions travel as a discussion or a separate PR,
+never as a bundled surprise. Reviewers forgive imperfect code in the house style
+far more readily than perfect code in a foreign one.
+
+**Compiled into:** @pre-commit-review's when-in-Rome check (step 1) and its
+🟠 New Practice finding category.
+
 ## Clarity and knowledge
 
 ### Clear is better than clever
@@ -199,6 +212,20 @@ imagined 30%. (R12's ceremony-copy inverse is one instance: don't "optimize" *or
 future reader.
 
 **Compiled into:** `rules/R3-storifying.md` and the plugin's readability philosophy.
+
+### Empathy is a core engineering value
+— borrowed from a reviewer's coding standards ("coding in a way that facilitates
+maintenance by peers who may be less skilled or experienced")
+
+**Ask:** could a fresh graduate whose first language may not be English read this
+comment — before reading the code — and understand it? If you need to read the
+code to understand the comment, the comment adds negative value. Codenames,
+unexplained acronyms, and cross-reference webs serve the writer's bookkeeping,
+not the reader.
+
+**Compiled into:** `rules/R9-repo-brain.md`'s plain-English/empathy test (test 3
+of the three-test standard: persona, acronym ban, self-standing requirement) and
+the comment-critic's read-comment-first protocol.
 
 ### Once and only once
 — Kent Beck (and DRY: "every piece of knowledge has a single, unambiguous,

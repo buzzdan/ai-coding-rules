@@ -1,6 +1,6 @@
 {
   "name": "go-linter-driven-development",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Rules-as-data linter-driven development workflow for Go: 12 single-source rule files, thin directional skills (design, TDD implementation, refactoring, testing, review, documentation), and a hunter/skeptic/critic review architecture with parallel single-rule reviewers, an over-abstraction skeptic, and a comment critic enforcing the Comment Value Toolbox",
   "author": {
     "name": "Dan Mordechay"

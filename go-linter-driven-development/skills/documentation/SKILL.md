@@ -45,9 +45,14 @@ entry (worked examples in reference.md, "Bug Fix Documentation").
 doc that gets skipped.
 
 **Plain words over clever words**: everyday English, short sentences, one idea per
-sentence. Not all readers are native English speakers — a doc that needs a
-dictionary fails even when it is true (R9's plain-English test; applies to godocs
-and feature docs alike).
+sentence. Write for a fresh graduate whose first language may not be English — a
+doc that needs a dictionary fails even when it is true (R9's plain-English/empathy
+test; applies to godocs and feature docs alike).
+
+**Comments stand alone**: a reader must understand the comment BEFORE reading the
+code. If reading the code is required to understand the comment, the comment adds
+negative value — no decoder-ring IDs, no forward references to other comments
+(R9's empathy test, second half).
 </philosophy>
 
 <mode_selection>
