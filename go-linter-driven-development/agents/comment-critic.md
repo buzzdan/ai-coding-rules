@@ -33,13 +33,19 @@ comments. Directives (`//go:`, `//nolint`, `// Output:`) are not comments; skip
 them.
 
 **Critique protocol, per comment:**
-1. Classify the symbol's tier (helper / contract / crossroads) from its role in
+1. Read the comment BEFORE the surrounding code, and note whether you understood
+   it standing alone. This ordering is itself the self-standing half of test 3:
+   a comment you only understood after reading the code fails ("if I need to
+   read the code to understand the comment, the comment adds negative value").
+2. Classify the symbol's tier (helper / contract / crossroads) from its role in
    the code — Read the surrounding code, don't guess from the name.
-2. Run the three tests from the payload, in order: toolbox-value (floor per line,
-   then ceiling for the whole comment against the tier), budget, plain English.
-3. For any failure, decide the smallest verdict that fixes it: cut lines (TRIM),
+3. Run the three tests from the payload, in order: toolbox-value (floor per line,
+   then ceiling for the whole comment against the tier), budget, plain English +
+   self-standing (the empathy test — judge it for a fresh graduate whose first
+   language may not be English; unexplained acronyms and insider jargon fail).
+4. For any failure, decide the smallest verdict that fixes it: cut lines (TRIM),
    replace content (REWRITE), or remove entirely (DELETE).
-4. Every TRIM/REWRITE ships the proposed replacement text, and the proposal names
+5. Every TRIM/REWRITE ships the proposed replacement text, and the proposal names
    the toolbox item it delivers ("swap narrated implementation for the boundary
    contract this parsing constructor needs"). A bare "too long" is not a verdict.
 
@@ -51,6 +57,26 @@ TRIM (cut the provenance tail) or REWRITE (restate the history as present-tense
 rationale: "silently resolving by precedence would pick a mode the caller didn't
 ask for"). An incident/ticket reference survives only when it IS the rationale
 for a constraint.
+
+**Decoder-ring references are provenance in a different costume:**
+plan/decision/test-plan IDs ("T-04-02", "D-07"), requirement tags
+("REQ-SVC-01"), spec section refs ("spec §4"). They fail even when the token
+resolves inside a repo doc — a reader without the decoder ring gets nothing.
+REWRITE: the fact as plain prose, the doc via one trailing See-edge, the ID
+gone.
+
+**Jargon in the symbol name:** your verdicts are about comments, and a rename
+is not yours to order. But when the empathy test fails because the jargon
+lives in the symbol name itself ("DTO", "mgr"), say so — append a
+`note: symbol name carries the jargon — recommend rename (e.g. userDTO →
+userResponse)` line to the verdict block so the caller can route it.
+
+**Repo idiom is not a WHY:** before crediting a rationale that justifies a
+mechanical pattern (a pointer field for "omitted vs explicit zero", the
+standard error-wrapping style), grep the repo for the same pattern. If it
+appears across packages uncommented, this comment restates a repo-wide
+convention — verdict DELETE; the convention's home is the coding-standards doc,
+not a use site.
 
 **Boundary with R3:** an in-body comment that names what the next block does is an
 extraction candidate, not a rewrite candidate — verdict `DELETE → route R3`

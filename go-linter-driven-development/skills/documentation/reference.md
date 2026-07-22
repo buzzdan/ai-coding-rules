@@ -93,7 +93,7 @@ the budget.
 // ✅ See docs/retry-policy.md for the incident and the cap math.
 ```
 
-### What never earns a line: provenance
+### What never earns a line: provenance and decoder-ring references
 
 The anti-toolbox. PR numbers, review items, "the previous behavior" narration,
 "matching what <old system> did" — change history, not behavior. The 5-year
@@ -103,16 +103,55 @@ present-tense rationale; keep an incident/ticket reference only when it IS the
 rationale for a constraint.
 
 ```go
-// ❌ ...must be rejected, matching the D backend ("more than one TLS option
-//    passed"), REST v2 (which forwarded the conflict), and the CLI's own
-//    client-side mutual exclusion. Silently resolving by precedence — the
-//    previous behavior — picks a TLS mode the caller didn't ask for
-//    (PR #1088 review item 5a).
+// ❌ ...must be rejected, matching the legacy backend ("more than one TLS
+//    option passed"), REST v2 (which forwarded the conflict), and the CLI's
+//    own client-side mutual exclusion. Silently resolving by precedence —
+//    the previous behavior — picks a TLS mode the caller didn't ask for
+//    (PR #481 review item 5a).
 
 // ✅ Naming more than one mutually-exclusive TLS option is rejected (422):
 //    silently resolving by precedence would pick a mode the caller didn't
 //    ask for.
 ```
+
+**Decoder-ring references** are the same failure in a different costume:
+plan/decision/test-plan IDs ("T-04-02", "D-07"), requirement tags
+("REQ-SVC-01"), spec section refs ("spec §4"). They fail even when the token
+resolves inside a repo doc — a reader without the decoder ring gets nothing.
+The fact goes in the comment as plain prose; the doc gets ONE trailing
+See-edge; the ID stays in the doc.
+
+```go
+// ❌ userResponse is the flat REST response shape for a user account
+//    (spec §4). It deliberately has NO field for the password hash — the
+//    response omission is structural (T-04-02), not a zero-value
+//    coincidence ... additive to the {uid} addressing scheme (D-06/D-07).
+
+// ✅ userResponse is the flat REST response shape for a user account.
+//    It has no field for the password hash or the API token, so a response
+//    can never leak them.
+//    See docs/accounts-api.md.
+```
+
+### What never earns a line: restated repo idiom
+
+A comment justifying a convention the repo already applies everywhere: a
+pointer field meaning "omitted vs explicit zero", the standard error-wrapping
+style, the usual table-driven test shape. Each use site inherits the
+convention silently; the explanation lives once at rung 2 (coding standards).
+If every site carried it, the real content would drown — and the one genuine
+WHY nearby would read as more boilerplate.
+
+```go
+// ❌ // Enabled is a pointer so an omitted field is distinguishable from an
+//    // explicit false.
+//    Enabled *bool `json:"enabled,omitempty"`
+
+// ✅ Enabled *bool `json:"enabled,omitempty"`
+```
+
+Test before crediting a WHY: grep the repo for the same pattern. If it appears
+across packages with no comment, this comment restates an idiom — cut it.
 
 ---
 
@@ -443,8 +482,15 @@ vets after the edit.
 - [ ] Every prose line delivers a Comment Value Toolbox item (floor), and the comment
       carries the highest-value items for its symbol's tier (ceiling) — R9's
       toolbox-value test
-- [ ] Plain English throughout: everyday words, short sentences — no vocabulary a
-      non-native reader would need a dictionary for (R9's plain-English test)
+- [ ] Plain English throughout: everyday words, short sentences, no unexplained
+      acronyms or insider jargon — written for a fresh graduate whose first
+      language may not be English (R9's plain-English/empathy test)
+- [ ] Every comment is self-standing: understandable BEFORE reading the code, no
+      forward references to other comments (R9's empathy test, second half)
+- [ ] No repo-idiom restating: a convention the repo applies everywhere is never
+      re-justified at a use site (documented once at rung 2)
+- [ ] No decoder-ring references: no plan/decision/test-plan IDs, requirement
+      tags, or spec section refs — facts as prose, the doc via one See-edge
 - [ ] Exported symbols carry WHY — rationale, incident, constraint — never a restated
       identifier
 - [ ] Every doc comment fits its tier budget — helper 0–1 / contract 2–3 /
@@ -454,7 +500,8 @@ vets after the edit.
       within the tier budget
 - [ ] Crossroads that deserve richer inline godoc got an expand recommendation in
       the report — never extra lines beyond budget
-- [ ] `See docs/<feature>.md` edge present wherever a feature doc exists
+- [ ] `See docs/<feature>.md` edge present wherever a feature doc exists — on its
+      own trailing line, never woven into the summary sentence
 - [ ] Testable examples: at least one `Example_*` per complex/core type; runnable;
       happy path only; `// Output:` comments included
 

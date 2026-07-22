@@ -3,6 +3,54 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.9.0] - 2026-07-23
+
+Lessons from a repo owner's hard review of a large generated PR: the reviewer
+could merge the code but "could not reasonably ask another human to maintain
+the result". Two themes: comments that need the code (or a decoder ring) to be
+understood, and a feature PR that silently adopted new engineering practices.
+
+### Added
+
+- **Empathy test — the plain-English test grows teeth** (R9 test 3, renamed
+  plain-English/empathy test). New persona anchor: write for a fresh graduate
+  whose first language may not be English. New failure modes: unexplained
+  acronyms and insider jargon ("DTO", "tristate") in comments AND in the symbol
+  names they document; and **self-standing** — a comment must be understandable
+  BEFORE reading the code ("if I need to read the code to understand the
+  comment, the comment adds negative value"); forward references to other
+  comments fail. The comment-critic now reads each comment before the
+  surrounding code so the self-standing check is built into its protocol.
+- **Decoder-ring references join the provenance anti-toolbox** (R9 floor +
+  toolbox catalog + critic): plan/decision/test-plan IDs ("T-04-02", "D-07"),
+  requirement tags ("REQ-SVC-01"), spec section refs ("spec §4") fail even
+  when they resolve inside a repo doc — the fact goes in the comment as plain
+  prose, the doc through one See-edge, the ID stays in the doc. Worked ❌/✅
+  example (`userResponse`) added to the catalog.
+- **Restated repo idiom is a floor failure mode** (R9 + catalog + critic): a
+  comment justifying a convention the repo applies everywhere (pointer field =
+  "omitted vs explicit zero") is noise even though it is technically a WHY —
+  the convention lives once at rung 2. The critic greps the repo for the same
+  pattern before crediting such a rationale.
+- **See-edge placement rule** (R9): the `See docs/<feature>.md` line is free
+  under the budget ONLY as its own trailing line; a doc reference braided into
+  the summary sentence is clutter, not an edge.
+- **When-in-Rome check** (@pre-commit-review step 1 + new 🟠 New Practice
+  category + new maxim): anything the diff introduces that the host repo does
+  not already use — test mechanisms (golden files), dependencies, tools, config
+  conventions, repo-level file edits bundled into a feature diff — is flagged
+  as an adoption decision that belongs to the repo owner; the fix is a
+  discussion or a separate PR, never silent inclusion. Detection is
+  comparative: grep the repo outside the diff for prior use.
+- **Two new maxims**: "Empathy is a core engineering value" (borrowed from a
+  reviewer's coding standards) under Clarity and knowledge; "When in Rome,
+  code as the Romans do" under Process and economics.
+- **Name-jargon note in the critic**: renames are not the critic's to order,
+  but when the empathy test fails because the jargon lives in the symbol name
+  itself ("DTO"), the verdict block carries a rename recommendation for the
+  caller to route. (Added after a live run where the critic rewrote a comment
+  but left the jargon name unremarked.)
+
 ## [2.8.0] - 2026-07-20
 
 ### Added

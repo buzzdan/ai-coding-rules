@@ -4,7 +4,7 @@ description: |
   ADVISORY pre-commit review that orchestrates parallel single-obsession rule hunters, an over-abstraction skeptic, and a comment critic against the diff.
   Spawns read-only agents (rule-hunter, overabstraction-skeptic, comment-critic); NEVER edits code.
   Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
-  Categorizes findings as Bugs, Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+  Categorizes findings as Bugs, New Practice (when in Rome), Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
 allowed-tools:
   - Read
   - Grep
@@ -61,6 +61,16 @@ A rule with zero hits is skipped — no hunter spawned for it.
 Also in-context: a new `//nolint` directive or `.golangci.yaml` exclusion in the diff is
 itself a finding — the change must justify, with evidence, that the rule genuinely does
 not apply.
+
+Also in-context — the **when-in-Rome check**: a diff must arrive in the host repo's
+existing style, not import a new one. Flag anything the diff introduces that the repo
+does not already use: a new test mechanism (golden files, snapshot testing, a new
+assertion library), a new dependency in `go.mod`, a new tool or config file, edits to
+repo-level convention files (CLAUDE.md, coding standards, lint config) bundled into a
+feature diff, or a directory layout unlike its siblings. Detection is comparative:
+for each candidate, grep the repo *outside* the diff for prior use — zero prior use
+is the finding. These are not style crimes; they are adoption decisions that belong
+to the repo owner. The fix is a discussion or a separate PR, never silent inclusion.
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
@@ -157,6 +167,11 @@ Category mapping:
 - 🐛 **Bugs** — will fail at runtime regardless of rule (nil returned as a value,
   cancellation swallowed by `context.Background()`, R10 goroutine leaks and
   unguarded concurrent writes): fix immediately.
+- 🟠 **New Practice (when in Rome)** — the when-in-Rome check's findings: a
+  mechanism, dependency, framework, or convention the host repo does not already
+  use, introduced without discussion. Advisory like everything else, but flag it
+  loudly: reviewers reject these threads hardest, and the fix (owner buy-in or a
+  separate PR) is cheap before pushing and expensive after.
 - 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, R10's non-crash findings (production
   sleeps, fire-and-forget ownership, mutex placement), R11 (duplicated discriminators,
   boundary leaks), R12 (leaked mutable internals, unvalidated setters), and R5

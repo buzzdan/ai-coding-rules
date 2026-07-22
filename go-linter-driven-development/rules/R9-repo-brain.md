@@ -201,8 +201,17 @@ comment-critic agent enforces them adversarially after writing:
    - *Floor (delete test):* a prose line that delivers none of the toolbox values
      is trash — cut it. Named failure modes: restated identifiers, generic filler
      ("provides validation functionality"), narrated implementation, menu sections
-     filled without earning their place, and **provenance** — PR numbers, review
-     items, "the previous behavior" narration, "matching what <old system> did".
+     filled without earning their place, **restated repo idiom** — a comment
+     justifying a convention the repo already applies everywhere (a pointer field
+     meaning "omitted vs explicit zero", the standard error-wrapping style); the
+     convention is documented once at rung 2 (coding standards), never
+     re-explained at each use site — and **provenance and decoder-ring
+     references** — PR numbers, review items, plan/decision/test-plan IDs
+     ("T-04-02", "D-07"), requirement tags ("REQ-SVC-01"), spec section refs
+     ("spec §4"), "the previous behavior" narration, "matching what
+     <old system> did". A decoder-ring token fails even when it resolves inside a
+     repo doc: the reader gets the fact as plain prose and the doc through the
+     one See-edge — never through a code they must look up.
      The floor's lens is the 5-year reader test: a reader five years out cares how
      the product behaves NOW, never which PR or review round produced it. History
      is rewritten as present-tense rationale ("silently resolving by precedence
@@ -215,16 +224,25 @@ comment-critic agent enforces them adversarially after writing:
      WHY is missing fails, even though each line individually "adds something".
 2. **Budget test** — the comment fits its tier budget (accounting and tiers
    below).
-3. **Plain-English test** — plain English only: everyday words, short sentences,
-   one idea per sentence. Not all readers are native English speakers; a comment
-   that needs a dictionary fails even when true and within budget. Failure modes:
-   fancy vocabulary where a common word exists ("utilize" → "use", "leverages" →
-   "uses"), stacked clauses, academic phrasing.
+3. **Plain-English test (the empathy test)** — write for a fresh graduate whose
+   first language may not be English: everyday words, short sentences, one idea
+   per sentence. A comment that needs a dictionary fails even when true and
+   within budget. Failure modes: fancy vocabulary where a common word exists
+   ("utilize" → "use", "leverages" → "uses"), stacked clauses, academic phrasing,
+   and unexplained acronyms or insider jargon ("DTO", "tristate") — in the
+   comment AND in the symbol name it documents.
+   The test has a second half, **self-standing**: the comment must be
+   understandable BEFORE reading the code. If the reader must read the code — or
+   another comment ("see X's doc comment for why") — to understand this comment,
+   it has negative value. State the fact in place; forward references to other
+   comments fail.
 
 **Budget accounting** — prose lines count; these are free:
 
 - blank `//` separator lines
-- the `See docs/<feature>.md` network-edge line
+- the `See docs/<feature>.md` network-edge line — free ONLY as its own trailing
+  line; a doc reference woven into a prose sentence is not an edge, it is clutter
+  in that sentence's line count
 - short inline example lines, bounded at 2–4 lines — anything bigger belongs in an
   `Example_*` testable example
 
@@ -261,8 +279,10 @@ rule's (Q4 below — they must carry why/context, not restate the identifier).
 ### Edge conventions
 
 - **Code → docs** (rung 1 → rung 2): a literal relative path in the comment —
-  `See docs/retry-policy.md`. Paths to docs are fine; docs move rarely and Q2
-  verifies them mechanically.
+  `See docs/retry-policy.md` — always on its own trailing line, never braided
+  into the summary sentence (the first sentence stays clean: "Package accounts
+  registers the /accounts REST endpoints.", then the See-line). Paths to docs
+  are fine; docs move rarely and Q2 verifies them mechanically.
 - **Docs → code** (rung 2 → rungs 0–1): cite by **exported symbol** (`Policy`,
   `ParsePolicy`); a **package or directory path** (`retry/`) only when a location
   is genuinely needed; **file paths never, line numbers never** — they are the most
