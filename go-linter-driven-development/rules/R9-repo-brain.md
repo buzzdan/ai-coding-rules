@@ -201,7 +201,11 @@ comment-critic agent enforces them adversarially after writing:
    - *Floor (delete test):* a prose line that delivers none of the toolbox values
      is trash — cut it. Named failure modes: restated identifiers, generic filler
      ("provides validation functionality"), narrated implementation, menu sections
-     filled without earning their place, **restated repo idiom** — a comment
+     filled without earning their place, **review-defense narration** — the
+     writer arguing with an imagined reviewer ("bounds-checked: it never indexes
+     an empty slice", "deliberately narrow — not a generalized table"); a design
+     choice that needs defending is defended in the feature doc, not at the code
+     line — **restated repo idiom** — a comment
      justifying a convention the repo already applies everywhere (a pointer field
      meaning "omitted vs explicit zero", the standard error-wrapping style); the
      convention is documented once at rung 2 (coding standards), never
@@ -253,6 +257,19 @@ comment-critic agent enforces them adversarially after writing:
 | **Helper** | small method, plain constructor, obvious accessor | 0–1 prose line | one-line summary; tiny example only if it clarifies |
 | **Contract** | parsing constructor (`ParsePolicy`, `ParsePort`), self-validating type, ordinary exported API | 2–3 prose lines | WHY + boundary contract; dos/don'ts example (free) |
 | **Crossroads** | entry point, orchestrator, state machine, feature front door | up to 5 prose lines | WHY, architectural context, use cases + See-edge |
+
+**Visibility default — unexported symbols get no comment.** The tier table
+prices exported API. An unexported function, type, constant, or variable
+defaults to **zero** comment lines: the name is the documentation, and a name
+that needs a comment wants a rename or an extraction first
+(`R3-storifying.md`). The special case is **one line carrying a very
+high-value toolbox item** — a constraint or fact the code cannot carry: an
+ordering requirement, an external library quirk, the WHY of a magic number,
+the package's one real policy. If a private symbol seems to need more than
+that one line, the knowledge belongs to the exported symbol that uses it, the
+package doc, or the feature doc. Case file:
+`../examples/private-comment-noise.md` — nine commented private helpers;
+four survive as one-liners, five get nothing.
 
 **Two bounded escape hatches:**
 

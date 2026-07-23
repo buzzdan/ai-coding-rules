@@ -152,14 +152,57 @@ WHY nearby would read as more boilerplate.
 Test before crediting a WHY: grep the repo for the same pattern. If it appears
 across packages with no comment, this comment restates an idiom — cut it.
 
+### What never earns a line: review-defense narration
+
+The writer arguing with an imagined reviewer: defending a design choice nobody
+at the code line asked about, or promising the code is safe instead of letting
+the code show it. These lines are written for the PR review round; five years
+later they read as noise. A design choice that genuinely needs defending is
+defended in the feature doc.
+
+```go
+// ❌ Named as a single constant — not a table: a third wire format would
+//    earn its own narrow check, not a generalized alias registry.
+// ❌ Bounds-checked: it never indexes an empty slice.
+
+// ✅ (nothing — the code shows the bounds check; the design defense moves
+//    to the feature doc if it is worth keeping at all)
+```
+
+### The visibility default: private symbols get no comment
+
+Not an anti-entry — the existence rule the whole toolbox sits under (normative
+in R9). The toolbox and tier menus price comments on **exported** API. An
+unexported symbol defaults to **zero** comment lines; its name is the
+documentation. The special case is one line carrying a very high-value toolbox
+item: an ordering constraint, an external library quirk, the WHY of a magic
+number, the package's one real policy. Case file with nine worked verdicts:
+`../../examples/private-comment-noise.md`.
+
+```go
+// ❌ trimUTF8BOM strips a leading UTF-8 BOM from data, returning data
+//    unchanged when no BOM is present. Used both to classify a reply's
+//    byte verdict (detectReplyCodec) and, for a JSON verdict, to decode
+//    it (Client.ParseResponse)...
+func trimUTF8BOM(data []byte) []byte { return bytes.TrimPrefix(data, utf8BOM) }
+
+// ✅ (nothing — the name says it)
+
+// ✅ special case, one high-value line:
+// A BOM's lead byte (0xEF) is above the floor, so strip it before the leading-byte check.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+```
+
 ---
 
 ## Godoc Menus
 
 **These are MENUS, not forms** (normative: R9's tiered comment-budget policy —
 **1–5 prose lines** scaled to the symbol's role; blank `//` lines, the See-edge, and
-short inline examples of 2–4 lines are free). The WHY is the default content; the
-tier caps how much of a menu any one symbol can order:
+short inline examples of 2–4 lines are free). The menus price **exported** API
+only — unexported symbols default to no comment at all (R9's visibility
+default; special case: one very-high-value line). The WHY is the default
+content; the tier caps how much of a menu any one symbol can order:
 
 - **Helper** (small method, plain constructor, obvious accessor) → 0–1 line, or
   nothing; a tiny example only if it clarifies.
@@ -488,6 +531,10 @@ vets after the edit.
       forward references to other comments (R9's empathy test, second half)
 - [ ] No repo-idiom restating: a convention the repo applies everywhere is never
       re-justified at a use site (documented once at rung 2)
+- [ ] No review-defense narration: design choices are not defended at the code
+      line ("bounds-checked", "deliberately narrow — not a table")
+- [ ] Unexported symbols carry no comment — except the special case of ONE line
+      with a very high-value toolbox item (R9's visibility default)
 - [ ] No decoder-ring references: no plan/decision/test-plan IDs, requirement
       tags, or spec section refs — facts as prose, the doc via one See-edge
 - [ ] Exported symbols carry WHY — rationale, incident, constraint — never a restated

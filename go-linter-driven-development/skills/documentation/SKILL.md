@@ -69,8 +69,11 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 2. **Place each fact on the documentation ladder**: apply R9's rung table and
    placement rule (`../../rules/R9-repo-brain.md`, Design guidance). Before writing
    any comment, first check whether a rename or extraction makes it unnecessary.
-3. **Rung 1 — godoc**: write/refresh doc comments per R9's comment policy — every
-   comment must pass R9's three-test standard BEFORE it is written (toolbox-value,
+3. **Rung 1 — godoc**: write/refresh doc comments per R9's comment policy —
+   **exported symbols only by default**: an unexported symbol gets NO comment
+   (R9's visibility default) unless one line carries a very high-value toolbox
+   item the code cannot show; never more than that one line. Every comment
+   must pass R9's three-test standard BEFORE it is written (toolbox-value,
    tier budget, plain English), with content picked FROM the Comment Value Toolbox
    (catalog in reference.md) for the symbol's tier: 1–5 prose lines, helper /
    contract / crossroads; overflow moves to the feature doc. Keep the
@@ -95,8 +98,9 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    not just the comments this run wrote; in-body comments left by earlier phases
    are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
    section pasted verbatim (toolbox kinds, three-test standard, tiers, budget
-   accounting); (b) reference.md's Comment Value Toolbox catalog pasted verbatim;
-   (c) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
+   accounting, visibility default); (b) reference.md's Comment Value Toolbox
+   catalog pasted verbatim; (c) the absolute path to
+   `../../examples/private-comment-noise.md`; (d) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
    fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
    `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the
    caller — never fixed here (extraction is @refactoring's move). Then re-spawn
