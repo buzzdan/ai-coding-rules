@@ -3,6 +3,38 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.9.1] - 2026-07-23
+
+A real 143-line file surfaced the gap v2.9.0 left open: every one of its nine
+unexported symbols carried a comment — one of them 22 prose lines — because the
+tier budget caps a comment's size but nothing decided whether it should exist.
+
+### Added
+
+- **Visibility default (R9)**: unexported symbols get NO comment. The name is
+  the documentation; a name that needs a comment wants a rename or an
+  extraction (R3) first. The special case is ONE line carrying a very
+  high-value toolbox item — an ordering constraint, an external library
+  quirk, the WHY of a magic number, the package's one real policy. Anything
+  more belongs to the exported caller, the package doc, or the feature doc.
+  The tier table now explicitly prices exported API only.
+- **New case file `examples/private-comment-noise.md`**: the nine-helper file
+  with per-symbol verdicts (four one-liners survive, five comments deleted;
+  ~68 comment lines become 4) and the full "after". Its path rides in the
+  comment-critic's spawn payload from both @pre-commit-review and
+  @documentation.
+- **New anti-toolbox entry: review-defense narration** — the writer arguing
+  with an imagined reviewer ("bounds-checked: it never indexes an empty
+  slice", "deliberately narrow — not a generalized table"). The code shows
+  its own safety; a design choice worth defending is defended in the feature
+  doc.
+- **Critic bias for unexported symbols**: the question is existence, not
+  size — default verdict DELETE; TRIM down to the one high-value line only
+  when it already exists in the comment; never propose growing a private
+  comment.
+- **@documentation writes accordingly**: FEATURE step 3 now writes godocs for
+  exported symbols only by default.
+
 ## [2.9.0] - 2026-07-23
 
 Lessons from a repo owner's hard review of a large generated PR: the reviewer

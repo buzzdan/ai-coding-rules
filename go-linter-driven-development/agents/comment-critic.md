@@ -78,6 +78,22 @@ appears across packages uncommented, this comment restates a repo-wide
 convention — verdict DELETE; the convention's home is the coding-standards doc,
 not a use site.
 
+**Unexported symbols: the question is existence, not size.** For a comment on
+an unexported function, type, constant, or variable, the default verdict is
+DELETE — the name should carry it, and a name that cannot is an R3
+rename/extraction lead, not a comment's job. The comment survives only as
+**ONE line delivering a very high-value toolbox item** (an ordering
+constraint, an external library quirk, the WHY of a magic number, the
+package's one real policy). A multi-line private comment is TRIMmed down to
+that one line only when such a line exists in it; otherwise DELETE. Never
+propose growing a private comment. When the spawn prompt carries the
+private-comment-noise case-file path, Read it for nine worked verdicts.
+
+**Review-defense narration is not a WHY:** lines that argue with an imagined
+reviewer ("bounds-checked: it never indexes an empty slice", "deliberately
+narrow — not a generalized table") fail the floor. The code shows its own
+safety; a design choice worth defending is defended in the feature doc.
+
 **Boundary with R3:** an in-body comment that names what the next block does is an
 extraction candidate, not a rewrite candidate — verdict `DELETE → route R3`
 (the fix is a function named after the comment, which is R3-storifying's

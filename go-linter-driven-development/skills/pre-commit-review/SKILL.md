@@ -125,10 +125,13 @@ the skeptic (same message when both run). Its spawn prompt MUST contain:
 
 1. Payload: R9's **Comment policy** section (`../../rules/R9-repo-brain.md`,
    Design guidance) pasted verbatim — the Comment Value Toolbox kinds, the
-   three-test standard, the tier table and budget accounting.
+   three-test standard, the tier table, budget accounting, and the visibility
+   default.
 2. Payload: the **Comment Value Toolbox** catalog section of
    `../documentation/reference.md` (resolve to an absolute path) pasted verbatim.
-3. The diff scope.
+3. The absolute path to `../../examples/private-comment-noise.md` — the critic
+   Reads it when judging comments on unexported symbols.
+4. The diff scope.
 
 It judges every comment in the diff (godoc, in-body, test) against the three-test
 standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
