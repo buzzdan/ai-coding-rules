@@ -8,8 +8,9 @@ description: |
   it into the network.
   BOOTSTRAP mode: on request ("set up docs", "create an index", "make this repo
   AI-navigable", /wire-repo-brain) or when FEATURE mode finds no doc root — discovers
-  the doc root, builds index.md, wires CLAUDE.md, wires missing code→docs edges,
-  reports gaps.
+  the doc root, verifies-or-adds OKF frontmatter, builds index.md, wires
+  CLAUDE.md/AGENTS.md, wires missing code→docs edges, installs conventions.md and
+  the conformance check script, reports gaps.
   NOT a changelog - documents current behavior, not change history.
 allowed-tools:
   - Read
@@ -25,8 +26,9 @@ allowed-tools:
 Author and maintain the repo brain: a documentation network where any entry point — a
 grep hit on a symbol, a file open, CLAUDE.md at session start — reaches full context
 within two hops. Everything normative (the documentation ladder, both network
-invariants, the comment policy, the edge policy, the index policy, root wiring,
-doc-root discovery) lives ONCE in `../../rules/R9-repo-brain.md`; this skill is the
+invariants, the comment policy, the edge policy, the index policy, the OKF
+frontmatter/bundle policy, root wiring, doc-root discovery) lives ONCE in
+`../../rules/R9-repo-brain.md`; this skill is the
 actor that applies it. Templates live in `reference.md` — they are menus, never forms.
 </objective>
 
@@ -83,17 +85,20 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    recommendation in the report — never extra lines. Add testable examples
    (`Example_*`) for complex/core types.
 4. **Rung 2 — feature doc**: create/update `<docroot>/<feature>.md` from the
-   reference.md template: `Related` edges to sibling docs; key players as
-   `Symbol | Role | Package`; entry points cite symbols — never file paths or line
-   numbers (R9 edge policy). Bug fix → update the existing doc's affected section;
-   do not create a new doc.
-5. **Rung 3 — the map**: add/refresh the doc's one line in `index.md`; verify root
-   wiring (`@<docroot>/index.md` import in CLAUDE.md, AGENTS.md fallback).
+   reference.md template, with OKF frontmatter (required keys — R9's bundle
+   policy); optional `Related` edges (≤3, each with its reason — R9 edge policy);
+   key players as `Symbol | Role | Package`; entry points cite symbols — never
+   file paths or line numbers (R9 edge policy). Bug fix → update the existing
+   doc's affected section; do not create a new doc.
+5. **Rung 3 — the map**: add/refresh the doc's one line in `index.md` — derived
+   from the doc's `description` (R9 derivation rule); verify root wiring
+   (`@<docroot>/index.md` import in CLAUDE.md, AGENTS.md routing block).
 6. **Self-check**: run R9's falsifying-question detections on the touched scope —
-   Q1–Q3 mechanically (orphans, broken edges in both directions, unwired root),
-   Q4–Q6 over the diff (WHAT-comments, naked exported API, silently-changed doc).
-   The detection commands live in R9; never restate them. Fix every hit before
-   reporting.
+   Q1–Q3 and Q7 mechanically (orphans, broken edges in both directions, unwired
+   root, bundle contract — the repo's `scripts/check-repo-brain.sh` runs all four
+   in one pass when installed), Q4–Q6 over the diff (WHAT-comments, naked exported
+   API, silently-changed doc). The detection commands live in R9; never restate
+   them. Fix every hit before reporting.
 7. **Comment critique**: spawn the `comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
    are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
@@ -112,27 +117,40 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 <bootstrap_mode>
 1. **Discover doc root(s)** per R9's discovery order (`.ai/` → `.ainav/` → `docs/`;
    create `docs/` if none exists). Monorepo → one doc root + index per sub-project.
-2. **Inventory existing docs** and classify each: feature / architecture / guide /
-   stale (classification table in reference.md).
-3. **Build or rebuild `index.md`**: a short reference guide — grouped by topic, one
-   line per doc; past ~300 lines it becomes a map of maps with short sub-indexes
-   (R9 index policy; templates in reference.md).
+2. **Inventory existing docs**, classify each (feature / architecture / guide /
+   stale — classification table in reference.md), and **verify-or-add frontmatter**
+   (migration guidance in reference.md): a doc already conformant is left alone; an
+   un-inferable `type` goes to the advisory report, never guessed.
+3. **Build or rebuild `index.md`**: frontmattered, grouped by topic, one line per
+   doc — each line derived from the frontmatter one level down (R9 derivation
+   rule); past ~300 lines it becomes a directory-shaped map of maps, and the split
+   lands in the same commit as the `See docs/...` path rewrite (R9 index policy;
+   templates in reference.md).
 4. **Wire the root**: add the `@<docroot>/index.md` import to CLAUDE.md (create a
-   minimal CLAUDE.md section if none exists); AGENTS.md has no import syntax — use
-   the plain-reference fallback. Snippets in reference.md.
-5. **Wire missing upward edges**: for each indexed (non-stale) doc with no code-side
+   minimal CLAUDE.md section if none exists) and the AGENTS.md routing block —
+   repo root and, in a monorepo, nested per sub-project. Add or verify; snippets
+   in reference.md.
+5. **Teach and enforce**: create-or-verify `<docroot>/conventions.md` (template in
+   reference.md) — the ONE content file bootstrap generates (network
+   infrastructure, not a content doc) — listed FIRST in the index; copy the
+   plugin's `scripts/check-repo-brain.sh` into the target repo's `scripts/`
+   (verify-or-copy — a diverged copy is reported, never overwritten). The report
+   suggests CI wiring as plain `bash scripts/check-repo-brain.sh`; never add a
+   workflow file.
+6. **Wire missing upward edges**: for each indexed (non-stale) doc with no code-side
    edge, add ONE line — `// See <docroot>/<file>.md ...` — to the front-door anchor's
    existing doc comment (anchor heuristic in reference.md), then confirm the package
    still vets. Wiring only: never rewrite the comment around it, never wire a stale
    doc (its ⚠️ index flag is the finding), and skip — as a reported gap — any doc
    whose anchor you cannot identify with confidence.
-6. **Confirm and report**: re-run R9 Q1–Q3 as confirmation — a Q1 hit (a doc with no
-   index line) means step 3 didn't land and a Q3 hit means step 4 didn't; repair
-   either before reporting, and verify every edge added in step 5 resolves. The
-   ADVISORY findings list carries Q2 hits plus rung-2 gaps (two-signal criterion in
-   reference.md) and any doc left unwired in step 5. Bootstrap wires and maps; it
-   NEVER mass-generates content docs — those are written incrementally by FEATURE
-   mode.
+7. **Confirm and report**: re-run R9 Q1–Q3 and Q7 as confirmation — via the
+   installed script — a Q1 hit (a doc with no index line) means step 3 didn't land,
+   a Q3 hit means step 4 didn't, a Q7 hit means step 2 or 5 didn't; repair any
+   before reporting, and verify every edge added in step 6 resolves. The ADVISORY
+   findings list carries Q2 hits plus rung-2 gaps (two-signal criterion in
+   reference.md), any doc left unwired in step 6, and any `type` needing a human
+   call. Bootstrap wires and maps; it NEVER mass-generates content docs — those are
+   written incrementally by FEATURE mode.
 </bootstrap_mode>
 
 <output_format>
@@ -152,7 +170,7 @@ Network edges added:
 - docs→code: <doc> → <symbols/packages cited>
 - root: @<docroot>/index.md in CLAUDE.md (verified/added)
 
-R9 self-check: Q1–Q3 clean · Q4–Q6 clean over diff
+R9 self-check: Q1–Q3, Q7 clean · Q4–Q6 clean over diff
   (or per hit: <Qn>: <evidence> — fixed by <R9 fix-pattern move>)
 
 Comment critic: <N> reviewed — <D> deleted · <T> trimmed · <R> rewritten ·
@@ -169,7 +187,10 @@ BOOTSTRAP mode:
 BOOTSTRAP COMPLETE
 Doc root(s): <discovered/created; per sub-project if monorepo>
 Index: <docroot>/index.md built — <N> docs, <M> groups; map of maps: <yes/no>
-Root wiring: CLAUDE.md @import <added/verified> (or AGENTS.md plain reference)
+Frontmatter: <N> verified, <M> added
+Root wiring: CLAUDE.md @import <added/verified> · AGENTS.md routing block <added/verified>
+Conventions: <docroot>/conventions.md <created/verified>
+Check script: scripts/check-repo-brain.sh <installed/verified> — suggest CI: bash scripts/check-repo-brain.sh
 Upward edges: <K> wired — <doc> ← <anchor symbol> (<package>), ...
 
 Advisory findings (reported, not fixed — FEATURE mode writes content):
@@ -177,6 +198,8 @@ Advisory findings (reported, not fixed — FEATURE mode writes content):
 - broken edge: <source> → <target> (unresolved)
 - gap: <package> — <dangling code→docs edge | entry points with no citing doc>
 - stale: <doc> — indexed with ⚠️ flag; cites unresolved <symbol>; not edge-wired
+- type?: <doc> — class not inferable; needs a human call
+- diverged script: scripts/check-repo-brain.sh differs from the plugin's — not overwritten
 ```
 </output_format>
 
@@ -188,8 +211,11 @@ Advisory findings (reported, not fixed — FEATURE mode writes content):
 - FEATURE: the comment-critic ran over the full diff, every non-KEEP verdict was
   applied (R3 routes reported, not fixed), and the one re-critique confirmed clean
   — or the remainder is reported as-is.
-- BOOTSTRAP: root(s) + index + root wiring exist; every confidently-anchorable doc
-  has an upward edge; gaps reported; zero content docs generated.
+- BOOTSTRAP: root(s) + frontmattered index + root wiring + conventions.md + check
+  script exist; frontmatter verified-or-added on every doc; every
+  confidently-anchorable doc has an upward edge; gaps reported; zero content docs
+  generated (conventions.md and the copied script are the two sanctioned
+  artifacts).
 - All prose passes the 5-year reader test; zero changelog-style entries.
 </success_criteria>
 
@@ -198,7 +224,8 @@ This skill MUST NOT:
 - Restate R9 content — the documentation ladder, invariants, and policies are cited,
   never copied.
 - Append change history to docs — current behavior only, always.
-- Mass-generate content docs in BOOTSTRAP mode — advisory gap report only.
+- Mass-generate content docs in BOOTSTRAP mode — advisory gap report only
+  (conventions.md and the copied check script are the two sanctioned artifacts).
 - Fill templates for their own sake — reference.md's templates are menus; R9's
   comment policy decides what earns its place.
 - Spawn anything other than `comment-critic`, loop the critique more than one
