@@ -23,8 +23,8 @@ authoritative; this command adds nothing to it. One pass delivers the whole chai
    OKF frontmatter verified-or-added (un-inferable types reported)
 3. `index.md` built — frontmattered, short, grouped, one line per doc derived from
    each doc's `description` (directory-shaped map of maps past ~300 lines)
-4. CLAUDE.md wired with the `@<docroot>/index.md` import + AGENTS.md routing block
-   (root, and nested per sub-project in a monorepo)
+4. AGENTS.md routing block authored once (root, and nested per sub-project in a
+   monorepo); CLAUDE.md embeds it (`@AGENTS.md`) + the `@<docroot>/index.md` import
 5. `<docroot>/conventions.md` created/verified (listed first in the index) and the
    plugin's `scripts/check-repo-brain.sh` installed — the report suggests the CI
    one-liner

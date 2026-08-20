@@ -126,10 +126,11 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    rule); past ~300 lines it becomes a directory-shaped map of maps, and the split
    lands in the same commit as the `See docs/...` path rewrite (R9 index policy;
    templates in reference.md).
-4. **Wire the root**: add the `@<docroot>/index.md` import to CLAUDE.md (create a
-   minimal CLAUDE.md section if none exists) and the AGENTS.md routing block —
-   repo root and, in a monorepo, nested per sub-project. Add or verify; snippets
-   in reference.md.
+4. **Wire the root**: author the routing block once, in AGENTS.md — repo root
+   and, in a monorepo, nested per sub-project — then wire CLAUDE.md with the
+   `@AGENTS.md` embed plus the `@<docroot>/index.md` import (create a minimal
+   CLAUDE.md section if none exists; never restate the routing prose there).
+   Add or verify; snippets in reference.md.
 5. **Teach and enforce**: create-or-verify `<docroot>/conventions.md` (template in
    reference.md) — the ONE content file bootstrap generates (network
    infrastructure, not a content doc) — listed FIRST in the index; copy the

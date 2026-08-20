@@ -399,12 +399,13 @@ per file, path = identity, links form the graph), plus documented R9 extensions.
   files, so it lands in the **same commit** as the Q2-driven rewrite of code-side
   `See docs/...` paths — a moved doc with a stale code edge is a broken network
   between commits.
-- **Root wiring**: CLAUDE.md embeds the map via an `@<docroot>/index.md` import
-  (e.g. `@docs/index.md`) so it is in context at session start. AGENTS.md — which
-  has no import syntax — carries a short plain routing block (start at the index;
-  conventions in `<docroot>/conventions.md`) at the repo root and, in a monorepo,
-  nested per sub-project (closest file wins). It serves every tool that reads
-  AGENTS.md instead of CLAUDE.md, not just repos without a CLAUDE.md.
+- **Root wiring**: the routing block is authored ONCE, in AGENTS.md — a short
+  plain block (start at the index; conventions in `<docroot>/conventions.md`) at
+  the repo root and, in a monorepo, nested per sub-project (closest file wins).
+  It serves every tool that reads AGENTS.md instead of CLAUDE.md. CLAUDE.md never
+  duplicates it: it embeds AGENTS.md via `@AGENTS.md` and adds the
+  `@<docroot>/index.md` import (e.g. `@docs/index.md`) so the map itself is in
+  context at session start.
 - **`<docroot>/conventions.md` is the self-hosting doc** (`type: guide`): the
   network's own maintenance rules — frontmatter templates, link rules, the Related
   policy, the never-list — written for a contributor without this plugin. It is
@@ -429,9 +430,10 @@ per file, path = identity, links form the graph), plus documented R9 extensions.
 - **Rewire orphan doc**: add its one line to `index.md` *and* add a code-side edge
   (`See docs/<feature>.md`) from the package or type it describes — both invariants,
   reachability and bidirectionality, in one move.
-- **Wire the root**: add or repair the `@<docroot>/index.md` import in CLAUDE.md
-  and the AGENTS.md routing block (no import syntax there — plain lines pointing
-  at the index and `conventions.md`).
+- **Wire the root**: add or repair the AGENTS.md routing block (plain lines
+  pointing at the index and `conventions.md` — authored once, there) and
+  CLAUDE.md's two imports: `@AGENTS.md` and `@<docroot>/index.md`. CLAUDE.md
+  never restates the routing prose.
 - **Add missing frontmatter**: verify-or-add the required keys on any doc or index
   that lacks them; derive the index line from the `description`. A `type` that
   cannot be inferred from the doc's content is reported for a human call, never

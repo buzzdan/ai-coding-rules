@@ -489,19 +489,23 @@ Each sub-index follows the one-line-per-doc form above, with sub-index frontmatt
 
 ### CLAUDE.md Wiring Snippet
 
+CLAUDE.md never restates the routing prose — it embeds AGENTS.md (the single
+authored routing block, below) and imports the map:
+
 ```markdown
 ## Documentation
+@AGENTS.md
 @docs/index.md
 ```
 
-The `@` import puts the map in context at session start.
+The `@` imports put the routing block and the map in context at session start.
 
 ### AGENTS.md Routing Block
 
-AGENTS.md has no import syntax; it carries a short routing block instead — for
-every tool that reads AGENTS.md rather than CLAUDE.md, not just repos without a
-CLAUDE.md. At the repo root and, in a monorepo, nested per sub-project (agents use
-the closest file, so each sub-project's block names its own doc root):
+The routing block is authored once, here — for every tool that reads AGENTS.md,
+with CLAUDE.md embedding this file rather than duplicating it. At the repo root
+and, in a monorepo, nested per sub-project (agents use the closest file, so each
+sub-project's block names its own doc root):
 
 ```markdown
 ## Documentation

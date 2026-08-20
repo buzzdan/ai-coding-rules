@@ -37,7 +37,8 @@ inside and a CI gate outside.
 - **AGENTS.md routing block**: upgraded from "fallback when CLAUDE.md is
   absent" to first-class multi-tool coverage — root and nested per sub-project
   (closest file wins), pointing every AGENTS.md-reading agent at the index and
-  conventions.md.
+  conventions.md. Authored once: CLAUDE.md embeds it via `@AGENTS.md` (plus the
+  `@<docroot>/index.md` map import) instead of duplicating the routing prose.
 - **New `scripts/check-repo-brain.sh`**: dependency-free conformance gate
   running Q1–Q3 and Q7 over every doc root (repo root plus each go.mod
   sub-project): transitive reachability from the root index, both edge
