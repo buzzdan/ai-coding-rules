@@ -8,7 +8,9 @@ carry it, higher rungs summarizing and pointing down, never duplicating. Two
 invariants hold the network together: **reachability** (every doc is reachable from
 the root: CLAUDE.md → index.md → doc — no orphans) and **bidirectionality** (code
 points up at its feature doc; docs point down at code via greppable symbols; the
-index points everywhere).
+index points everywhere). The doc root itself is an Open Knowledge Format (OKF
+v0.2) bundle: every file carries YAML frontmatter, a file's path is its identity,
+and the map is derived from the frontmatter below it (bundle policy below).
 
 ## Why
 
@@ -123,12 +125,24 @@ func (p Policy) Do(ctx context.Context, op Op) error {
 
 ```markdown
 <!-- docs/retry-policy.md -->
+---
+type: feature
+title: Retry policy
+description: why retries use capped full jitter; `Policy` API
+timestamp: 2026-08-20T00:00:00Z
+---
 Entry point: `Policy.Do`. Construction: `ParsePolicy` — validates the cap
 against the base delay, so an unbounded backoff cannot exist.
 ```
 
 ```markdown
 <!-- docs/index.md -->
+---
+type: index
+title: Repo map
+description: map of all repo docs
+okf_version: "0.2"
+---
 # Repo map
 
 **Resilience**
@@ -146,7 +160,9 @@ the WHY the code cannot (the incident) and carries the upward edge to the featur
 doc; the doc points down with the greppable tokens `Policy.Do` and `ParsePolicy` —
 no path, no line number — and is listed in the index; CLAUDE.md imports the index,
 so the whole map is in context at session start. Grep `Policy` or open CLAUDE.md:
-either way, the jitter incident is two hops away.
+either way, the jitter incident is two hops away. And the index line is not
+authored twice: it IS `retry-policy.md`'s `description`, derived from the
+frontmatter — the map regenerates instead of drifting.
 
 ## Design guidance
 
@@ -327,17 +343,71 @@ rule's (Q4 below — they must carry why/context, not restate the identifier).
   devices at **package/directory granularity** — a directories-only tree is just a
   set of package-path citations; file-level leaf entries are the violation. Prune
   the leaves, keep the tree.
+- **Links are one-way — write an edge only when no structure implies it.** A doc's
+  parent is `index.md` in its own directory, derivable from the path alone: never
+  write a child→parent backlink, and never a `related:` frontmatter key — body
+  links ARE the machine-readable graph. Lateral doc→doc links go inline, with the
+  relationship stated in the sentence that carries the link ("auth retries use the
+  capped-jitter policy — [retry-policy.md](retry-policy.md)"). The one axis no
+  structure carries is code↔docs — which is exactly why those edges are written in
+  both directions and grep-verified (Q2).
+- **Optional `## Related` section**: for real relationships that found no natural
+  sentence in the body. At most 3 entries — a cap, not a quota; zero is a valid
+  count, and a doc with none has no section. Every entry carries a reason clause
+  (a bare link is a violation, same as a WHAT-comment), and never duplicates a
+  link already inline. Entries are ordinary edges to Q2.
+
+### Frontmatter — the doc root as an OKF bundle (rungs 2–3)
+
+The doc root conforms to Open Knowledge Format v0.2 (markdown bundle: one concept
+per file, path = identity, links form the graph), plus documented R9 extensions.
+
+- **Content docs** carry required `type` (`feature` / `architecture` / `guide`),
+  `title`, `description`, and `timestamp`; optional `tags`, and optional lifecycle
+  keys `status: draft|stable|deprecated` and `stale_after` — the frontmatter-native
+  form of the ⚠️ stale flag.
+- **Indexes carry frontmatter as an R9 extension** (OKF v0.2 keeps reserved
+  `index.md` files frontmatter-free except a root `okf_version`): every index gets
+  `type: index`, `title`, `description`, `tags`; the root index adds
+  `okf_version: "0.2"`. **Never a `timestamp` on an index** — the index is derived,
+  not authored, and a churning timestamp in a derived file is drift bait.
+- **Derivation rule**: every index line is derived from the frontmatter one level
+  down — a doc's line from its `description`, prefixed ⚠️ when its lifecycle says
+  so (`status: deprecated`, or `stale_after` in the past) or when a bootstrap pass
+  classified it stale; a sub-index's line in the root map from that sub-index's
+  `description` + `tags`. The map is regenerable, so it cannot drift from the
+  frontmatter that owns each fact.
+- **Never emit `log.md`** — OKF reserves it for change history; this rule is
+  behavior-not-history, so the file must not exist in a doc root.
+- **Broken links stay violations.** OKF tells consumers to tolerate dangling links
+  as not-yet-written knowledge; internally that tolerance would silence the drift
+  alarm. The *(planned)* marker (Q2) is the one sanctioned form of a
+  not-yet-written reference.
+- Copy-pasteable templates (content doc, index, root index, conventions doc) live
+  in @documentation's reference.md; only the policy lives here.
 
 ### The index (rung 3) and the root
 
 - `index.md` lives in the doc root and MUST stay short: a concise reference guide,
   **one line per doc**, grouped by topic. It is the map, not a doc.
-- Past ~300 lines it becomes a **map of maps**: the root index shrinks to links to
-  short topic or sub-project sub-indexes. This keeps the imported root cheap and
-  every doc still two hops from CLAUDE.md.
+- Past ~300 lines it becomes a **map of maps**, and the split is directory-shaped:
+  each topic becomes a subdirectory with its own frontmattered `index.md` (OKF's
+  per-directory reserved file), and the root index shrinks to one derived line per
+  sub-index. The imported root stays cheap and every doc is still two hops away
+  (the root map is hop 0 — it rides in with the CLAUDE.md import). The split moves
+  files, so it lands in the **same commit** as the Q2-driven rewrite of code-side
+  `See docs/...` paths — a moved doc with a stale code edge is a broken network
+  between commits.
 - **Root wiring**: CLAUDE.md embeds the map via an `@<docroot>/index.md` import
-  (e.g. `@docs/index.md`) so it is in context at session start. AGENTS.md is the
-  fallback host where CLAUDE.md is not used.
+  (e.g. `@docs/index.md`) so it is in context at session start. AGENTS.md — which
+  has no import syntax — carries a short plain routing block (start at the index;
+  conventions in `<docroot>/conventions.md`) at the repo root and, in a monorepo,
+  nested per sub-project (closest file wins). It serves every tool that reads
+  AGENTS.md instead of CLAUDE.md, not just repos without a CLAUDE.md.
+- **`<docroot>/conventions.md` is the self-hosting doc** (`type: guide`): the
+  network's own maintenance rules — frontmatter templates, link rules, the Related
+  policy, the never-list — written for a contributor without this plugin. It is
+  listed FIRST in the index, one pointer line.
 
 ### Doc root discovery and monorepos
 
@@ -359,7 +429,12 @@ rule's (Q4 below — they must carry why/context, not restate the identifier).
   (`See docs/<feature>.md`) from the package or type it describes — both invariants,
   reachability and bidirectionality, in one move.
 - **Wire the root**: add or repair the `@<docroot>/index.md` import in CLAUDE.md
-  (AGENTS.md has no import syntax — use a plain reference line).
+  and the AGENTS.md routing block (no import syntax there — plain lines pointing
+  at the index and `conventions.md`).
+- **Add missing frontmatter**: verify-or-add the required keys on any doc or index
+  that lacks them; derive the index line from the `description`. A `type` that
+  cannot be inferred from the doc's content is reported for a human call, never
+  guessed silently.
 - **Update the stale doc with the behavior change**: rewrite the affected section to
   describe current behavior — never append a changelog entry (the
   behavior-not-history discipline lives in @documentation).
@@ -368,7 +443,9 @@ rule's (Q4 below — they must carry why/context, not restate the identifier).
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 Determine the doc root first (discovery order above); `<docroot>` below is that
-directory.
+directory. Q1–Q3 and Q7 are fully mechanical: the plugin ships them as
+`scripts/check-repo-brain.sh` (installed into the repo by the bootstrap pass), so
+one command answers all four.
 
 1. **Is any doc an orphan?**
    Detection: `find <docroot> -name '*.md' ! -name 'index.md'` versus the link
@@ -388,9 +465,11 @@ directory.
    detection: `grep -nE '\.go(:[0-9]+)?|line [0-9]+' <docroot>/*.md | grep -v '://'`
    (the `://` filter exempts URLs, e.g. pkg.go.dev links) — regardless of whether
    the coordinate currently resolves.
-   Two exemptions: an index line carrying the ⚠️ stale flag (cites an unresolved
-   `Symbol`) is a recorded finding, not a broken edge — the decision to refresh,
-   remove, or keep it is the user's. And backticks are a resolvability contract —
+   Two exemptions, both scoped to symbol resolution (the file-path ban has no
+   exemption beyond URLs): an index line carrying the ⚠️ stale flag (cites an
+   unresolved `Symbol`) is a recorded finding, not a broken edge — the decision to
+   refresh, remove, or keep it is the user's. And backticks are a resolvability
+   contract —
    a future/roadmap symbol is written in prose or explicitly marked *(planned)*,
    and *(planned)*-marked citations are exempt from resolution.
 
@@ -424,3 +503,15 @@ directory.
    Violation (advisory): a package with a citing feature doc changed and the doc
    did not — flag it with the doc's path as evidence; the fix is updating the
    affected section, never appending history.
+
+7. **Does any file break the bundle contract?**
+   Detection: for every `.md` under `<docroot>`, check the first line is `---`
+   (e.g. `head -1` per file); for every `index.md`, check its frontmatter block
+   contains `type: index` and no `timestamp:` key; `grep -rn '^related:'` over
+   doc-root frontmatter; `find <docroot> -name 'log.md'`.
+   Violation: a doc-root `.md` with no frontmatter block; an index missing
+   `type: index`; a `timestamp` key on an index; a `related:` frontmatter key
+   anywhere; a `log.md` anywhere in the doc root.
+   Advisory branch: a doc whose `stale_after` is in the past (or
+   `status: deprecated`) with no ⚠️ on its index line — recorded staleness the
+   map does not show; the fix is re-deriving the line (derivation rule above).
