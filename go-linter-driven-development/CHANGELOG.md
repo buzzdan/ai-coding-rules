@@ -39,10 +39,15 @@ inside and a CI gate outside.
   (closest file wins), pointing every AGENTS.md-reading agent at the index and
   conventions.md.
 - **New `scripts/check-repo-brain.sh`**: dependency-free conformance gate
-  running Q1–Q3 and Q7 (orphans, both edge directions, file:line ban, root
-  wiring, bundle contract); BOOTSTRAP installs it into target repos and
-  suggests the one-line CI wiring. Exit 0 clean/not-adopted, 1 violations,
-  2 usage error; every failure message points at conventions.md.
+  running Q1–Q3 and Q7 over every doc root (repo root plus each go.mod
+  sub-project): transitive reachability from the root index, both edge
+  directions, the file:line ban (URL spans stripped, not whole lines),
+  exact-path root wiring (missing AGENTS.md routing is an advisory), the full
+  frontmatter contract (termination, per-class required keys, root-only
+  `okf_version`), and index-line derivation against each target's
+  `description`. BOOTSTRAP installs it into target repos and suggests the
+  one-line CI wiring. Exit 0 clean/not-adopted, 1 violations, 2 usage error;
+  every failure message points at conventions.md.
 
 ### Changed
 
