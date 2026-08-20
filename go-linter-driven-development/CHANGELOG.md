@@ -3,6 +3,57 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.10.0] - 2026-08-20
+
+The repo brain had one audience: a session with this plugin installed. In a
+monorepo most contributors — and their agents — don't have it, so the network's
+rules lived nowhere they could find and nothing enforced them. This release
+makes the doc root a standard, self-describing artifact: an Open Knowledge
+Format (OKF v0.2) bundle any tool can consume, with its own maintenance manual
+inside and a CI gate outside.
+
+### Added
+
+- **OKF v0.2 bundle conformance (R9)**: every doc-root file carries YAML
+  frontmatter — content docs `type`/`title`/`description`/`timestamp` (+
+  optional `tags` and lifecycle `status`/`stale_after`, the frontmatter-native
+  form of the ⚠️ stale flag); indexes carry `type: index` (a documented R9
+  extension — OKF keeps reserved index.md bare) and never a `timestamp`; the
+  root index carries `okf_version`. New falsifying question **Q7** checks the
+  bundle contract mechanically.
+- **Derivation rule (R9)**: every index line is derived from the frontmatter
+  one level down — a doc's line IS its `description` — so the map is
+  regenerable and cannot drift. The map of maps is directory-shaped (per-topic
+  subdirectories with their own frontmattered index.md), and the split lands in
+  the same commit as the `See docs/...` path rewrite.
+- **One-way link policy (R9)**: write an edge only when no structure implies
+  it — no child→parent backlinks, no `related:` frontmatter key, lateral links
+  inline with the reason in the sentence; an optional `## Related` section is
+  capped at 3 reason-claused entries (a ceiling, not a quota). `log.md` is
+  never emitted.
+- **Self-hosting conventions doc**: BOOTSTRAP creates `<docroot>/conventions.md`
+  (template in reference.md) — the network's maintenance rules written for
+  contributors without this plugin, listed first in the index.
+- **AGENTS.md routing block**: upgraded from "fallback when CLAUDE.md is
+  absent" to first-class multi-tool coverage — root and nested per sub-project
+  (closest file wins), pointing every AGENTS.md-reading agent at the index and
+  conventions.md.
+- **New `scripts/check-repo-brain.sh`**: dependency-free conformance gate
+  running Q1–Q3 and Q7 (orphans, both edge directions, file:line ban, root
+  wiring, bundle contract); BOOTSTRAP installs it into target repos and
+  suggests the one-line CI wiring. Exit 0 clean/not-adopted, 1 violations,
+  2 usage error; every failure message points at conventions.md.
+
+### Changed
+
+- **BOOTSTRAP is now a migration pass too**: frontmatter is verified-or-added
+  (never duplicated), so a network wired by an older plugin version converges
+  to the current rules in one idempotent re-run; an un-inferable `type` goes to
+  the advisory report, never guessed.
+- **Feature Doc Template's `Related` section** reconciled with the one-way link
+  policy: optional, ≤3 entries, each with a reason clause, none duplicating an
+  inline link.
+
 ## [2.9.1] - 2026-07-23
 
 A real 143-line file surfaced the gap v2.9.0 left open: every one of its nine
