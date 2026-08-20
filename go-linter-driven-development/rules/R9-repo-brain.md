@@ -141,6 +141,7 @@ against the base delay, so an unbounded backoff cannot exist.
 type: index
 title: Repo map
 description: map of all repo docs
+tags: [go]
 okf_version: "0.2"
 ---
 # Repo map
@@ -474,9 +475,14 @@ one command answers all four.
    and *(planned)*-marked citations are exempt from resolution.
 
 3. **Is the root unwired?**
-   Detection: `grep -l 'index.md' CLAUDE.md AGENTS.md 2>/dev/null`.
-   Violation: no hit — the map exists but is not in context at session start;
-   the `@<docroot>/index.md` import is missing.
+   Detection: for each doc root, `grep -l '<docroot>/index.md' CLAUDE.md AGENTS.md
+   2>/dev/null` in the root's owning project directory — the exact path, never a
+   bare `index.md` mention. A monorepo sub-root also counts as wired when the
+   repo-root index links into it.
+   Violation: no hit anywhere — the map exists but is not in context at session
+   start; the `@<docroot>/index.md` import is missing.
+   Advisory: CLAUDE.md is wired but AGENTS.md lacks the routing reference — every
+   tool that reads AGENTS.md instead of CLAUDE.md starts blind.
 
 4. **Does a doc comment on an exported symbol state WHAT instead of WHY?**
    Detection: for each exported declaration in the diff
@@ -505,13 +511,19 @@ one command answers all four.
    affected section, never appending history.
 
 7. **Does any file break the bundle contract?**
-   Detection: for every `.md` under `<docroot>`, check the first line is `---`
-   (e.g. `head -1` per file); for every `index.md`, check its frontmatter block
-   contains `type: index` and no `timestamp:` key; `grep -rn '^related:'` over
-   doc-root frontmatter; `find <docroot> -name 'log.md'`.
-   Violation: a doc-root `.md` with no frontmatter block; an index missing
-   `type: index`; a `timestamp` key on an index; a `related:` frontmatter key
-   anywhere; a `log.md` anywhere in the doc root.
+   Detection: for every `.md` under `<docroot>`: the first line is `---` and a
+   closing `---` follows (an unterminated block is broken); the block carries the
+   required keys — content docs `type`, `title`, `description`, `timestamp`;
+   indexes `type: index`, `title`, `description`, `tags` and never `timestamp`;
+   the root index also `okf_version`, and only the root (the key is the root's
+   alone). `grep -rn '^related:'` over doc-root frontmatter;
+   `find <docroot> -name 'log.md'`. For every index line shaped
+   `- [doc](path) — text`, compare the text against the target's `description`
+   (⚠️-flagged lines exempt — they are recorded findings, not derivable lines).
+   Violation: a missing or unterminated frontmatter block; a missing required
+   key; a `timestamp` on an index; `okf_version` off the root index; a
+   `related:` key anywhere; a `log.md` anywhere in the doc root; an index line
+   that drifted from the `description` it derives from.
    Advisory branch: a doc whose `stale_after` is in the past (or
    `status: deprecated`) with no ⚠️ on its index line — recorded staleness the
    map does not show; the fix is re-deriving the line (derivation rule above).

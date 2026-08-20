@@ -553,6 +553,8 @@ Index files use `type: index` and never a `timestamp`. Optional on content docs:
   this repo (mark future ones *(planned)* and write them without backticks).
 - Link related docs inline, in the sentence that explains the relationship.
   Links are one-way: never add a link back to `index.md` or a parent.
+  Use inline links only — `[name](path.md)`; reference-style links are not
+  checked by the conformance gate.
 - An optional `## Related` section may close a doc: at most 3 entries, each with
   a reason ("— how sessions authenticate created users"), none duplicating an
   inline link.
