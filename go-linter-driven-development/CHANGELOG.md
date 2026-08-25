@@ -44,12 +44,17 @@ inside and a CI gate outside.
 - **New `scripts/check-repo-brain.sh`**: dependency-free conformance gate
   running Q1–Q3 and Q7 over every doc root (repo root plus each go.mod
   sub-project): transitive reachability from the root index, both edge
-  directions — doc-cited symbols resolve against type/func/var/const
-  declarations, including package-qualified tokens — the file:line ban (URL
-  spans stripped, not whole lines), exact-path root wiring (missing AGENTS.md
-  routing is an advisory), the full frontmatter contract (termination, required
-  content-doc keys, bare indexes, root-only `okf_version`), and every index
-  line checked against its target's `description`. BOOTSTRAP installs it into
+  directions, the file:line ban (URL spans, fenced code blocks, and glob
+  patterns exempt), exact-path root wiring (missing AGENTS.md routing is an
+  advisory), the full frontmatter contract (termination, required content-doc
+  keys, bare indexes, root-only `okf_version`), and every index line checked
+  against its target's `description`. Docs→code resolution is set-based and
+  Go-shaped: one pass builds the repo's declaration set (single-line and
+  grouped `type (`/`var (`/`const (` declarations, functions, methods); a
+  token missing there still resolves as a whole word in any non-markdown repo
+  file (config keys, alert names); external `pkg.Sym` (stdlib, dependencies)
+  is exempt. Dogfooded on a 1,271-file production repo: ~55 s per run, zero
+  false-positive classes left. BOOTSTRAP installs it into
   target repos and suggests the
   one-line CI wiring. Exit 0 clean/not-adopted, 1 violations, 2 usage error;
   every failure message points at conventions.md.

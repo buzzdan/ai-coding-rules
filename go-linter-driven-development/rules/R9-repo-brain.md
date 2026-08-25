@@ -454,16 +454,19 @@ one command answers all four.
 2. **Is any edge broken — in either direction?**
    Detection, code→docs: `grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' --include='*.go' .`
    plus `.md`-to-`.md` links inside `<docroot>`; `test -f` each target.
-   Detection, docs→code: for each backticked symbol a doc cites, grep for its
-   declaration — `grep -rnE '(type|func|var|const) <Sym>\b|^\s*<Sym>\s*=' --include='*.go' .`
-   (the `=` branch catches declarations inside `var (`/`const (` blocks; for
-   methods, grep the method name; for a package-qualified `pkg.Sym`, resolve the
-   symbol part); for a cited package or directory path, `test -d` it.
+   Detection, docs→code: build the repo's declaration set once — single-line
+   and grouped `type (` / `var (` / `const (` declarations, functions, and
+   methods — and resolve each backticked symbol against it. A token missing
+   from the set still resolves when it appears as a whole word in any
+   non-markdown repo file (config keys, alert names, test helpers). A
+   package-qualified `pkg.Sym` whose package is not declared in this repo is
+   external (stdlib, dependencies) and exempt. For a cited package or
+   directory path, `test -d` it.
    Violation: any unresolved target in either direction. Additionally, a doc citing
    a **file path or line number** is itself a violation of the edge policy —
-   detection: `grep -nE '\.go(:[0-9]+)?|line [0-9]+' <docroot>/*.md | grep -v '://'`
-   (the `://` filter exempts URLs, e.g. pkg.go.dev links) — regardless of whether
-   the coordinate currently resolves.
+   regardless of whether the coordinate currently resolves. Exempt from the
+   ban: URL spans (e.g. pkg.go.dev links), fenced code blocks, and glob
+   patterns (a span containing `*` is a pattern, not a citation).
    Two exemptions, both scoped to symbol resolution and both per-LINE — a line
    carrying either marker is skipped whole (the file-path ban has no exemption
    beyond URLs): a line carrying the ⚠️ stale flag (cites an unresolved

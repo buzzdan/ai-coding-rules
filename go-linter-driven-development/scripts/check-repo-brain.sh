@@ -39,13 +39,19 @@
 #   - docs→code checks backticked tokens shaped like exported Go identifiers
 #     (`Foo`, `Foo.Bar`) or package-qualified ones (`pkg.Foo`) that contain a
 #     lowercase letter; other backticks (paths, flags, ALL-CAPS initialisms,
-#     <placeholders>) are skipped. A bare token resolves against type/func/
-#     var/const declarations, including `Foo =` inside var/const blocks.
+#     <placeholders>) are skipped.
+#   - resolution is against a declaration set built ONCE per run from all .go
+#     files: single-line and grouped `type (`/`var (`/`const (` declarations,
+#     functions, and methods. A token missing from the set still resolves when
+#     it appears as a whole word in any non-markdown repo file (config keys,
+#     alert names, test helpers). A `pkg.Sym` whose package is not declared in
+#     this repo is external (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
 #     symbol resolution and the description copy check (R9 Q2/Q7 exemptions);
-#     the file:line ban has no exemption beyond URL spans.
+#     the file:line ban has no exemption beyond URL spans, fenced code blocks,
+#     and glob patterns (a span containing `*` is a pattern, not a citation).
 #   - fenced code blocks (``` or ~~~, indented up to 3 spaces; toggle, not
-#     length-matched) are skipped for symbol resolution.
+#     length-matched) are skipped for symbol resolution and the file:line ban.
 #
 # Exit codes: 0 clean (or repo has no doc root yet — advisory no-op)
 #             1 one or more violations (details on stderr, summary last)
@@ -164,6 +170,96 @@ if find . -name '*.go' -not -path './vendor/*' -not -path '*/vendor/*' -not -pat
   have_go=1
 fi
 
+# ---------- declaration set: built once, queried per token ----------
+# Collects package names (pkg:<name>) plus every declared identifier —
+# single-line and grouped type/var/const declarations, functions, methods.
+DECL_AWK='
+inblock != "" {
+  if ($0 ~ /^\)/) { inblock = ""; next }
+  s = $0; sub(/^[ \t]+/, "", s)
+  if (s ~ /^[A-Za-z_]/) {
+    t = s; sub(/[ \t=([].*$/, "", t)
+    n = split(t, parts, ",")
+    for (i = 1; i <= n; i++) {
+      p = parts[i]; gsub(/[ \t]/, "", p)
+      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
+    }
+  }
+  next
+}
+/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); print "pkg:" s; next }
+/^(type|var|const) \(/ { inblock = "y"; next }
+/^func \(/ {
+  s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
+  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
+  next
+}
+/^func [A-Za-z_]/ {
+  s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
+  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
+  next
+}
+/^(type|var|const) [A-Za-z_]/ {
+  s = $0; sub(/^(type|var|const) /, "", s)
+  t = s; sub(/[ \t=([].*$/, "", t)
+  n = split(t, parts, ",")
+  for (i = 1; i <= n; i++) {
+    p = parts[i]; gsub(/[ \t]/, "", p)
+    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
+  }
+  next
+}
+'
+DECLS="" PKGS=""
+if (( have_go )); then
+  DECLS=$(mktemp) PKGS=$(mktemp) DECL_ALL=$(mktemp)
+  trap 'rm -f "$DECLS" "$PKGS"' EXIT
+  find . -name '*.go' -not -path '*/vendor/*' -not -path './.git/*' -print0 2>/dev/null \
+    | xargs -0 awk "$DECL_AWK" 2>/dev/null | sort -u > "$DECL_ALL"
+  grep '^pkg:' "$DECL_ALL" | sed 's/^pkg://' > "$PKGS"
+  grep -v '^pkg:' "$DECL_ALL" > "$DECLS"
+  rm -f "$DECL_ALL"
+fi
+
+is_repo_pkg() { grep -qxF "$1" "$PKGS" 2>/dev/null; }
+
+# One fence-aware awk pass per bundle extracts everything Q2's doc scan needs:
+#   P <file> <lineno>          — a file:line citation outside fences/URLs/globs
+#   S <file> <lineno> <token>  — a backticked symbol-shaped token to resolve
+# Tokens are then resolved as SETS (one grep against the declaration file, one
+# repo-wide word grep for the whole unresolved batch) — never per token.
+DOCSCAN_AWK='
+FNR == 1 { fence = 0 }
+{
+  line = $0
+  if (line ~ /^ {0,3}(```|~~~)/) { fence = 1 - fence; next }
+  if (fence) next
+  gsub(/[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^ )>]*/, "", line)
+  pf = 0
+  if (line ~ /\.go/) {
+    n = split(line, sp, /[^A-Za-z0-9_*\/.~-]+/)
+    for (i = 1; i <= n; i++) {
+      s = sp[i]
+      sub(/\.+$/, "", s)
+      if (s ~ /\*/) continue
+      if (s ~ /\.go$/ || s ~ /\.go:[0-9]+$/) { pf = 1; break }
+    }
+  }
+  if (!pf && line ~ /(^|[^A-Za-z0-9_])line [0-9]+/) pf = 1
+  if (pf) print "P\t" FILENAME "\t" FNR
+  if (index(line, "`") == 0) next
+  if (index(line, "⚠") > 0) next
+  if (index(line, "*(planned)*") > 0) next
+  m = split(line, seg, /`/)
+  for (i = 2; i <= m; i += 2) {
+    t = seg[i]
+    if (t !~ /[a-z]/) continue
+    if (t ~ /^[A-Z][A-Za-z0-9]*$/ || t ~ /^[A-Za-z][A-Za-z0-9_]*\.[A-Z][A-Za-z0-9]*$/)
+      print "S\t" FILENAME "\t" FNR "\t" t
+  }
+}
+'
+
 # ---------- Q2: code→docs edges (repo-wide; resolved from repo root, then the
 # citing file's own sub-project) ----------
 docroot_for_file() { # <file> -> docroot of the longest matching project dir
@@ -241,55 +337,55 @@ check_bundle() { # <project-dir> <docroot>
     done < <(grep -oE '\]\([^)]+\)' "$md" 2>/dev/null)
   done < <(find "$docroot" -type f -name '*.md')
 
-  # --- Q2: docs→code — backticked exported symbols must grep ---
-  if (( have_go )); then
-    while IFS= read -r md; do
-      local in_fence=0 lineno=0 line
-      while IFS= read -r line; do
-        lineno=$((lineno + 1))
-        if printf '%s' "$line" | grep -qE '^ {0,3}(```|~~~)'; then
-          in_fence=$((1 - in_fence)); continue
-        fi
-        (( in_fence )) && continue
-        case "$line" in *'⚠️'*|*'*(planned)*'*) continue ;; esac
-        local tok
-        while IFS= read -r tok; do
-          tok="${tok#\`}"; tok="${tok%\`}"
-          printf '%s' "$tok" | grep -qE '^[A-Z][A-Za-z0-9]*$|^[A-Za-z][A-Za-z0-9_]*\.[A-Z][A-Za-z0-9]*$' || continue
-          printf '%s' "$tok" | grep -q '[a-z]' || continue
-          if [[ "$tok" == *.* ]]; then
-            local prefix="${tok%%.*}" member="${tok#*.}"
-            if printf '%s' "$prefix" | grep -qE '^[A-Z]'; then
-              # Type.Method — resolve the method
-              grep -rqE "func .*\) ${member}\(|func ${member}\(" \
-                --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null && continue
-              fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (method ${member} not found)"
-            else
-              # pkg.Symbol — resolve the symbol's declaration
-              grep -rqE "(type|func|var|const) ${member}\b|^[[:space:]]*${member}[[:space:]]*=" \
-                --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null && continue
-              fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (no declaration of ${member})"
-            fi
-          else
-            grep -rqE "(type|func|var|const) ${tok}\b|^[[:space:]]*${tok}[[:space:]]*=" \
-              --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null && continue
-            fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (no declaration of ${tok})"
-          fi
-        done < <(printf '%s\n' "$line" | grep -oE '`[^`]+`')
-      done < "$md"
-    done < <(find "$docroot" -type f -name '*.md')
-  fi
-
-  # --- Q2: file:line citation ban (URL spans stripped, not whole lines) ---
-  while IFS= read -r hit; do
-    local file="${hit%%:*}"; local rest="${hit#*:}"; local line="${rest%%:*}"
-    local text="${rest#*:}"
-    local stripped
-    stripped=$(printf '%s' "$text" | sed -E 's#[A-Za-z][A-Za-z0-9+.-]*://[^ )>]*##g')
-    if printf '%s' "$stripped" | grep -qE '\.go(:[0-9]+)?|line [0-9]+'; then
-      fail "[Q2] $file:$line — cites a file path or line number (churn-prone coordinate)"
+  # --- Q2: doc scan — file:line ban + docs→code symbol resolution.
+  # One awk pass extracts; resolution is set-based (see DOCSCAN_AWK above). ---
+  local scan; scan=$(mktemp)
+  find "$docroot" -type f -name '*.md' -print0 2>/dev/null \
+    | xargs -0 awk "$DOCSCAN_AWK" 2>/dev/null > "$scan"
+  local f ln
+  while IFS=$'\t' read -r _ f ln; do
+    fail "[Q2] $f:$ln — cites a file path or line number (churn-prone coordinate)"
+  done < <(grep $'^P\t' "$scan")
+  if (( have_go )) && grep -q $'^S\t' "$scan"; then
+    local toks check members unres bad
+    toks=$(mktemp) check=$(mktemp) members=$(mktemp) unres=$(mktemp) bad=$(mktemp)
+    grep $'^S\t' "$scan" | cut -f4 | sort -u > "$toks"
+    # full-token -> member-to-resolve (external pkg.Sym exempt)
+    local t p m
+    while IFS= read -r t; do
+      case "$t" in
+        *.*)
+          p="${t%%.*}" m="${t#*.}"
+          case "$p" in
+            [a-z]*) is_repo_pkg "$p" || continue ;;  # external package (stdlib, deps) — exempt
+          esac
+          printf '%s\t%s\n' "$t" "$m" ;;
+        *) printf '%s\t%s\n' "$t" "$t" ;;
+      esac
+    done < "$toks" > "$check"
+    cut -f2 "$check" | sort -u > "$members"
+    grep -vxF -f "$DECLS" "$members" > "$unres" || true
+    if [[ -s "$unres" ]]; then
+      # ONE repo-wide word grep for the whole unresolved batch
+      local found; found=$(mktemp)
+      grep -rIhoFw --exclude-dir=vendor --exclude-dir=.git --exclude='*.md' \
+        -f "$unres" . 2>/dev/null | sort -u > "$found"
+      grep -vxF -f "$found" "$unres" > "$bad" || true
+      rm -f "$found"
     fi
-  done < <(grep -rnE '\.go(:[0-9]+)?|line [0-9]+' "$docroot" --include='*.md' 2>/dev/null)
+    if [[ -s "$bad" ]]; then
+      local full mem tok
+      while IFS=$'\t' read -r full mem; do
+        grep -qxF "$mem" "$bad" || continue
+        while IFS=$'\t' read -r _ f ln tok; do
+          [[ "$tok" == "$full" ]] \
+            && fail "[Q2] $f:$ln — backticked \`$full\` does not resolve (${mem} not declared or found in the repo)"
+        done < <(grep $'^S\t' "$scan")
+      done < "$check"
+    fi
+    rm -f "$toks" "$check" "$members" "$unres" "$bad"
+  fi
+  rm -f "$scan"
 
   # --- Q3: root wiring (exact path; sub-roots may ride the repo-root index) ---
   local rel="$docroot"
