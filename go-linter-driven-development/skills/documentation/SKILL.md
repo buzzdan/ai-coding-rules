@@ -86,12 +86,13 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    (`Example_*`) for complex/core types.
 4. **Rung 2 — feature doc**: create/update `<docroot>/<feature>.md` from the
    reference.md template, with OKF frontmatter (required keys — R9's bundle
-   policy); optional `Related` edges (≤3, each with its reason — R9 edge policy);
+   policy); lateral doc links inline, each in a sentence stating the
+   relationship (R9 edge policy — no `Related` section);
    key players as `Symbol | Role | Package`; entry points cite symbols — never
    file paths or line numbers (R9 edge policy). Bug fix → update the existing
    doc's affected section; do not create a new doc.
-5. **Rung 3 — the map**: add/refresh the doc's one line in `index.md` — derived
-   from the doc's `description` (R9 derivation rule); verify root wiring
+5. **Rung 3 — the map**: add/refresh the doc's one line in `index.md` — copied
+   from the doc's `description` (R9 drift-check rule); verify root wiring
    (`@<docroot>/index.md` import in CLAUDE.md, AGENTS.md routing block).
 6. **Self-check**: run R9's falsifying-question detections on the touched scope —
    Q1–Q3 and Q7 mechanically (orphans, broken edges in both directions, unwired
@@ -121,11 +122,11 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    stale — classification table in reference.md), and **verify-or-add frontmatter**
    (migration guidance in reference.md): a doc already conformant is left alone; an
    un-inferable `type` goes to the advisory report, never guessed.
-3. **Build or rebuild `index.md`**: frontmattered, grouped by topic, one line per
-   doc — each line derived from the frontmatter one level down (R9 derivation
-   rule); past ~300 lines it becomes a directory-shaped map of maps, and the split
-   lands in the same commit as the `See docs/...` path rewrite (R9 index policy;
-   templates in reference.md).
+3. **Build or rebuild `index.md`**: bare except the root's `okf_version`, grouped
+   by topic, one line per doc — each line copied from the doc's `description`
+   (R9 drift-check rule); past ~300 lines it becomes a directory-shaped map of
+   maps, and the split lands in the same commit as the `See docs/...` path
+   rewrite (R9 index policy; templates in reference.md).
 4. **Wire the root**: author the routing block once, in AGENTS.md — repo root
    and, in a monorepo, nested per sub-project — then wire CLAUDE.md with the
    `@AGENTS.md` embed plus the `@<docroot>/index.md` import (create a minimal
@@ -212,8 +213,8 @@ Advisory findings (reported, not fixed — FEATURE mode writes content):
 - FEATURE: the comment-critic ran over the full diff, every non-KEEP verdict was
   applied (R3 routes reported, not fixed), and the one re-critique confirmed clean
   — or the remainder is reported as-is.
-- BOOTSTRAP: root(s) + frontmattered index + root wiring + conventions.md + check
-  script exist; frontmatter verified-or-added on every doc; every
+- BOOTSTRAP: root(s) + index + root wiring + conventions.md + check
+  script exist; frontmatter verified-or-added on every content doc; every
   confidently-anchorable doc has an upward edge; gaps reported; zero content docs
   generated (conventions.md and the copied script are the two sanctioned
   artifacts).

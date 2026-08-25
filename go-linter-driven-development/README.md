@@ -83,7 +83,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | R6 | [`rules/R6-test-only-interfaces.md`](rules/R6-test-only-interfaces.md) | No interface whose only second implementer is a test double |
 | R7 | [`rules/R7-test-placement.md`](rules/R7-test-placement.md) | `pkg_test` only, no wantErr conditionals, right-rung tests, no sleeps |
 | R8 | [`rules/R8-no-globals.md`](rules/R8-no-globals.md) | No package-level state; no `context.Background()` in library code |
-| R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md; doc root is an OKF bundle (frontmatter, derived index lines) |
+| R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md; doc root is an OKF bundle (frontmatter, drift-checked index lines) |
 | R10 | [`rules/R10-concurrency-safety.md`](rules/R10-concurrency-safety.md) | Goroutines with owners and exit paths; shared state guarded where it lives; no production sleeps |
 | R11 | [`rules/R11-conditional-dispatch.md`](rules/R11-conditional-dispatch.md) | One dispatch owner per kind/variant family (Anti-IF): duplicated kind-switches become interface/map dispatch chosen once at the boundary; a single switch stays and goes exhaustive |
 | R12 | [`rules/R12-mutation-discipline.md`](rules/R12-mutation-discipline.md) | Mutation only through invariant-owning methods: constructors copy collections in, queries copy (or iterate) out, no query/modifier hybrids, no setters around validating constructors |

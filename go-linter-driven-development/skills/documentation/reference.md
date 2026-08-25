@@ -9,8 +9,8 @@ policy, index policy, root wiring, doc-root discovery — lives ONCE in
 
 - [Comment Value Toolbox](#comment-value-toolbox) — the growable catalog of ways a comment delivers value
 - [Godoc Menus](#godoc-menus) — package, type, function menus; testable examples
-- [Frontmatter Templates (OKF Bundle)](#frontmatter-templates-okf-bundle) — content doc, index, root index
-- [Feature Doc Template](#feature-doc-template) — frontmatter, symbol-cited key players, optional `Related`
+- [Frontmatter Templates (OKF Bundle)](#frontmatter-templates-okf-bundle) — content doc, root index
+- [Feature Doc Template](#feature-doc-template) — frontmatter, symbol-cited key players
 - [The Index and Root Wiring](#the-index-and-root-wiring) — index.md, map of maps, CLAUDE.md import, AGENTS.md routing block
 - [Conventions Doc (Self-Hosting)](#conventions-doc-self-hosting) — the `conventions.md` template bootstrap installs
 - [Doc Roots and Monorepos](#doc-roots-and-monorepos)
@@ -317,46 +317,31 @@ feature docs.
 
 ## Frontmatter Templates (OKF Bundle)
 
-Every `.md` in the doc root starts with YAML frontmatter (R9's bundle policy — the
-one non-menu part of any template: the required keys are not optional). Index lines
-are derived from the `description` one level down, so write the description as the
-index line you want.
+Content docs start with YAML frontmatter (R9's bundle policy — the one non-menu
+part of any template: the required keys are not optional). A doc's index line IS
+its `description`, so write the description as the index line you want.
 
 **Content doc** (feature / architecture / guide):
 
 ```yaml
 ---
 type: feature
-title: Retry policy
 description: why retries use capped full jitter; `Policy` API
-timestamp: 2026-08-20T00:00:00Z
+generated: 2026-08-20T00:00:00Z
 # optional:
+# title: Retry policy     # the H1 is the title; this key never replaces it
 # tags: [resilience, retry]
 # status: stable          # draft | stable | deprecated
 # stale_after: 2027-01-01 # past this date the index line gets the ⚠️ flag
 ---
 ```
 
-**Sub-index** (`<topic>/index.md` — an R9 extension; OKF keeps indexes bare):
+**Indexes carry no frontmatter** (OKF keeps reserved `index.md` bare). The one
+exception is the root index (`<docroot>/index.md`), which carries the bundle
+version — and nothing else:
 
 ```yaml
 ---
-type: index
-title: Resilience
-description: retries, circuit breaking, timeouts
-tags: [resilience, retry, backoff]
----
-```
-
-**Root index** (`<docroot>/index.md`) — same keys plus the bundle version; never a
-`timestamp` on any index (derived files don't get authored churn):
-
-```yaml
----
-type: index
-title: Repo map
-description: map of all repo docs
-tags: [go]
 okf_version: "0.2"
 ---
 ```
@@ -376,9 +361,8 @@ file paths and line numbers never.
 ```markdown
 ---
 type: feature
-title: [Feature Name]
 description: [the index line — one line, what and why; key symbols]
-timestamp: [ISO 8601]
+generated: [ISO 8601]
 ---
 # [Feature Name]
 
@@ -432,14 +416,11 @@ Input → Validation → Processing → Storage → Output
 
 ## Future Considerations
 - [Known limitations, potential extensions]
-
-## Related
-Optional, and capped at 3 — a ceiling, not a quota: zero entries means no section.
-Only relationships that found no natural sentence in the body; every entry carries
-its reason clause, and never duplicates a link already inline (R9 edge policy):
-- [auth.md](auth.md) — how sessions authenticate created users
-- [notifications.md](notifications.md) — welcome-email delivery
 ```
+
+Lateral doc→doc links go inline, in the sentence that explains the relationship
+(R9 edge policy). There is no `## Related` section — a relationship that cannot
+find a sentence in the body is not worth an edge.
 
 ---
 
@@ -449,15 +430,12 @@ its reason clause, and never duplicates a link already inline (R9 edge policy):
 
 A short reference guide: grouped by topic, ONE line per doc (size and style are
 normative in R9's index policy). Each line IS the linked doc's `description` —
-derived, never authored twice; the ⚠️ flag rides in from the doc's lifecycle keys
-or a stale classification (R9's derivation rule):
+copied verbatim, and the conformance gate fails when the copy drifts; the ⚠️ flag
+rides in from the doc's lifecycle keys or a stale classification (R9's
+drift-check rule):
 
 ```markdown
 ---
-type: index
-title: Repo Map
-description: map of all repo docs
-tags: [go]
 okf_version: "0.2"
 ---
 # Repo Map
@@ -475,17 +453,18 @@ okf_version: "0.2"
 ### Map of Maps (past ~300 lines)
 
 The split is directory-shaped: each topic becomes a subdirectory with its own
-frontmattered `index.md`, and the root index shrinks to one line per sub-index,
-derived from that sub-index's `description` + `tags` (R9). The split moves files —
-it lands in the same commit as the rewrite of the code-side `See docs/...` paths:
+bare `index.md`, and the root index shrinks to one short authored line per
+sub-index (a bare sub-index has no `description` to copy — R9). The split moves
+files — it lands in the same commit as the rewrite of the code-side
+`See docs/...` paths:
 
 ```markdown
 - [Resilience](resilience/index.md) — retries, circuit breaking, timeouts
 - [Users](users/index.md) — identity, sessions, notifications
 ```
 
-Each sub-index follows the one-line-per-doc form above, with sub-index frontmatter
-(Frontmatter Templates; no `okf_version` — that key is the root's alone).
+Each sub-index follows the one-line-per-doc form above, with no frontmatter
+(`okf_version` is the root's alone).
 
 ### CLAUDE.md Wiring Snippet
 
@@ -527,9 +506,8 @@ infrastructure, not a content doc). Listed FIRST in the index. Template:
 ```markdown
 ---
 type: guide
-title: Doc conventions
 description: how to maintain this doc root (read before editing docs)
-timestamp: [ISO 8601]
+generated: [ISO 8601]
 ---
 # Doc Conventions
 
@@ -537,35 +515,34 @@ This directory is the repo's documentation network — an OKF bundle. Markdown f
 with YAML frontmatter; `index.md` is the map; links form the graph. Rules:
 
 ## Frontmatter
-Every `.md` here starts with frontmatter. Content docs (copy-paste, fill in):
+Every content doc here starts with frontmatter (copy-paste, fill in):
 
     ---
     type: feature            # feature | architecture | guide
-    title: <name>
-    description: <one line — this becomes the doc's line in index.md>
-    timestamp: <ISO 8601, last substantive update>
+    description: <one line — this IS the doc's line in index.md>
+    generated: <ISO 8601, last substantive update>
     ---
 
-Index files use `type: index` and never a `timestamp`. Optional on content docs:
-`tags`, `status: draft|stable|deprecated`, `stale_after: <date>`.
+Optional on content docs: `title`, `tags`, `status: draft|stable|deprecated`,
+`stale_after: <date>`. Index files carry NO frontmatter — except the root
+`index.md`, which carries only `okf_version`.
 
 ## Links
-- The index line for a doc IS its `description` — update the doc's frontmatter,
-  then mirror the line in `index.md`.
+- The index line for a doc IS its `description` — the description is the single
+  source: update it in the doc's frontmatter, copy it to `index.md`, and the
+  conformance gate fails when the two drift.
 - Cite code by exported symbol (`<Type>` or `<Type>.<Method>`), never by file
   path or line number. Backticks are a promise: a backticked symbol must grep in
   this repo (mark future ones *(planned)* and write them without backticks).
 - Link related docs inline, in the sentence that explains the relationship.
   Links are one-way: never add a link back to `index.md` or a parent.
   Use inline links only — `[name](path.md)`; reference-style links are not
-  checked by the conformance gate.
-- An optional `## Related` section may close a doc: at most 3 entries, each with
-  a reason ("— how sessions authenticate created users"), none duplicating an
-  inline link.
+  checked by the conformance gate. There is no `## Related` section.
 
 ## Never
 - No `log.md`, no changelog sections — docs describe current behavior, not history.
 - No `related:` key in frontmatter — links live in the body.
+- No frontmatter on index files (the root's `okf_version` is the one exception).
 - No file paths or line numbers as code references.
 
 ## Check your work
@@ -623,7 +600,9 @@ An existing network without frontmatter — wired by hand, or by a plugin versio
 before the OKF layer — is just another brownfield state. **Verify-or-add, never
 duplicate**: a doc that already has conformant frontmatter is left alone; a doc
 without gets the required keys, with `description` written as its index line and
-`timestamp` from the doc's last substantive git touch when evident. A `type` the
+`generated` from the doc's last substantive git touch when evident. An index
+carrying frontmatter (written by hand, or by an older plugin version) gets it
+stripped — the root keeps only `okf_version`. A `type` the
 classification table cannot settle goes to the advisory report
 (`type?: <doc> — class not inferable`) — never guessed silently. Same for
 `conventions.md` and the check script: create or verify, and report a diverged
@@ -665,17 +644,17 @@ vets after the edit.
 
 ### Feature Documentation Checklist
 
-- [ ] Frontmatter present with the four required keys (`type`, `title`,
-      `description`, `timestamp`); `description` reads as the index line
+- [ ] Frontmatter present with the required keys (`type`, `description`,
+      `generated` — R9's bundle policy); `description` reads as the index line
 - [ ] Clear problem statement and high-level solution approach
 - [ ] Entry points listed, cited by symbol (e.g. `POST /users` → `UserHandler.Create`)
 - [ ] Key players table with Symbol, Role, and Package — no file paths, no line numbers
 - [ ] Design decisions explained with rationale, connected to coding principles
 - [ ] Data flow and integration points documented
 - [ ] Usage examples are runnable and copy-pasteable
-- [ ] `Related` section, if present, has ≤3 entries, each with a reason clause,
-      none duplicating an inline link
-- [ ] Doc has its one line in `index.md` — derived from its `description` — and at
+- [ ] Lateral doc links are inline, each in a sentence stating the relationship —
+      no `## Related` section
+- [ ] Doc has its one line in `index.md` — copied from its `description` — and at
       least one code-side edge names it
 - [ ] No `log.md`, no changelog sections, no `related:` frontmatter key
 

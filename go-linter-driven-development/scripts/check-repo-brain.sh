@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Repo-brain conformance gate for the go-linter-driven-development plugin.
 #
-# Runs R9's mechanical falsifying questions over every doc root (each an OKF
-# bundle) so CI — and developers without the plugin — can hold the
-# documentation network's invariants. Installed into target repos by the
-# documentation skill's BOOTSTRAP pass (/wire-repo-brain).
+# Runs R9's mechanical falsifying questions over every doc root so CI — and
+# developers without the plugin — can hold the documentation network's
+# invariants. What it enforces is the R9 profile: a strict superset of OKF
+# v0.2 (rules/R9-repo-brain.md is normative; <docroot>/conventions.md is the
+# in-repo copy). Installed into target repos by the documentation skill's
+# BOOTSTRAP pass (/wire-repo-brain).
 #
 # Usage:  bash scripts/check-repo-brain.sh [repo-root]     (default: cwd)
 # CI:     one line — bash scripts/check-repo-brain.sh
@@ -22,22 +24,24 @@
 #                        carries the exact <docroot>/index.md path (a monorepo
 #                        sub-root may instead be linked from the repo-root
 #                        index); AGENTS.md missing the reference is an advisory
-#   Q7  bundle contract— frontmatter present and terminated with the required
-#                        keys (content docs: type/title/description/timestamp;
-#                        indexes: type: index/title/description/tags, never
-#                        timestamp; root index alone adds okf_version); no
-#                        `related:` key; no log.md; every index line's text
-#                        matches the target's `description` (⚠️ lines exempt)
+#   Q7  bundle contract— content docs carry terminated frontmatter with
+#                        type/description/generated; indexes carry NO
+#                        frontmatter except the root index's lone okf_version
+#                        (required there); no `related:` key; no log.md; every
+#                        index line's text matches the target's `description`
+#                        when it has one (⚠️ lines exempt)
 #
 # Heuristics (documented, deliberate):
 #   - links are inline-markdown only (`[name](path.md)`, optional "title"
 #     stripped); reference-style links are not checked.
-#   - docs→code checks only backticked tokens shaped like exported Go
-#     identifiers (`Foo`, `Foo.Bar`) that contain a lowercase letter; other
-#     backticks (paths, flags, ALL-CAPS initialisms, <placeholders>) are skipped.
+#   - docs→code checks backticked tokens shaped like exported Go identifiers
+#     (`Foo`, `Foo.Bar`) or package-qualified ones (`pkg.Foo`) that contain a
+#     lowercase letter; other backticks (paths, flags, ALL-CAPS initialisms,
+#     <placeholders>) are skipped. A bare token resolves against type/func/
+#     var/const declarations, including `Foo =` inside var/const blocks.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
-#     symbol resolution and derivation (R9 Q2/Q7 exemptions); the file:line ban
-#     has no exemption beyond URL spans.
+#     symbol resolution and the description copy check (R9 Q2/Q7 exemptions);
+#     the file:line ban has no exemption beyond URL spans.
 #   - fenced code blocks (``` or ~~~, indented up to 3 spaces; toggle, not
 #     length-matched) are skipped for symbol resolution.
 #
@@ -201,6 +205,7 @@ check_bundle() { # <project-dir> <docroot>
     fail "[Q1] $docroot — no index.md: the bundle has no map"
   fi
   while IFS= read -r doc; do
+    [[ "$(basename "$doc")" == "log.md" ]] && continue   # its own Q7 ban reports it
     local c; c=$(canon "$doc")
     [[ "$c" == "$root_index_c" ]] && continue
     case "$reachable" in *"$c"$'\n'*) ;; *)
@@ -233,17 +238,25 @@ check_bundle() { # <project-dir> <docroot>
         local tok
         while IFS= read -r tok; do
           tok="${tok#\`}"; tok="${tok%\`}"
-          printf '%s' "$tok" | grep -qE '^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)?$' || continue
+          printf '%s' "$tok" | grep -qE '^[A-Z][A-Za-z0-9]*$|^[A-Za-z][A-Za-z0-9_]*\.[A-Z][A-Za-z0-9]*$' || continue
           printf '%s' "$tok" | grep -q '[a-z]' || continue
           if [[ "$tok" == *.* ]]; then
-            local method="${tok#*.}"
-            grep -rqE "func .*\) ${method}\(|func ${method}\(" \
-              --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null && continue
-            fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (method ${method} not found)"
+            local prefix="${tok%%.*}" member="${tok#*.}"
+            if printf '%s' "$prefix" | grep -qE '^[A-Z]'; then
+              # Type.Method — resolve the method
+              grep -rqE "func .*\) ${member}\(|func ${member}\(" \
+                --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null && continue
+              fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (method ${member} not found)"
+            else
+              # pkg.Symbol — resolve the symbol's declaration
+              grep -rqE "(type|func|var|const) ${member}\b|^[[:space:]]*${member}[[:space:]]*=" \
+                --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null && continue
+              fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (no declaration of ${member})"
+            fi
           else
-            grep -rqE "(type|func) ${tok}\b" \
+            grep -rqE "(type|func|var|const) ${tok}\b|^[[:space:]]*${tok}[[:space:]]*=" \
               --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null && continue
-            fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (no type/func ${tok})"
+            fail "[Q2] $md:$lineno — backticked \`$tok\` does not resolve (no declaration of ${tok})"
           fi
         done < <(printf '%s\n' "$line" | grep -oE '`[^`]+`')
       done < "$md"
@@ -283,47 +296,54 @@ check_bundle() { # <project-dir> <docroot>
 
   # --- Q7: bundle contract ---
   while IFS= read -r md; do
+    local close fm key
+    [[ "$(basename "$md")" == "log.md" ]] && continue    # its own Q7 ban reports it
+    if [[ "$(basename "$md")" == "index.md" ]]; then
+      local is_root=0
+      [[ "$(canon "$md")" == "$root_index_c" ]] && is_root=1
+      if [[ "$(head -1 "$md" 2>/dev/null)" != "---" ]]; then
+        # bare index — conformant, except the root must carry okf_version
+        (( is_root )) && fail "[Q7] $md — root index missing its okf_version frontmatter"
+        continue
+      fi
+      close=$(fm_close_line "$md")
+      if [[ -z "$close" ]]; then
+        fail "[Q7] $md — unterminated frontmatter (no closing ---)"
+        continue
+      fi
+      if (( ! is_root )); then
+        fail "[Q7] $md — frontmatter on a sub-index (indexes stay bare; okf_version belongs to the root alone)"
+        continue
+      fi
+      fm=$(fm_block "$md" "$close")
+      printf '%s\n' "$fm" | grep -q '^okf_version:' \
+        || fail "[Q7] $md — root index missing 'okf_version:'"
+      local extra
+      extra=$(printf '%s\n' "$fm" | grep -E '^[A-Za-z_-]+:' | grep -v '^okf_version:' | head -1)
+      [[ -n "$extra" ]] \
+        && fail "[Q7] $md — root index frontmatter carries '${extra%%:*}:' (okf_version is the only allowed key)"
+      continue
+    fi
     if [[ "$(head -1 "$md" 2>/dev/null)" != "---" ]]; then
       fail "[Q7] $md — no frontmatter block (first line must be ---)"
       continue
     fi
-    local close; close=$(fm_close_line "$md")
+    close=$(fm_close_line "$md")
     if [[ -z "$close" ]]; then
       fail "[Q7] $md — unterminated frontmatter (no closing ---)"
       continue
     fi
-    local fm; fm=$(fm_block "$md" "$close")
+    fm=$(fm_block "$md" "$close")
     if printf '%s\n' "$fm" | grep -q '^related:'; then
       fail "[Q7] $md — 'related:' frontmatter key (links live in the body)"
     fi
-    local key
-    if [[ "$(basename "$md")" == "index.md" ]]; then
-      printf '%s\n' "$fm" | grep -q '^type: index' \
-        || fail "[Q7] $md — index frontmatter missing 'type: index'"
-      for key in title description tags; do
-        printf '%s\n' "$fm" | grep -q "^${key}:" \
-          || fail "[Q7] $md — index frontmatter missing '${key}:'"
-      done
-      if printf '%s\n' "$fm" | grep -q '^timestamp:'; then
-        fail "[Q7] $md — timestamp on an index (derived files get no authored churn)"
-      fi
-      local is_root=0
-      [[ "$(canon "$md")" == "$root_index_c" ]] && is_root=1
-      if (( is_root )); then
-        printf '%s\n' "$fm" | grep -q '^okf_version:' \
-          || fail "[Q7] $md — root index missing 'okf_version:'"
-      elif printf '%s\n' "$fm" | grep -q '^okf_version:'; then
-        fail "[Q7] $md — okf_version on a sub-index (the key is the root's alone)"
-      fi
-    else
-      for key in type title description timestamp; do
-        printf '%s\n' "$fm" | grep -q "^${key}:" \
-          || fail "[Q7] $md — frontmatter missing '${key}:'"
-      done
-    fi
+    for key in type description generated; do
+      printf '%s\n' "$fm" | grep -q "^${key}:" \
+        || fail "[Q7] $md — frontmatter missing '${key}:'"
+    done
   done < <(find "$docroot" -type f -name '*.md')
 
-  # --- Q7: derivation — index line text == target's description (⚠️ exempt) ---
+  # --- Q7: drift check — index line text == target's description (⚠️ exempt) ---
   while IFS= read -r idx; do
     local lineno=0 line
     while IFS= read -r line; do

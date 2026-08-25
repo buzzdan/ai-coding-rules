@@ -14,22 +14,21 @@ inside and a CI gate outside.
 
 ### Added
 
-- **OKF v0.2 bundle conformance (R9)**: every doc-root file carries YAML
-  frontmatter — content docs `type`/`title`/`description`/`timestamp` (+
-  optional `tags` and lifecycle `status`/`stale_after`, the frontmatter-native
-  form of the ⚠️ stale flag); indexes carry `type: index` (a documented R9
-  extension — OKF keeps reserved index.md bare) and never a `timestamp`; the
-  root index carries `okf_version`. New falsifying question **Q7** checks the
-  bundle contract mechanically.
-- **Derivation rule (R9)**: every index line is derived from the frontmatter
-  one level down — a doc's line IS its `description` — so the map is
-  regenerable and cannot drift. The map of maps is directory-shaped (per-topic
-  subdirectories with their own frontmattered index.md), and the split lands in
+- **OKF v0.2 bundle conformance (R9)**: content docs carry YAML frontmatter —
+  required `type`/`description`/`generated` (OKF's provenance key), optional
+  `title`/`tags` and lifecycle `status`/`stale_after`, the frontmatter-native
+  form of the ⚠️ stale flag. Indexes stay bare, as the spec reserves them; the
+  root index carries only `okf_version`. R9 is a stricter profile of the spec
+  built from spec-valid keys, so the bundle stays consumable by any OKF tool.
+  New falsifying question **Q7** checks the bundle contract mechanically.
+- **Drift-check rule (R9)**: a doc's index line IS its `description`, copied
+  verbatim — the description is the single source, and the conformance gate
+  fails when the copy drifts. The map of maps is directory-shaped (per-topic
+  subdirectories with their own bare index.md), and the split lands in
   the same commit as the `See docs/...` path rewrite.
 - **One-way link policy (R9)**: write an edge only when no structure implies
-  it — no child→parent backlinks, no `related:` frontmatter key, lateral links
-  inline with the reason in the sentence; an optional `## Related` section is
-  capped at 3 reason-claused entries (a ceiling, not a quota). `log.md` is
+  it — no child→parent backlinks, no `related:` frontmatter key, no `## Related`
+  section; lateral links go inline with the reason in the sentence. `log.md` is
   never emitted.
 - **Self-hosting conventions doc**: BOOTSTRAP creates `<docroot>/conventions.md`
   (template in reference.md) — the network's maintenance rules written for
@@ -42,23 +41,26 @@ inside and a CI gate outside.
 - **New `scripts/check-repo-brain.sh`**: dependency-free conformance gate
   running Q1–Q3 and Q7 over every doc root (repo root plus each go.mod
   sub-project): transitive reachability from the root index, both edge
-  directions, the file:line ban (URL spans stripped, not whole lines),
-  exact-path root wiring (missing AGENTS.md routing is an advisory), the full
-  frontmatter contract (termination, per-class required keys, root-only
-  `okf_version`), and index-line derivation against each target's
-  `description`. BOOTSTRAP installs it into target repos and suggests the
+  directions — doc-cited symbols resolve against type/func/var/const
+  declarations, including package-qualified tokens — the file:line ban (URL
+  spans stripped, not whole lines), exact-path root wiring (missing AGENTS.md
+  routing is an advisory), the full frontmatter contract (termination, required
+  content-doc keys, bare indexes, root-only `okf_version`), and every index
+  line checked against its target's `description`. BOOTSTRAP installs it into
+  target repos and suggests the
   one-line CI wiring. Exit 0 clean/not-adopted, 1 violations, 2 usage error;
   every failure message points at conventions.md.
 
 ### Changed
 
 - **BOOTSTRAP is now a migration pass too**: frontmatter is verified-or-added
-  (never duplicated), so a network wired by an older plugin version converges
-  to the current rules in one idempotent re-run; an un-inferable `type` goes to
-  the advisory report, never guessed.
-- **Feature Doc Template's `Related` section** reconciled with the one-way link
-  policy: optional, ≤3 entries, each with a reason clause, none duplicating an
-  inline link.
+  on content docs (never duplicated) and stripped from indexes, so a network
+  wired by an older plugin version converges to the current rules in one
+  idempotent re-run; an un-inferable `type` goes to the advisory report, never
+  guessed.
+- **Feature Doc Template's `Related` section removed**: lateral doc links go
+  inline, in the sentence that states the relationship — a relationship that
+  cannot find a sentence in the body is not worth an edge.
 
 ## [2.9.1] - 2026-07-23
 

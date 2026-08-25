@@ -9,8 +9,9 @@ invariants hold the network together: **reachability** (every doc is reachable f
 the root: CLAUDE.md → index.md → doc — no orphans) and **bidirectionality** (code
 points up at its feature doc; docs point down at code via greppable symbols; the
 index points everywhere). The doc root itself is an Open Knowledge Format (OKF
-v0.2) bundle: every file carries YAML frontmatter, a file's path is its identity,
-and the map is derived from the frontmatter below it (bundle policy below).
+v0.2) bundle: content docs carry YAML frontmatter, a file's path is its identity,
+and every index line is drift-checked against the `description` one level down
+(bundle policy below).
 
 ## Why
 
@@ -20,7 +21,7 @@ beside its symbol and gets reviewed with every diff that touches it. Rung 2 drif
 on its own unless networked: nothing in a normal diff forces `docs/` open, so a
 feature doc rots silently — *unless* an edge from the changed code names it and an
 index line makes it findable. Rung 3 barely drifts because it is short and
-regenerable. Placing a fact above its lowest viable rung therefore buys drift for
+drift-checked (Q7). Placing a fact above its lowest viable rung therefore buys drift for
 nothing; placing it below (cramming architecture into a comment) buries it where no
 overview reader looks.
 
@@ -127,9 +128,8 @@ func (p Policy) Do(ctx context.Context, op Op) error {
 <!-- docs/retry-policy.md -->
 ---
 type: feature
-title: Retry policy
 description: why retries use capped full jitter; `Policy` API
-timestamp: 2026-08-20T00:00:00Z
+generated: 2026-08-20T00:00:00Z
 ---
 Entry point: `Policy.Do`. Construction: `ParsePolicy` — validates the cap
 against the base delay, so an unbounded backoff cannot exist.
@@ -138,10 +138,6 @@ against the base delay, so an unbounded backoff cannot exist.
 ```markdown
 <!-- docs/index.md -->
 ---
-type: index
-title: Repo map
-description: map of all repo docs
-tags: [go]
 okf_version: "0.2"
 ---
 # Repo map
@@ -161,9 +157,9 @@ the WHY the code cannot (the incident) and carries the upward edge to the featur
 doc; the doc points down with the greppable tokens `Policy.Do` and `ParsePolicy` —
 no path, no line number — and is listed in the index; CLAUDE.md imports the index,
 so the whole map is in context at session start. Grep `Policy` or open CLAUDE.md:
-either way, the jitter incident is two hops away. And the index line is not
-authored twice: it IS `retry-policy.md`'s `description`, derived from the
-frontmatter — the map regenerates instead of drifting.
+either way, the jitter incident is two hops away. And the index line has one
+source of truth: it IS `retry-policy.md`'s `description`, copied verbatim — the
+conformance gate (Q7) fails the moment the copy drifts.
 
 ## Design guidance
 
@@ -176,7 +172,7 @@ Forward guidance — what @documentation applies when writing docs after a featu
 | 0 | Storified code | none — it IS the behavior | the story; names carry context (owned by `R3-storifying.md`, cited not restated) |
 | 1 | Code comments (godoc) | low — lives beside the code, reviewed with diffs | the WHY within a tiered 1–5 prose-line budget (policy below); network edges: `See docs/<feature>.md` |
 | 2 | Repo docs | medium — drifts unless networked | feature/architecture docs in the doc root; point back down via greppable symbol references (edge policy below) |
-| 3 | The map | minimal — short and regenerable | `index.md` in the doc root: one line per doc, grouped by topic; wired into CLAUDE.md / AGENTS.md |
+| 3 | The map | minimal — short and drift-checked (Q7) | `index.md` in the doc root: one line per doc, grouped by topic; wired into CLAUDE.md / AGENTS.md |
 
 (The rung metaphor deliberately mirrors the testing composition ladder in @testing:
 lowest rung that can carry it, always.)
@@ -351,50 +347,50 @@ rule's (Q4 below — they must carry why/context, not restate the identifier).
   relationship stated in the sentence that carries the link ("auth retries use the
   capped-jitter policy — [retry-policy.md](retry-policy.md)"). The one axis no
   structure carries is code↔docs — which is exactly why those edges are written in
-  both directions and grep-verified (Q2).
-- **Optional `## Related` section**: for real relationships that found no natural
-  sentence in the body. At most 3 entries — a cap, not a quota; zero is a valid
-  count, and a doc with none has no section. Every entry carries a reason clause
-  (a bare link is a violation, same as a WHAT-comment), and never duplicates a
-  link already inline. Entries are ordinary edges to Q2.
+  both directions and grep-verified (Q2). There is no `## Related` section:
+  a relationship that cannot find a sentence in the body is not worth an edge.
 
 ### Frontmatter — the doc root as an OKF bundle (rungs 2–3)
 
 The doc root conforms to Open Knowledge Format v0.2 (markdown bundle: one concept
-per file, path = identity, links form the graph), plus documented R9 extensions.
+per file, path = identity, links form the graph). R9 applies a **stricter profile**
+on top; every key it requires is a valid OKF key, so the bundle stays consumable by
+any OKF tool.
 
 - **Content docs** carry required `type` (`feature` / `architecture` / `guide`),
-  `title`, `description`, and `timestamp`; optional `tags`, and optional lifecycle
-  keys `status: draft|stable|deprecated` and `stale_after` — the frontmatter-native
+  `description` (one line — it IS the doc's index line), and `generated` (OKF's
+  provenance key: ISO 8601, last substantive update). Optional: `title` (the H1 is
+  the title; the key never replaces it), `tags`, and lifecycle keys
+  `status: draft|stable|deprecated` and `stale_after` — the frontmatter-native
   form of the ⚠️ stale flag.
-- **Indexes carry frontmatter as an R9 extension** (OKF v0.2 keeps reserved
-  `index.md` files frontmatter-free except a root `okf_version`): every index gets
-  `type: index`, `title`, `description`, `tags`; the root index adds
-  `okf_version: "0.2"`. **Never a `timestamp` on an index** — the index is derived,
-  not authored, and a churning timestamp in a derived file is drift bait.
-- **Derivation rule**: every index line is derived from the frontmatter one level
-  down — a doc's line from its `description`, prefixed ⚠️ when its lifecycle says
-  so (`status: deprecated`, or `stale_after` in the past) or when a bootstrap pass
-  classified it stale; a sub-index's line in the root map from that sub-index's
-  `description` + `tags`. The map is regenerable, so it cannot drift from the
-  frontmatter that owns each fact.
+- **Indexes carry no frontmatter** — OKF reserves `index.md` and keeps it bare,
+  with one spec-sanctioned exception: the root index carries `okf_version: "0.2"`
+  and nothing else. R9 requires that key (profile rule); any other key on any
+  index is a violation.
+- **Drift-check rule**: a content doc's index line IS its `description`, copied
+  verbatim, prefixed ⚠️ when its lifecycle says so (`status: deprecated`, or
+  `stale_after` in the past) or when a bootstrap pass classified it stale. The
+  description is the single source; the conformance gate (Q7) fails when an index
+  line drifts from it. Sub-index lines in the root map are authored (a bare
+  sub-index has no `description` to copy) — keep them short.
 - **Never emit `log.md`** — OKF reserves it for change history; this rule is
-  behavior-not-history, so the file must not exist in a doc root.
+  behavior-not-history, so the file must not exist in a doc root (a stricter
+  profile than OKF, which allows the file).
 - **Broken links stay violations.** OKF tells consumers to tolerate dangling links
   as not-yet-written knowledge; internally that tolerance would silence the drift
-  alarm. The *(planned)* marker (Q2) is the one sanctioned form of a
-  not-yet-written reference.
-- Copy-pasteable templates (content doc, index, root index, conventions doc) live
-  in @documentation's reference.md; only the policy lives here.
+  alarm — a deliberate profile inversion. The *(planned)* marker (Q2) is the one
+  sanctioned form of a not-yet-written reference.
+- Copy-pasteable templates (content doc, root index, conventions doc) live in
+  @documentation's reference.md; only the policy lives here.
 
 ### The index (rung 3) and the root
 
 - `index.md` lives in the doc root and MUST stay short: a concise reference guide,
   **one line per doc**, grouped by topic. It is the map, not a doc.
 - Past ~300 lines it becomes a **map of maps**, and the split is directory-shaped:
-  each topic becomes a subdirectory with its own frontmattered `index.md` (OKF's
-  per-directory reserved file), and the root index shrinks to one derived line per
-  sub-index. The imported root stays cheap and every doc is still two hops away
+  each topic becomes a subdirectory with its own bare `index.md` (OKF's
+  per-directory reserved file), and the root index shrinks to one short authored
+  line per sub-index. The imported root stays cheap and every doc is still two hops away
   (the root map is hop 0 — it rides in with the CLAUDE.md import). The split moves
   files, so it lands in the **same commit** as the Q2-driven rewrite of code-side
   `See docs/...` paths — a moved doc with a stale code edge is a broken network
@@ -407,9 +403,9 @@ per file, path = identity, links form the graph), plus documented R9 extensions.
   `@<docroot>/index.md` import (e.g. `@docs/index.md`) so the map itself is in
   context at session start.
 - **`<docroot>/conventions.md` is the self-hosting doc** (`type: guide`): the
-  network's own maintenance rules — frontmatter templates, link rules, the Related
-  policy, the never-list — written for a contributor without this plugin. It is
-  listed FIRST in the index, one pointer line.
+  network's own maintenance rules — frontmatter templates, link rules, the
+  never-list — written for a contributor without this plugin. It is listed FIRST
+  in the index, one pointer line.
 
 ### Doc root discovery and monorepos
 
@@ -434,8 +430,9 @@ per file, path = identity, links form the graph), plus documented R9 extensions.
   pointing at the index and `conventions.md` — authored once, there) and
   CLAUDE.md's two imports: `@AGENTS.md` and `@<docroot>/index.md`. CLAUDE.md
   never restates the routing prose.
-- **Add missing frontmatter**: verify-or-add the required keys on any doc or index
-  that lacks them; derive the index line from the `description`. A `type` that
+- **Add missing frontmatter**: verify-or-add the required keys on any content doc
+  that lacks them; copy the `description` into the doc's index line. Strip any
+  frontmatter an index carries beyond the root's `okf_version`. A `type` that
   cannot be inferred from the doc's content is reported for a human call, never
   guessed silently.
 - **Update the stale doc with the behavior change**: rewrite the affected section to
@@ -460,9 +457,11 @@ one command answers all four.
 2. **Is any edge broken — in either direction?**
    Detection, code→docs: `grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' --include='*.go' .`
    plus `.md`-to-`.md` links inside `<docroot>`; `test -f` each target.
-   Detection, docs→code: for each backticked symbol a doc cites,
-   `grep -rn "type <Sym>\|func <Sym>" --include='*.go' .` (for methods, grep the
-   method name); for a cited package or directory path, `test -d` it.
+   Detection, docs→code: for each backticked symbol a doc cites, grep for its
+   declaration — `grep -rnE '(type|func|var|const) <Sym>\b|^\s*<Sym>\s*=' --include='*.go' .`
+   (the `=` branch catches declarations inside `var (`/`const (` blocks; for
+   methods, grep the method name; for a package-qualified `pkg.Sym`, resolve the
+   symbol part); for a cited package or directory path, `test -d` it.
    Violation: any unresolved target in either direction. Additionally, a doc citing
    a **file path or line number** is itself a violation of the edge policy —
    detection: `grep -nE '\.go(:[0-9]+)?|line [0-9]+' <docroot>/*.md | grep -v '://'`
@@ -513,19 +512,20 @@ one command answers all four.
    affected section, never appending history.
 
 7. **Does any file break the bundle contract?**
-   Detection: for every `.md` under `<docroot>`: the first line is `---` and a
-   closing `---` follows (an unterminated block is broken); the block carries the
-   required keys — content docs `type`, `title`, `description`, `timestamp`;
-   indexes `type: index`, `title`, `description`, `tags` and never `timestamp`;
-   the root index also `okf_version`, and only the root (the key is the root's
-   alone). `grep -rn '^related:'` over doc-root frontmatter;
-   `find <docroot> -name 'log.md'`. For every index line shaped
-   `- [doc](path) — text`, compare the text against the target's `description`
-   (⚠️-flagged lines exempt — they are recorded findings, not derivable lines).
-   Violation: a missing or unterminated frontmatter block; a missing required
-   key; a `timestamp` on an index; `okf_version` off the root index; a
-   `related:` key anywhere; a `log.md` anywhere in the doc root; an index line
-   that drifted from the `description` it derives from.
+   Detection: every content `.md` under `<docroot>` starts with a terminated
+   frontmatter block (first line `---`, a closing `---` follows) carrying the
+   required keys `type`, `description`, `generated`. Index files carry NO
+   frontmatter — except the root index, whose block is exactly `okf_version`
+   (required there, forbidden everywhere else). `grep -rn '^related:'` over
+   doc-root frontmatter; `find <docroot> -name 'log.md'`. For every index line
+   shaped `- [doc](path) — text`, compare the text against the target's
+   `description` when it has one (⚠️-flagged lines exempt — recorded findings,
+   not copies; bare sub-index targets have no `description` and are skipped).
+   Violation: a missing or unterminated frontmatter block on a content doc; a
+   missing required key; frontmatter on a sub-index; any key besides
+   `okf_version` on the root index; a missing root `okf_version`; a `related:`
+   key anywhere; a `log.md` anywhere in the doc root; an index line that
+   drifted from the `description` it copies.
    Advisory branch: a doc whose `stale_after` is in the past (or
    `status: deprecated`) with no ⚠️ on its index line — recorded staleness the
-   map does not show; the fix is re-deriving the line (derivation rule above).
+   map does not show; the fix is re-copying the line (drift-check rule above).

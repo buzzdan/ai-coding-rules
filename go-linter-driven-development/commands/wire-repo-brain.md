@@ -20,9 +20,11 @@ authoritative; this command adds nothing to it. One pass delivers the whole chai
 
 1. Doc root discovered (`.ai/` → `.ainav/` → `docs/`; per sub-project in a monorepo)
 2. Existing docs inventoried and classified (stale docs indexed with a ⚠️ flag);
-   OKF frontmatter verified-or-added (un-inferable types reported)
-3. `index.md` built — frontmattered, short, grouped, one line per doc derived from
-   each doc's `description` (directory-shaped map of maps past ~300 lines)
+   OKF frontmatter verified-or-added on content docs, stripped from indexes
+   (un-inferable types reported)
+3. `index.md` built — short, grouped, one line per doc copied from each doc's
+   `description`; the root index carries only `okf_version`
+   (directory-shaped map of maps past ~300 lines)
 4. AGENTS.md routing block authored once (root, and nested per sub-project in a
    monorepo); CLAUDE.md embeds it (`@AGENTS.md`) + the `@<docroot>/index.md` import
 5. `<docroot>/conventions.md` created/verified (listed first in the index) and the
