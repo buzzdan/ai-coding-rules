@@ -8,8 +8,10 @@
 # in-repo copy). Installed into target repos by the documentation skill's
 # BOOTSTRAP pass (/wire-repo-brain).
 #
-# Usage:  bash scripts/check-repo-brain.sh [repo-root]     (default: cwd)
+# Usage:  bash scripts/check-repo-brain.sh [--fix] [repo-root]   (default: cwd)
 # CI:     one line — bash scripts/check-repo-brain.sh
+# --fix:  rewrite drifted index lines from each target doc's `description`
+#         (the one mechanical repair; everything else stays report-only)
 #
 # Doc roots are discovered at the repo root AND at every sub-project (a
 # directory holding go.mod), using R9's order: .ai/ -> .ainav/ -> docs/.
@@ -25,11 +27,11 @@
 #                        sub-root may instead be linked from the repo-root
 #                        index); AGENTS.md missing the reference is an advisory
 #   Q7  bundle contract— content docs carry terminated frontmatter with
-#                        type/description/generated; indexes carry NO
-#                        frontmatter except the root index's lone okf_version
-#                        (required there); no `related:` key; no log.md; every
-#                        index line's text matches the target's `description`
-#                        when it has one (⚠️ lines exempt)
+#                        type/description; indexes carry NO frontmatter except
+#                        the root index's lone okf_version (required there);
+#                        no `related:` key; no log.md; every index line's text
+#                        matches the target's `description` when it has one
+#                        (⚠️ lines exempt; --fix rewrites drifted lines)
 #
 # Heuristics (documented, deliberate):
 #   - links are inline-markdown only (`[name](path.md)`, optional "title"
@@ -53,6 +55,11 @@
 
 set -u
 
+FIX=0
+if [[ "${1:-}" == "--fix" ]]; then
+  FIX=1
+  shift
+fi
 REPO_ROOT="${1:-$(pwd)}"
 if [[ ! -d "$REPO_ROOT" ]]; then
   echo "check-repo-brain: not a directory: $REPO_ROOT" >&2
@@ -104,6 +111,16 @@ fail() {
   violations=$((violations + 1))
 }
 note() { echo "  advisory: $1"; }
+
+fixed=0
+# fix_index_line <file> <lineno> <new-tail> — rewrite the text after " — " on one line
+fix_index_line() {
+  local f="$1" n="$2" tmp="$1.repobrain.tmp"
+  NEWDESC="$3" awk -v n="$n" '
+    NR == n { i = index($0, " — "); if (i > 0) $0 = substr($0, 1, i - 1) " — " ENVIRON["NEWDESC"] }
+    { print }
+  ' "$f" > "$tmp" && mv "$tmp" "$f"
+}
 
 # canon <path> -> physical path with .. resolved (empty if parent dir missing)
 canon() {
@@ -337,15 +354,16 @@ check_bundle() { # <project-dir> <docroot>
     if printf '%s\n' "$fm" | grep -q '^related:'; then
       fail "[Q7] $md — 'related:' frontmatter key (links live in the body)"
     fi
-    for key in type description generated; do
+    for key in type description; do
       printf '%s\n' "$fm" | grep -q "^${key}:" \
         || fail "[Q7] $md — frontmatter missing '${key}:'"
     done
   done < <(find "$docroot" -type f -name '*.md')
 
-  # --- Q7: drift check — index line text == target's description (⚠️ exempt) ---
+  # --- Q7: drift check — index line text == target's description (⚠️ exempt;
+  # --fix rewrites drifted lines after the read loop, never during it) ---
   while IFS= read -r idx; do
-    local lineno=0 line
+    local lineno=0 line fixes=""
     while IFS= read -r line; do
       lineno=$((lineno + 1))
       case "$line" in *'⚠️'*) continue ;; esac
@@ -358,9 +376,22 @@ check_bundle() { # <project-dir> <docroot>
       local desc; desc=$(desc_of "$resolved")
       [[ -z "$desc" ]] && continue
       if [[ "$tail" != "$desc" ]]; then
-        fail "[Q7] $idx:$lineno — index line drifted from $(basename "$resolved")'s description"
+        if (( FIX )); then
+          fixes="${fixes}${lineno}"$'\x1f'"${desc}"$'\n'
+        else
+          fail "[Q7] $idx:$lineno — index line drifted from $(basename "$resolved")'s description"
+        fi
       fi
     done < "$idx"
+    if [[ -n "$fixes" ]]; then
+      local n d
+      while IFS=$'\x1f' read -r n d; do
+        [[ -z "$n" ]] && continue
+        fix_index_line "$idx" "$n" "$d"
+        fixed=$((fixed + 1))
+        echo "  fixed: $idx:$n — index line rewritten from its target's description"
+      done <<< "$fixes"
+    fi
   done < <(find "$docroot" -type f -name 'index.md')
 
   # --- Q7: no log.md ---
@@ -374,6 +405,7 @@ for i in "${!PROJS[@]}"; do
 done
 
 # ---------- summary ----------
+(( fixed > 0 )) && echo "check-repo-brain: rewrote $fixed drifted index line(s)"
 if (( violations > 0 )); then
   echo "check-repo-brain: $violations violation(s) — rules: <docroot>/conventions.md" >&2
   exit 1

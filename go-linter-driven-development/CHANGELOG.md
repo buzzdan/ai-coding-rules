@@ -15,17 +15,20 @@ inside and a CI gate outside.
 ### Added
 
 - **OKF v0.2 bundle conformance (R9)**: content docs carry YAML frontmatter —
-  required `type`/`description`/`generated` (OKF's provenance key), optional
-  `title`/`tags` and lifecycle `status`/`stale_after`, the frontmatter-native
-  form of the ⚠️ stale flag. Indexes stay bare, as the spec reserves them; the
-  root index carries only `okf_version`. R9 is a stricter profile of the spec
-  built from spec-valid keys, so the bundle stays consumable by any OKF tool.
-  New falsifying question **Q7** checks the bundle contract mechanically.
+  required `type` (the spec's one required key) and `description`; optional
+  `title`/`generated` (OKF's provenance key)/`tags` and lifecycle
+  `status`/`stale_after`, the frontmatter-native form of the ⚠️ stale flag.
+  Indexes stay bare, as the spec reserves them; the root index carries only
+  `okf_version`. R9 is a stricter profile of the spec built from spec-valid
+  keys, so the bundle stays consumable by any OKF tool. New falsifying
+  question **Q7** checks the bundle contract mechanically.
 - **Drift-check rule (R9)**: a doc's index line IS its `description`, copied
   verbatim — the description is the single source, and the conformance gate
-  fails when the copy drifts. The map of maps is directory-shaped (per-topic
-  subdirectories with their own bare index.md), and the split lands in
-  the same commit as the `See docs/...` path rewrite.
+  fails when the copy drifts; `check-repo-brain.sh --fix` rewrites drifted
+  lines from the descriptions (the one mechanical repair the gate performs).
+  The map of maps is directory-shaped (per-topic subdirectories with their
+  own bare index.md), and the split lands in the same commit as the
+  `See docs/...` path rewrite.
 - **One-way link policy (R9)**: write an edge only when no structure implies
   it — no child→parent backlinks, no `related:` frontmatter key, no `## Related`
   section; lateral links go inline with the reason in the sentence. `log.md` is

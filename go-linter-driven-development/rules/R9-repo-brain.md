@@ -129,7 +129,6 @@ func (p Policy) Do(ctx context.Context, op Op) error {
 ---
 type: feature
 description: why retries use capped full jitter; `Policy` API
-generated: 2026-08-20T00:00:00Z
 ---
 Entry point: `Policy.Do`. Construction: `ParsePolicy` — validates the cap
 against the base delay, so an unbounded backoff cannot exist.
@@ -357,12 +356,12 @@ per file, path = identity, links form the graph). R9 applies a **stricter profil
 on top; every key it requires is a valid OKF key, so the bundle stays consumable by
 any OKF tool.
 
-- **Content docs** carry required `type` (`feature` / `architecture` / `guide`),
-  `description` (one line — it IS the doc's index line), and `generated` (OKF's
-  provenance key: ISO 8601, last substantive update). Optional: `title` (the H1 is
-  the title; the key never replaces it), `tags`, and lifecycle keys
-  `status: draft|stable|deprecated` and `stale_after` — the frontmatter-native
-  form of the ⚠️ stale flag.
+- **Content docs** carry required `type` (`feature` / `architecture` / `guide` —
+  the spec's one required key) and `description` (one line — it IS the doc's
+  index line). Optional: `title` (the H1 is the title; the key never replaces
+  it), `generated` (OKF's provenance key: ISO 8601, last substantive update),
+  `tags`, and lifecycle keys `status: draft|stable|deprecated` and `stale_after`
+  — the frontmatter-native form of the ⚠️ stale flag.
 - **Indexes carry no frontmatter** — OKF reserves `index.md` and keeps it bare,
   with one spec-sanctioned exception: the root index carries `okf_version: "0.2"`
   and nothing else. R9 requires that key (profile rule); any other key on any
@@ -374,11 +373,9 @@ any OKF tool.
   line drifts from it. Sub-index lines in the root map are authored (a bare
   sub-index has no `description` to copy) — keep them short.
 - **Never emit `log.md`** — OKF reserves it for change history; this rule is
-  behavior-not-history, so the file must not exist in a doc root (a stricter
-  profile than OKF, which allows the file).
-- **Broken links stay violations.** OKF tells consumers to tolerate dangling links
-  as not-yet-written knowledge; internally that tolerance would silence the drift
-  alarm — a deliberate profile inversion. The *(planned)* marker (Q2) is the one
+  behavior-not-history, so the file must not exist in a doc root.
+- **Broken links stay violations** — internally, OKF's dangling-link tolerance
+  would silence the drift alarm. The *(planned)* marker (Q2) is the one
   sanctioned form of a not-yet-written reference.
 - Copy-pasteable templates (content doc, root index, conventions doc) live in
   @documentation's reference.md; only the policy lives here.
@@ -467,13 +464,13 @@ one command answers all four.
    detection: `grep -nE '\.go(:[0-9]+)?|line [0-9]+' <docroot>/*.md | grep -v '://'`
    (the `://` filter exempts URLs, e.g. pkg.go.dev links) — regardless of whether
    the coordinate currently resolves.
-   Two exemptions, both scoped to symbol resolution (the file-path ban has no
-   exemption beyond URLs): an index line carrying the ⚠️ stale flag (cites an
-   unresolved `Symbol`) is a recorded finding, not a broken edge — the decision to
+   Two exemptions, both scoped to symbol resolution and both per-LINE — a line
+   carrying either marker is skipped whole (the file-path ban has no exemption
+   beyond URLs): a line carrying the ⚠️ stale flag (cites an unresolved
+   `Symbol`) is a recorded finding, not a broken edge — the decision to
    refresh, remove, or keep it is the user's. And backticks are a resolvability
-   contract —
-   a future/roadmap symbol is written in prose or explicitly marked *(planned)*,
-   and *(planned)*-marked citations are exempt from resolution.
+   contract — a future/roadmap symbol is written in prose or explicitly marked
+   *(planned)*, and a *(planned)*-marked line is exempt from resolution.
 
 3. **Is the root unwired?**
    Detection: for each doc root, `grep -l '<docroot>/index.md' CLAUDE.md AGENTS.md
@@ -514,13 +511,14 @@ one command answers all four.
 7. **Does any file break the bundle contract?**
    Detection: every content `.md` under `<docroot>` starts with a terminated
    frontmatter block (first line `---`, a closing `---` follows) carrying the
-   required keys `type`, `description`, `generated`. Index files carry NO
-   frontmatter — except the root index, whose block is exactly `okf_version`
-   (required there, forbidden everywhere else). `grep -rn '^related:'` over
-   doc-root frontmatter; `find <docroot> -name 'log.md'`. For every index line
-   shaped `- [doc](path) — text`, compare the text against the target's
-   `description` when it has one (⚠️-flagged lines exempt — recorded findings,
-   not copies; bare sub-index targets have no `description` and are skipped).
+   required keys `type` and `description`. Index files carry NO frontmatter —
+   except the root index, whose block is exactly `okf_version` (required there,
+   forbidden everywhere else). `grep -rn '^related:'` over doc-root
+   frontmatter; `find <docroot> -name 'log.md'`. For every index line shaped
+   `- [doc](path) — text`, compare the text against the target's `description`
+   when it has one (⚠️-flagged lines exempt — recorded findings, not copies;
+   bare sub-index targets have no `description` and are skipped); the script's
+   `--fix` flag rewrites drifted lines from the descriptions.
    Violation: a missing or unterminated frontmatter block on a content doc; a
    missing required key; frontmatter on a sub-index; any key besides
    `okf_version` on the root index; a missing root `okf_version`; a `related:`

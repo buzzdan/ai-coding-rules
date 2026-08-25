@@ -327,12 +327,12 @@ its `description`, so write the description as the index line you want.
 ---
 type: feature
 description: why retries use capped full jitter; `Policy` API
-generated: 2026-08-20T00:00:00Z
 # optional:
-# title: Retry policy     # the H1 is the title; this key never replaces it
+# title: Retry policy               # the H1 is the title; this key never replaces it
+# generated: 2026-08-20T00:00:00Z   # OKF provenance: last substantive update
 # tags: [resilience, retry]
-# status: stable          # draft | stable | deprecated
-# stale_after: 2027-01-01 # past this date the index line gets the ⚠️ flag
+# status: stable                    # draft | stable | deprecated
+# stale_after: 2027-01-01           # past this date the index line gets the ⚠️ flag
 ---
 ```
 
@@ -362,7 +362,6 @@ file paths and line numbers never.
 ---
 type: feature
 description: [the index line — one line, what and why; key symbols]
-generated: [ISO 8601]
 ---
 # [Feature Name]
 
@@ -507,7 +506,6 @@ infrastructure, not a content doc). Listed FIRST in the index. Template:
 ---
 type: guide
 description: how to maintain this doc root (read before editing docs)
-generated: [ISO 8601]
 ---
 # Doc Conventions
 
@@ -520,12 +518,12 @@ Every content doc here starts with frontmatter (copy-paste, fill in):
     ---
     type: feature            # feature | architecture | guide
     description: <one line — this IS the doc's line in index.md>
-    generated: <ISO 8601, last substantive update>
     ---
 
-Optional on content docs: `title`, `tags`, `status: draft|stable|deprecated`,
-`stale_after: <date>`. Index files carry NO frontmatter — except the root
-`index.md`, which carries only `okf_version`.
+Optional on content docs: `title`, `generated` (ISO 8601, last substantive
+update), `tags`, `status: draft|stable|deprecated`, `stale_after: <date>`.
+Index files carry NO frontmatter — except the root `index.md`, which carries
+only `okf_version`.
 
 ## Links
 - The index line for a doc IS its `description` — the description is the single
@@ -548,6 +546,7 @@ Optional on content docs: `title`, `tags`, `status: draft|stable|deprecated`,
 ## Check your work
 Run `bash scripts/check-repo-brain.sh` from the repo root — it verifies the rules
 above mechanically and points at this file when something breaks.
+`--fix` rewrites drifted index lines from each doc's `description`.
 ```
 
 ---
@@ -599,8 +598,9 @@ between capabilities → architecture.
 An existing network without frontmatter — wired by hand, or by a plugin version
 before the OKF layer — is just another brownfield state. **Verify-or-add, never
 duplicate**: a doc that already has conformant frontmatter is left alone; a doc
-without gets the required keys, with `description` written as its index line and
-`generated` from the doc's last substantive git touch when evident. An index
+without gets the required keys, with `description` written as its index line
+(add optional `generated` from the doc's last substantive git touch when
+evident). An index
 carrying frontmatter (written by hand, or by an older plugin version) gets it
 stripped — the root keeps only `okf_version`. A `type` the
 classification table cannot settle goes to the advisory report
@@ -644,8 +644,8 @@ vets after the edit.
 
 ### Feature Documentation Checklist
 
-- [ ] Frontmatter present with the required keys (`type`, `description`,
-      `generated` — R9's bundle policy); `description` reads as the index line
+- [ ] Frontmatter present with the required keys (`type`, `description` — R9's
+      bundle policy); `description` reads as the index line
 - [ ] Clear problem statement and high-level solution approach
 - [ ] Entry points listed, cited by symbol (e.g. `POST /users` → `UserHandler.Create`)
 - [ ] Key players table with Symbol, Role, and Package — no file paths, no line numbers
