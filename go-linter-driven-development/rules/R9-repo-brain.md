@@ -410,6 +410,10 @@ any OKF tool.
   `docs/` if none does.
 - Monorepo: each sub-project (its own `go.mod` or equivalent sub-project boundary)
   gets its own doc root and index; the repo-root index links the sub-indexes.
+  Mechanical discovery is keyed on `go.mod` — a sub-project in another language
+  keeps its docs reachable through the root index, but is outside the gate's
+  bundle checks and Q2's Go-scoped code↔docs verification (this rule lives in
+  the Go plugin; a sibling plugin owns other languages).
 - Nesting inside a doc root is allowed; the index (or a sub-index) covers every
   file in it.
 

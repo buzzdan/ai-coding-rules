@@ -16,6 +16,11 @@
 # Doc roots are discovered at the repo root AND at every sub-project (a
 # directory holding go.mod), using R9's order: .ai/ -> .ainav/ -> docs/.
 #
+# Language scope: structure checks (Q1, Q3, Q7, doc links) are language-
+# agnostic; code<->docs verification (Q2 symbols, code-edge grep, file-path
+# ban) covers Go files only. With no .go files, symbol checks are skipped and
+# the rest still runs.
+#
 # Checks (numbering follows rules/R9-repo-brain.md's falsifying questions):
 #   Q1  orphans        — every doc is reachable from its bundle's root index,
 #                        transitively through sub-indexes

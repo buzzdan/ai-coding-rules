@@ -142,7 +142,9 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 6. **Wire missing upward edges**: for each indexed (non-stale) doc with no code-side
    edge, add ONE line — `// See <docroot>/<file>.md ...` — to the front-door anchor's
    existing doc comment (anchor heuristic in reference.md), then confirm the package
-   still vets. Wiring only: never rewrite the comment around it, never wire a stale
+   still vets. Go files only — the gate verifies edges in `.go` files alone, so an
+   edge in another language is unverifiable; report such docs as unwired instead of
+   improvising. Wiring only: never rewrite the comment around it, never wire a stale
    doc (its ⚠️ index flag is the finding), and skip — as a reported gap — any doc
    whose anchor you cannot identify with confidence.
 7. **Confirm and report**: re-run R9 Q1–Q3 and Q7 as confirmation — via the

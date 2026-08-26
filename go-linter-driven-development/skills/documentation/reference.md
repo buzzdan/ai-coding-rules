@@ -547,6 +547,8 @@ only `okf_version`.
 Run `bash scripts/check-repo-brain.sh` from the repo root — it verifies the rules
 above mechanically and points at this file when something breaks.
 `--fix` rewrites drifted index lines from each doc's `description`.
+Code↔docs checks cover Go files; docs about other languages get the structure
+checks (reachability, frontmatter, index drift) but no symbol verification.
 ```
 
 ---
