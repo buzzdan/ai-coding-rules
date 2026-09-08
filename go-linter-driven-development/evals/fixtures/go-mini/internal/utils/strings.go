@@ -1,5 +1,5 @@
 // Package utils holds string and time helpers.
-package utils
+package utils //nolint:revive // TODO
 
 import (
 	"strings"
