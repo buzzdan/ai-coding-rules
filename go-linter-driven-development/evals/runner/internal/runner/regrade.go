@@ -65,10 +65,11 @@ func (r *Runner) regradeCase(ctx context.Context, c evalcase.Case) ([]report.Run
 	return results, nil
 }
 
-// recordedRuns lists <caseDir>/run-<i> directories that hold a trace, in
-// run order.
+// recordedRuns lists <caseDir>/run-<i> directories whose run has finished
+// (result.json written), in run order. A run still in flight has a trace but
+// no result yet and is skipped.
 func recordedRuns(caseDir string) ([]string, error) {
-	matches, err := filepath.Glob(filepath.Join(caseDir, "run-*", "trace.jsonl"))
+	matches, err := filepath.Glob(filepath.Join(caseDir, "run-*", "result.json"))
 	if err != nil {
 		return nil, fmt.Errorf("runner: %w", err)
 	}

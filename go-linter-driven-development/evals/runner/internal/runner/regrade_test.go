@@ -91,6 +91,34 @@ func TestRegrade_ScaffoldReadersFailClearlyWithoutKeptScaffold(t *testing.T) {
 	}
 }
 
+func TestRegrade_SkipsRunStillInFlight(t *testing.T) {
+	evalsDir := evalsWithCase(t, "mkdir -p \"$1\"\n", map[string]string{"prompt.md": promptWithModel, "graders/g.md": passingGrader})
+	outDir := t.TempDir()
+	recordRun(t, evalsDir, outDir)
+	// A second run has started: its trace is being written but result.json is not there yet.
+	inFlight := filepath.Join(outDir, "probe", "run-2")
+	if err := os.MkdirAll(inFlight, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(inFlight, "trace.jsonl"), []byte(doneTrace), 0o600); err != nil {
+		t.Fatalf("write trace: %v", err)
+	}
+	r, err := runner.New(runner.Options{EvalsDir: evalsDir, OutDir: outDir, Threshold: 1})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	agg, err := r.Regrade(context.Background())
+	if err != nil {
+		t.Fatalf("Regrade: %v", err)
+	}
+	if len(agg.Cases) != 1 || len(agg.Cases[0].Results) != 1 || agg.Cases[0].Results[0].Run != 1 {
+		t.Errorf("aggregate = %+v, want exactly the finished run-1 regraded", agg)
+	}
+	if _, err := os.Stat(filepath.Join(inFlight, "result.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("in-flight run must be left alone, stat result.json err = %v", err)
+	}
+}
+
 func TestRegrade_ErrorWithoutRecordedRuns(t *testing.T) {
 	t.Parallel()
 	evalsDir := evalsWithCase(t, "true\n", map[string]string{"prompt.md": promptWithModel, "graders/g.md": passingGrader})
