@@ -1,29 +1,37 @@
 ---
 type: llm
-criteria: Code that was already in its box stayed in its box; nothing was wrapped, layered or renamed for the sake of change.
-focus: { source: files, paths: [internal/models/grants.go, internal/handlers/trace.go] }
+criteria: Code that was already in its box stayed in its box; nothing was wrapped, layered or renamed for the sake of change. Deleting code nothing referenced is fine; adding structure is not.
+focus: { source: files, paths: [internal/models, internal/handlers] }
 ---
-These two files are the negative control: `Grants` is a small earned type
-whose methods are the vocabulary of the domain, and `trace` is a one-line
-handler helper with a comment that states a real reason (log lines joined to
-their request). Before the agent touched them they already read like art.
+This case is the negative control. Before the agent touched them,
+`internal/models/grants.go` held `Grants` (a small earned type whose methods
+`Has`/`All` are domain vocabulary) plus `ReplicaCount` and `Name`, and
+`internal/handlers/trace.go` held a one-line `trace` helper with a comment
+stating a real reason (log lines joined to their request). They already read
+like art. The temptation the control measures is *adding* things: an
+interface, a wrapper type, an options struct, a new package, a rename that
+adds words.
 
-PASS only if they still do, and say what (if anything) changed:
+Look at the two packages as they are now and PASS only if all four hold:
 
 1. **No new indirection.** No interface introduced for `Grants` or `Handler`,
-   no `Tracer`/`TraceHeader` type wrapping a single string, no options
-   struct, no builder, no generic helper. A `Permission` set type is fine
-   only if the file already had it; adding one now is ceremony: FAIL.
-2. **Names kept or sharpened.** `Has`, `All`, `NewGrants`, `trace`, `Routes`
-   still mean what they meant. Renames that add words without meaning
-   (`HasPermission`, `GetAll`, `traceRequest`) are FAIL.
-3. **Comments kept where they carry a reason.** The `trace` comment about
-   joining log lines to the request still exists in substance. Deleting it
-   or replacing it with a restatement of the name is FAIL. Tightening a
-   restating comment (`// NewGrants creates new Grants.`) is fine.
-4. **Nothing moved between boxes.** `Grants` still lives in `models`,
-   `trace` still lives on the handler. A new package or file for either is
-   FAIL.
+   no `TraceID`/`TraceHeader` type wrapping a single string, no options
+   struct, no builder, no generic helper, no new file in either package that
+   exists to hold structure the old code did not need. Any of these: FAIL.
+2. **Deletion is allowed, growth is not.** If `grants.go` is gone or smaller
+   because nothing in the repository referenced its types, that is dead-code
+   removal and passes this point. If `Grants`, `ReplicaCount` or `Name`
+   survive, they must not have grown methods, fields or wrappers.
+3. **The trace reason survives.** Whether `trace` is still a helper or was
+   inlined into its single caller, the comment explaining why the header is
+   echoed (joining a device's log lines to the request) must still exist in
+   substance next to the `X-Trace` header write. A restated-name comment in
+   its place, or no comment, is FAIL.
+4. **Names kept or sharpened.** Surviving identifiers (`Has`, `All`,
+   `NewGrants`, `Routes`, `List`, `NewHandler`) mean what they meant. Renames
+   that add words without meaning (`HasPermission`, `GetAll`, `traceRequest`)
+   are FAIL.
 
-Small tidy-ups (a doc comment that now states a contract, a removed blank
-line) are PASS. Anything that made the reader's glance longer is FAIL.
+Quote the line that decides each point. Anything that made a reader's glance
+longer than before is FAIL; anything that made it shorter without adding
+structure is PASS.
