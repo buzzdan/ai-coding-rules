@@ -1,0 +1,73 @@
+{
+  "case": "case-c-picker-review",
+  "run": 1,
+  "model": "claude-sonnet-5",
+  "passed": false,
+  "graders": [
+    {
+      "name": "anchor-picker",
+      "type": "regex",
+      "passed": true,
+      "detail": "picker\\.go:[0-9]+ over last_message: 8 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-flags",
+      "type": "regex",
+      "passed": true,
+      "detail": "(?i)primaryFound|secondaryFound|boolean flag|flag-driven over last_message: 3 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-protocol",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\.go:[0-9]+ over last_message: 10 match(es); want at least 1"
+    },
+    {
+      "name": "fix-extract-leaf-type",
+      "type": "regex",
+      "passed": true,
+      "detail": "Extract (Leaf|Collection) Type over last_message: 1 match(es); want at least 1"
+    },
+    {
+      "name": "no-edit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Edit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-multiedit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "MultiEdit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-write",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Write called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "precision-no-concurrency-findings",
+      "type": "regex",
+      "passed": true,
+      "detail": "Replace Sleep|Synchronized Owner|Thread .?ctx over last_message: 0 match(es); want 0"
+    },
+    {
+      "name": "r3-q4-flag-loop",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?s)picker\\.go:[0-9]+.{0,500}\\bQ4\\b over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "rule-cited",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\bR(1[0-2]|[1-9])\\b over last_message: 24 match(es); want at least 1"
+    }
+  ],
+  "cost_usd": 1.6491468999999999,
+  "judge_cost_usd": 0,
+  "duration_ms": 583673,
+  "num_turns": 32,
+  "segments": 1
+}

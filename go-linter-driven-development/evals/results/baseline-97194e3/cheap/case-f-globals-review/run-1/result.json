@@ -1,0 +1,98 @@
+{
+  "case": "case-f-globals-review",
+  "run": 1,
+  "model": "claude-sonnet-5",
+  "passed": true,
+  "graders": [
+    {
+      "name": "anchor-env-global",
+      "type": "regex",
+      "passed": true,
+      "detail": "env\\.go:[0-9]+ over last_message: 5 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-protocol",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\.go:[0-9]+ over last_message: 26 match(es); want at least 1"
+    },
+    {
+      "name": "fix-clean-island",
+      "type": "regex",
+      "passed": true,
+      "detail": "Extract Clean Island|Push the Global Up over last_message: 2 match(es); want at least 1"
+    },
+    {
+      "name": "no-edit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Edit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-multiedit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "MultiEdit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-write",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Write called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "nolint-is-a-finding",
+      "type": "regex",
+      "passed": true,
+      "detail": "(?i)nolint over last_message: 3 match(es); want at least 1"
+    },
+    {
+      "name": "precision-drain-clean",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\bdrain\\(\\) over last_message: 0 match(es); want 0"
+    },
+    {
+      "name": "r8-q2-init",
+      "type": "regex",
+      "passed": true,
+      "detail": "init\\(\\) over last_message: 4 match(es); want at least 1"
+    },
+    {
+      "name": "r8-q5-jobs-read",
+      "type": "regex",
+      "passed": true,
+      "detail": "scheduler\\.go:[0-9]+ over last_message: 10 match(es); want at least 1"
+    },
+    {
+      "name": "r8-q5-pool-read",
+      "type": "regex",
+      "passed": true,
+      "detail": "workers\\.go:[0-9]+ over last_message: 2 match(es); want at least 1"
+    },
+    {
+      "name": "r8-q6-test-mutates-global",
+      "type": "regex",
+      "passed": true,
+      "detail": "workers_test\\.go:[0-9]+ over last_message: 1 match(es); want at least 1"
+    },
+    {
+      "name": "refuted-carries-alternative",
+      "type": "llm",
+      "passed": true,
+      "detail": "judge claude-haiku-4-5: Looking at the FOCUS text for any proposed wrapper types for worker count or batch size:\n\n**For worker count (NumWorkers):** The report in CLUSTER 3 proposes `Start(jobs \u003c-chan Job, numWorkers int) *Pool` — passing it as a plain `int` parameter, not a wrapper type.\n\n**For batch size (BatchSize):** Under Design Debt, the report proposes `NewScheduler(batchSize int)` — again, a plain `int` parameter/field, not a wrapper type.\n\nThe report explicitly rejects the existing anti-pattern (reading `env.Config.NumWorkers` and `env.Config.BatchSize` directly) and replaces it with direct parameter passing. No `WorkerCount`, `NumWorkers`, `BatchSize`, or similar wrapper type is proposed anywhere in the review.\n\nAccording to the RUBRIC: \"If the report proposes NO wrapper type for the worker count / batch size, PASS.\"\n\nVERDICT: PASS",
+      "cost_usd": 0.018528000000000003
+    },
+    {
+      "name": "rule-cited",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\bR(1[0-2]|[1-9])\\b over last_message: 34 match(es); want at least 1"
+    }
+  ],
+  "cost_usd": 2.3271499000000007,
+  "judge_cost_usd": 0.018528000000000003,
+  "duration_ms": 398908,
+  "num_turns": 48,
+  "segments": 6
+}

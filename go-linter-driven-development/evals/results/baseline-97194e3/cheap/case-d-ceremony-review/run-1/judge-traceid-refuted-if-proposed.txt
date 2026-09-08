@@ -1,0 +1,5 @@
+Reading the Design Debt section: it proposes deleting `ReplicaCount int` and `Name string` as unused ceremony wrappers. Neither is a TraceID type.
+
+The report mentions "traceID" only in passing prose context (the parameter name in the CRITERIA description, and a comment about the `trace` helper echoing the caller's trace ID). No TraceID domain type is proposed anywhere as a Design Debt finding — the ceremony-wrapper deletions are for ReplicaCount and Name only.
+
+VERDICT: PASS

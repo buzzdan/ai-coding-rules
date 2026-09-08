@@ -1,0 +1,97 @@
+{
+  "case": "case-e-nils-review",
+  "run": 2,
+  "model": "claude-sonnet-5",
+  "passed": false,
+  "graders": [
+    {
+      "name": "cluster-find",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?i)\\bcluster\\b[^\\n]*Find over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "cluster-reporter",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?i)\\bcluster\\b[^\\n]*Reporter over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-protocol",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\.go:[0-9]+ over last_message: 19 match(es); want at least 1"
+    },
+    {
+      "name": "fix-comma-ok",
+      "type": "regex",
+      "passed": true,
+      "detail": "Replace nil returns|comma-ok|Device, bool\\) over last_message: 1 match(es); want at least 1"
+    },
+    {
+      "name": "fix-constructor",
+      "type": "regex",
+      "passed": true,
+      "detail": "Add validating constructor|Hoist method checks over last_message: 2 match(es); want at least 1"
+    },
+    {
+      "name": "fix-null-object",
+      "type": "regex",
+      "passed": true,
+      "detail": "(?i)null[- ]?object over last_message: 1 match(es); want at least 1"
+    },
+    {
+      "name": "no-edit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Edit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-multiedit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "MultiEdit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-write",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Write called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "precision-newcatalog-clean",
+      "type": "regex",
+      "passed": true,
+      "detail": "report/catalog\\.go:2[1-4] \\| over last_message: 0 match(es); want 0"
+    },
+    {
+      "name": "r2-q2-field-recheck",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?s)(reporter|catalog|wire)\\.go:[0-9]+.{0,500}\\bQ2\\b over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "r2-q5-nil-return",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?s)(reporter|catalog|wire)\\.go:[0-9]+.{0,500}\\bQ5\\b over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "r2-q6-nil-args",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?s)(reporter|catalog|wire)\\.go:[0-9]+.{0,500}\\bQ6\\b over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "rule-cited",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\bR(1[0-2]|[1-9])\\b over last_message: 7 match(es); want at least 1"
+    }
+  ],
+  "cost_usd": 4.000055299999998,
+  "judge_cost_usd": 0,
+  "duration_ms": 786764,
+  "num_turns": 84,
+  "segments": 1
+}

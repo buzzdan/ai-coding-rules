@@ -1,0 +1,103 @@
+{
+  "case": "case-b-endpoint-review",
+  "run": 1,
+  "model": "claude-sonnet-5",
+  "passed": false,
+  "graders": [
+    {
+      "name": "anchor-client",
+      "type": "regex",
+      "passed": true,
+      "detail": "client\\.go:[0-9]+ over last_message: 8 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-dial",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\bdial\\( over last_message: 1 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-healthurl",
+      "type": "regex",
+      "passed": true,
+      "detail": "healthURL over last_message: 3 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-newclient",
+      "type": "regex",
+      "passed": true,
+      "detail": "NewClient over last_message: 2 match(es); want at least 1"
+    },
+    {
+      "name": "evidence-protocol",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\.go:[0-9]+ over last_message: 8 match(es); want at least 1"
+    },
+    {
+      "name": "fix-name-enum",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?i)Name enum strings|type Scheme|Scheme type|named scheme over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "fix-parameter-object",
+      "type": "regex",
+      "passed": false,
+      "detail": "Introduce Parameter Object over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "no-edit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Edit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-multiedit",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "MultiEdit called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "no-write",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Write called 0 time(s); want exactly 0"
+    },
+    {
+      "name": "precision-test-clean",
+      "type": "regex",
+      "passed": true,
+      "detail": "client_test\\.go:[0-9]+ over last_message: 0 match(es); want 0"
+    },
+    {
+      "name": "r1-q5-clump",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?s)client\\.go:[0-9]+.{0,500}\\bQ5\\b over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "rule-cited",
+      "type": "regex",
+      "passed": true,
+      "detail": "\\bR(1[0-2]|[1-9])\\b over last_message: 15 match(es); want at least 1"
+    },
+    {
+      "name": "skeptic-confirmed",
+      "type": "regex",
+      "passed": false,
+      "detail": "CONFIRMED \\(score over last_message: 0 match(es); want at least 1"
+    },
+    {
+      "name": "skeptic-travels-together",
+      "type": "regex",
+      "passed": false,
+      "detail": "(?i)travels? together|data clump|clump over last_message: 0 match(es); want at least 1"
+    }
+  ],
+  "cost_usd": 1.1828535000000002,
+  "judge_cost_usd": 0,
+  "duration_ms": 373994,
+  "num_turns": 27,
+  "segments": 1
+}

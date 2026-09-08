@@ -1,0 +1,25 @@
+{
+  "case": "trigger-non-go",
+  "run": 3,
+  "model": "claude-sonnet-5",
+  "passed": true,
+  "graders": [
+    {
+      "name": "no-announcement",
+      "type": "regex",
+      "passed": true,
+      "detail": "Using go-ldd workflow over trace: 0 match(es); want 0"
+    },
+    {
+      "name": "skill-not-invoked",
+      "type": "tool_used",
+      "passed": true,
+      "detail": "Skill([:\"]linter-driven-development\") called 0 time(s); want exactly 0"
+    }
+  ],
+  "cost_usd": 0.0536458,
+  "judge_cost_usd": 0,
+  "duration_ms": 3429,
+  "num_turns": 1,
+  "segments": 1
+}

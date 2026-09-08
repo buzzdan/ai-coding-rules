@@ -1,0 +1,11 @@
+Looking at the FOCUS text for any proposed wrapper types for worker count or batch size:
+
+**For worker count (NumWorkers):** The report in CLUSTER 3 proposes `Start(jobs <-chan Job, numWorkers int) *Pool` — passing it as a plain `int` parameter, not a wrapper type.
+
+**For batch size (BatchSize):** Under Design Debt, the report proposes `NewScheduler(batchSize int)` — again, a plain `int` parameter/field, not a wrapper type.
+
+The report explicitly rejects the existing anti-pattern (reading `env.Config.NumWorkers` and `env.Config.BatchSize` directly) and replaces it with direct parameter passing. No `WorkerCount`, `NumWorkers`, `BatchSize`, or similar wrapper type is proposed anywhere in the review.
+
+According to the RUBRIC: "If the report proposes NO wrapper type for the worker count / batch size, PASS."
+
+VERDICT: PASS
