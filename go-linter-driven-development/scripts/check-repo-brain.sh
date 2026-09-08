@@ -237,7 +237,7 @@ DOCSCAN_AWK='
 FNR == 1 { fence = 0 }
 {
   line = $0
-  if (line ~ /^ {0,3}(```|~~~)/) { fence = 1 - fence; next }
+  if (line ~ /^ ? ? ?(```|~~~)/) { fence = 1 - fence; next }   # no {0,3}: mawk rejects intervals
   if (fence) next
   gsub(/[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^ )>]*/, "", line)
   pf = 0
