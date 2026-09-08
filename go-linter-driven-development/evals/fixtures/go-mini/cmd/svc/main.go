@@ -11,12 +11,15 @@ import (
 	"time"
 
 	"example.com/go-mini/internal/env"
+	"example.com/go-mini/internal/handlers"
+	"example.com/go-mini/internal/jobs"
 	"example.com/go-mini/internal/repository"
+	"example.com/go-mini/internal/services"
 )
 
 func main() {
 	dryRun := flag.Bool("dry-run", false, "keep devices in memory instead of the JSON store")
-	storePath := flag.String("store", "devices.json", "path of the JSON device store")
+	storePath := flag.String("store", defaultStorePath(), "path of the JSON device store (default from STORE_PATH)")
 	flag.Parse()
 
 	env.Load()
@@ -25,19 +28,35 @@ func main() {
 	// queue in the same instant; a little jitter spreads them out.
 	time.Sleep(time.Duration(rand.IntN(20)) * time.Millisecond)
 
-	var store repository.Store
+	var (
+		store repository.Store
+		repo  repository.DeviceRepository
+	)
 	if *dryRun {
-		store = repository.NewMemStore()
+		mem := repository.NewMemStore()
+		store, repo = mem, mem
 	} else {
-		store = mustOpenFileRepo(*storePath)
+		fileRepo := mustOpenFileRepo(*storePath)
+		store, repo = fileRepo, fileRepo
 	}
 
-	if _, err := store.List(context.Background()); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if _, err := store.List(ctx); err != nil {
 		log.Fatalf("store not readable: %v", err)
 	}
 
+	notifier := services.NewNotifier(os.Getenv("WEBHOOK_URL"))
+	audit := services.NewAuditLog(os.Stderr)
+	svc := services.NewDeviceService(repo, notifier, audit)
+
+	scheduler := jobs.NewScheduler()
+	go scheduler.Run(ctx)
+
 	mux := http.NewServeMux()
 	routes(mux, store)
+	handlers.Routes(mux, store, svc)
 
 	addr := listenAddr()
 	log.Printf("svc listening on %s (region %s, %d workers)", addr, env.Config.Region, env.Config.NumWorkers)
@@ -80,4 +99,11 @@ func listenAddr() string {
 		port = "8080"
 	}
 	return ":" + port
+}
+
+func defaultStorePath() string {
+	if p := os.Getenv("STORE_PATH"); p != "" {
+		return p
+	}
+	return "devices.json"
 }

@@ -1,0 +1,1342 @@
+# violations.yaml — every plant and every control in fixtures/go-mini, anchored
+# by file + a stable ERE. check-manifest.sh asserts each anchor matches at least
+# one line in EACH listed file (paths relative to fixtures/go-mini).
+#
+# Id scheme
+#   <Rule>.<Question>.<slug>   a plant; the question is the rule's falsifying
+#                              question it trips (Qn), `critic` for comment-critic
+#                              plants, `lint` for mechanical lint-fixer plants
+#                              (FIX class — carried by a rule for counting only).
+#   CTRL.<Rule>.<slug>         a control: healthy code that must yield 0 findings.
+#   CASE-<A..F>.<slug>         a logic-hunter case member; `rule:` is the primary
+#                              rule the case grades, `case:` names the case.
+#
+# expect.review   category (🐛 Bugs · 🔴 Design Debt · 🟡 Readability Debt ·
+#                 🟢 Polish) + the fix move named in the rule's Fix pattern.
+# expect.refactor `gone` regex with count_max over the tree after the fix,
+#                 `present` regex that must appear; `scope` narrows the grep.
+# expect.lint     the linter that fires in the red-lint scaffold and the rule
+#                 the lint-fixer must route it to (`action: FIX` = mechanical).
+# expect.prepare  the PREPARE gate this plant trips for the named spec.
+#
+# Line-oriented on purpose: `files:` is a one-line flow list, `anchor:` is one
+# single-quoted line, and the parser only reads id / rule / control / files /
+# anchor. Keep it that way.
+
+# ─── The centerpiece: (*DeviceService).ProcessHeartbeat ─────────────────────
+
+- id: R3.Q1.process-heartbeat
+  rule: R3
+  questions: [Q1, Q3, Q5]
+  files: [internal/services/device_service.go]
+  anchor: 'func \(s \*DeviceService\) ProcessHeartbeat\('
+  expect:
+    review:   { category: "🟡", cluster: "ProcessHeartbeat", fix: "Extract Function named after the comment" }
+    refactor: { gone: 'goto retry', count_max: 0, present: 'func Parse\w*Heartbeat\(' }
+    lint:     { linter: gocognit, route: R3, also: [nestif] }
+    postcheck: { gocognit_max: 10, gocyclo_max: 8 }
+
+- id: R3.Q2.parse-beside-decision
+  rule: R3
+  questions: [Q2]
+  files: [internal/services/device_service.go, internal/services/heartbeat_parser.go]
+  anchor: 't\[7:\] == "eu"'
+  expect:
+    review:   { category: "🟡", cluster: "ProcessHeartbeat", fix: "Split Phase" }
+    refactor: { gone: 't\[7:\]', count_max: 0 }
+
+- id: R3.Q3.block-comments
+  rule: R3
+  questions: [Q3, critic]
+  files: [internal/services/device_service.go]
+  anchor: '// (parse the line|look up or create device|transitions)$'
+  expect:
+    review:   { category: "🟡", cluster: "ProcessHeartbeat", fix: "Extract Function named after the comment", critic: "DELETE → route R3" }
+    refactor: { gone: '// (parse the line|look up or create device|transitions)$', count_max: 0 }
+
+- id: R3.Q4.labeled-continue-dedupe
+  rule: R3
+  questions: [Q4]
+  files: [internal/services/device_service.go, internal/services/heartbeat_parser.go]
+  anchor: 'continue outer'
+  expect:
+    review:   { category: "🟡", fix: "Extract Leaf Type" }
+    refactor: { gone: 'continue outer', count_max: 0, present: '^type \w+ \[\]string' }
+
+- id: R3.Q1.nested-blocks
+  rule: R3
+  questions: [Q1]
+  files: [internal/services/device_service.go]
+  anchor: 'if len\(parts\) > 3 \{'
+  expect:
+    review: { category: "🟡", fix: "Replace Nesting with Early Returns" }
+    lint:   { linter: nestif, route: R3 }
+
+- id: R3.lint.bare-return
+  rule: R3
+  questions: [lint]
+  files: [internal/services/device_service.go]
+  anchor: '^\s+return$'
+  expect:
+    lint: { linter: revive, rule: bare-return, action: FIX }
+
+- id: R3.lint.early-return
+  rule: R3
+  questions: [lint]
+  files: [internal/services/device_service.go]
+  anchor: '^\s+\} else \{$'
+  expect:
+    lint: { linter: revive, rule: early-return, action: FIX }
+
+- id: R1.Q1.inline-id-check
+  rule: R1
+  questions: [Q1]
+  files: [internal/services/device_service.go, internal/services/heartbeat_parser.go]
+  anchor: 'id == "" \|\| len\(id\) > 64'
+  expect:
+    review:   { category: "🔴", cluster: "ProcessHeartbeat", fix: "Replace Primitive with Domain Type" }
+    refactor: { gone: 'len\(id\) > 64', count_max: 1 }
+
+- id: R1.Q3.status-string-compare
+  rule: R1
+  questions: [Q3]
+  files: [internal/services/device_service.go]
+  anchor: 'status != "READY" && status != "DEGRADED"'
+  expect:
+    review:   { category: "🔴", cluster: "Device.Status", fix: "Name enum strings" }
+    refactor: { gone: '"READY"', count_max: 1, present: '^type Status ' }
+
+- id: R1.Q3.region-byte-slices
+  rule: R1
+  questions: [Q3]
+  files: [internal/services/device_service.go, internal/services/heartbeat_parser.go, internal/models/tags.go]
+  anchor: '== "eu" \|\| .*== "us"'
+  expect:
+    review:   { category: "🔴", fix: "Replace Primitive with Domain Type", note: "models.ParseRegion already exists and is not used here" }
+    refactor: { gone: '== "eu" \|\|', count_max: 1 }
+
+- id: R1.Q4.minus-one-sentinel
+  rule: R1
+  questions: [Q4]
+  files: [internal/services/device_service.go]
+  anchor: 'return (id|""), -1, false'
+  expect:
+    review:   { category: "🔴", cluster: "ProcessHeartbeat", fix: "Replace Sentinel with comma-ok" }
+    refactor: { gone: ', -1, false', count_max: 0 }
+
+- id: R1.Q5.five-results
+  rule: R1
+  questions: [Q5]
+  files: [internal/services/device_service.go, internal/services/heartbeat_parser.go]
+  anchor: '\(id string, \w+ \w+, \w+ \w+, tags \[\]string, err error\)'
+  expect:
+    review:   { category: "🔴", cluster: "ProcessHeartbeat", fix: "Introduce Parameter Object" }
+    refactor: { gone: 'tags \[\]string, err error\)', count_max: 0 }
+    lint:     { linter: revive, rule: function-result-limit, route: "@code-designing" }
+
+- id: R1.Q5.heartbeat-clump
+  rule: R1
+  questions: [Q5]
+  files: [internal/services/device_service.go, internal/handlers/heartbeat.go]
+  anchor: 'raw string, tenant string, force bool|raw\), tenant, force\)'
+  expect:
+    review: { category: "🔴", cluster: "ProcessHeartbeat", fix: "Introduce Parameter Object" }
+
+- id: R2.Q1.device-literal-in-service
+  rule: R2
+  questions: [Q1]
+  files: [internal/services/device_service.go, internal/handlers/devices.go]
+  anchor: 'models\.Device\{ID:'
+  expect:
+    review:   { category: "🔴", cluster: "Device", fix: "Add validating constructor" }
+    refactor: { gone: 'models\.Device\{ID:', count_max: 0, present: 'func (New|Parse)\w*Device\(' }
+
+- id: R2.Q5.tags-nil-or-slice
+  rule: R2
+  questions: [Q5]
+  files: [internal/services/device_service.go]
+  anchor: 'return "", -1, false, nil, fmt\.Errorf'
+  expect:
+    review: { category: "🔴", cluster: "ProcessHeartbeat", fix: "Replace nil returns" }
+
+- id: R8.Q3.context-background-in-service
+  rule: R8
+  questions: [Q3]
+  files: [internal/services/device_service.go, internal/services/sync_service.go, internal/jobs/registry.go]
+  anchor: 'context\.(Background|TODO)\(\)'
+  expect:
+    review:   { category: "🔴", fix: "Thread `ctx`" }
+    refactor: { gone: 's\.repo\.\w+\(context\.(Background|TODO)\(\)', count_max: 0, present: 'ProcessHeartbeat\(ctx context\.Context' }
+
+- id: R8.Q5.flap-window-from-service
+  rule: R8
+  questions: [Q5]
+  files: [internal/services/device_service.go, internal/services/snapshot_service.go]
+  anchor: 'env\.Config\.(FlapWindowSec|BatchSize)'
+  expect:
+    review:   { category: "🔴", fix: "Push the Global Up One Level" }
+    refactor: { gone: 'env\.Config\.', count_max: 0, scope: 'internal/services/' }
+
+- id: R10.Q3.last-seen-race
+  rule: R10
+  questions: [Q3]
+  files: [internal/services/device_service.go]
+  anchor: 's\.lastSeen\[id\] ='
+  expect:
+    review:   { category: "🐛", fix: "Extract Synchronized Owner", evidence: "task test:race" }
+    refactor: { race_green: true }
+    lint:     { linter: "go test -race", route: R10 }
+
+- id: R10.Q5.goto-sleep-backoff
+  rule: R10
+  questions: [Q5]
+  files: [internal/services/device_service.go]
+  anchor: 'goto retry'
+  expect:
+    review:   { category: "🔴", cluster: "ProcessHeartbeat", fix: "Replace Sleep with Timer Select" }
+    refactor: { gone: 'goto retry', count_max: 0 }
+
+- id: R11.Q4.force-flag-in-body
+  rule: R11
+  questions: [Q4]
+  files: [internal/services/device_service.go]
+  anchor: 'if force \{|!force &&|changed \|\| force'
+  expect:
+    review:   { category: "🔴", cluster: "ProcessHeartbeat", fix: "Split Flag Argument" }
+    refactor: { gone: 'changed \|\| force', count_max: 0 }
+
+- id: R12.Q5.n-reused
+  rule: R12
+  questions: [Q5]
+  files: [internal/services/device_service.go, internal/services/cache.go]
+  anchor: '(n = n|size = size) \* 10'
+  expect:
+    review:   { category: "🔴", fix: "Split Variable" }
+    refactor: { gone: 'n = n \* 10', count_max: 0 }
+
+- id: R7.Q3.big-object-leaf-test
+  rule: R7
+  questions: [Q3]
+  files: [internal/handlers/heartbeat_test.go]
+  anchor: 'strings\.Repeat\("x", 65\)'
+  expect:
+    review:   { category: "🔴", fix: "Move the behavior down a rung" }
+    refactor: { present: 'Parse\w*Heartbeat\("', scope: '_test\.go' }
+
+- id: R7.Q4.covered-only-through-handler
+  rule: R7
+  questions: [Q4]
+  files: [internal/handlers/heartbeat_test.go]
+  anchor: 'httptest\.NewServer\(mux\)'
+  expect:
+    review:  { category: "🔴", fix: "Move the behavior down a rung" }
+    prepare: { gate: SAFE, spec: sms-channel, note: "characterization tests before any move" }
+
+- id: R9.Q4.what-comment-process-heartbeat
+  rule: R9
+  questions: [Q4]
+  files: [internal/services/device_service.go]
+  anchor: '^// ProcessHeartbeat processes a heartbeat\.$'
+  expect:
+    review: { category: "🟡", fix: "Convert WHAT to WHY or delete" }
+
+# ─── Comment-critic plants (R9 rung 1) ──────────────────────────────────────
+
+- id: R9.critic.provenance-tail
+  rule: R9
+  questions: [critic]
+  files: [internal/services/device_service.go]
+  anchor: 'added in PR #87'
+  expect:
+    review: { category: "🟡", verdict: TRIM, fix: "Convert WHAT to WHY or delete" }
+
+- id: R9.critic.decoder-ring
+  rule: R9
+  questions: [critic]
+  files: [internal/services/device_service.go]
+  anchor: 'see T-04-02|see spec §4\.2'
+  expect:
+    review: { category: "🟡", verdict: REWRITE, fix: "Convert WHAT to WHY or delete" }
+
+- id: R9.critic.review-defense
+  rule: R9
+  questions: [critic]
+  files: [internal/services/device_service.go]
+  anchor: 'bounds-checked'
+  expect:
+    review: { category: "🟡", verdict: DELETE, fix: "Convert WHAT to WHY or delete" }
+
+- id: R9.critic.restated-idiom
+  rule: R9
+  questions: [critic]
+  files: [internal/services/device_service.go, internal/services/snapshot_service.go, internal/services/sync_service.go]
+  anchor: 'pointer so we can tell omitted from zero'
+  expect:
+    review: { category: "🟡", verdict: DELETE, fix: "Convert WHAT to WHY or delete" }
+
+- id: R9.critic.extraction-order
+  rule: R9
+  questions: [critic]
+  files: [internal/services/device_service.go, internal/services/heartbeat_parser.go]
+  anchor: 'already added\. skip'
+  expect:
+    review: { category: "🟡", verdict: "DELETE → route R3", fix: "Push the fact down a rung" }
+
+- id: R9.critic.long-private-comment
+  rule: R9
+  questions: [critic]
+  files: [internal/services/device_service.go]
+  anchor: 'The key is the tenant followed by a slash'
+  expect:
+    review: { category: "🟡", verdict: "TRIM or DELETE", fix: "Push the fact down a rung" }
+
+- id: R9.critic.caller-must
+  rule: R9
+  questions: [critic]
+  files: [internal/models/heartbeat.go, internal/services/device_service.go]
+  anchor: 'caller must ensure|assumes valid'
+  expect:
+    review: { category: "🟡", verdict: "DELETE → route R2", fix: "Push the fact down a rung" }
+
+# ─── R1 primitive obsession ─────────────────────────────────────────────────
+
+- id: R1.Q1.handler-inline-checks
+  rule: R1
+  questions: [Q1]
+  files: [internal/handlers/devices.go]
+  anchor: 'if body\.ID == ""|Contains\(body\.Email, "@"\)'
+  expect:
+    review: { category: "🔴", fix: "Replace Primitive with Domain Type" }
+
+- id: R1.Q2.email-contains-twice
+  rule: R1
+  questions: [Q2]
+  files: [internal/handlers/devices.go, internal/services/validate.go]
+  anchor: 'Contains\([a-zA-Z.]+, "@"\)'
+  expect:
+    review:   { category: "🔴", fix: "Replace Primitive with Domain Type" }
+    refactor: { gone: 'Contains\([^)]*, "@"\)', count_max: 1 }
+
+- id: R1.Q3.tags-loop
+  rule: R1
+  questions: [Q3]
+  files: [internal/services/device_service.go, internal/services/heartbeat_parser.go, internal/models/tags.go, internal/services/sync_service.go]
+  anchor: 'HasPrefix\(t, "region:"\)|for _, t := range d\.Tags'
+  expect:
+    review:   { category: "🔴", fix: "Extract Collection Type" }
+    refactor: { present: '^type \w+ \[\]string' }
+
+- id: R1.Q3.raw-channel-string
+  rule: R1
+  questions: [Q3]
+  files: [internal/models/alert.go, internal/models/channel.go]
+  anchor: 'Channel\s+string|ChannelEmail\s+= "email"'
+  expect:
+    review:   { category: "🔴", cluster: "Alert.Channel", fix: "Name enum strings" }
+    refactor: { present: 'func Parse\w*Channel\(', gone: 'Channel\s+string$', count_max: 0 }
+    prepare:  { gate: MULTIPLY, spec: sms-channel }
+
+- id: R1.Q3.status-enum-goconst
+  rule: R1
+  questions: [Q3]
+  files: [internal/services/alert_service.go, internal/services/device_service.go, internal/handlers/status.go]
+  anchor: 'case "READY":'
+  expect:
+    review:   { category: "🔴", cluster: "Device.Status", fix: "Name enum strings" }
+    refactor: { gone: 'const \w+ = "READY"', count_max: 0 }
+    lint:     { linter: goconst, route: R1, note: "enum-shaped: escalate, never a bare const" }
+
+- id: R1.Q4.contact-domain-sentinel
+  rule: R1
+  questions: [Q4]
+  files: [internal/handlers/devices.go]
+  anchor: 'return ""$'
+  expect:
+    review:   { category: "🔴", fix: "Replace Sentinel with comma-ok" }
+    refactor: { gone: 'return ""$', count_max: 0, scope: 'internal/handlers/' }
+
+- id: R1.Q5.tenant-id-clump
+  rule: R1
+  questions: [Q5]
+  files: [internal/services/device_service.go, internal/repository/store.go, internal/repository/file_repo.go, internal/repository/mem_store.go]
+  anchor: 'tenant, id string'
+  expect:
+    review: { category: "🔴", fix: "Introduce Parameter Object", skeptic: "either verdict; REFUTED must carry the cheaper alternative" }
+
+- id: R1.Q5.new-sync-service-six-params
+  rule: R1
+  questions: [Q5]
+  files: [internal/services/sync_service.go]
+  anchor: 'func NewSyncService\(repo repository\.DeviceRepository, notifier \*Notifier, region string, batch int, retries int, dryRun bool\)'
+  expect:
+    review: { category: "🔴", fix: "Introduce Parameter Object" }
+    lint:   { linter: revive, rule: argument-limit, route: "@code-designing" }
+
+- id: R1.Q1.settings-blob
+  rule: R1
+  questions: [Q1]
+  files: [internal/models/job.go, internal/jobs/scheduler.go, internal/services/device_service.go, internal/services/snapshot_service.go]
+  anchor: 'map\[string\]interface\{\}|job\.Settings\["region"\]'
+  expect:
+    review: { category: "🔴", fix: "Replace Primitive with Domain Type" }
+
+- id: R1.lint.run-loop-dupl
+  rule: R1
+  questions: [lint]
+  files: [internal/services/snapshot_service.go, internal/services/sync_service.go]
+  anchor: 'for start := 0; start < len\(devices\); start \+= batch'
+  expect:
+    review: { category: "🔴", fix: "Extract Collection Type" }
+    lint:   { linter: dupl, route: R1 }
+
+- id: R1.lint.content-type-goconst
+  rule: R1
+  questions: [lint]
+  files: [internal/services/notify.go, internal/services/alert_service.go, internal/services/snapshot_service.go, internal/services/device_service.go]
+  anchor: '"application/json"'
+  expect:
+    lint: { linter: goconst, action: FIX, note: "not enum-shaped: a plain const is the right fix" }
+
+- id: CTRL.R1.tenant-type
+  rule: R1
+  control: true
+  files: [internal/models/tenant.go]
+  anchor: 'func ParseTenant\(raw string\) \(Tenant, error\)'
+  expect: { review: { findings: 0, note: "must not be re-proposed" } }
+
+- id: CTRL.R1.region-type
+  rule: R1
+  control: true
+  files: [internal/models/region.go]
+  anchor: 'func ParseRegion\(raw string\) \(Region, error\)'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R1.named-const
+  rule: R1
+  control: true
+  files: [internal/pkg/deviceid/deviceid.go, internal/snapshot/schedule.go, internal/transport/client.go]
+  anchor: '^const (maxLen = 64|minutesPerDay = 24 \* 60|\($)'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R1.trace-id-string
+  rule: R1
+  control: true
+  case: D
+  files: [internal/handlers/trace.go]
+  anchor: 'func \(h \*Handler\) trace\(w http\.ResponseWriter, traceID string\)'
+  expect: { review: { findings: 0, not_contains: 'TraceID' } }
+
+# ─── R2 self-validating types ───────────────────────────────────────────────
+
+- id: R2.Q1.device-exported-fields
+  rule: R2
+  questions: [Q1]
+  files: [internal/models/device.go]
+  anchor: '^type Device struct'
+  expect:
+    review:   { category: "🔴", cluster: "Device", fix: "Add validating constructor" }
+    refactor: { present: 'func (New|Parse)\w*Device\(' }
+
+- id: R2.Q1.alert-exported-fields
+  rule: R2
+  questions: [Q1]
+  files: [internal/models/alert.go, internal/services/alert_service.go]
+  anchor: '^type Alert struct|models\.Alert\{Channel: "'
+  expect:
+    review: { category: "🔴", cluster: "Alert.Channel", fix: "Add validating constructor" }
+
+- id: R2.Q2.method-nil-checks
+  rule: R2
+  questions: [Q2]
+  files: [internal/services/device_service.go, internal/services/notify.go]
+  anchor: 'if s\.repo == nil|if n == nil \|\| n\.webhookURL == ""'
+  expect:
+    review: { category: "🔴", fix: "Hoist method checks into the constructor" }
+
+- id: R2.Q2.validate-device-in-method
+  rule: R2
+  questions: [Q2]
+  files: [internal/services/device_service.go]
+  anchor: 'func \(s \*DeviceService\) validateDevice\(d \*models\.Device\)'
+  expect:
+    review:   { category: "🔴", cluster: "Device", fix: "Hoist method checks into the constructor" }
+    refactor: { gone: 'validateDevice\(', count_max: 0 }
+
+- id: R2.Q4.caller-must-comments
+  rule: R2
+  questions: [Q4]
+  files: [internal/models/heartbeat.go, internal/services/device_service.go]
+  anchor: 'caller must ensure|assumes valid'
+  expect:
+    review:   { category: "🔴", fix: "Add validating constructor" }
+    refactor: { gone: 'caller must ensure|assumes valid', count_max: 0 }
+
+- id: CTRL.R2.window-plan
+  rule: R2
+  control: true
+  files: [internal/snapshot/schedule.go]
+  anchor: 'func ParseWindow\(start, end string\) \(Window, error\)'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R2.snapshot-repository
+  rule: R2
+  control: true
+  files: [internal/snapshot/repository.go, internal/snapshot/scheduler.go]
+  anchor: 'func NewRepository\(dir string\) \(Repository, error\)|if now == nil'
+  expect: { review: { findings: 0, note: "constructor-time checks are the healthy place" } }
+
+# ─── R3 storifying (beyond the centerpiece) ─────────────────────────────────
+
+- id: R3.Q5.dishonest-names
+  rule: R3
+  questions: [Q5]
+  files: [internal/services/device_service.go]
+  anchor: 'func \(s \*DeviceService\) (validateDevice|isReady|getOrCreate)\('
+  expect:
+    review: { category: "🟡", fix: "Honest Rename" }
+
+- id: R3.Q1.normalize-tags
+  rule: R3
+  questions: [Q1]
+  files: [internal/services/heartbeat_parser.go]
+  anchor: '^func normalizeTags\('
+  expect:
+    review: { category: "🟡", fix: "Extract Leaf Type" }
+    lint:   { linter: gocognit, route: R3, also: [nestif] }
+
+- id: CTRL.R3.orchestrator
+  rule: R3
+  control: true
+  files: [internal/snapshot/scheduler.go]
+  anchor: 'func \(s \*Scheduler\) Prune\(raw map\[string\]string'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R3.guard-clauses
+  rule: R3
+  control: true
+  files: [internal/repository/file_repo.go, internal/repository/mem_store.go]
+  anchor: 'if err := ctx\.Err\(\); err != nil'
+  expect: { review: { findings: 0 } }
+
+# ─── R4 helper placement ────────────────────────────────────────────────────
+
+- id: R4.Q1.exported-for-tests
+  rule: R4
+  questions: [Q1]
+  files: [internal/services/heartbeat_parser.go, internal/services/service_test.go]
+  anchor: 'ParseHeartbeatLine\('
+  expect:
+    review:   { category: "🔴", fix: "Demote (rung 1)" }
+    refactor: { gone: '^func ParseHeartbeatLine\(', count_max: 0 }
+
+- id: R4.Q2.private-tested-directly
+  rule: R4
+  questions: [Q2]
+  files: [internal/services/service_test.go]
+  anchor: '^func TestNormalizeTags\('
+  expect:
+    review: { category: "🔴", fix: "Promote to feature sub-package (rung 2)" }
+
+- id: R4.Q3.role-named-packages
+  rule: R4
+  questions: [Q3]
+  files: [internal/utils/strings.go, internal/utils/time.go, internal/common/constants.go]
+  anchor: '^package (utils|common)'
+  expect:
+    review: { category: "🔴", cluster: "role packages", fix: "Split a generic package by owner", route: R5 }
+    lint:   { linter: revive, rule: var-naming, route: R5 }
+
+- id: R4.Q4.single-noun-package
+  rule: R4
+  questions: [Q4]
+  files: [internal/pkg/deviceid/deviceid.go]
+  anchor: '^type DeviceID string'
+  expect:
+    review: { category: "🔴", fix: "Promote to domain package (rung 3)", note: "one type, no siblings: fold into a vocabulary package or demote" }
+
+- id: R4.Q5.feature-literal-in-common
+  rule: R4
+  questions: [Q5]
+  files: [internal/common/constants.go]
+  anchor: 'HeartbeatHeader = "x-hb-v2"'
+  expect:
+    review:   { category: "🔴", fix: "Split policy from vocabulary during promotion" }
+    refactor: { gone: 'HeartbeatHeader', count_max: 0, scope: 'internal/common/' }
+
+- id: R4.Q6.feature-envy
+  rule: R4
+  questions: [Q6]
+  files: [internal/services/device_service.go]
+  anchor: 'func \(s \*DeviceService\) (Summarize|Export|Score)\('
+  expect:
+    review: { category: "🔴", fix: "Move Method to the Envied Type" }
+
+- id: CTRL.R4.private-helper
+  rule: R4
+  control: true
+  files: [internal/repository/store.go, internal/snapshot/schedule.go]
+  anchor: '^func (key\(tenant, id string\) string|parseClock\(v string\) \(int, error\))'
+  expect: { review: { findings: 0, note: "the promotion signal must not fire" } }
+
+# ─── R5 vertical slice ──────────────────────────────────────────────────────
+
+- id: R5.Q1.role-layers
+  rule: R5
+  questions: [Q1]
+  files: [internal/handlers/trace.go, internal/services/device_service.go, internal/models/device.go, internal/repository/store.go]
+  anchor: '^package (handlers|services|models|repository)$'
+  expect:
+    review: { category: "🔴", fix: "Slice out a feature", advisory: true }
+
+- id: R5.Q2.snapshot-spread
+  rule: R5
+  questions: [Q2]
+  files: [internal/services/snapshot_service.go, internal/models/snapshot.go, internal/jobs/registry.go]
+  anchor: 'Snapshot'
+  expect:
+    review: { category: "🔴", fix: "Slice out a feature", advisory: true }
+
+- id: R5.Q4.two-snapshot-homes
+  rule: R5
+  questions: [Q4]
+  files: [internal/services/snapshot_service.go, internal/snapshot/snapshot.go]
+  anchor: 'snapshot'
+  expect:
+    review: { category: "🔴", fix: "Slice out a feature", note: "services/snapshot_service.go and snapshot/ coexist" }
+
+- id: R5.Q5.no-migration-doc
+  rule: R5
+  questions: [Q5]
+  files: [internal/snapshot/snapshot.go, README.md]
+  anchor: 'snapshot'
+  expect:
+    review:   { category: "🔴", fix: "Slice out a feature", note: "mixed shape; docs/architecture/vertical-slice-migration.md missing" }
+    refactor: { present_file: 'docs/architecture/vertical-slice-migration.md' }
+
+- id: R5.Q1.god-file
+  rule: R5
+  questions: [Q1]
+  files: [internal/services/device_service.go]
+  anchor: '^type DeviceService struct'
+  expect:
+    review: { category: "🔴", fix: "Rename layer files by role during the move", note: "607 lines, 19 methods" }
+    lint:   { linter: revive, rule: file-length-limit, route: R5 }
+    prepare: { gate: BOUNDED, spec: sms-channel, verdict: PREP-DEFERRED }
+
+- id: R5.Q1.models-red-zone
+  rule: R5
+  questions: [Q1]
+  files: [internal/models/device.go, internal/models/alert.go, internal/models/job.go]
+  anchor: '^package models$'
+  expect:
+    review: { category: "🔴", fix: "Slice out a feature", hook: "check-package-sizes RED (14 files)" }
+
+- id: CTRL.R5.snapshot-slice
+  rule: R5
+  control: true
+  files: [internal/snapshot/snapshot.go, internal/snapshot/repository.go, internal/snapshot/scheduler.go]
+  anchor: '^package snapshot$'
+  expect: { review: { findings: 0 } }
+
+# ─── R6 test-only interfaces ────────────────────────────────────────────────
+
+- id: R6.Q1.device-repository
+  rule: R6
+  questions: [Q1, Q2]
+  files: [internal/repository/device_repository.go]
+  anchor: 'type DeviceRepository interface'
+  expect:
+    review:   { category: "🔴", fix: "Inline the interface" }
+    refactor: { gone: 'type DeviceRepository interface', count_max: 0 }
+
+- id: R6.Q2.mock-repo-double
+  rule: R6
+  questions: [Q2]
+  files: [internal/mocks/repo.go]
+  anchor: 'var _ repository\.DeviceRepository = \(\*Repo\)\(nil\)'
+  expect:
+    review:   { category: "🔴", fix: "Delete the double" }
+    refactor: { gone: '^package mocks', count_max: 0 }
+
+- id: R6.Q3.import-cycle-claim
+  rule: R6
+  questions: [Q3, critic]
+  files: [internal/mocks/notifier.go, internal/repository/device_repository.go]
+  anchor: 'avoids an import cycle'
+  expect:
+    review: { category: "🔴", fix: "Inline the interface", note: "no back-import exists; the claim is false" }
+
+- id: R6.Q4.sync-service-takes-interface
+  rule: R6
+  questions: [Q4]
+  files: [internal/services/sync_service.go, internal/services/snapshot_service.go]
+  anchor: 'repo repository\.DeviceRepository'
+  expect:
+    review: { category: "🔴", fix: "Inline the interface" }
+
+- id: R6.Q5.for-testing
+  rule: R6
+  questions: [Q5, critic]
+  files: [internal/mocks/repo.go]
+  anchor: '^// for testing$'
+  expect:
+    review: { category: "🔴", fix: "Delete the double" }
+
+- id: R6.Q5.notifier-api
+  rule: R6
+  questions: [Q5]
+  files: [internal/mocks/notifier.go]
+  anchor: '^type NotifierAPI interface'
+  expect:
+    review: { category: "🔴", fix: "Delete the double" }
+
+- id: R6.Q1.formatter-ireturn
+  rule: R6
+  questions: [Q1]
+  files: [internal/services/alert_service.go]
+  anchor: 'func newFormatter\(kind string\) Formatter'
+  expect:
+    review: { category: "🔴", fix: "Inline the interface" }
+    lint:   { linter: ireturn, route: R6 }
+
+- id: CTRL.R6.store-interface
+  rule: R6
+  control: true
+  files: [internal/repository/store.go]
+  anchor: 'type Store interface'
+  expect: { review: { findings: 0, note: "two production implementers: FileRepo and MemStore" } }
+
+- id: CTRL.R6.mem-store-in-production
+  rule: R6
+  control: true
+  files: [cmd/svc/main.go, internal/repository/mem_store.go]
+  anchor: 'MemStore'
+  expect: { review: { findings: 0 } }
+
+# ─── R7 test placement ──────────────────────────────────────────────────────
+
+- id: R7.Q1.wanterr-tables
+  rule: R7
+  questions: [Q1]
+  files: [internal/services/service_test.go, internal/placement/picker_test.go]
+  anchor: 'if t[ct]\.wantErr'
+  expect:
+    review:   { category: "🔴", fix: "Split `wantErr` tables" }
+    refactor: { gone: 'wantErr', count_max: 0 }
+    lint:     { linter: nestif, route: R7, also: [gocognit] }
+
+- id: R7.Q2.internal-test-package
+  rule: R7
+  questions: [Q2]
+  files: [internal/services/service_test.go]
+  anchor: '^package services$'
+  expect:
+    review:   { category: "🔴", fix: "Delete private-function tests" }
+    refactor: { gone: '^package services$', count_max: 0, scope: '_test\.go' }
+
+- id: R7.Q5.call-count-assertions
+  rule: R7
+  questions: [Q5]
+  files: [internal/handlers/heartbeat_test.go, internal/jobs/scheduler_test.go]
+  anchor: 'repo\.Calls\["Save"\] != 1'
+  expect:
+    review:   { category: "🔴", fix: "Replace doubles with real collaborators" }
+    refactor: { gone: 'Calls\["Save"\]', count_max: 0 }
+
+- id: R7.Q6.sleep-then-assert
+  rule: R7
+  questions: [Q6]
+  files: [internal/services/service_test.go, internal/handlers/heartbeat_test.go]
+  anchor: 'time\.Sleep\(1[02]0 \* time\.Millisecond\)'
+  expect:
+    review:   { category: "🔴", fix: "Replace sleep with synchronization" }
+    refactor: { gone: 'time\.Sleep\(', count_max: 0, scope: '_test\.go' }
+
+- id: CTRL.R7.split-tables
+  rule: R7
+  control: true
+  files: [internal/snapshot/schedule_test.go, internal/models/tenant_test.go, internal/models/region_test.go]
+  anchor: '^func TestParse\w+_(Success|Error)\('
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R7.real-collaborators
+  rule: R7
+  control: true
+  files: [internal/snapshot/scheduler_test.go]
+  anchor: 't\.TempDir\(\)'
+  expect: { review: { findings: 0 } }
+
+# ─── R8 no globals ──────────────────────────────────────────────────────────
+
+- id: R8.Q1.registry-globals
+  rule: R8
+  questions: [Q1]
+  files: [internal/jobs/registry.go]
+  anchor: '^var (handlers = map|storeOnce sync\.Once|store \*repository\.MemStore)'
+  expect:
+    review:   { category: "🔴", fix: "Replace `init()` with a constructor" }
+    refactor: { gone: '^var (handlers|storeOnce|store) ', count_max: 0 }
+    lint:     { linter: gochecknoglobals, route: R8 }
+
+- id: R8.Q2.init-registration
+  rule: R8
+  questions: [Q2]
+  files: [internal/jobs/registry.go, internal/env/env.go]
+  anchor: '^func init\(\)'
+  expect:
+    review:   { category: "🔴", fix: "Replace `init()` with a constructor" }
+    refactor: { gone: '^func init\(\)', count_max: 0 }
+    lint:     { linter: gochecknoinits, route: R8 }
+
+- id: R8.Q4.sync-once-store
+  rule: R8
+  questions: [Q4]
+  files: [internal/jobs/registry.go]
+  anchor: 'storeOnce\.Do'
+  expect:
+    review:   { category: "🔴", fix: "Push the Global Up One Level" }
+    refactor: { gone: 'storeOnce\.Do', count_max: 0 }
+
+- id: R8.Q5.getenv-in-method
+  rule: R8
+  questions: [Q5]
+  files: [internal/services/sync_service.go, internal/services/notify.go]
+  anchor: 'os\.Getenv\("[A-Z_]+"\)'
+  expect:
+    review:   { category: "🔴", fix: "Push the Global Up One Level" }
+    refactor: { gone: 'os\.Getenv\(', count_max: 0, scope: 'internal/services/' }
+
+- id: CTRL.R8.err-not-found
+  rule: R8
+  control: true
+  files: [internal/repository/store.go]
+  anchor: '^var ErrNotFound = errors\.New'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R8.compile-time-check
+  rule: R8
+  control: true
+  files: [internal/repository/store.go, internal/repository/device_repository.go]
+  anchor: '_ (Store|DeviceRepository) = \(\*FileRepo\)\(nil\)'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R8.main-composition-root
+  rule: R8
+  control: true
+  files: [cmd/svc/main.go]
+  anchor: 'context\.Background\(\)|env\.Load\(\)|os\.Getenv\("(PORT|WEBHOOK_URL|STORE_PATH)"\)'
+  expect: { review: { findings: 0, note: "globals at the composition root are the pragmatic endpoint" } }
+
+# ─── R9 repo brain ──────────────────────────────────────────────────────────
+
+- id: R9.Q1.orphan-doc
+  rule: R9
+  questions: [Q1]
+  files: [docs/heartbeat-protocol.md]
+  anchor: '^# Heartbeat protocol'
+  expect:
+    review:   { category: "🟡", fix: "Rewire orphan doc" }
+    refactor: { present_file: 'docs/index.md', present: 'heartbeat-protocol\.md' }
+
+- id: R9.Q2.file-line-citation
+  rule: R9
+  questions: [Q2]
+  files: [docs/heartbeat-protocol.md]
+  anchor: 'device_service\.go:142'
+  expect:
+    review:   { category: "🟡", fix: "Update the stale doc with the behavior change", note: "file:line citations are a policy violation whether or not they resolve; cite the exported symbol" }
+    refactor: { gone: '\.go:[0-9]+', count_max: 0, scope: 'docs/' }
+
+- id: R9.Q2.phantom-symbol
+  rule: R9
+  questions: [Q2]
+  files: [docs/heartbeat-protocol.md]
+  anchor: 'SnapshotRunner'
+  expect:
+    review:   { category: "🟡", fix: "Update the stale doc with the behavior change", flag: "⚠️ unresolvable" }
+    refactor: { gone: 'SnapshotRunner', count_max: 0 }
+
+- id: R9.Q2.missing-doc-edge
+  rule: R9
+  questions: [Q2]
+  files: [internal/models/heartbeat.go]
+  anchor: 'See docs/snapshots\.md'
+  expect:
+    review:   { category: "🟡", fix: "Rewire orphan doc", flag: "⚠️ broken edge" }
+    refactor: { gone: 'docs/snapshots\.md', count_max: 0 }
+
+- id: R9.Q3.unwired-root
+  rule: R9
+  questions: [Q3]
+  files: [CLAUDE.md]
+  anchor: '^## Commands'
+  expect:
+    review:   { category: "🟡", fix: "Wire the root", note: "CLAUDE.md carries build commands only; no index import" }
+    refactor: { present: 'docs/index\.md|@docs/', scope: 'CLAUDE.md|AGENTS.md' }
+
+- id: R9.Q4.what-comments
+  rule: R9
+  questions: [Q4]
+  files: [internal/models/device.go, internal/models/heartbeat.go, internal/models/schedule.go, internal/services/device_service.go, internal/services/notify.go, internal/services/cache.go, internal/handlers/trace.go, internal/report/reporter.go, internal/env/env.go]
+  anchor: '^// \w+ is (an?|the) [a-z ]+\.$'
+  expect:
+    review:   { category: "🟡", fix: "Convert WHAT to WHY or delete" }
+    refactor: { gone: '^// \w+ is (an?|the) [a-z]+\.$', count_max: 0 }
+
+- id: R9.Q4.creates-a-new
+  rule: R9
+  questions: [Q4]
+  files: [internal/services/device_service.go, internal/services/notify.go, internal/repository/mem_store.go, internal/repository/file_repo.go]
+  anchor: '^// New\w+ creates a new \w+\.$'
+  expect:
+    review:   { category: "🟡", fix: "Convert WHAT to WHY or delete" }
+    refactor: { gone: '^// New\w+ creates a new \w+\.$', count_max: 0 }
+
+- id: R9.Q5.naked-exports
+  rule: R9
+  questions: [Q5]
+  files: [internal/models/alert.go, internal/models/job.go, internal/models/snapshot.go, internal/models/tags.go, internal/models/job_kind.go, internal/services/validate.go]
+  anchor: '^(type|func) [A-Z]\w*'
+  expect:
+    review: { category: "🟡", fix: "Convert WHAT to WHY or delete", note: "exported symbols with no doc comment at all" }
+
+- id: CTRL.R9.snapshot-package-doc
+  rule: R9
+  control: true
+  files: [internal/snapshot/snapshot.go]
+  anchor: '^// See docs/heartbeat-protocol\.md'
+  expect: { review: { findings: 0, note: "WHY-comment with one resolving See-edge" } }
+
+- id: CTRL.R9.why-comments
+  rule: R9
+  control: true
+  files: [internal/repository/mem_store.go, internal/handlers/trace.go, internal/snapshot/repository.go]
+  anchor: 'store behind|can be joined later|races a manual cleanup'
+  expect: { review: { findings: 0 } }
+
+# ─── R10 concurrency ────────────────────────────────────────────────────────
+
+- id: R10.Q1.unowned-loop
+  rule: R10
+  questions: [Q1]
+  files: [internal/services/device_service.go]
+  anchor: 'func \(s \*DeviceService\) flushLoop\(\)'
+  expect:
+    review:   { category: "🐛", fix: "Inject the Exit Path" }
+    refactor: { present: 'ctx\.Done\(\)', scope: 'internal/services/' }
+
+- id: R10.Q2.goroutine-in-constructor
+  rule: R10
+  questions: [Q2]
+  files: [internal/services/device_service.go]
+  anchor: 'go s\.flushLoop\(\)'
+  expect:
+    review:   { category: "🐛", fix: "Make the Goroutine Joinable" }
+    refactor: { gone: 'go s\.flushLoop\(\)', count_max: 0 }
+
+- id: R10.Q4.split-guard
+  rule: R10
+  questions: [Q4]
+  files: [internal/services/cache.go]
+  anchor: 'c\.ttl\[key\] = time\.Now\(\)\.Add\(c\.span\)$|^\s+return c\.items$'
+  expect:
+    review: { category: "🐛", fix: "Extract Synchronized Owner", note: "Put writes ttl outside the lock; All returns the map without it" }
+
+- id: R10.Q5.production-sleep
+  rule: R10
+  questions: [Q5]
+  files: [internal/services/device_service.go, internal/services/retry.go, internal/services/sync_service.go]
+  anchor: 'time\.Sleep\('
+  expect:
+    review:   { category: "🔴", fix: "Replace Sleep with Timer Select" }
+    refactor: { gone: 'time\.Sleep\(', count_max: 0, scope: 'internal/services/' }
+
+- id: R10.lint.copylocks
+  rule: R10
+  questions: [lint]
+  files: [internal/services/cache.go]
+  anchor: 'describe\(c Cache\)|describe\(\*c\)'
+  expect:
+    review: { category: "🐛", fix: "Extract Synchronized Owner", note: "Cache with a Mutex passed by value" }
+    lint:   { linter: govet, rule: copylocks, route: R10 }
+
+- id: R10.lint.errcheck
+  rule: R10
+  questions: [lint]
+  files: [internal/services/device_service.go, internal/services/notify.go]
+  anchor: 's\.(audit\.Write|notifier\.Send|repo\.Save)\(.*\) //|resp\.Body\.Close\(\) //'
+  expect:
+    lint: { linter: errcheck, action: FIX }
+
+- id: R10.lint.wrapcheck
+  rule: R10
+  questions: [lint]
+  files: [internal/services/device_service.go, internal/services/notify.go]
+  anchor: 'return (id, -1, false, tags, err|err //nolint:wrapcheck)'
+  expect:
+    lint: { linter: wrapcheck, action: FIX }
+
+- id: CTRL.R10.repo-mutex
+  rule: R10
+  control: true
+  files: [internal/repository/file_repo.go, internal/repository/mem_store.go]
+  anchor: '[rm]\.mu\.Lock\(\)'
+  expect: { review: { findings: 0, note: "mutex declared beside the state it guards, locked on every path" } }
+
+- id: CTRL.R10.main-jitter-sleep
+  rule: R10
+  control: true
+  files: [cmd/svc/main.go]
+  anchor: 'time\.Sleep\(time\.Duration\(rand\.IntN\(20\)\)'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R10.worker-range
+  rule: R10
+  control: true
+  files: [internal/pool/workers.go]
+  anchor: 'for j := range jobs'
+  expect: { review: { findings: 0, note: "exits when the channel closes" } }
+
+# ─── R11 conditional dispatch ───────────────────────────────────────────────
+
+- id: R11.Q1.channel-switch
+  rule: R11
+  questions: [Q1, Q3]
+  files: [internal/services/notify.go, internal/services/validate.go, internal/services/retry.go]
+  anchor: 'switch a\.Channel|a\.Channel == "'
+  expect:
+    review:   { category: "🔴", cluster: "Alert.Channel", fix: "Replace Duplicated Switch with Interface Dispatch", note: "already drifted: validate lacks pagerduty" }
+    refactor: { gone: 'switch a\.Channel', count_max: 1, present: 'func Parse\w*Channel\(' }
+    lint:     { linter: goconst, route: R1, note: "channel names are enum-shaped" }
+    prepare:  { gate: MULTIPLY, spec: sms-channel }
+
+- id: R11.Q1.job-kind-if
+  rule: R11
+  questions: [Q1]
+  files: [internal/jobs/scheduler.go, internal/services/snapshot_service.go, internal/models/job.go]
+  anchor: '\.Kind == "snapshot"'
+  expect:
+    review:   { category: "🔴", cluster: "Job.Kind", fix: "Replace If-Chain with Strategy Map" }
+    refactor: { gone: 'Kind == "snapshot"', count_max: 1 }
+    lint:     { linter: nestif, route: R11 }
+
+- id: R11.Q1.status-switch
+  rule: R11
+  questions: [Q1]
+  files: [internal/handlers/status.go, internal/services/alert_service.go, internal/services/device_service.go]
+  anchor: 'switch d\.Status'
+  expect:
+    review:   { category: "🔴", cluster: "Device.Status", fix: "Replace Duplicated Switch with Interface Dispatch" }
+    refactor: { gone: 'switch d\.Status', count_max: 1 }
+
+- id: R11.Q3.default-unknown-channel
+  rule: R11
+  questions: [Q3]
+  files: [internal/services/notify.go]
+  anchor: 'return fmt\.Errorf\("unknown channel %q"'
+  expect:
+    review:   { category: "🔴", cluster: "Alert.Channel", fix: "Replace Duplicated Switch with Interface Dispatch", note: "decide once, at the edge" }
+    refactor: { gone: 'unknown channel', count_max: 1 }
+
+- id: R11.Q4.flag-arguments
+  rule: R11
+  questions: [Q4]
+  files: [internal/services/device_service.go, internal/services/sync_service.go]
+  anchor: '(short|force|dryRun) bool'
+  expect:
+    review:   { category: "🔴", fix: "Split Flag Argument" }
+    refactor: { gone: ', short bool\)', count_max: 0 }
+
+- id: R11.Q5.unearned-formatter
+  rule: R11
+  questions: [Q5]
+  files: [internal/services/alert_service.go]
+  anchor: '^type Formatter interface'
+  expect:
+    review: { category: "🟢", fix: "Keep the Single Exhaustive Switch", skeptic: "REFUTED with the cheaper alternative" }
+
+- id: R11.Q1.priority-switch-not-exhaustive
+  rule: R11
+  questions: [Q1]
+  files: [internal/services/retry.go]
+  anchor: 'switch p \{'
+  expect:
+    review: { category: "🔴", fix: "Keep the Single Exhaustive Switch" }
+    lint:   { linter: exhaustive, route: R11 }
+
+- id: CTRL.R11.region-zone-switch
+  rule: R11
+  control: true
+  files: [internal/models/region.go]
+  anchor: 'switch r \{'
+  expect: { review: { findings: 0, note: "one site, named enum, no default" } }
+
+- id: CTRL.R11.errors-is
+  rule: R11
+  control: true
+  files: [internal/repository/file_repo.go, internal/snapshot/repository.go]
+  anchor: 'errors\.Is\('
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R11.value-conditional
+  rule: R11
+  control: true
+  files: [internal/snapshot/schedule.go]
+  anchor: 'if w\.start < w\.end'
+  expect: { review: { findings: 0 } }
+
+# ─── R12 mutation discipline ────────────────────────────────────────────────
+
+- id: R12.Q1.leaked-internals
+  rule: R12
+  questions: [Q1]
+  files: [internal/services/cache.go, internal/models/grants.go, internal/models/schedule.go, internal/services/snapshot_service.go]
+  anchor: 'return (c\.items|g\.perms|s\.days|s\.taken)$'
+  expect:
+    review:   { category: "🔴", fix: "Copy on the Way Out / Encapsulate Collection" }
+    refactor: { gone: 'return c\.items$', count_max: 0 }
+
+- id: R12.Q2.stored-parameter
+  rule: R12
+  questions: [Q2]
+  files: [internal/models/schedule.go, internal/models/grants.go]
+  anchor: '\{(days: days|perms: perms)\}'
+  expect:
+    review:   { category: "🔴", fix: "Copy on the Way In" }
+    refactor: { present: 'slices\.Clone\((days|perms)\)' }
+
+- id: R12.Q3.query-that-mutates
+  rule: R12
+  questions: [Q3]
+  files: [internal/services/cache.go]
+  anchor: 'func \(c \*Cache\) Get\('
+  expect:
+    review: { category: "🔴", fix: "Separate Query from Modifier", note: "Get refreshes TTL and evicts" }
+
+- id: R12.Q4.setter
+  rule: R12
+  questions: [Q4]
+  files: [internal/models/device.go]
+  anchor: 'func \(d \*Device\) SetStatus\(s string\)'
+  expect:
+    review:   { category: "🔴", cluster: "Device", fix: "Remove Setting Method" }
+    refactor: { gone: 'SetStatus\(', count_max: 0 }
+
+- id: CTRL.R12.boundary-clone
+  rule: R12
+  control: true
+  files: [internal/snapshot/schedule.go, internal/report/catalog.go]
+  anchor: 'slices\.Clone\((windows|devices|p\.windows)\)'
+  expect: { review: { findings: 0 } }
+
+- id: CTRL.R12.honest-mutator
+  rule: R12
+  control: true
+  files: [internal/jobs/scheduler.go]
+  anchor: 'func \(s \*Scheduler\) drain\(\) \[\]models\.Job'
+  expect: { review: { findings: 0, note: "pops and returns, named as a mutator, every caller wants both" } }
+
+# ─── Case A — retention: inline range check, duplicated, re-check, sentinel ──
+
+- id: CASE-A.retention-range-twice
+  rule: R1
+  case: A
+  questions: [Q2]
+  files: [internal/snapshot/policy.go, internal/snapshot/config.go]
+  anchor: '> 365'
+  expect:
+    review:   { category: "🔴", cluster: "retention", fix: "Replace Primitive with Domain Type", skeptic: "CONFIRMED ≥ 4" }
+    refactor: { gone: '> 365', count_max: 1, present: 'func Parse\w+\(.*\) \(\w+, error\)', scope: 'internal/snapshot/' }
+
+- id: CASE-A.defensive-recheck
+  rule: R2
+  case: A
+  questions: [Q2]
+  files: [internal/snapshot/policy.go]
+  anchor: 'days > 0 && days <= 365'
+  expect:
+    review:   { category: "🔴", cluster: "retention", fix: "Delete re-validation of composed types" }
+    refactor: { gone: 'days > 0 && days <= 365', count_max: 0 }
+
+- id: CASE-A.zero-sentinel
+  rule: R1
+  case: A
+  questions: [Q4]
+  files: [internal/snapshot/config.go]
+  anchor: 'return 0 // sentinel'
+  expect:
+    review:   { category: "🔴", cluster: "retention", fix: "Replace Sentinel with comma-ok" }
+    refactor: { gone: 'return 0 // sentinel', count_max: 0 }
+
+# ─── Case B — host/port/tls clump + stringly-typed scheme ───────────────────
+
+- id: CASE-B.host-port-tls-clump
+  rule: R1
+  case: B
+  questions: [Q5]
+  files: [internal/transport/client.go]
+  anchor: 'host string, port int'
+  expect:
+    review:   { category: "🔴", fix: "Introduce Parameter Object", skeptic: "CONFIRMED" }
+    refactor: { gone: 'host string, port int', count_max: 0, present: 'func New\w+\(.*\) \(\w+, error\)', scope: 'internal/transport/' }
+
+- id: CASE-B.scheme-decided-twice
+  rule: R1
+  case: B
+  questions: [Q3]
+  files: [internal/transport/client.go]
+  anchor: '"https"'
+  expect:
+    review:   { category: "🔴", fix: "Name enum strings" }
+    refactor: { gone: '"https"', count_max: 1 }
+
+- id: CASE-B.port-range-twice
+  rule: R1
+  case: B
+  questions: [Q2]
+  files: [internal/transport/client.go]
+  anchor: 'port <= 0 \|\| port > 65535'
+  expect:
+    review:   { category: "🔴", fix: "Replace Primitive with Domain Type" }
+    refactor: { gone: 'port <= 0 \|\| port > 65535', count_max: 1 }
+
+# ─── Case C — boolean flags tracking a loop → collection type ───────────────
+
+- id: CASE-C.flag-loop
+  rule: R3
+  case: C
+  questions: [Q4]
+  files: [internal/placement/picker.go]
+  anchor: 'Found\s*:?=\s*(true|false)'
+  expect:
+    review:   { category: "🟡", fix: "Extract Leaf Type" }
+    refactor: { gone: 'Found\s*:?=\s*(true|false)', count_max: 0, present: '^type \w+ \[\]Node' }
+    postcheck: { gocognit_max: 5, function: pickReplicas }
+
+- id: CASE-C.inline-validity
+  rule: R2
+  case: C
+  questions: [Q2]
+  files: [internal/placement/picker.go]
+  anchor: 'n\.Zone == "" \|\| n\.Capacity <= 0'
+  expect:
+    review:   { category: "🔴", fix: "Add validating constructor" }
+    refactor: { gone: 'n\.Zone == ""', count_max: 0 }
+
+- id: CASE-C.tuple-return
+  rule: R1
+  case: C
+  questions: [Q5]
+  files: [internal/placement/picker.go]
+  anchor: 'return Node\{\}, Node\{\}, fmt\.Errorf'
+  expect:
+    review:   { category: "🔴", fix: "Introduce Parameter Object" }
+    refactor: { present: '\(Node, bool\)' }
+
+# ─── Case D — ceremony must not be extracted ────────────────────────────────
+
+- id: CASE-D.replica-count
+  rule: R1
+  case: D
+  questions: [Q6]
+  files: [internal/models/grants.go]
+  anchor: '^type ReplicaCount int'
+  expect:
+    review:   { category: "🟢", fix: "Over-abstraction found instead? Apply the cheaper alternative", alternative: "delete the wrapper, keep int" }
+    refactor: { gone_or_untouched: 'type ReplicaCount int', never_grown: true }
+
+- id: CASE-D.name-wrapper
+  rule: R1
+  case: D
+  questions: [Q6]
+  files: [internal/models/grants.go]
+  anchor: '^type Name string'
+  expect:
+    review: { category: "🟢", fix: "Over-abstraction found instead? Apply the cheaper alternative" }
+
+# ─── Case E — nil as field, return, and parameter ───────────────────────────
+
+- id: CASE-E.nil-field-rechecked
+  rule: R2
+  case: E
+  questions: [Q2]
+  files: [internal/report/reporter.go]
+  anchor: 'if r\.(Sink|Clock) == nil'
+  expect:
+    review:   { category: "🔴", cluster: "Reporter", fix: "Hoist method checks into the constructor", also: "Introduce Null Object (R11)" }
+    refactor: { gone: 'if [a-z]\w*\.\w+ == nil', count_max: 0, scope: 'internal/report/', guard: 'interface \{', guard_count_max: 0 }
+
+- id: CASE-E.exported-nilable-fields
+  rule: R2
+  case: E
+  questions: [Q1]
+  files: [internal/report/reporter.go]
+  anchor: 'Sink  \*Sink|Clock func\(\) time\.Time'
+  expect:
+    review:   { category: "🔴", cluster: "Reporter", fix: "Add validating constructor" }
+    refactor: { gone: '^\s+(Sink\s+\*Sink|Clock\s+func\(\) time\.Time)', count_max: 0 }
+
+- id: CASE-E.nil-return
+  rule: R2
+  case: E
+  questions: [Q5]
+  files: [internal/report/catalog.go]
+  anchor: 'return nil$'
+  expect:
+    review:   { category: "🔴", cluster: "Catalog.Find", fix: "Replace nil returns" }
+    refactor: { gone: 'return nil$', count_max: 0, scope: 'internal/report/catalog.go', present: 'func \(c \*?Catalog\) Find\(name string\) \((\w+, bool|\w+, error)\)' }
+
+- id: CASE-E.nil-parameters
+  rule: R2
+  case: E
+  questions: [Q6]
+  files: [internal/report/wire.go, internal/report/reporter.go]
+  anchor: 'NewReporter\(sink, nil, nil\)|if (opts|clock) == nil'
+  expect:
+    review:   { category: "🔴", cluster: "Reporter", fix: "Add validating constructor" }
+    refactor: { gone: 'NewReporter\([^)]*\bnil\b', count_max: 0, present: 'func (Default|System)\w+\(\)' }
+
+# ─── Case F — a global reached from every layer ─────────────────────────────
+
+- id: CASE-F.env-config-global
+  rule: R8
+  case: F
+  questions: [Q1]
+  files: [internal/env/env.go]
+  anchor: '^var Config Configuration'
+  expect:
+    review:   { category: "🔴", fix: "Extract Clean Island", nolint_finding: true }
+    refactor: { gone: '^var ', count_max: 0, scope: 'internal/env/', present: 'func Load\(\) \(\w+, error\)' }
+    lint:     { linter: gochecknoglobals, route: R8 }
+    prepare:  { gate: MULTIPLY, spec: per-tenant-worker-limit }
+
+- id: CASE-F.deep-reads
+  rule: R8
+  case: F
+  questions: [Q5]
+  files: [internal/pool/workers.go, internal/jobs/scheduler.go]
+  anchor: 'env\.Config\.(NumWorkers|BatchSize)'
+  expect:
+    review:   { category: "🔴", fix: "Extract Clean Island", then: "Push the Global Up One Level" }
+    refactor: { gone: 'example\.com/go-mini/internal/env"', count_max: 1, ratchet: "env.Config refs outside cmd/ non-increasing per commit, reaching 0" }
+    shallow_fix_rejected: { gone: 'env\.Configuration', count_max: 0, scope: 'internal/(pool|jobs|handlers)/' }
+
+- id: CASE-F.test-mutates-global
+  rule: R8
+  case: F
+  questions: [Q6]
+  files: [internal/pool/workers_test.go]
+  anchor: 'env\.Config\.NumWorkers = 2'
+  expect:
+    review:   { category: "🔴", fix: "Extract Clean Island" }
+    refactor: { gone: 'env\.Config\.\w+ =', count_max: 0, scope: '_test\.go', present: 't\.Parallel\(\)' }
+
+- id: CASE-F.region-read-in-init
+  rule: R8
+  case: F
+  questions: [Q2, Q5]
+  files: [internal/env/env.go]
+  anchor: '^var region string|os\.Getenv\("REGION"\)'
+  expect:
+    review:   { category: "🔴", fix: "Replace `init()` with a constructor" }
+    lint:     { linter: gochecknoglobals, route: R8, also: [gochecknoinits] }

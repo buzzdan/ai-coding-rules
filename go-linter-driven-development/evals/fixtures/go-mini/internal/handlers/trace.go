@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"example.com/go-mini/internal/repository"
+	"example.com/go-mini/internal/services"
 )
 
 // Handler is a handler.
@@ -37,9 +38,10 @@ func (h *Handler) trace(w http.ResponseWriter, traceID string) {
 }
 
 // Routes registers the handlers on mux.
-func Routes(mux *http.ServeMux, store repository.Store) {
+func Routes(mux *http.ServeMux, store repository.Store, svc *services.DeviceService) {
 	h := NewHandler(store)
 	mux.HandleFunc("GET /status", Status(store))
 	mux.HandleFunc("GET /devices", h.List)
 	mux.HandleFunc("POST /devices", Register(store))
+	mux.HandleFunc("POST /heartbeat", Heartbeat(svc))
 }

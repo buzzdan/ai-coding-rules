@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"example.com/go-mini/internal/handlers"
 	"example.com/go-mini/internal/models"
 	"example.com/go-mini/internal/repository"
+	"example.com/go-mini/internal/services"
 )
 
 func seededStore(t *testing.T) *repository.MemStore {
@@ -131,7 +133,8 @@ func TestHandler_ListEchoesTraceHeader(t *testing.T) {
 
 func TestRoutes_ServesStatusAndDevices(t *testing.T) {
 	mux := http.NewServeMux()
-	handlers.Routes(mux, seededStore(t))
+	store := seededStore(t)
+	handlers.Routes(mux, store, services.NewDeviceService(store, services.NewNotifier(""), services.NewAuditLog(io.Discard)))
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
