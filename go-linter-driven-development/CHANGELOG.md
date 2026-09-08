@@ -46,21 +46,29 @@ inside and a CI gate outside.
   sub-project): transitive reachability from the root index, both edge
   directions, the file:line ban (URL spans, fenced code blocks, and glob
   patterns exempt), exact-path root wiring (missing AGENTS.md routing is an
-  advisory), the full frontmatter contract (termination, required content-doc
-  keys, bare indexes, root-only `okf_version`), and every index line checked
-  against its target's `description`. Docs→code resolution is set-based and
-  Go-shaped: one pass builds the repo's declaration set (single-line and
-  grouped `type (`/`var (`/`const (` declarations, functions, methods); a
+  advisory, matched as a fixed string so dotted doc roots never ride a
+  look-alike path), the full frontmatter contract (termination; `type` valued
+  feature/architecture/guide; a non-empty `description`; bare indexes;
+  root-only `okf_version`, exactly one, valued `"0.2"`), every index line
+  checked against its target's `description`, and the lifecycle advisory (a
+  target stale by `status: deprecated` or a past `stale_after` whose index
+  line lacks ⚠️). A link into a missing directory is a broken link, never a
+  skip. Docs→code resolution is set-based and Go-shaped: one pass builds the
+  repo's declaration set — single-line and grouped `type (`/`var (`/`const (`
+  declarations, functions, methods, plus `pkg.Ident`/`Type.Method` ownership
+  pairs, so a qualified token resolves only against its actual owner; a
   token missing there still resolves as a whole word in any non-markdown repo
   file (config keys, alert names); external `pkg.Sym` (stdlib, dependencies)
   is exempt. Dogfooded on a 1,271-file production repo: ~55 s per run, zero
   false-positive classes left. BOOTSTRAP installs it into
   target repos and suggests the
-  one-line CI wiring. Exit 0 clean/not-adopted, 1 violations, 2 usage error;
-  every failure message points at conventions.md. Everything language-specific
-  in the gate sits in one delimited adapter block behind a small `LANG_*` /
-  `lang_*` contract; the driver around it (Q1, Q3, Q7, doc links, `--fix`) is
-  language-agnostic. Portable across awks (gawk, mawk, BSD awk).
+  one-line CI wiring. Exit 0 clean/not-adopted, 1 violations, 2 usage error or
+  internal scanner failure (a failed scan is inconclusive, never silently
+  clean); every failure message points at conventions.md. Everything
+  language-specific in the gate sits in one delimited adapter block behind a
+  small `LANG_*` / `lang_*` contract; the driver around it (Q1, Q3, Q7, doc
+  links, `--fix`) is language-agnostic. Portable across awks (gawk, mawk, BSD
+  awk).
 - **New `scripts/check-repo-brain_test.sh`**: the gate's fixture matrix as a
   committed test — 35 cases across Q1/Q2/Q3/Q7, `--fix` round-trips, usage
   errors, and the no-code scope, built from POSIX tools in a temp dir. Its

@@ -519,20 +519,22 @@ one command answers all four.
 
 7. **Does any file break the bundle contract?**
    Detection: every content `.md` under `<docroot>` starts with a terminated
-   frontmatter block (first line `---`, a closing `---` follows) carrying the
-   required keys `type` and `description`. Index files carry NO frontmatter —
-   except the root index, whose block is exactly `okf_version` (required there,
-   forbidden everywhere else). `grep -rn '^related:'` over doc-root
+   frontmatter block (first line `---`, a closing `---` follows) carrying
+   `type` valued `feature` / `architecture` / `guide` and a non-empty
+   `description`. Index files carry NO frontmatter — except the root index,
+   whose block is exactly one `okf_version: "0.2"` (required there, forbidden
+   everywhere else). `grep -rn '^related:'` over doc-root
    frontmatter; `find <docroot> -name 'log.md'`. For every index line shaped
    `- [doc](path) — text`, compare the text against the target's `description`
    when it has one (⚠️-flagged lines exempt — recorded findings, not copies;
    bare sub-index targets have no `description` and are skipped); the script's
    `--fix` flag rewrites drifted lines from the descriptions.
    Violation: a missing or unterminated frontmatter block on a content doc; a
-   missing required key; frontmatter on a sub-index; any key besides
-   `okf_version` on the root index; a missing root `okf_version`; a `related:`
-   key anywhere; a `log.md` anywhere in the doc root; an index line that
-   drifted from the `description` it copies.
+   missing or invalid required key (a `type` outside the three classes, an
+   empty `description`); frontmatter on a sub-index; any key besides
+   `okf_version` on the root index; a missing, duplicated, or mis-valued root
+   `okf_version`; a `related:` key anywhere; a `log.md` anywhere in the doc
+   root; an index line that drifted from the `description` it copies.
    Advisory branch: a doc whose `stale_after` is in the past (or
    `status: deprecated`) with no ⚠️ on its index line — recorded staleness the
    map does not show; the fix is re-copying the line (drift-check rule above).

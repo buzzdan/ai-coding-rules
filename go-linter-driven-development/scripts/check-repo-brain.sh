@@ -35,11 +35,15 @@
 #                        sub-root may instead be linked from the repo-root
 #                        index); AGENTS.md missing the reference is an advisory
 #   Q7  bundle contract— content docs carry terminated frontmatter with
-#                        type/description; indexes carry NO frontmatter except
-#                        the root index's lone okf_version (required there);
-#                        no `related:` key; no log.md; every index line's text
-#                        matches the target's `description` when it has one
-#                        (⚠️ lines exempt; --fix rewrites drifted lines)
+#                        type (feature|architecture|guide) and a non-empty
+#                        description; indexes carry NO frontmatter except the
+#                        root index's lone okf_version (required there, exactly
+#                        one, valued "0.2"); no `related:` key; no log.md;
+#                        every index line's text matches the target's
+#                        `description` when it has one (⚠️ lines exempt; --fix
+#                        rewrites drifted lines); a target stale by lifecycle
+#                        (status: deprecated, or stale_after in the past) whose
+#                        index line lacks ⚠️ is an advisory
 #
 # Heuristics (documented, deliberate):
 #   - links are inline-markdown only (`[name](path.md)`, optional "title"
@@ -49,11 +53,13 @@
 #     lowercase letter; other backticks (paths, flags, ALL-CAPS initialisms,
 #     <placeholders>) are skipped.
 #   - resolution is against a declaration set built ONCE per run from the
-#     language's code files (adapter: lang_declarations). A token missing from
-#     the set still resolves when it appears as a whole word in any
-#     non-markdown repo file (config keys, alert names, test helpers). A
-#     `pkg.Sym` whose package is not declared in this repo is external
-#     (stdlib, dependencies) and exempt.
+#     language's code files (adapter: lang_declarations), which carries
+#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
+#     against its declaring package or receiver — never against a same-named
+#     member elsewhere. A token missing from the set still resolves when it
+#     appears as a whole word in any non-markdown repo file (config keys,
+#     alert names, test helpers). A `pkg.Sym` whose package is not declared in
+#     this repo is external (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
 #     symbol resolution and the description copy check (R9 Q2/Q7 exemptions);
 #     the file:line ban has no exemption beyond URL spans, fenced code blocks,
@@ -63,7 +69,8 @@
 #
 # Exit codes: 0 clean (or repo has no doc root yet — advisory no-op)
 #             1 one or more violations (details on stderr, summary last)
-#             2 usage error
+#             2 usage error, or an internal scanner failure (a failed scan is
+#               inconclusive, never silently clean)
 #
 # Uses only POSIX-portable tools: find, grep, sed, awk, head, sort, wc. No jq/python.
 # awk programs avoid interval expressions ({m,n}) — mawk, Debian's default, rejects them.
@@ -98,8 +105,10 @@ cd "$REPO_ROOT" || exit 2
 #   LANG_QUALIFIED_RE    awk regex for a package-qualified `pkg.Sym` token
 #   lang_project_dirs    stdout: one sub-project directory per line, repo root excluded
 #   lang_has_code        exit 0 iff the repo holds at least one code file
-#   lang_declarations    stdout: "pkg:<name>" for every package/module, plus every
-#                        declared identifier, one per line (duplicates are fine)
+#   lang_declarations    stdout: "pkg:<name>" for every package/module; every
+#                        declared identifier; and ownership pairs — "pkg.Ident"
+#                        for the declaring package and "Type.Method" for the
+#                        receiver — one per line (duplicates are fine)
 #   lang_code_edges      stdout: "file:line:target" for every docs-path citation
 #                        inside code files (grep -rno shape)
 #
@@ -127,9 +136,17 @@ lang_has_code() {
     -print -quit 2>/dev/null | grep -q .
 }
 
-# Go declarations: package names (pkg:<name>) plus every declared identifier —
-# single-line and grouped type/var/const declarations, functions, methods.
+# Go declarations: package names (pkg:<name>), every declared identifier, and
+# ownership pairs — pkg.Ident for the declaring package, Type.Method for the
+# receiver — from single-line and grouped type/var/const declarations,
+# functions, and methods. The pairs let a qualified doc token resolve only
+# against its actual owner, never against a same-named member elsewhere.
 LANG_DECL_AWK='
+function emit(id) {
+  print id
+  if (curpkg != "") print curpkg "." id
+}
+FNR == 1 { curpkg = ""; inblock = "" }
 inblock != "" {
   if ($0 ~ /^\)/) { inblock = ""; next }
   s = $0; sub(/^[ \t]+/, "", s)
@@ -138,21 +155,28 @@ inblock != "" {
     n = split(t, parts, ",")
     for (i = 1; i <= n; i++) {
       p = parts[i]; gsub(/[ \t]/, "", p)
-      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
+      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
     }
   }
   next
 }
-/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); print "pkg:" s; next }
+/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); curpkg = s; print "pkg:" s; next }
 /^(type|var|const) \(/ { inblock = "y"; next }
 /^func \(/ {
+  r = $0; sub(/^func \(/, "", r); sub(/\).*$/, "", r)
+  gsub(/\*/, "", r); sub(/^[ \t]+/, "", r); sub(/[ \t]+$/, "", r)
+  nr = split(r, rp, /[ \t]+/); rt = rp[nr]
+  sub(/\[.*$/, "", rt)
   s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
+  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) {
+    emit(s)
+    if (rt ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print rt "." s
+  }
   next
 }
 /^func [A-Za-z_]/ {
   s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
+  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(s)
   next
 }
 /^(type|var|const) [A-Za-z_]/ {
@@ -161,7 +185,7 @@ inblock != "" {
   n = split(t, parts, ",")
   for (i = 1; i <= n; i++) {
     p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
+    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
   }
   next
 }
@@ -239,17 +263,21 @@ canon() {
   (cd "$dir" 2>/dev/null && printf '%s/%s\n' "$(pwd -P)" "$base")
 }
 
-# resolve_link <containing-file> <target> <docroot> -> absolute path ('' for URLs/anchors)
+# resolve_link <containing-file> <target> <docroot> -> absolute path on stdout
+# rc 0: resolved · rc 1: URL/anchor — nothing to check · rc 2: local target
+# whose parent directory does not exist (a broken link, never a skip)
 resolve_link() {
-  local from="$1" target="$2" docroot="$3"
+  local from="$1" target="$2" docroot="$3" out
   target="${target%%#*}"
   target="${target%% *}"                              # strip optional "title"
-  [[ -z "$target" || "$target" == *"://"* ]] && return 0
+  [[ -z "$target" || "$target" == *"://"* ]] && return 1
   if [[ "$target" == /* ]]; then
-    printf '%s\n' "$(canon "$docroot/${target#/}")"   # bundle-relative (OKF)
+    out=$(canon "$docroot/${target#/}")               # bundle-relative (OKF)
   else
-    printf '%s\n' "$(canon "$(dirname "$from")/$target")"
+    out=$(canon "$(dirname "$from")/$target")
   fi
+  [[ -z "$out" ]] && return 2
+  printf '%s\n' "$out"
 }
 
 # frontmatter helpers -----------------------------------------------------
@@ -267,6 +295,22 @@ desc_of() { # <file> -> description value ('' if none)
   fm_block "$1" "$close" | grep -m1 '^description:' \
     | sed -e 's/^description:[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
+TODAY=$(date +%F)
+lifecycle_stale() { # <file> -> reason when frontmatter marks the doc stale ('' otherwise)
+  local close fm sa
+  [[ "$(head -1 "$1" 2>/dev/null)" == "---" ]] || return 0
+  close=$(fm_close_line "$1")
+  [[ -z "$close" ]] && return 0
+  fm=$(fm_block "$1" "$close")
+  if printf '%s\n' "$fm" | grep -q '^status:[[:space:]]*deprecated'; then
+    printf 'status: deprecated'
+    return 0
+  fi
+  sa=$(printf '%s\n' "$fm" | grep -m1 '^stale_after:' \
+    | sed -e 's/^stale_after:[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/"//g')
+  [[ -n "$sa" && "$sa" < "$TODAY" ]] && printf 'stale_after: %s' "$sa"  # ISO dates sort lexically
+  return 0
+}
 
 have_code=0
 lang_has_code && have_code=1
@@ -276,7 +320,10 @@ DECLS="" PKGS=""
 if (( have_code )); then
   DECLS=$(mktemp) PKGS=$(mktemp) DECL_ALL=$(mktemp)
   trap 'rm -f "$DECLS" "$PKGS"' EXIT
-  lang_declarations | sort -u > "$DECL_ALL"
+  if ! ( set -o pipefail; lang_declarations | sort -u > "$DECL_ALL" ); then
+    echo "check-repo-brain: internal scanner error — the declaration scan failed; treating the run as inconclusive" >&2
+    exit 2
+  fi
   grep '^pkg:' "$DECL_ALL" | sed 's/^pkg://' > "$PKGS"
   grep -v '^pkg:' "$DECL_ALL" > "$DECLS"
   rm -f "$DECL_ALL"
@@ -369,8 +416,8 @@ check_bundle() { # <project-dir> <docroot>
     while IFS= read -r raw; do
       local t="${raw#](}"; t="${t%)}"
       [[ "$t" == *.md* ]] || continue
-      local resolved; resolved=$(resolve_link "$idx" "$t" "$docroot")
-      [[ -z "$resolved" ]] && continue
+      local resolved
+      resolved=$(resolve_link "$idx" "$t" "$docroot") || continue  # broken links are Q2's report
       reachable="$reachable$resolved"$'\n'
       [[ "$(basename "$resolved")" == "index.md" ]] && queue+=("$resolved")
     done < <(grep -oE '\]\([^)]+\)' "$idx" 2>/dev/null)
@@ -387,24 +434,33 @@ check_bundle() { # <project-dir> <docroot>
     esac
   done < <(find "$docroot" -type f -name '*.md')
 
-  # --- Q2: every doc link resolves ---
+  # --- Q2: every doc link resolves (a missing parent directory is just as
+  # broken as a missing file — only URLs/anchors are exempt) ---
   while IFS= read -r md; do
     while IFS= read -r raw; do
       local t="${raw#](}"; t="${t%)}"
       [[ "$t" == *.md* ]] || continue
-      local resolved; resolved=$(resolve_link "$md" "$t" "$docroot")
-      [[ -z "$resolved" ]] && continue
-      [[ -f "$resolved" ]] || fail "[Q2] $md — link target does not exist: $t"
+      local resolved rc=0
+      resolved=$(resolve_link "$md" "$t" "$docroot") || rc=$?
+      (( rc == 1 )) && continue
+      if (( rc == 2 )) || [[ ! -f "$resolved" ]]; then
+        fail "[Q2] $md — link target does not exist: $t"
+      fi
     done < <(grep -oE '\]\([^)]+\)' "$md" 2>/dev/null)
   done < <(find "$docroot" -type f -name '*.md')
 
   # --- Q2: doc scan — file:line ban + docs→code symbol resolution.
   # One awk pass extracts; resolution is set-based (see DOCSCAN_AWK above). ---
   local scan; scan=$(mktemp)
-  find "$docroot" -type f -name '*.md' -print0 2>/dev/null \
-    | xargs -0 awk -v file_ext="$LANG_FILE_EXT" -v file_re="$LANG_FILE_RE" \
-                   -v sym_re="$LANG_SYMBOL_RE" -v qual_re="$LANG_QUALIFIED_RE" \
-                   "$DOCSCAN_AWK" > "$scan"
+  if ! ( set -o pipefail
+         find "$docroot" -type f -name '*.md' -print0 \
+           | xargs -0 awk -v file_ext="$LANG_FILE_EXT" -v file_re="$LANG_FILE_RE" \
+                          -v sym_re="$LANG_SYMBOL_RE" -v qual_re="$LANG_QUALIFIED_RE" \
+                          "$DOCSCAN_AWK" > "$scan" ); then
+    echo "check-repo-brain: internal scanner error — the doc scan failed in $docroot; treating the run as inconclusive" >&2
+    rm -f "$scan"
+    exit 2
+  fi
   local f ln
   while IFS=$'\t' read -r _ f ln; do
     fail "[Q2] $f:$ln — cites a file path or line number (churn-prone coordinate)"
@@ -413,16 +469,18 @@ check_bundle() { # <project-dir> <docroot>
     local toks check members unres bad
     toks=$(mktemp) check=$(mktemp) members=$(mktemp) unres=$(mktemp) bad=$(mktemp)
     grep $'^S\t' "$scan" | cut -f4 | sort -u > "$toks"
-    # full-token -> member-to-resolve (external pkg.Sym exempt)
+    # tokens to resolve (external pkg.Sym exempt). A qualified token resolves
+    # as the PAIR itself — the declaration set carries pkg.Ident / Type.Method
+    # ownership pairs, so `retry.Nope` never rides on a Nope declared elsewhere.
     local t p m
     while IFS= read -r t; do
       case "$t" in
         *.*)
-          p="${t%%.*}" m="${t#*.}"
+          p="${t%%.*}"
           case "$p" in
             [a-z]*) is_repo_pkg "$p" || continue ;;  # external package (stdlib, deps) — exempt
           esac
-          printf '%s\t%s\n' "$t" "$m" ;;
+          printf '%s\t%s\n' "$t" "$t" ;;
         *) printf '%s\t%s\n' "$t" "$t" ;;
       esac
     done < "$toks" > "$check"
@@ -456,12 +514,12 @@ check_bundle() { # <project-dir> <docroot>
   local claude="CLAUDE.md" agents="AGENTS.md"
   [[ "$proj" != "." ]] && { claude="$proj/CLAUDE.md"; agents="$proj/AGENTS.md"; }
   local wired_claude=0 wired_agents=0
-  [[ -f "$claude" ]] && grep -q "$rel/index.md" "$claude" && wired_claude=1
-  [[ -f "$agents" ]] && grep -q "$rel/index.md" "$agents" && wired_agents=1
+  [[ -f "$claude" ]] && grep -qF -- "$rel/index.md" "$claude" && wired_claude=1
+  [[ -f "$agents" ]] && grep -qF -- "$rel/index.md" "$agents" && wired_agents=1
   if (( ! wired_claude && ! wired_agents )); then
     local via_root=0
     if [[ "$proj" != "." && -n "$ROOT_BUNDLE" ]]; then
-      grep -rq "$docroot/index.md" "$ROOT_BUNDLE" --include='*.md' 2>/dev/null && via_root=1
+      grep -rqF -- "$docroot/index.md" "$ROOT_BUNDLE" --include='*.md' 2>/dev/null && via_root=1
     fi
     if (( ! via_root )); then
       fail "[Q3] $proj — neither $claude nor $agents references $rel/index.md"
@@ -492,8 +550,15 @@ check_bundle() { # <project-dir> <docroot>
         continue
       fi
       fm=$(fm_block "$md" "$close")
-      printf '%s\n' "$fm" | grep -q '^okf_version:' \
-        || fail "[Q7] $md — root index missing 'okf_version:'"
+      local nver
+      nver=$(printf '%s\n' "$fm" | grep -c '^okf_version:')
+      if (( nver == 0 )); then
+        fail "[Q7] $md — root index missing 'okf_version:'"
+      elif (( nver > 1 )); then
+        fail "[Q7] $md — duplicate okf_version keys (exactly one, valued \"0.2\")"
+      elif ! printf '%s\n' "$fm" | grep -qx 'okf_version: "0.2"'; then
+        fail "[Q7] $md — okf_version must be exactly \"0.2\" (the spec version the R9 profile is built on)"
+      fi
       local extra
       extra=$(printf '%s\n' "$fm" | grep -E '^[A-Za-z_-]+:' | grep -v '^okf_version:' | head -1)
       [[ -n "$extra" ]] \
@@ -513,10 +578,18 @@ check_bundle() { # <project-dir> <docroot>
     if printf '%s\n' "$fm" | grep -q '^related:'; then
       fail "[Q7] $md — 'related:' frontmatter key (links live in the body)"
     fi
-    for key in type description; do
-      printf '%s\n' "$fm" | grep -q "^${key}:" \
-        || fail "[Q7] $md — frontmatter missing '${key}:'"
-    done
+    if printf '%s\n' "$fm" | grep -q '^type:'; then
+      printf '%s\n' "$fm" | grep -qE '^type:[[:space:]]*(feature|architecture|guide)[[:space:]]*$' \
+        || fail "[Q7] $md — 'type:' must be feature, architecture, or guide (R9 profile)"
+    else
+      fail "[Q7] $md — frontmatter missing 'type:'"
+    fi
+    if printf '%s\n' "$fm" | grep -q '^description:'; then
+      printf '%s\n' "$fm" | grep -qE '^description:[[:space:]]*[^[:space:]]' \
+        || fail "[Q7] $md — empty 'description:' (it IS the doc's index line)"
+    else
+      fail "[Q7] $md — frontmatter missing 'description:'"
+    fi
   done < <(find "$docroot" -type f -name '*.md')
 
   # --- Q7: drift check — index line text == target's description (⚠️ exempt;
@@ -530,8 +603,12 @@ check_bundle() { # <project-dir> <docroot>
       local t; t=$(printf '%s' "$line" | sed -E 's/^- \[[^]]*\]\(([^)]*)\).*/\1/')
       local tail="${line#* — }"
       tail=$(printf '%s' "$tail" | sed -e 's/[[:space:]]*$//')
-      local resolved; resolved=$(resolve_link "$idx" "$t" "$docroot")
-      [[ -n "$resolved" && -f "$resolved" ]] || continue
+      local resolved
+      resolved=$(resolve_link "$idx" "$t" "$docroot") || continue  # broken links are Q2's report
+      [[ -f "$resolved" ]] || continue
+      local lc; lc=$(lifecycle_stale "$resolved")
+      [[ -n "$lc" ]] \
+        && note "[Q7] $idx:$lineno — $(basename "$resolved") is stale by lifecycle ($lc) but its index line carries no ⚠️ flag"
       local desc; desc=$(desc_of "$resolved")
       [[ -z "$desc" ]] && continue
       if [[ "$tail" != "$desc" ]]; then

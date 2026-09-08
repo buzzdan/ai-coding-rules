@@ -474,6 +474,114 @@ run_gate
 expect_exit 0 && expect_not "drifted" && ok
 finish
 
+# --- ownership: a qualified token resolves only against its owner ---
+begin "Q2 qualified token does not ride on a same-named member of another package"
+mk_conformant
+mkdir -p "$REPO/other"
+cat > "$REPO/other/other.go" <<'EOF'
+package other
+
+// Nope exists here, not in retry.
+func Nope() {}
+EOF
+mk_doc owners "ownership pairs" "Real: \`other.Nope\` and \`retry.ParsePolicy\`. Fake: \`retry.Nope\` — Nope lives in other."
+append_index "- [owners.md](owners.md) — ownership pairs"
+run_gate
+expect_exit 1 && expect_has "\`retry.Nope\` does not resolve" \
+  && expect_not "\`other.Nope\` does not resolve" && expect_not "retry.ParsePolicy" && ok
+finish
+
+begin "Q2 Type.Method does not ride on a same-named method of another receiver"
+mk_conformant
+mk_doc recv "receiver pairs" "Real: \`Policy.Do\`. Fake: \`Policy.Error\` — Error is errString's method."
+append_index "- [recv.md](recv.md) — receiver pairs"
+run_gate
+expect_exit 1 && expect_has "\`Policy.Error\` does not resolve" && expect_not "\`Policy.Do\` does not resolve" && ok
+finish
+
+# --- lifecycle advisory ---
+begin "Q7 lifecycle-stale target without a flagged index line is an advisory, not a violation"
+mk_conformant
+cat > "$REPO/docs/legacy.md" <<'EOF'
+---
+type: feature
+description: the legacy exporter path
+stale_after: 2020-01-01
+---
+# Legacy
+
+Uses `Policy`.
+EOF
+append_index "- [legacy.md](legacy.md) — the legacy exporter path"
+run_gate
+expect_exit 0 && expect_has "stale by lifecycle (stale_after: 2020-01-01)" && ok
+finish
+
+begin "Q7 lifecycle advisory is silent when the index line already carries the flag"
+mk_conformant
+cat > "$REPO/docs/gone.md" <<'EOF'
+---
+type: feature
+description: the removed batching mode
+status: deprecated
+---
+# Gone
+
+Uses `Policy`.
+EOF
+append_index "- ⚠️ [gone.md](gone.md) — the removed batching mode"
+run_gate
+expect_exit 0 && expect_not "stale by lifecycle" && ok
+finish
+
+# --- value checks ---
+begin "Q7 a type outside feature/architecture/guide is reported"
+mk_conformant
+printf -- '---\ntype: nonsense\ndescription: a mistyped doc\n---\n# X\n' > "$REPO/docs/mistyped.md"
+append_index "- [mistyped.md](mistyped.md) — a mistyped doc"
+run_gate
+expect_exit 1 && expect_has "'type:' must be feature, architecture, or guide" && ok
+finish
+
+begin "Q7 empty description is reported"
+mk_conformant
+printf -- '---\ntype: feature\ndescription:\n---\n# X\n' > "$REPO/docs/blank.md"
+append_index "- [blank.md](blank.md) — anything"
+run_gate
+expect_exit 1 && expect_has "empty 'description:'" && ok
+finish
+
+begin "Q7 okf_version must be exactly \"0.2\", once"
+mk_conformant
+printf -- '---\nokf_version: 9.9\n---\n# Repo map\n\n- [retry-policy.md](retry-policy.md) — why retries use capped full jitter; \`Policy\` API\n' > "$REPO/docs/index.md"
+run_gate
+expect_exit 1 && expect_has 'okf_version must be exactly "0.2"' && ok
+finish
+
+begin "Q7 duplicate okf_version keys are reported"
+mk_conformant
+printf -- '---\nokf_version: "0.2"\nokf_version: "0.2"\n---\n# Repo map\n\n- [retry-policy.md](retry-policy.md) — why retries use capped full jitter; \`Policy\` API\n' > "$REPO/docs/index.md"
+run_gate
+expect_exit 1 && expect_has "duplicate okf_version" && ok
+finish
+
+# --- wiring is matched as a fixed string, and broken parents are broken links ---
+begin "Q3 a dotted doc root never matches a look-alike path (xai vs .ai)"
+mkdir -p "$REPO/.ai"
+printf -- '---\nokf_version: "0.2"\n---\n# Map\n' > "$REPO/.ai/index.md"
+printf 'Start at xai/index.md.\n' > "$REPO/CLAUDE.md"
+run_gate
+expect_exit 1 && expect_has "[Q3]" && ok
+finish
+
+begin "Q2 link into a missing directory is a broken link, not a skip"
+mk_conformant
+mk_doc holes "a doc with a broken link" "See [x](missing-dir/x.md) for nothing."
+append_index "- [holes.md](holes.md) — a doc with a broken link"
+run_gate
+expect_exit 1 && expect_has "link target does not exist: missing-dir/x.md" && ok
+finish
+
 # --- language scope ---
 begin "repo with a doc root but no code files runs the structure checks only"
 mk_conformant; rm -rf "$REPO/retry"
