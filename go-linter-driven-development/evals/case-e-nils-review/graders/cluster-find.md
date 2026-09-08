@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: '🔗 CLUSTER[^\n]*Find'
+pattern: '(?i)\bcluster\b[^\n]*Find'
 match: contains
 target: last_message
 ---

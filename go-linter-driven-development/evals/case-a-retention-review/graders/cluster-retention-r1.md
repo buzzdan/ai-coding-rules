@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: '🔗 CLUSTER[^\n]*[Rr]etention.*\bR1\b'
+pattern: '(?i)\bcluster\b[^\n]*[Rr]etention.*\bR1\b'
 match: contains
 target: last_message
 ---

@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: '🔗 CLUSTER[^\n]*Reporter'
+pattern: '(?i)\bcluster\b[^\n]*Reporter'
 match: contains
 target: last_message
 ---
