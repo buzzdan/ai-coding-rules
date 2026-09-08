@@ -3,6 +3,20 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Behavioral eval suite (`evals/`)**: cases in the `claude plugin eval`
+  format (prompt + graders) run the plugin's skills, agents, and workflow
+  against `fixtures/go-mini`, a deliberately bad Go service that plants every
+  R1–R12 falsifying question at least once with a control per rule. A Go
+  runner (`evals/runner`) executes the same format over headless `claude -p`
+  until the built-in gate opens for this org; `regrade` re-applies edited
+  graders to recorded traces without re-spending. `results/baseline-<sha>/`
+  records the plugin's pass rates on `main` before any structural refactor.
+  Nothing a user installs changes; the plugin version stays 2.10.0.
+
 ## [2.10.0] - 2026-08-20
 
 The repo brain had one audience: a session with this plugin installed. In a
