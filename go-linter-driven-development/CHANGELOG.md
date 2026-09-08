@@ -60,9 +60,7 @@ inside and a CI gate outside.
   every failure message points at conventions.md. Everything language-specific
   in the gate sits in one delimited adapter block behind a small `LANG_*` /
   `lang_*` contract; the driver around it (Q1, Q3, Q7, doc links, `--fix`) is
-  language-agnostic. awk programs avoid interval expressions — mawk, Debian's
-  default awk, rejects them, and a silenced awk failure had let the whole Q2
-  doc scan pass.
+  language-agnostic. Portable across awks (gawk, mawk, BSD awk).
 - **New `scripts/check-repo-brain_test.sh`**: the gate's fixture matrix as a
   committed test — 35 cases across Q1/Q2/Q3/Q7, `--fix` round-trips, usage
   errors, and the no-code scope, built from POSIX tools in a temp dir. Its
