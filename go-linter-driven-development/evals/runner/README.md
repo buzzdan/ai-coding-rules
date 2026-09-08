@@ -33,6 +33,7 @@ Exit codes: 0 every case ≥ threshold · 1 some case below · 2 budget exceeded
 ## Semantics worth knowing
 
 - `regex` with `target: files` counts matching **lines** across the scaffold tree (`.git` skipped); `last_message`/`trace` count matches.
+- `last_message` is the agent's final text. When the agent scheduled its own wakeups, headless claude runs several segments and emits one result event each; `last_message` is then every segment's final text joined in order (the report may land in any segment), `num_turns`/`duration_ms` are summed, and `segments` in result.json records how many there were (1 = no wakeups).
 - `tool_used`: `input_match` is a regex over the compact JSON tool input; `min: 0 max: 0` means "must not call".
 - `tool_order`: the first `before` call must precede the first `after` call, and both must occur.
 - `llm` judge is a **single vote** (plugin-eval uses 2-of-3): one `claude -p --model <judge> --tools ""` call whose reply

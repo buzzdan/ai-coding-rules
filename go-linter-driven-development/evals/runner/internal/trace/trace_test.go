@@ -87,8 +87,11 @@ func TestParse_WakeupSegmentsSumTurnsAndDurationKeepCumulativeCost(t *testing.T)
 	if tr.Segments() != 3 || tr.NumTurns() != 35 || tr.DurationMS() != 1500 {
 		t.Errorf("segments/turns/duration = %d/%d/%d, want 3/35/1500", tr.Segments(), tr.NumTurns(), tr.DurationMS())
 	}
-	if math.Abs(tr.CostUSD()-1.7) > 1e-9 || tr.LastMessage() != "REPORT" {
-		t.Errorf("cost/last = %v/%q, want the final segment's cumulative 1.7 and REPORT", tr.CostUSD(), tr.LastMessage())
+	if math.Abs(tr.CostUSD()-1.7) > 1e-9 {
+		t.Errorf("cost = %v, want the final segment's cumulative 1.7", tr.CostUSD())
+	}
+	if tr.LastMessage() != "waiting\n\nstill waiting\n\nREPORT" {
+		t.Errorf("LastMessage() = %q, want every segment's final text joined in order", tr.LastMessage())
 	}
 }
 

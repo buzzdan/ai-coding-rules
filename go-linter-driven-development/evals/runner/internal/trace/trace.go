@@ -36,7 +36,7 @@ type ToolCall struct {
 type Trace struct {
 	toolCalls   []ToolCall
 	lastText    string
-	result      string
+	results     []string // one final text per result event
 	complete    bool
 	isError     bool
 	subtype     string
@@ -140,11 +140,11 @@ func (t *Trace) consumeAssistant(message json.RawMessage) error {
 // consumeResult folds one result event in. A session that schedules its own
 // wakeups emits one result event per segment: total_cost_usd is cumulative
 // across them, while duration_ms and num_turns are per segment and are summed.
-// The last segment's text, subtype and error flag stand for the run.
+// The last segment's subtype and error flag stand for the run.
 func (t *Trace) consumeResult(ev envelope) {
 	t.complete = true
 	t.segments++
-	t.result = ev.Result
+	t.results = append(t.results, ev.Result)
 	t.subtype = ev.Subtype
 	t.isError = ev.IsError
 	t.costUSD = ev.TotalCostUSD
@@ -170,11 +170,21 @@ func (t Trace) ToolCalls() []ToolCall {
 	return out
 }
 
-// LastMessage is the final assistant text: the result event's `result` field
-// when present, otherwise the last non-empty assistant text block.
+// LastMessage is what the agent said as its final message. With one result
+// event that is its `result` text; when the agent scheduled wakeups and the
+// session ran several segments, it is every segment's final text joined, in
+// order, since a user would have seen each one as an assistant message and
+// the report may sit in any of them. Falls back to the last non-empty
+// assistant text block when no result event exists.
 func (t Trace) LastMessage() string {
-	if strings.TrimSpace(t.result) != "" {
-		return t.result
+	finals := make([]string, 0, len(t.results))
+	for _, r := range t.results {
+		if strings.TrimSpace(r) != "" {
+			finals = append(finals, r)
+		}
+	}
+	if len(finals) > 0 {
+		return strings.Join(finals, "\n\n")
 	}
 	return t.lastText
 }

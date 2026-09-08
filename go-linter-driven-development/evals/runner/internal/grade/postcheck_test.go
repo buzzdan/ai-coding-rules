@@ -11,6 +11,9 @@ import (
 	"example.com/ldd-eval/internal/grade"
 )
 
+// writeScript writes an executable postcheck script. The tests in this file
+// run serially on purpose: a parallel sibling forking while this file is
+// still open for writing fails with ETXTBSY (Go issue 22315).
 func writeScript(t *testing.T, body string, perm os.FileMode) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "postcheck.sh")
@@ -21,7 +24,6 @@ func writeScript(t *testing.T, body string, perm os.FileMode) string {
 }
 
 func TestNewPostcheck_Success(t *testing.T) {
-	t.Parallel()
 	g, err := grade.NewPostcheck(writeScript(t, "true\n", 0o755))
 	if err != nil {
 		t.Fatalf("NewPostcheck: %v", err)
@@ -32,7 +34,6 @@ func TestNewPostcheck_Success(t *testing.T) {
 }
 
 func TestNewPostcheck_Error(t *testing.T) {
-	t.Parallel()
 	cases := []struct {
 		name   string
 		script string
@@ -44,7 +45,6 @@ func TestNewPostcheck_Error(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			if _, err := grade.NewPostcheck(tc.script); !errors.Is(err, grade.ErrBadScript) {
 				t.Fatalf("NewPostcheck error = %v, want ErrBadScript", err)
 			}
@@ -53,7 +53,6 @@ func TestNewPostcheck_Error(t *testing.T) {
 }
 
 func TestPostcheck_Grade_Success(t *testing.T) {
-	t.Parallel()
 	script := writeScript(t, `test "$PWD" = "$EVAL_DIR"
 test -d "$EVAL_OUT"
 echo "findings: none in $(basename "$EVAL_DIR")"
@@ -78,7 +77,6 @@ echo "findings: none in $(basename "$EVAL_DIR")"
 }
 
 func TestPostcheck_Grade_LongOutputIsClipped(t *testing.T) {
-	t.Parallel()
 	g, err := grade.NewPostcheck(writeScript(t, "head -c 3000 /dev/zero | tr '\\0' 'x'\n", 0o755))
 	if err != nil {
 		t.Fatalf("NewPostcheck: %v", err)
@@ -90,7 +88,6 @@ func TestPostcheck_Grade_LongOutputIsClipped(t *testing.T) {
 }
 
 func TestPostcheck_Grade_Failure(t *testing.T) {
-	t.Parallel()
 	g, err := grade.NewPostcheck(writeScript(t, "echo 'race in cache'\necho 'stderr detail' >&2\nexit 3\n", 0o755))
 	if err != nil {
 		t.Fatalf("NewPostcheck: %v", err)
