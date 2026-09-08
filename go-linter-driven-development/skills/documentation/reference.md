@@ -9,10 +9,12 @@ policy, index policy, root wiring, doc-root discovery — lives ONCE in
 
 - [Comment Value Toolbox](#comment-value-toolbox) — the growable catalog of ways a comment delivers value
 - [Godoc Menus](#godoc-menus) — package, type, function menus; testable examples
-- [Feature Doc Template](#feature-doc-template) — with `Related` edges and symbol-cited key players
-- [The Index and Root Wiring](#the-index-and-root-wiring) — index.md, map of maps, CLAUDE.md/AGENTS.md snippets
+- [Frontmatter Templates (OKF Bundle)](#frontmatter-templates-okf-bundle) — content doc, root index
+- [Feature Doc Template](#feature-doc-template) — frontmatter, symbol-cited key players
+- [The Index and Root Wiring](#the-index-and-root-wiring) — index.md, map of maps, CLAUDE.md import, AGENTS.md routing block
+- [Conventions Doc (Self-Hosting)](#conventions-doc-self-hosting) — the `conventions.md` template bootstrap installs
 - [Doc Roots and Monorepos](#doc-roots-and-monorepos)
-- [Bootstrap Classification](#bootstrap-classification) — feature / architecture / guide / stale; rung-2 gap criterion; upward-edge anchor heuristic
+- [Bootstrap Classification](#bootstrap-classification) — feature / architecture / guide / stale; frontmatter migration; rung-2 gap criterion; upward-edge anchor heuristic
 - [Checklists](#checklists) — feature docs, code comments, quality gates
 - [Guidelines](#guidelines) — bug-fix documentation, managing documentation size
 - [Examples](#examples) — good vs bad worked examples
@@ -313,16 +315,54 @@ feature docs.
 
 ---
 
+## Frontmatter Templates (OKF Bundle)
+
+Content docs start with YAML frontmatter (R9's bundle policy — the one non-menu
+part of any template: the required keys are not optional). A doc's index line IS
+its `description`, so write the description as the index line you want.
+
+**Content doc** (feature / architecture / guide):
+
+```yaml
+---
+type: feature
+description: why retries use capped full jitter; `Policy` API
+# optional:
+# title: Retry policy               # the H1 is the title; this key never replaces it
+# generated: 2026-08-20T00:00:00Z   # OKF provenance: last substantive update
+# tags: [resilience, retry]
+# status: stable                    # draft | stable | deprecated
+# stale_after: 2027-01-01           # past this date the index line gets the ⚠️ flag
+---
+```
+
+**Indexes carry no frontmatter** (OKF keeps reserved `index.md` bare). The one
+exception is the root index (`<docroot>/index.md`), which carries the bundle
+version — and nothing else:
+
+```yaml
+---
+okf_version: "0.2"
+---
+```
+
+---
+
 ## Feature Doc Template
 
-The sections are a menu too: a small feature may need only Problem & Solution, Entry
-Points, and Related. All code citations follow R9's edge policy: exported symbols
+The sections are a menu too: a small feature may need only Problem & Solution and
+Entry Points. The frontmatter block is the exception — its required keys always
+ship (Frontmatter Templates above). All code citations follow R9's edge policy: exported symbols
 first — the shortest token that greps uniquely, package-qualified only on ambiguity;
 package or directory paths when a location is genuinely needed (directories for
 symbol-less artifacts like examples/, paired with the symbols they demonstrate);
 file paths and line numbers never.
 
 ```markdown
+---
+type: feature
+description: [the index line — one line, what and why; key symbols]
+---
 # [Feature Name]
 
 ## Problem & Solution
@@ -375,12 +415,11 @@ Input → Validation → Processing → Storage → Output
 
 ## Future Considerations
 - [Known limitations, potential extensions]
-
-## Related
-Edges to sibling docs:
-- [auth.md](auth.md) — how sessions authenticate created users
-- [notifications.md](notifications.md) — welcome-email delivery
 ```
+
+Lateral doc→doc links go inline, in the sentence that explains the relationship
+(R9 edge policy). There is no `## Related` section — a relationship that cannot
+find a sentence in the body is not worth an edge.
 
 ---
 
@@ -389,10 +428,18 @@ Edges to sibling docs:
 ### index.md Template
 
 A short reference guide: grouped by topic, ONE line per doc (size and style are
-normative in R9's index policy):
+normative in R9's index policy). Each line IS the linked doc's `description` —
+copied verbatim, and the conformance gate fails when the copy drifts; the ⚠️ flag
+rides in from the doc's lifecycle keys or a stale classification (R9's
+drift-check rule):
 
 ```markdown
+---
+okf_version: "0.2"
+---
 # Repo Map
+
+- [conventions.md](conventions.md) — how to maintain this doc root (read before editing docs)
 
 **Resilience**
 - [retry-policy.md](retry-policy.md) — why retries use capped full jitter; `Policy` API
@@ -404,30 +451,104 @@ normative in R9's index policy):
 
 ### Map of Maps (past ~300 lines)
 
-The root index shrinks to links to short topic or sub-project sub-indexes (R9):
+The split is directory-shaped: each topic becomes a subdirectory with its own
+bare `index.md`, and the root index shrinks to one short authored line per
+sub-index (a bare sub-index has no `description` to copy — R9). The split moves
+files — it lands in the same commit as the rewrite of the code-side
+`See docs/...` paths:
 
 ```markdown
-# Repo Map
-
 - [Resilience](resilience/index.md) — retries, circuit breaking, timeouts
 - [Users](users/index.md) — identity, sessions, notifications
 ```
 
-Each sub-index follows the one-line-per-doc form above.
+Each sub-index follows the one-line-per-doc form above, with no frontmatter
+(`okf_version` is the root's alone).
 
 ### CLAUDE.md Wiring Snippet
 
+CLAUDE.md never restates the routing prose — it embeds AGENTS.md (the single
+authored routing block, below) and imports the map:
+
 ```markdown
 ## Documentation
+@AGENTS.md
 @docs/index.md
 ```
 
-The `@` import puts the map in context at session start. AGENTS.md has no import
-syntax — fall back to a plain reference:
+The `@` imports put the routing block and the map in context at session start.
+
+### AGENTS.md Routing Block
+
+The routing block is authored once, here — for every tool that reads AGENTS.md,
+with CLAUDE.md embedding this file rather than duplicating it. At the repo root
+and, in a monorepo, nested per sub-project (agents use the closest file, so each
+sub-project's block names its own doc root):
 
 ```markdown
 ## Documentation
-Start at docs/index.md — the map of all repo docs.
+Docs live in docs/ — start at docs/index.md, the map of all repo docs.
+Before adding or editing anything under docs/, read docs/conventions.md
+(frontmatter, link rules, what never to do).
+When you change exported API behavior, update the doc that cites it and its
+index line. Check your work: bash scripts/check-repo-brain.sh
+```
+
+---
+
+## Conventions Doc (Self-Hosting)
+
+`<docroot>/conventions.md` is the network's own maintenance manual, written for a
+contributor without this plugin — the ONE content file bootstrap generates (network
+infrastructure, not a content doc). Listed FIRST in the index. Template:
+
+```markdown
+---
+type: guide
+description: how to maintain this doc root (read before editing docs)
+---
+# Doc Conventions
+
+This directory is the repo's documentation network — an OKF bundle. Markdown files
+with YAML frontmatter; `index.md` is the map; links form the graph. Rules:
+
+## Frontmatter
+Every content doc here starts with frontmatter (copy-paste, fill in):
+
+    ---
+    type: feature            # feature | architecture | guide
+    description: <one line — this IS the doc's line in index.md>
+    ---
+
+Optional on content docs: `title`, `generated` (ISO 8601, last substantive
+update), `tags`, `status: draft|stable|deprecated`, `stale_after: <date>`.
+Index files carry NO frontmatter — except the root `index.md`, which carries
+only `okf_version`.
+
+## Links
+- The index line for a doc IS its `description` — the description is the single
+  source: update it in the doc's frontmatter, copy it to `index.md`, and the
+  conformance gate fails when the two drift.
+- Cite code by exported symbol (`<Type>` or `<Type>.<Method>`), never by file
+  path or line number. Backticks are a promise: a backticked symbol must grep in
+  this repo (mark future ones *(planned)* and write them without backticks).
+- Link related docs inline, in the sentence that explains the relationship.
+  Links are one-way: never add a link back to `index.md` or a parent.
+  Use inline links only — `[name](path.md)`; reference-style links are not
+  checked by the conformance gate. There is no `## Related` section.
+
+## Never
+- No `log.md`, no changelog sections — docs describe current behavior, not history.
+- No `related:` key in frontmatter — links live in the body.
+- No frontmatter on index files (the root's `okf_version` is the one exception).
+- No file paths or line numbers as code references.
+
+## Check your work
+Run `bash scripts/check-repo-brain.sh` from the repo root — it verifies the rules
+above mechanically and points at this file when something breaks.
+`--fix` rewrites drifted index lines from each doc's `description`.
+Code↔docs checks cover Go files; docs about other languages get the structure
+checks (reachability, frontmatter, index drift) but no symbol verification.
 ```
 
 ---
@@ -448,14 +569,16 @@ Start at docs/index.md — the map of all repo docs.
 
 ## Bootstrap Classification
 
-Classify each inventoried doc; the class decides its index line and grouping:
+Classify each inventoried doc; the class decides its index line, grouping, and
+frontmatter `type` (stale is a lifecycle, not a type — it keeps the class it would
+otherwise have, expressed via `status`/`stale_after` plus the flagged line):
 
-| Class | Signals | Index treatment |
-|-------|---------|-----------------|
-| **feature** | describes one capability's behavior; cites its symbols | group under its topic |
-| **architecture** | cross-feature structure, system-wide patterns | its own "Architecture" group |
-| **guide** | setup, how-to, onboarding, runbooks | "Guides" group |
-| **stale** | cites symbols/packages that no longer resolve; describes removed behavior | index with a FLAGGED line (below); the flag is the advisory finding |
+| Class | Signals | Index treatment | Frontmatter `type` |
+|-------|---------|-----------------|--------------------|
+| **feature** | describes one capability's behavior; cites its symbols | group under its topic | `feature` |
+| **architecture** | cross-feature structure, system-wide patterns | its own "Architecture" group | `architecture` |
+| **guide** | setup, how-to, onboarding, runbooks | "Guides" group | `guide` |
+| **stale** | cites symbols/packages that no longer resolve; describes removed behavior | index with a FLAGGED line (below); the flag is the advisory finding | its underlying class |
 
 **Stale never means unindexed** — R9's Q1 reachability invariant always wins. A stale
 doc gets a flagged index line naming the unresolved symbol:
@@ -471,6 +594,21 @@ Bootstrap never decides.
 
 When unsure between feature and architecture: one capability → feature; the seams
 between capabilities → architecture.
+
+### Frontmatter Migration (Brownfield)
+
+An existing network without frontmatter — wired by hand, or by a plugin version
+before the OKF layer — is just another brownfield state. **Verify-or-add, never
+duplicate**: a doc that already has conformant frontmatter is left alone; a doc
+without gets the required keys, with `description` written as its index line
+(add optional `generated` from the doc's last substantive git touch when
+evident). An index
+carrying frontmatter (written by hand, or by an older plugin version) gets it
+stripped — the root keeps only `okf_version`. A `type` the
+classification table cannot settle goes to the advisory report
+(`type?: <doc> — class not inferable`) — never guessed silently. Same for
+`conventions.md` and the check script: create or verify, and report a diverged
+script rather than overwriting it.
 
 ### Rung-2 Gap Criterion (BOOTSTRAP)
 
@@ -508,14 +646,19 @@ vets after the edit.
 
 ### Feature Documentation Checklist
 
+- [ ] Frontmatter present with the required keys (`type`, `description` — R9's
+      bundle policy); `description` reads as the index line
 - [ ] Clear problem statement and high-level solution approach
 - [ ] Entry points listed, cited by symbol (e.g. `POST /users` → `UserHandler.Create`)
 - [ ] Key players table with Symbol, Role, and Package — no file paths, no line numbers
 - [ ] Design decisions explained with rationale, connected to coding principles
 - [ ] Data flow and integration points documented
 - [ ] Usage examples are runnable and copy-pasteable
-- [ ] `Related` section carries edges to sibling docs
-- [ ] Doc has its one line in `index.md`, and at least one code-side edge names it
+- [ ] Lateral doc links are inline, each in a sentence stating the relationship —
+      no `## Related` section
+- [ ] Doc has its one line in `index.md` — copied from its `description` — and at
+      least one code-side edge names it
+- [ ] No `log.md`, no changelog sections, no `related:` frontmatter key
 
 ### Code Comments Checklist
 

@@ -3,6 +3,90 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.10.0] - 2026-08-20
+
+The repo brain had one audience: a session with this plugin installed. In a
+monorepo most contributors — and their agents — don't have it, so the network's
+rules lived nowhere they could find and nothing enforced them. This release
+makes the doc root a standard, self-describing artifact: an Open Knowledge
+Format (OKF v0.2) bundle any tool can consume, with its own maintenance manual
+inside and a CI gate outside.
+
+### Added
+
+- **OKF v0.2 bundle conformance (R9)**: content docs carry YAML frontmatter —
+  required `type` (the spec's one required key) and `description`; optional
+  `title`/`generated` (OKF's provenance key)/`tags` and lifecycle
+  `status`/`stale_after`, the frontmatter-native form of the ⚠️ stale flag.
+  Indexes stay bare, as the spec reserves them; the root index carries only
+  `okf_version`. R9 is a stricter profile of the spec built from spec-valid
+  keys, so the bundle stays consumable by any OKF tool. New falsifying
+  question **Q7** checks the bundle contract mechanically.
+- **Drift-check rule (R9)**: a doc's index line IS its `description`, copied
+  verbatim — the description is the single source, and the conformance gate
+  fails when the copy drifts; `check-repo-brain.sh --fix` rewrites drifted
+  lines from the descriptions (the one mechanical repair the gate performs).
+  The map of maps is directory-shaped (per-topic subdirectories with their
+  own bare index.md), and the split lands in the same commit as the
+  `See docs/...` path rewrite.
+- **One-way link policy (R9)**: write an edge only when no structure implies
+  it — no child→parent backlinks, no `related:` frontmatter key, no `## Related`
+  section; lateral links go inline with the reason in the sentence. `log.md` is
+  never emitted.
+- **Self-hosting conventions doc**: BOOTSTRAP creates `<docroot>/conventions.md`
+  (template in reference.md) — the network's maintenance rules written for
+  contributors without this plugin, listed first in the index.
+- **AGENTS.md routing block**: upgraded from "fallback when CLAUDE.md is
+  absent" to first-class multi-tool coverage — root and nested per sub-project
+  (closest file wins), pointing every AGENTS.md-reading agent at the index and
+  conventions.md. Authored once: CLAUDE.md embeds it via `@AGENTS.md` (plus the
+  `@<docroot>/index.md` map import) instead of duplicating the routing prose.
+- **New `scripts/check-repo-brain.sh`**: dependency-free conformance gate
+  running Q1–Q3 and Q7 over every doc root (repo root plus each go.mod
+  sub-project): transitive reachability from the root index, both edge
+  directions, the file:line ban (URL spans, fenced code blocks, and glob
+  patterns exempt), exact-path root wiring (missing AGENTS.md routing is an
+  advisory, matched as a fixed string so dotted doc roots never ride a
+  look-alike path), the full frontmatter contract (termination; `type` valued
+  feature/architecture/guide; a non-empty `description`; bare indexes;
+  root-only `okf_version`, exactly one, valued `"0.2"`), every index line
+  checked against its target's `description`, and the lifecycle advisory (a
+  target stale by `status: deprecated` or a past `stale_after` whose index
+  line lacks ⚠️). A link into a missing directory is a broken link, never a
+  skip. Docs→code resolution is set-based and Go-shaped: one pass builds the
+  repo's declaration set — single-line and grouped `type (`/`var (`/`const (`
+  declarations, functions, methods, plus `pkg.Ident`/`Type.Method` ownership
+  pairs, so a qualified token resolves only against its actual owner; a
+  token missing there still resolves as a whole word in any non-markdown repo
+  file (config keys, alert names); external `pkg.Sym` (stdlib, dependencies)
+  is exempt. Dogfooded on a 1,271-file production repo: ~55 s per run, zero
+  false-positive classes left. BOOTSTRAP installs it into
+  target repos and suggests the
+  one-line CI wiring. Exit 0 clean/not-adopted, 1 violations, 2 usage error or
+  internal scanner failure (a failed scan is inconclusive, never silently
+  clean); every failure message points at conventions.md. Everything
+  language-specific in the gate sits in one delimited adapter block behind a
+  small `LANG_*` / `lang_*` contract; the driver around it (Q1, Q3, Q7, doc
+  links, `--fix`) is language-agnostic. Portable across awks (gawk, mawk, BSD
+  awk).
+- **New `scripts/check-repo-brain_test.sh`**: the gate's fixture matrix as a
+  committed test — 35 cases across Q1/Q2/Q3/Q7, `--fix` round-trips, usage
+  errors, and the no-code scope, built from POSIX tools in a temp dir. Its
+  differential mode (`GATE_REF=<other script>`) fails on any output, exit-code,
+  or `--fix` difference between two versions of the gate — the contract a
+  refactor, or another language's adapter, must meet.
+
+### Changed
+
+- **BOOTSTRAP is now a migration pass too**: frontmatter is verified-or-added
+  on content docs (never duplicated) and stripped from indexes, so a network
+  wired by an older plugin version converges to the current rules in one
+  idempotent re-run; an un-inferable `type` goes to the advisory report, never
+  guessed.
+- **Feature Doc Template's `Related` section removed**: lateral doc links go
+  inline, in the sentence that states the relationship — a relationship that
+  cannot find a sentence in the body is not worth an edge.
+
 ## [2.9.1] - 2026-07-23
 
 A real 143-line file surfaced the gap v2.9.0 left open: every one of its nine

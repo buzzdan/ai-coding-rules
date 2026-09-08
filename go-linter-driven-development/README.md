@@ -24,6 +24,7 @@ go-linter-driven-development/
 │                 pre-commit-review · testing · documentation   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
 ├── commands/     go-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
+├── scripts/      check-repo-brain.sh — repo-brain conformance gate, installed into target repos by /wire-repo-brain
 └── hooks/        package-size gate
 ```
 
@@ -82,7 +83,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | R6 | [`rules/R6-test-only-interfaces.md`](rules/R6-test-only-interfaces.md) | No interface whose only second implementer is a test double |
 | R7 | [`rules/R7-test-placement.md`](rules/R7-test-placement.md) | `pkg_test` only, no wantErr conditionals, right-rung tests, no sleeps |
 | R8 | [`rules/R8-no-globals.md`](rules/R8-no-globals.md) | No package-level state; no `context.Background()` in library code |
-| R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md |
+| R9 | [`rules/R9-repo-brain.md`](rules/R9-repo-brain.md) | Documentation network: fact at its lowest rung, reachable from the root, edges both directions; index wired into CLAUDE.md; doc root is an OKF bundle (frontmatter, drift-checked index lines) |
 | R10 | [`rules/R10-concurrency-safety.md`](rules/R10-concurrency-safety.md) | Goroutines with owners and exit paths; shared state guarded where it lives; no production sleeps |
 | R11 | [`rules/R11-conditional-dispatch.md`](rules/R11-conditional-dispatch.md) | One dispatch owner per kind/variant family (Anti-IF): duplicated kind-switches become interface/map dispatch chosen once at the boundary; a single switch stays and goes exhaustive |
 | R12 | [`rules/R12-mutation-discipline.md`](rules/R12-mutation-discipline.md) | Mutation only through invariant-owning methods: constructors copy collections in, queries copy (or iterate) out, no query/modifier hybrids, no setters around validating constructors |
@@ -106,7 +107,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern; preparatory mode reshapes ahead of a planned change (Phase 1.5) |
 | [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) | Orchestrates the hunter/skeptic review (Phase 4); reports, never edits |
 | [`@testing`](skills/testing/SKILL.md) | The composition ladder — test each behavior at the lowest rung that contains it |
-| [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring; FEATURE mode (Phase 5) / BOOTSTRAP mode |
+| [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring, OKF conformance + conventions self-hosting; FEATURE mode (Phase 5) / BOOTSTRAP mode |
 
 **Agents → spawned by** (payload-fed, isolated):
 
@@ -126,7 +127,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`/go-ldd-analyze [files]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
 | [`/go-ldd-review [files]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
 | [`/go-ldd-status`](commands/go-ldd-status.md) | Show current phase + progress | N/A | — |
-| [`/wire-repo-brain [path]`](commands/wire-repo-brain.md) | Wire the documentation network in one pass: upward edges → docs → index.md → CLAUDE.md (@documentation BOOTSTRAP) | ✅ Wiring only | ✅ Optional |
+| [`/wire-repo-brain [path]`](commands/wire-repo-brain.md) | Wire the documentation network in one pass: frontmatter → upward edges → docs → index.md → CLAUDE.md/AGENTS.md + conventions.md + conformance script (@documentation BOOTSTRAP) | ✅ Wiring only | ✅ Optional |
 
 ## How Auto-Detection Works
 
