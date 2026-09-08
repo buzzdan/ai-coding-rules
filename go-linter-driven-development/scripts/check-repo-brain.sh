@@ -14,12 +14,15 @@
 #         (the one mechanical repair; everything else stays report-only)
 #
 # Doc roots are discovered at the repo root AND at every sub-project (a
-# directory holding go.mod), using R9's order: .ai/ -> .ainav/ -> docs/.
+# directory holding the language's project marker — see the adapter below),
+# using R9's order: .ai/ -> .ainav/ -> docs/.
 #
-# Language scope: structure checks (Q1, Q3, Q7, doc links) are language-
-# agnostic; code<->docs verification (Q2 symbols, code-edge grep, file-path
-# ban) covers Go files only. With no .go files, symbol checks are skipped and
-# the rest still runs.
+# Language scope: the driver (everything outside the adapter block) is
+# language-agnostic — Q1, Q3, Q7, doc links, the --fix rewriter. Everything
+# that touches code — sub-project discovery, the declaration set, the
+# code-edge grep, the file:line ban, the symbol token shapes — comes from the
+# adapter block. This build carries the Go adapter; with no code files, the
+# code<->docs checks are skipped and the rest still runs.
 #
 # Checks (numbering follows rules/R9-repo-brain.md's falsifying questions):
 #   Q1  orphans        — every doc is reachable from its bundle's root index,
@@ -41,16 +44,16 @@
 # Heuristics (documented, deliberate):
 #   - links are inline-markdown only (`[name](path.md)`, optional "title"
 #     stripped); reference-style links are not checked.
-#   - docs→code checks backticked tokens shaped like exported Go identifiers
-#     (`Foo`, `Foo.Bar`) or package-qualified ones (`pkg.Foo`) that contain a
+#   - docs→code checks backticked tokens shaped like the language's exported
+#     identifiers (adapter: LANG_SYMBOL_RE, LANG_QUALIFIED_RE) that contain a
 #     lowercase letter; other backticks (paths, flags, ALL-CAPS initialisms,
 #     <placeholders>) are skipped.
-#   - resolution is against a declaration set built ONCE per run from all .go
-#     files: single-line and grouped `type (`/`var (`/`const (` declarations,
-#     functions, and methods. A token missing from the set still resolves when
-#     it appears as a whole word in any non-markdown repo file (config keys,
-#     alert names, test helpers). A `pkg.Sym` whose package is not declared in
-#     this repo is external (stdlib, dependencies) and exempt.
+#   - resolution is against a declaration set built ONCE per run from the
+#     language's code files (adapter: lang_declarations). A token missing from
+#     the set still resolves when it appears as a whole word in any
+#     non-markdown repo file (config keys, alert names, test helpers). A
+#     `pkg.Sym` whose package is not declared in this repo is external
+#     (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
 #     symbol resolution and the description copy check (R9 Q2/Q7 exemptions);
 #     the file:line ban has no exemption beyond URL spans, fenced code blocks,
@@ -63,6 +66,7 @@
 #             2 usage error
 #
 # Uses only POSIX-portable tools: find, grep, sed, awk, head, sort, wc. No jq/python.
+# awk programs avoid interval expressions ({m,n}) — mawk, Debian's default, rejects them.
 
 set -u
 
@@ -78,7 +82,103 @@ if [[ ! -d "$REPO_ROOT" ]]; then
 fi
 cd "$REPO_ROOT" || exit 2
 
-# ---------- doc-root discovery: repo root + every go.mod directory ----------
+# ======================= language adapter: go =======================
+# Everything language-specific lives between these two marker comments. The
+# driver below calls only the lang_* functions and LANG_* variables defined
+# here; a build of this gate for another language replaces this block and
+# nothing else. The fixture matrix (check-repo-brain_test.sh) is the contract
+# every adapter must pass.
+#
+# Contract:
+#   LANG_PROJECT_MARKER  file whose directory is a sub-project with its own doc root
+#   LANG_CODE_GLOB       find(1) -name pattern for the language's code files
+#   LANG_FILE_EXT        substring that flags a possible file citation (cheap pre-check)
+#   LANG_FILE_RE         awk regex a citation span must match to be banned
+#   LANG_SYMBOL_RE       awk regex for a bare backticked symbol worth resolving
+#   LANG_QUALIFIED_RE    awk regex for a package-qualified `pkg.Sym` token
+#   lang_project_dirs    stdout: one sub-project directory per line, repo root excluded
+#   lang_has_code        exit 0 iff the repo holds at least one code file
+#   lang_declarations    stdout: "pkg:<name>" for every package/module, plus every
+#                        declared identifier, one per line (duplicates are fine)
+#   lang_code_edges      stdout: "file:line:target" for every docs-path citation
+#                        inside code files (grep -rno shape)
+#
+# Go: sub-projects are go.mod directories; exported identifiers start with an
+# upper-case letter; the declaration set covers single-line and grouped
+# `type (`/`var (`/`const (` declarations, functions, and methods.
+LANG_PROJECT_MARKER="go.mod"
+LANG_CODE_GLOB='*.go'
+LANG_FILE_EXT=".go"
+LANG_FILE_RE='\\.go(:[0-9]+)?$'
+LANG_SYMBOL_RE='^[A-Z][A-Za-z0-9]*$'
+LANG_QUALIFIED_RE='^[A-Za-z][A-Za-z0-9_]*\\.[A-Z][A-Za-z0-9]*$'
+
+lang_project_dirs() {
+  local m p
+  while IFS= read -r m; do
+    p=$(dirname "$m"); p="${p#./}"
+    [[ "$p" == "." || -z "$p" ]] && continue
+    printf '%s\n' "$p"
+  done < <(find . -name "$LANG_PROJECT_MARKER" -not -path '*/vendor/*' -not -path './.git/*' 2>/dev/null | sort)
+}
+
+lang_has_code() {
+  find . -name "$LANG_CODE_GLOB" -not -path './vendor/*' -not -path '*/vendor/*' -not -path './.git/*' \
+    -print -quit 2>/dev/null | grep -q .
+}
+
+# Go declarations: package names (pkg:<name>) plus every declared identifier —
+# single-line and grouped type/var/const declarations, functions, methods.
+LANG_DECL_AWK='
+inblock != "" {
+  if ($0 ~ /^\)/) { inblock = ""; next }
+  s = $0; sub(/^[ \t]+/, "", s)
+  if (s ~ /^[A-Za-z_]/) {
+    t = s; sub(/[ \t=([].*$/, "", t)
+    n = split(t, parts, ",")
+    for (i = 1; i <= n; i++) {
+      p = parts[i]; gsub(/[ \t]/, "", p)
+      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
+    }
+  }
+  next
+}
+/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); print "pkg:" s; next }
+/^(type|var|const) \(/ { inblock = "y"; next }
+/^func \(/ {
+  s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
+  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
+  next
+}
+/^func [A-Za-z_]/ {
+  s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
+  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
+  next
+}
+/^(type|var|const) [A-Za-z_]/ {
+  s = $0; sub(/^(type|var|const) /, "", s)
+  t = s; sub(/[ \t=([].*$/, "", t)
+  n = split(t, parts, ",")
+  for (i = 1; i <= n; i++) {
+    p = parts[i]; gsub(/[ \t]/, "", p)
+    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
+  }
+  next
+}
+'
+
+lang_declarations() {
+  find . -name "$LANG_CODE_GLOB" -not -path '*/vendor/*' -not -path './.git/*' -print0 2>/dev/null \
+    | xargs -0 awk "$LANG_DECL_AWK"
+}
+
+lang_code_edges() {
+  grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
+    --include="$LANG_CODE_GLOB" --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null
+}
+# ===================== end language adapter: go =====================
+
+# ---------- doc-root discovery: repo root + every sub-project ----------
 discover_docroot() { # <project-dir> -> docroot path or ''
   local base="$1" d p
   for d in .ai .ainav docs; do
@@ -100,14 +200,12 @@ add_root() { # <project-dir>
   ROOTS+=("$r")
 }
 add_root "."
-while IFS= read -r gm; do
-  p=$(dirname "$gm"); p="${p#./}"
-  [[ "$p" == "." || -z "$p" ]] && continue
+while IFS= read -r p; do
   add_root "$p"
-done < <(find . -name go.mod -not -path '*/vendor/*' -not -path './.git/*' 2>/dev/null | sort)
+done < <(lang_project_dirs)
 
 if (( ${#ROOTS[@]} == 0 )); then
-  echo "check-repo-brain: no doc root (.ai/, .ainav/, docs/) at the repo root or any go.mod sub-project — nothing to check yet; run /wire-repo-brain to bootstrap"
+  echo "check-repo-brain: no doc root (.ai/, .ainav/, docs/) at the repo root or any $LANG_PROJECT_MARKER sub-project — nothing to check yet; run /wire-repo-brain to bootstrap"
   exit 0
 fi
 ROOT_BUNDLE=""
@@ -170,57 +268,15 @@ desc_of() { # <file> -> description value ('' if none)
     | sed -e 's/^description:[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
-have_go=0
-if find . -name '*.go' -not -path './vendor/*' -not -path '*/vendor/*' -not -path './.git/*' -print -quit 2>/dev/null | grep -q .; then
-  have_go=1
-fi
+have_code=0
+lang_has_code && have_code=1
 
 # ---------- declaration set: built once, queried per token ----------
-# Collects package names (pkg:<name>) plus every declared identifier —
-# single-line and grouped type/var/const declarations, functions, methods.
-DECL_AWK='
-inblock != "" {
-  if ($0 ~ /^\)/) { inblock = ""; next }
-  s = $0; sub(/^[ \t]+/, "", s)
-  if (s ~ /^[A-Za-z_]/) {
-    t = s; sub(/[ \t=([].*$/, "", t)
-    n = split(t, parts, ",")
-    for (i = 1; i <= n; i++) {
-      p = parts[i]; gsub(/[ \t]/, "", p)
-      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
-    }
-  }
-  next
-}
-/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); print "pkg:" s; next }
-/^(type|var|const) \(/ { inblock = "y"; next }
-/^func \(/ {
-  s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
-  next
-}
-/^func [A-Za-z_]/ {
-  s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print s
-  next
-}
-/^(type|var|const) [A-Za-z_]/ {
-  s = $0; sub(/^(type|var|const) /, "", s)
-  t = s; sub(/[ \t=([].*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print p
-  }
-  next
-}
-'
 DECLS="" PKGS=""
-if (( have_go )); then
+if (( have_code )); then
   DECLS=$(mktemp) PKGS=$(mktemp) DECL_ALL=$(mktemp)
   trap 'rm -f "$DECLS" "$PKGS"' EXIT
-  find . -name '*.go' -not -path '*/vendor/*' -not -path './.git/*' -print0 2>/dev/null \
-    | xargs -0 awk "$DECL_AWK" 2>/dev/null | sort -u > "$DECL_ALL"
+  lang_declarations | sort -u > "$DECL_ALL"
   grep '^pkg:' "$DECL_ALL" | sed 's/^pkg://' > "$PKGS"
   grep -v '^pkg:' "$DECL_ALL" > "$DECLS"
   rm -f "$DECL_ALL"
@@ -233,21 +289,22 @@ is_repo_pkg() { grep -qxF "$1" "$PKGS" 2>/dev/null; }
 #   S <file> <lineno> <token>  — a backticked symbol-shaped token to resolve
 # Tokens are then resolved as SETS (one grep against the declaration file, one
 # repo-wide word grep for the whole unresolved batch) — never per token.
+# Language-specific shapes arrive as -v variables: file_ext, file_re, sym_re, qual_re.
 DOCSCAN_AWK='
 FNR == 1 { fence = 0 }
 {
   line = $0
-  if (line ~ /^ ? ? ?(```|~~~)/) { fence = 1 - fence; next }   # no {0,3}: mawk rejects intervals
+  if (line ~ /^ ? ? ?(```|~~~)/) { fence = 1 - fence; next }
   if (fence) next
   gsub(/[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^ )>]*/, "", line)
   pf = 0
-  if (line ~ /\.go/) {
+  if (index(line, file_ext) > 0) {
     n = split(line, sp, /[^A-Za-z0-9_*\/.~-]+/)
     for (i = 1; i <= n; i++) {
       s = sp[i]
       sub(/\.+$/, "", s)
       if (s ~ /\*/) continue
-      if (s ~ /\.go$/ || s ~ /\.go:[0-9]+$/) { pf = 1; break }
+      if (s ~ file_re) { pf = 1; break }
     }
   }
   if (!pf && line ~ /(^|[^A-Za-z0-9_])line [0-9]+/) pf = 1
@@ -259,7 +316,7 @@ FNR == 1 { fence = 0 }
   for (i = 2; i <= m; i += 2) {
     t = seg[i]
     if (t !~ /[a-z]/) continue
-    if (t ~ /^[A-Z][A-Za-z0-9]*$/ || t ~ /^[A-Za-z][A-Za-z0-9_]*\.[A-Z][A-Za-z0-9]*$/)
+    if (t ~ sym_re || t ~ qual_re)
       print "S\t" FILENAME "\t" FNR "\t" t
   }
 }
@@ -277,7 +334,7 @@ docroot_for_file() { # <file> -> docroot of the longest matching project dir
   printf '%s\n' "${best:-${ROOTS[0]}}"
 }
 
-if (( have_go )); then
+if (( have_code )); then
   while IFS= read -r hit; do
     file="${hit%%:*}"; rest="${hit#*:}"; line="${rest%%:*}"; target="${rest#*:}"
     [[ -f "$target" ]] && continue
@@ -290,8 +347,7 @@ if (( have_go )); then
       CUR_DOCROOT=$(docroot_for_file "$file")
       fail "[Q2] $file:$line — code edge points at missing $target"
     fi
-  done < <(grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
-             --include='*.go' --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null)
+  done < <(lang_code_edges)
 fi
 
 # ---------- per-bundle checks ----------
@@ -346,12 +402,14 @@ check_bundle() { # <project-dir> <docroot>
   # One awk pass extracts; resolution is set-based (see DOCSCAN_AWK above). ---
   local scan; scan=$(mktemp)
   find "$docroot" -type f -name '*.md' -print0 2>/dev/null \
-    | xargs -0 awk "$DOCSCAN_AWK" 2>/dev/null > "$scan"
+    | xargs -0 awk -v file_ext="$LANG_FILE_EXT" -v file_re="$LANG_FILE_RE" \
+                   -v sym_re="$LANG_SYMBOL_RE" -v qual_re="$LANG_QUALIFIED_RE" \
+                   "$DOCSCAN_AWK" > "$scan"
   local f ln
   while IFS=$'\t' read -r _ f ln; do
     fail "[Q2] $f:$ln — cites a file path or line number (churn-prone coordinate)"
   done < <(grep $'^P\t' "$scan")
-  if (( have_go )) && grep -q $'^S\t' "$scan"; then
+  if (( have_code )) && grep -q $'^S\t' "$scan"; then
     local toks check members unres bad
     toks=$(mktemp) check=$(mktemp) members=$(mktemp) unres=$(mktemp) bad=$(mktemp)
     grep $'^S\t' "$scan" | cut -f4 | sort -u > "$toks"

@@ -9,6 +9,9 @@
 #
 # Usage:  bash scripts/check-repo-brain_test.sh [path/to/check-repo-brain.sh]
 #         (default: the sibling check-repo-brain.sh)
+#         GATE_REF=old.sh bash scripts/check-repo-brain_test.sh — differential
+#         mode: also runs the reference script on each fixture and fails on any
+#         difference in output, exit code, or files written by --fix
 # Exit:   0 all cases pass · 1 any failure (details on stdout)
 #
 # Uses only POSIX-portable tools, like the script under test.
@@ -28,9 +31,33 @@ OUT="" ERR="" CODE=0
 begin() { CASE="$1"; REPO=$(mktemp -d); }
 finish() { rm -rf "$REPO"; }
 
+# GATE_REF=/path/to/other/check-repo-brain.sh — differential mode: every run is
+# repeated with the reference script on an identical copy of the fixture, and
+# any difference in stdout, stderr, or exit code fails the case. Use it to prove
+# a refactor of the gate (or a new language adapter) changed no behavior.
+GATE_REF="${GATE_REF:-}"
+diffs=0
+
 run_gate() { # [--fix]
+  local ref_repo="" ref_out="" ref_err="" ref_code=0
+  if [[ -n "$GATE_REF" ]]; then
+    ref_repo=$(mktemp -d); cp -R "$REPO/." "$ref_repo/"
+  fi
   OUT=$(cd "$REPO" && bash "$GATE" "$@" . 2>"$REPO/.stderr"); CODE=$?
   ERR=$(cat "$REPO/.stderr"); rm -f "$REPO/.stderr"
+  if [[ -n "$GATE_REF" ]]; then
+    ref_out=$(cd "$ref_repo" && bash "$GATE_REF" "$@" . 2>"$ref_repo/.stderr"); ref_code=$?
+    ref_err=$(cat "$ref_repo/.stderr"); rm -f "$ref_repo/.stderr"
+    if [[ "$OUT" != "$ref_out" || "$ERR" != "$ref_err" || "$CODE" != "$ref_code" ]]; then
+      diffs=$((diffs + 1))
+      echo "DIFF  $CASE — output differs from reference ($GATE_REF)"
+      diff <(printf 'exit=%s\n%s\n%s\n' "$ref_code" "$ref_out" "$ref_err") \
+           <(printf 'exit=%s\n%s\n%s\n' "$CODE" "$OUT" "$ERR") | sed 's/^/      /'
+    elif (( $# > 0 )) && [[ "$1" == "--fix" ]]; then
+      diff -r "$ref_repo" "$REPO" >/dev/null || { diffs=$((diffs + 1)); echo "DIFF  $CASE — --fix wrote different files than the reference"; }
+    fi
+    rm -rf "$ref_repo"
+  fi
 }
 
 ok()   { pass=$((pass + 1)); echo "PASS  $CASE"; }
@@ -458,5 +485,10 @@ finish
 
 # ========================= summary =========================
 echo
-echo "check-repo-brain_test: $pass passed, $failed failed"
-(( failed == 0 ))
+if [[ -n "$GATE_REF" ]]; then
+  echo "check-repo-brain_test: $pass passed, $failed failed, $diffs differ from reference"
+  (( failed == 0 && diffs == 0 ))
+else
+  echo "check-repo-brain_test: $pass passed, $failed failed"
+  (( failed == 0 ))
+fi
