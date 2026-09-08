@@ -1,0 +1,20 @@
+PASS  .golangci.yaml unchanged from the fixture's original
+task test: ok
+PASS  task test green
+info  task lint issues remaining: 0
+info  commits since scaffold: 0
+PASS  assertions kept in ./internal/handlers/handlers_test.go (20 >= 20)
+PASS  assertions kept in ./internal/handlers/heartbeat_test.go (27 >= 27)
+PASS  assertions kept in ./internal/jobs/scheduler_test.go (10 >= 10)
+PASS  assertions kept in ./internal/models/region_test.go (4 >= 4)
+PASS  assertions kept in ./internal/models/tenant_test.go (3 >= 3)
+PASS  assertions kept in ./internal/pkg/deviceid/deviceid_test.go (4 >= 4)
+PASS  assertions kept in ./internal/placement/picker_test.go (4 >= 4)
+PASS  assertions kept in ./internal/pool/workers_test.go (1 >= 1)
+PASS  assertions kept in ./internal/report/report_test.go (11 >= 11)
+PASS  assertions kept in ./internal/services/service_test.go (55 >= 55)
+PASS  assertions kept in ./internal/snapshot/schedule_test.go (12 >= 12)
+PASS  assertions kept in ./internal/snapshot/scheduler_test.go (14 >= 14)
+PASS  assertions kept in ./internal/transport/client_test.go (1 >= 1)
+FAIL  test file ./internal/utils/utils_test.go removed (had 7 assertion lines): tree total still covers the baseline 173 (got '169', want >= 173)
+postcheck: 1 check(s) failed

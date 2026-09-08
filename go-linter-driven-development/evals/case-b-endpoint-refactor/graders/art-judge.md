@@ -1,9 +1,9 @@
 ---
 type: llm
 criteria: The three values that always travel together (host, port, TLS) became one named thing that owns its own questions, and the client reads as a story of what it does, not how it assembles strings.
-focus: { source: file, path: internal/transport/client.go }
+focus: { source: files, paths: [internal/transport] }
 ---
-Glance at the file as a first-time reader. Judge shape and naming; tests and
+Glance at the package as a first-time reader (the concept may now live in its own file). Judge shape and naming; tests and
 lint are graded elsewhere.
 
 PASS only if all four hold, quoting the convincing line for each:

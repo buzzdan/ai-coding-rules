@@ -21,13 +21,15 @@ new_ctors=$(new_func_names 'func (Parse|New)[A-Za-z]+\([^)]*\) \([A-Za-z]+, erro
 echo "new constructors: ${new_ctors:-<none>}"
 assert_ge "a new (Parse|New)X(...) (X, error) constructor exists in internal/snapshot" "$(wc -w <<<"$new_ctors")" 1
 
-# R7: a rung-0 test in package snapshot_test calls a new constructor with a literal.
+# R7: a rung-0 test in package snapshot_test exercises a new constructor
+# (table-driven tests pass the case value through a helper, so any external
+# call counts, not only a literal argument).
 calls=0
 for c in $new_ctors; do
-  n=$(external_test_calls "snapshot\.$c\(\"" 'internal/snapshot/*_test.go')
+  n=$(external_test_calls "snapshot\.$c\(" 'internal/snapshot/*_test.go')
   calls=$((calls + n))
 done
-assert_ge "snapshot_test calls a new constructor with a string literal" "$calls" 1
+assert_ge "snapshot_test calls a new constructor" "$calls" 1
 
 # R2 Q1: the new type cannot be built invalid — no exported fields, no literal
 # construction outside its own file (non-test).

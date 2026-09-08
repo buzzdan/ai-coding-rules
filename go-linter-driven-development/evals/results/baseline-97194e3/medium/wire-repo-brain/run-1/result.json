@@ -1,0 +1,74 @@
+{
+  "case": "wire-repo-brain",
+  "run": 1,
+  "model": "claude-sonnet-5",
+  "passed": true,
+  "graders": [
+    {
+      "name": "agents-exists",
+      "type": "file_exists",
+      "passed": true,
+      "detail": "1 match(es): AGENTS.md"
+    },
+    {
+      "name": "bootstrap-complete",
+      "type": "regex",
+      "passed": true,
+      "detail": "BOOTSTRAP COMPLETE over last_message: 1 match(es); want at least 1"
+    },
+    {
+      "name": "claude-md-wired",
+      "type": "regex",
+      "passed": true,
+      "detail": "@docs/index\\.md over files: 1 match(es); want at least 1"
+    },
+    {
+      "name": "conventions-exist",
+      "type": "file_exists",
+      "passed": true,
+      "detail": "1 match(es): docs/conventions.md"
+    },
+    {
+      "name": "gate-installed",
+      "type": "file_exists",
+      "passed": true,
+      "detail": "1 match(es): scripts/check-repo-brain.sh"
+    },
+    {
+      "name": "index-exists",
+      "type": "file_exists",
+      "passed": true,
+      "detail": "1 match(es): docs/index.md"
+    },
+    {
+      "name": "okf-version",
+      "type": "regex",
+      "passed": true,
+      "detail": "okf_version over files: 14 match(es); want at least 1"
+    },
+    {
+      "name": "orphan-handled",
+      "type": "regex",
+      "passed": true,
+      "detail": "heartbeat-protocol over last_message: 7 match(es); want at least 1"
+    },
+    {
+      "name": "phantom-symbol-reported",
+      "type": "regex",
+      "passed": true,
+      "detail": "SnapshotRunner over last_message: 4 match(es); want at least 1"
+    },
+    {
+      "name": "postcheck",
+      "type": "postcheck",
+      "passed": true,
+      "detail": "info  installed gate exit 1\n      stderr:   [Q2] ./internal/models/heartbeat.go:7 — code edge points at missing docs/snapshots.md — see docs/conventions.md\n      stderr:   [Q2] docs/heartbeat-protocol.md:24 — cites a file path or line number (churn-prone coordinate) — see docs/conventions.md\n      stderr:   [Q2] docs/heartbeat-protocol.md:28 — backticked `SnapshotRunner` does not resolve (SnapshotRunner not declared or found in the repo) — see docs/conventions.md\n      stderr: check-repo-brain: 3 violation(s) — rules: \u003cdocroot\u003e/conventions.md\nPASS  installed gate clean, or red only on [Q2] content-doc citations (no Q1/Q3/Q7)\nPASS  installed gate byte-identical to the plugin's scripts/check-repo-brain.sh\npostcheck: all checks passed"
+    }
+  ],
+  "cost_usd": 0.9252052000000001,
+  "judge_cost_usd": 0,
+  "duration_ms": 252735,
+  "num_turns": 33,
+  "segments": 1,
+  "scaffold_dir": "/tmp/ldd-eval-wire-repo-brain-2595200261"
+}

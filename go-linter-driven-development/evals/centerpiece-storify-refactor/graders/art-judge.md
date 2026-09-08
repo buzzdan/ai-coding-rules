@@ -1,9 +1,9 @@
 ---
 type: llm
 criteria: The file reads like art — ProcessHeartbeat tells the story in domain sentences, each concept it used to inline now has its own well-named box, and the names make the old comments unnecessary.
-focus: { source: file, path: internal/services/device_service.go }
+focus: { source: files, paths: [internal/services] }
 ---
-Glance at the whole file as a first-time reader. The single-altitude grader
+Glance at the whole package as a first-time reader (helpers may live in new files). The single-altitude grader
 checks the ProcessHeartbeat body mechanically; you judge whether the result is
 something a reviewer would call beautiful rather than merely split up.
 

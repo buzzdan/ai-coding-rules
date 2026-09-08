@@ -1,9 +1,9 @@
 ---
 type: llm
 criteria: Nil stopped doing three jobs; every optional or absent thing now has a name, and each of the three files tells one story at one altitude.
-focus: { source: files, paths: [internal/report/reporter.go, internal/report/catalog.go, internal/report/wire.go] }
+focus: { source: files, paths: [internal/report] }
 ---
-Glance at the three files as a first-time reader. Judge shape and naming.
+Glance at the package as a first-time reader (concepts may have moved into files of their own). Judge shape and naming.
 
 PASS only if all four hold, quoting the convincing line for each:
 

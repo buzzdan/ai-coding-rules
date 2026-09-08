@@ -1,4 +1,4 @@
-# Baseline 97194e3 — cheap tier
+# Baseline 97194e3 — cheap tier and a medium-tier subset
 
 Plugin at `main` 681fdb0 (v2.10.0), cases and fixture at `97194e3` with graders calibrated
 afterwards and re-applied by `ldd-eval regrade` (no agent re-spend). Agent model pinned to
@@ -81,6 +81,44 @@ alongside the skill's, the comma-ok fix spelled as `(Device, bool)`, and size/ne
 numbers as R3 Q1 linter evidence. One grader was removed: `cluster-status-r3` expected R3
 in the Device.Status cluster, which `violations.yaml` never defined; both runs correctly
 put R3 in the ProcessHeartbeat cluster.
+
+## Medium tier — subset (`medium/`)
+
+Run once each with `--keep-temp` (scaffolds kept so file, postcheck and art judges regrade),
+same model pins, $12.07 total against a $40 cap.
+
+    for c in quickfix-red-lint prepare-sms wire-repo-brain case-a-retention-refactor; do
+      ldd-eval run --resume --keep-temp --case "$c" --model claude-sonnet-5 --max-cost-usd 40 --out results/baseline-97194e3/medium <evals>
+    done
+
+| Case | Passed | Turns | Cost | Reads as |
+|---|---|---|---|---|
+| quickfix-red-lint | 0/1 | 121 | $7.65 | hit the 120-turn cap with no final report; lint 0 issues, no nolint, config untouched, 26 design findings escalated with rule routes, but the fix pass dissolved `utils`/`common` and kept 169 of 173 test assertions |
+| prepare-sms | 1/1 | 47 | $1.36 | PREPARATION LOG, MULTIPLY gate, R11 named, skeptic consulted, one prep commit (channel strings → constants), no feature code |
+| wire-repo-brain | 1/1 | 33 | $0.93 | OKF bundle wired and the check script passes |
+| case-a-retention-refactor | 1/1 | 62 | $2.13 | `Retention` type in its own file with `ParseRetention(raw) (Retention, error)` and `Expired(createdAt, now)`; `policy.go`/`config.go` deleted; `Prune` reads as a story; **art judge PASS** |
+
+Findings added by this subset:
+
+7. **The refactor path produces the art the review path refuses.** Given the Case A files
+   and the plain instruction to fix them, the workflow extracted exactly the domain type
+   the skeptic scored 1 in the review (finding 1), moved it into its own file, gave it
+   the two methods the story needs, and left nothing behind. The art judge passed it
+   with quotes for every criterion. The gap is in the review's skeptic, not in the
+   refactoring skill.
+8. **Quickfix has no stopping rule.** The lint-fixer classified correctly and reported
+   `LINT STATUS: escalations pending (26)`; the parent then executed every escalation
+   itself in one session, 41 edits and 9 new files, until the turn cap ended it without
+   a report. The command's own text says escalations route through the refactoring
+   skill design-first, so the behavior is in spec; the cost and the lost assertions are
+   the finding. lint-fixer also wrote its escalations as a table, not the `ESCALATED:`
+   lines its contract specifies.
+9. **Nothing commits.** Neither the quickfix nor the Case A refactor made a commit; the
+   working tree held the result. prepare-sms did commit, as its skill demands. The
+   refactor cases' prompts ask for the workflow, whose SHIP phase ends in a commit.
+
+Judge cost for the subset $0.05. The art judges were dry-checked on the untouched fixture
+first: six FAIL, the Case D control PASSes (`README.md` of each case's `graders/art-judge.md`).
 
 ## Infrastructure notes
 

@@ -1,9 +1,9 @@
 ---
 type: llm
 criteria: The global was pushed up to the composition root and every layer below it now states, in its signature, exactly what it depends on.
-focus: { source: files, paths: [internal/env/env.go, internal/pool/workers.go, internal/jobs/scheduler.go, cmd/svc/main.go] }
+focus: { source: files, paths: [internal/env, internal/pool, internal/jobs, cmd/svc] }
 ---
-Glance at the four files top-down, main first. Judge the dependency story,
+Glance at the four packages top-down, main first. Judge the dependency story,
 not lint mechanics (the linter and the git ratchet are graded elsewhere).
 
 PASS only if all four hold, quoting the convincing line for each:

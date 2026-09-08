@@ -1,0 +1,6 @@
+PASS  prep commits after the scaffold base (1 >= 1)
+PASS  no SMS feature code in non-test Go files
+task test: ok
+PASS  task test green after prep
+PASS  internal/services/device_service.go untouched
+postcheck: all checks passed

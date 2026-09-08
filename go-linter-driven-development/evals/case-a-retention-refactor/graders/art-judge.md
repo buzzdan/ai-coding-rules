@@ -1,9 +1,9 @@
 ---
 type: llm
 criteria: The retention concept now lives in one box with a name, and the code that uses it reads as a story of intent rather than a ledger of parsing and range checks.
-focus: { source: files, paths: [internal/snapshot/policy.go, internal/snapshot/config.go] }
+focus: { source: files, paths: [internal/snapshot] }
 ---
-Glance at the two files as a reader who has never seen them. Judge the shape,
+Glance at the package as a reader who has never seen it (the concept may now live in a file of its own). Judge the shape,
 not the mechanics (tests and lint are graded elsewhere).
 
 PASS only if all four hold, and quote the line that convinces you for each:

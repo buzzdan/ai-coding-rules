@@ -72,6 +72,17 @@ func TestLLM_Grade_FilesFocusRendersEachFileUnderItsPath(t *testing.T) {
 	if !strings.Contains(p, "## FOCUS (files a/x.go, b/y.go)") || !strings.Contains(p, "### b/y.go\n\npackage b") {
 		t.Errorf("prompt = %q, want both files under their path headings", p)
 	}
+	// A directory member stands for its non-test .go files, in name order.
+	dirTree := writeTree(t, map[string]string{"pkg/b.go": "package pkg // b\n", "pkg/a.go": "package pkg // a\n", "pkg/a_test.go": "package pkg_test\n", "pkg/notes.md": "x\n"})
+	dirFocus, _ := grade.FocusFiles([]string{"pkg"})
+	g3, _ := grade.NewLLM("art", "c", "", dirFocus)
+	if out := g3.Grade(context.Background(), grade.Subject{Dir: dirTree, OutDir: t.TempDir(), Judge: judge}); !out.Passed {
+		t.Errorf("dir focus outcome = %+v, want PASS from the fake judge", out)
+	}
+	prompt := g3.Prompt("### pkg/a.go\n\npackage pkg // a\n\n\n### pkg/b.go\n\npackage pkg // b\n\n\n")
+	if strings.Index(prompt, "### pkg/a.go") > strings.Index(prompt, "### pkg/b.go") || strings.Contains(prompt, "a_test.go") {
+		t.Errorf("dir focus must render a.go before b.go and skip tests, got %q", prompt)
+	}
 	// A missing member fails before the judge is consulted.
 	partial, _ := grade.FocusFiles([]string{"a/x.go", "missing.go"})
 	g2, _ := grade.NewLLM("art", "c", "", partial)

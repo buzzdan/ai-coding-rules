@@ -1,9 +1,9 @@
 ---
 type: llm
 criteria: The node list became a collection type that answers placement questions by name, and Pick reads as a two-line story instead of a flag-driven loop.
-focus: { source: file, path: internal/placement/picker.go }
+focus: { source: files, paths: [internal/placement] }
 ---
-Glance at the file as a first-time reader. The single-altitude grader already
+Glance at the package as a first-time reader. The single-altitude grader already
 checks the orchestrator body; you judge whether the whole file now reads as
 art.
 

@@ -43,9 +43,10 @@ func FocusFile(path string) (Focus, error) {
 	return Focus{kind: focusFile, paths: []string{path}}, nil
 }
 
-// FocusFiles focuses the judge on several files relative to the scaffold dir,
-// rendered in order, each under a "### <path>" heading, so one judge can
-// check that concepts landed in the right file.
+// FocusFiles focuses the judge on several paths relative to the scaffold dir,
+// rendered in order, each file under a "### <path>" heading, so one judge can
+// check that concepts landed in the right file. A path may be a directory,
+// which stands for its non-test .go files.
 func FocusFiles(paths []string) (Focus, error) {
 	if len(paths) == 0 {
 		return Focus{}, fmt.Errorf("%w: files focus needs at least one path", ErrBadFocus)
@@ -94,18 +95,55 @@ func (f Focus) text(s Subject) (string, error) {
 	case focusFiles:
 		var b strings.Builder
 		for _, p := range f.paths {
-			data, err := os.ReadFile(filepath.Join(s.Dir, p))
+			files, err := expandFocusPath(s.Dir, p)
 			if err != nil {
-				return "", fmt.Errorf("read focus file: %w", err)
+				return "", err
 			}
-			b.WriteString("### " + p + "\n\n")
-			b.Write(data)
-			b.WriteString("\n\n")
+			for _, rel := range files {
+				data, err := os.ReadFile(filepath.Join(s.Dir, rel))
+				if err != nil {
+					return "", fmt.Errorf("read focus file: %w", err)
+				}
+				b.WriteString("### " + rel + "\n\n")
+				b.Write(data)
+				b.WriteString("\n\n")
+			}
 		}
 		return b.String(), nil
 	default:
 		return s.Trace.LastMessage(), nil
 	}
+}
+
+// expandFocusPath returns the files a focus path names: the file itself, or,
+// for a directory, its non-test .go files in name order. A refactor is free to
+// move a concept into a new file of the package it belongs to; a directory
+// focus keeps the judge looking at the package, not at a filename the agent
+// may rightly have deleted.
+func expandFocusPath(root, rel string) ([]string, error) {
+	info, err := os.Stat(filepath.Join(root, rel))
+	if err != nil {
+		return nil, fmt.Errorf("read focus file: %w", err)
+	}
+	if !info.IsDir() {
+		return []string{rel}, nil
+	}
+	entries, err := os.ReadDir(filepath.Join(root, rel))
+	if err != nil {
+		return nil, fmt.Errorf("read focus dir: %w", err)
+	}
+	var files []string
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		files = append(files, filepath.Join(rel, name))
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("read focus dir: %s holds no non-test .go files", rel)
+	}
+	return files, nil
 }
 
 // LLM asks a judge model for a PASS/FAIL verdict on the focus text.

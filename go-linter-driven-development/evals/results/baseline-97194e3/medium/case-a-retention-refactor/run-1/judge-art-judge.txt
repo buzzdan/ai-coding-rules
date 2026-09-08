@@ -1,0 +1,19 @@
+Looking at the four required criteria:
+
+**1. One box** ✓
+The `Retention` type in `retention.go` contains all parsing and validation. Line in `ParseRetention`: `days, err := strconv.Atoi(strings.TrimSuffix(v, "d"))` and `if err != nil || days <= 0 || days > 365` are both inside the box. The scheduler's `Prune` and `Take` methods call `ParseRetention` once but never re-parse or re-validate—they only use the `Retention` object.
+
+**2. Names speak intent** ✓
+In `scheduler.go:Prune`, the pruning loop reads: `if retention.Expired(sn.CreatedAt, now) { expired = append(expired, sn) }`. The method name `Expired` asks the domain question ("is this expired?") rather than exposing arithmetic like `age > days`.
+
+**3. One altitude per function** ✓
+The `Prune` method in `scheduler.go` reads top-down: obtain retention → fetch snapshots → collect expired ones → delete them. No `strconv`, `strings`, or arithmetic clutter in the body—all delegation is to named methods (`ParseRetention`, `store.List`, `retention.Expired`).
+
+**4. No leftover ceremony** ✓
+The code has no defensive `0` checks in the implementation. The docstring "never use Retention{} directly" is API documentation, not leftover ceremony in the logic. The actual `Expired` method is free of conditions like `if r.days == 0`.
+
+Both FAIL conditions are avoided:
+- `strconv.Atoi(strings.TrimSuffix(` appears only in `retention.go:ParseRetention`, not at call sites
+- `days <= 0 || days > 365` appears only once, in `retention.go:ParseRetention`
+
+VERDICT: PASS

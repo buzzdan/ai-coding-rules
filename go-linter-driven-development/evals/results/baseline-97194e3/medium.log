@@ -1,0 +1,23 @@
+subset: starting quickfix-red-lint
+ldd-eval: 1 case(s) -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium
+quickfix-red-lint run 1/1: passed=false cost=$7.6473 turns=121 
+aggregate: passRate=0.00 averageScore=0.44 totalCostUSD=7.6473 -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium/aggregate-result.json
+ldd-eval: some cases fell below the pass-rate threshold 1.00
+RUN-EXIT=1 case=quickfix-red-lint
+subset: starting prepare-sms
+ldd-eval: 1 case(s) -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium
+prepare-sms run 1/1: passed=true cost=$1.3609 turns=47 
+aggregate: passRate=1.00 averageScore=1.00 totalCostUSD=1.3609 -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium/aggregate-result.json
+RUN-EXIT=0 case=prepare-sms
+subset: starting wire-repo-brain
+ldd-eval: 1 case(s) -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium
+wire-repo-brain run 1/1: passed=true cost=$0.9252 turns=33 
+aggregate: passRate=1.00 averageScore=1.00 totalCostUSD=0.9252 -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium/aggregate-result.json
+RUN-EXIT=0 case=wire-repo-brain
+subset: starting case-a-retention-refactor
+ldd-eval: 1 case(s) -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium
+case-a-retention-refactor run 1/1: passed=false cost=$2.1259 turns=62 
+aggregate: passRate=0.00 averageScore=0.60 totalCostUSD=2.1259 -> /home/user/ai-coding-rules/go-linter-driven-development/evals/results/baseline-97194e3/medium/aggregate-result.json
+ldd-eval: some cases fell below the pass-rate threshold 1.00
+RUN-EXIT=1 case=case-a-retention-refactor
+SUBSET-DONE
