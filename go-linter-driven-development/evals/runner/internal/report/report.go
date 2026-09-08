@@ -33,6 +33,7 @@ type RunResult struct {
 	JudgeCostUSD float64         `json:"judge_cost_usd"`
 	DurationMS   int64           `json:"duration_ms"`
 	NumTurns     int             `json:"num_turns"`
+	Segments     int             `json:"segments,omitempty"` // result events seen; >1 means the agent scheduled wakeups
 	Error        string          `json:"error,omitempty"`
 	ScaffoldDir  string          `json:"scaffold_dir,omitempty"`
 }

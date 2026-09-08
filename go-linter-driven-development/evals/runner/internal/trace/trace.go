@@ -43,6 +43,7 @@ type Trace struct {
 	costUSD     float64
 	durationMS  int64
 	numTurns    int
+	segments    int
 	raw         string
 	eventsCount int
 }
@@ -136,14 +137,19 @@ func (t *Trace) consumeAssistant(message json.RawMessage) error {
 	return nil
 }
 
+// consumeResult folds one result event in. A session that schedules its own
+// wakeups emits one result event per segment: total_cost_usd is cumulative
+// across them, while duration_ms and num_turns are per segment and are summed.
+// The last segment's text, subtype and error flag stand for the run.
 func (t *Trace) consumeResult(ev envelope) {
 	t.complete = true
+	t.segments++
 	t.result = ev.Result
 	t.subtype = ev.Subtype
 	t.isError = ev.IsError
 	t.costUSD = ev.TotalCostUSD
-	t.durationMS = ev.DurationMS
-	t.numTurns = ev.NumTurns
+	t.durationMS += ev.DurationMS
+	t.numTurns += ev.NumTurns
 }
 
 func compact(input json.RawMessage) string {
@@ -188,8 +194,12 @@ func (t Trace) CostUSD() float64 { return t.costUSD }
 // DurationMS is duration_ms from the result event.
 func (t Trace) DurationMS() int64 { return t.durationMS }
 
-// NumTurns is num_turns from the result event.
+// NumTurns is num_turns summed over every result event.
 func (t Trace) NumTurns() int { return t.numTurns }
+
+// Segments is the number of result events seen: 1 for a plain run, more when
+// the agent scheduled wakeups and the session resumed itself.
+func (t Trace) Segments() int { return t.segments }
 
 // Events is the number of JSON events that were parsed.
 func (t Trace) Events() int { return t.eventsCount }

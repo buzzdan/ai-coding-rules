@@ -25,8 +25,9 @@ const scaffoldNeeded = "regrade: this grader needs the kept scaffold (rerun with
 
 // Regrade re-applies the cases' current graders to traces already recorded
 // under OutDir, so grader calibration never re-spends on agents. Agent cost,
-// turns, model, and error are carried over from each run's result.json;
-// judge cost is whatever the llm graders spend now. Graders that inspect the
+// turns and duration are re-read from the recorded trace; model, error and
+// scaffold path are carried over from each run's result.json; judge cost is
+// whatever the llm graders spend now. Graders that inspect the
 // scaffold fail with a clear detail when the scaffold was not kept.
 func (r *Runner) Regrade(ctx context.Context) (report.Aggregate, error) {
 	started := time.Now()
@@ -98,7 +99,10 @@ func (r *Runner) regradeRun(ctx context.Context, c evalcase.Case, dir string) (r
 	if err != nil {
 		return report.RunResult{}, fmt.Errorf("runner: %w", err)
 	}
-	res := report.RunResult{Case: c.Name, Run: prev.Run, Model: prev.Model, CostUSD: prev.CostUSD, DurationMS: prev.DurationMS, NumTurns: prev.NumTurns, Error: prev.Error, ScaffoldDir: prev.ScaffoldDir}
+	// Cost, turns and duration are re-read from the trace so a parser fix
+	// reaches recorded runs too; model, error and scaffold come from the result.
+	res := report.RunResult{Case: c.Name, Run: prev.Run, Model: prev.Model, Error: prev.Error, ScaffoldDir: prev.ScaffoldDir}
+	res.CostUSD, res.DurationMS, res.NumTurns, res.Segments = tr.CostUSD(), tr.DurationMS(), tr.NumTurns(), tr.Segments()
 	if res.Run == 0 {
 		res.Run = runIndex(dir)
 	}

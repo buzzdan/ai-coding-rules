@@ -74,6 +74,24 @@ func TestParseFile_SmokeTrace_Counters(t *testing.T) {
 	}
 }
 
+func TestParse_WakeupSegmentsSumTurnsAndDurationKeepCumulativeCost(t *testing.T) {
+	t.Parallel()
+	in := `{"type":"result","subtype":"success","result":"waiting","total_cost_usd":1.5,"duration_ms":1000,"num_turns":30,"is_error":false}
+{"type":"result","subtype":"success","result":"still waiting","total_cost_usd":1.6,"duration_ms":200,"num_turns":2,"is_error":false}
+{"type":"result","subtype":"success","result":"REPORT","total_cost_usd":1.7,"duration_ms":300,"num_turns":3,"is_error":false}
+`
+	tr, err := trace.Parse(strings.NewReader(in))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if tr.Segments() != 3 || tr.NumTurns() != 35 || tr.DurationMS() != 1500 {
+		t.Errorf("segments/turns/duration = %d/%d/%d, want 3/35/1500", tr.Segments(), tr.NumTurns(), tr.DurationMS())
+	}
+	if math.Abs(tr.CostUSD()-1.7) > 1e-9 || tr.LastMessage() != "REPORT" {
+		t.Errorf("cost/last = %v/%q, want the final segment's cumulative 1.7 and REPORT", tr.CostUSD(), tr.LastMessage())
+	}
+}
+
 func TestParseFile_TwoToolsTrace_OrderedCalls(t *testing.T) {
 	t.Parallel()
 	tr, err := trace.ParseFile(twoToolsTrace)

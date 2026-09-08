@@ -353,7 +353,7 @@ func (r *Runner) execute(ctx context.Context, env runEnv, res report.RunResult) 
 		res.Error = err.Error()
 		return res
 	}
-	res.CostUSD, res.DurationMS, res.NumTurns = tr.CostUSD(), tr.DurationMS(), tr.NumTurns()
+	res.CostUSD, res.DurationMS, res.NumTurns, res.Segments = tr.CostUSD(), tr.DurationMS(), tr.NumTurns(), tr.Segments()
 	if tr.IsError() {
 		res.Graders = append(res.Graders, grade.Outcome{Name: "execution", Type: "execution", Detail: "claude reported is_error (" + tr.Subtype() + ")"})
 	}
