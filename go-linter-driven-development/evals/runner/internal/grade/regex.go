@@ -110,6 +110,9 @@ func (g Regex) Name() string { return g.name }
 // Type implements Grader.
 func (g Regex) Type() string { return "regex" }
 
+// NeedsScaffold implements ScaffoldReader: only the files target reads the tree.
+func (g Regex) NeedsScaffold() bool { return g.target == TargetFiles }
+
 // Grade implements Grader.
 func (g Regex) Grade(_ context.Context, s Subject) Outcome {
 	hits, err := g.hits(s)

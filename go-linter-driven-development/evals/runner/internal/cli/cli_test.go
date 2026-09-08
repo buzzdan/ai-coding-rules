@@ -214,6 +214,36 @@ func assertMinimalRun(t *testing.T, outDir string) {
 	}
 }
 
+// A regrade over a recorded run reproduces the run's verdict when the graders
+// are unchanged and the scaffold was kept (two-tools has file-reading graders),
+// and rewrites the aggregate.
+func TestRegrade_ReproducesRecordedVerdict(t *testing.T) {
+	useFakeClaude(t)
+	suite := abs(t, "../../testdata/suite")
+	out := t.TempDir()
+	runCode, _, runErr := run(t, "run", "--case", "two-tools", "--judge-model", "fake-judge", "--keep-temp", "--out", out, suite)
+	t.Cleanup(func() {
+		if res, err := report.ReadRunResult(filepath.Join(out, "two-tools", "run-1", "result.json")); err == nil && res.ScaffoldDir != "" {
+			_ = os.RemoveAll(res.ScaffoldDir) // kept scaffold lives outside t.TempDir
+		}
+	})
+	before := readAggregate(t, out)
+	if err := os.Remove(filepath.Join(out, "aggregate-result.json")); err != nil {
+		t.Fatalf("remove aggregate: %v", err)
+	}
+	code, stdout, stderr := run(t, "regrade", "--case", "two-tools", "--judge-model", "fake-judge", "--out", out, suite)
+	if code != runCode {
+		t.Fatalf("regrade exit = %d, want the run's %d\nrun stderr: %s\nregrade stdout: %s\nregrade stderr: %s", code, runCode, runErr, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "regrading 1 case(s)") {
+		t.Errorf("regrade progress = %q, want the case count", stdout)
+	}
+	after := readAggregate(t, out)
+	if !near(after.Aggregates.PassRate, before.Aggregates.PassRate) || !near(after.Aggregates.TotalCostUSD, before.Aggregates.TotalCostUSD) {
+		t.Errorf("regraded aggregate %+v differs from the recorded %+v", after.Aggregates, before.Aggregates)
+	}
+}
+
 func TestRun_UsageErrors(t *testing.T) {
 	t.Setenv("PATH", t.TempDir()) // no claude anywhere: a usage error must never reach the agent
 	suite := abs(t, "../../testdata/suite")
@@ -233,6 +263,9 @@ func TestRun_UsageErrors(t *testing.T) {
 		{name: "no case matches glob", args: []string{"run", "--case", "zzz-*", suite}},
 		{name: "malformed glob", args: []string{"run", "--case", "[", suite}},
 		{name: "out dir under a file", args: []string{"run", "--out", filepath.Join(suite, "two-tools", "prompt.md", "x"), suite}},
+		{name: "regrade without --out", args: []string{"regrade", suite}},
+		{name: "regrade rejects run-only flags", args: []string{"regrade", "--out", t.TempDir(), "--runs", "2", suite}},
+		{name: "regrade with nothing recorded", args: []string{"regrade", "--out", t.TempDir(), suite}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

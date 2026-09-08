@@ -58,3 +58,9 @@ func clip(s string) string {
 	}
 	return s[:maxDetail] + "…(truncated)"
 }
+
+// ScaffoldReader is implemented by graders that read the working tree the
+// agent left behind; a regrade without a kept scaffold cannot run them.
+type ScaffoldReader interface {
+	NeedsScaffold() bool
+}

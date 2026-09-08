@@ -75,3 +75,12 @@ single haiku vote here (plugin-eval uses 2-of-3); `--ablation` is not implemente
 Run the full suite once on main with `--out results/baseline-<sha>`, commit that directory, and
 record per-case pass rates in the PR. Thresholds are never 100 %: the baseline sets the noise
 floor that later refactors of the plugin must stay within.
+
+## Calibrating graders
+
+Graders are calibrated against real traces, never by re-running agents:
+`ldd-eval regrade --out results/<run> <evals>` re-applies the current graders
+to recorded traces (see `runner/README.md`). The first baseline run showed the
+merged review report cites findings as `` `file.go:12` | … (R1 Q1 …) ``, not in
+the hunter-block shape `R1 | file:line |`; the anchor and evidence graders were
+loosened to that shape and every review case gained a `rule-cited` grader.

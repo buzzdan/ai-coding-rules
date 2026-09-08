@@ -94,6 +94,9 @@ func (g FileExists) Name() string { return g.name }
 // Type implements Grader.
 func (g FileExists) Type() string { return "file_exists" }
 
+// NeedsScaffold implements ScaffoldReader.
+func (g FileExists) NeedsScaffold() bool { return true }
+
 // Grade implements Grader.
 func (g FileExists) Grade(_ context.Context, s Subject) Outcome {
 	matches, err := filepath.Glob(filepath.Join(s.Dir, g.pattern))

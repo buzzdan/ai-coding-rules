@@ -42,6 +42,9 @@ func (g Postcheck) Name() string { return "postcheck" }
 // Type implements Grader.
 func (g Postcheck) Type() string { return "postcheck" }
 
+// NeedsScaffold implements ScaffoldReader.
+func (g Postcheck) NeedsScaffold() bool { return true }
+
 // Grade implements Grader.
 func (g Postcheck) Grade(ctx context.Context, s Subject) Outcome {
 	cmd := exec.CommandContext(ctx, g.script)

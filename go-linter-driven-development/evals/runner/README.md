@@ -38,3 +38,15 @@ Exit codes: 0 every case ≥ threshold · 1 some case below · 2 budget exceeded
   must end with `VERDICT: PASS|FAIL`. Its cost is `judge_cost_usd` in result.json and counts against `--max-cost-usd`.
 - `is_error` results get a failing synthetic `execution` grader; timeouts/incomplete traces set `error` and skip grading.
   The agent runs with `IS_SANDBOX=1` because `--permission-mode bypassPermissions` is refused for root without it.
+
+## Regrading without re-running
+
+`ldd-eval regrade --out <previous-run-dir> [--case glob] [--tag t] [--judge-model m] <evals-dir>`
+re-applies the cases' *current* graders to the traces already recorded under
+`--out`, rewrites each `result.json` (agent cost, turns, and model are carried
+over; judge cost is whatever llm graders spend now) and recomputes
+`aggregate-result.json`. Use it to calibrate graders against real traces
+without paying for agents again. Graders that read the working tree
+(`file_exists`, `postcheck`, `regex` with `target: files`) need the scaffold:
+run with `--keep-temp` if you intend to regrade those, otherwise they fail
+with a "needs the kept scaffold" detail.
