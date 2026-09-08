@@ -1,0 +1,21 @@
+Looking at the `pickReplicas` method, which is the replica-picking step directly called by `Pick`:
+
+```go
+func (p *Placer) pickReplicas(nodes []Node, zone string) (Node, Node, error) {
+	primary, ok := firstUsable(nodes, func(n Node) bool { return n.Zone == zone })
+	if !ok {
+		return Node{}, Node{}, fmt.Errorf("no placement for zone %q", zone)
+	}
+	secondary, ok := firstUsable(nodes, func(n Node) bool { return n.Zone != zone })
+	if !ok {
+		return Node{}, Node{}, fmt.Errorf("no placement for zone %q", zone)
+	}
+	return primary, secondary, nil
+}
+```
+
+The method contains field comparisons (`.Zone ==` and `.Zone !=`) embedded in lambdas passed to `firstUsable`. Even though the actual loop happens in the `firstUsable` utility function, the field comparison logic is specified in the orchestrating code via these lambdas. This violates the R3 Q2 rule that forbids field comparisons in the orchestrator.
+
+The correct approach would encapsulate field access in collection methods (e.g., `Nodes` type with methods like `FirstUsableInZone(zone string)` and `FirstUsableOutsideZone(zone string)`), so `pickReplicas` only makes high-level named calls without any field comparisons visible in its body.
+
+VERDICT: FAIL

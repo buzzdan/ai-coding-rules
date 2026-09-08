@@ -1,4 +1,4 @@
-# Baseline 97194e3 — cheap tier and a medium-tier subset
+# Baseline 97194e3 — cheap and medium tiers
 
 Plugin at `main` 681fdb0 (v2.10.0), cases and fixture at `97194e3` with graders calibrated
 afterwards and re-applied by `ldd-eval regrade` (no agent re-spend). Agent model pinned to
@@ -82,43 +82,67 @@ numbers as R3 Q1 linter evidence. One grader was removed: `cluster-status-r3` ex
 in the Device.Status cluster, which `violations.yaml` never defined; both runs correctly
 put R3 in the ProcessHeartbeat cluster.
 
-## Medium tier — subset (`medium/`)
+## Medium tier (`medium/`)
 
 Run once each with `--keep-temp` (scaffolds kept so file, postcheck and art judges regrade),
-same model pins, $12.07 total against a $40 cap.
+same model pins. The subset ran first (one invocation per case, so its $40 cap applied per
+case, not cumulatively), then the six remaining refactor cases in one invocation over
+`*-refactor` with `--resume`, which reused Case A and made the $40 cap cumulative. Agent spend
+**$22.91**, judge $0.26.
 
     for c in quickfix-red-lint prepare-sms wire-repo-brain case-a-retention-refactor; do
       ldd-eval run --resume --keep-temp --case "$c" --model claude-sonnet-5 --max-cost-usd 40 --out results/baseline-97194e3/medium <evals>
     done
+    ldd-eval run --resume --keep-temp --case '*-refactor' --model claude-sonnet-5 --max-cost-usd 40 --out results/baseline-97194e3/medium <evals>
+    ldd-eval regrade --tag medium --out results/baseline-97194e3/medium <evals>
 
-| Case | Passed | Turns | Cost | Reads as |
-|---|---|---|---|---|
-| quickfix-red-lint | 0/1 | 121 | $7.65 | hit the 120-turn cap with no final report; lint 0 issues, no nolint, config untouched, 26 design findings escalated with rule routes, but the fix pass dissolved `utils`/`common` and kept 169 of 173 test assertions |
-| prepare-sms | 1/1 | 47 | $1.36 | PREPARATION LOG, MULTIPLY gate, R11 named, skeptic consulted, one prep commit (channel strings → constants), no feature code |
-| wire-repo-brain | 1/1 | 33 | $0.93 | OKF bundle wired and the check script passes |
-| case-a-retention-refactor | 1/1 | 62 | $2.13 | `Retention` type in its own file with `ParseRetention(raw) (Retention, error)` and `Expired(createdAt, now)`; `policy.go`/`config.go` deleted; `Prune` reads as a story; **art judge PASS** |
+| Case | Passed | Art judge | Turns | Cost | Reads as |
+|---|---|---|---|---|---|
+| quickfix-red-lint | 0/1 | — | 121 | $7.65 | hit the 120-turn cap with no final report; lint 0 issues, no nolint, config untouched, 26 design findings escalated with rule routes, but the fix pass dissolved `utils`/`common` and kept 169 of 173 test assertions |
+| prepare-sms | 1/1 | — | 47 | $1.36 | PREPARATION LOG, MULTIPLY gate, R11 named, skeptic consulted, one prep commit, no feature code |
+| wire-repo-brain | 1/1 | — | 33 | $0.93 | OKF bundle wired and the check script passes |
+| case-a-retention-refactor | 1/1 | PASS | 62 | $2.13 | `Retention` in its own file with `ParseRetention` and `Expired`; `policy.go`/`config.go` deleted; `Prune` reads as a story |
+| case-b-endpoint-refactor | 1/1 | PASS | 60 | $2.77 | unexported `endpoint` value with `scheme()`, `address()`, `url()`, `dial()`; `NewClient`'s fallback contract kept; scheme decided once |
+| case-c-picker-refactor | 0/1 | FAIL | 43 | $1.42 | flags and inline checks gone, `Node.Usable()`, complexity 2, tests green; but no collection type, zone questions as inline closures into a generic `firstUsable`, `// Placer is a placer.` kept |
+| case-d-ceremony-refactor | 1/1 | PASS | 17 | $0.25 | deleted `grants.go` (nothing referenced it), inlined the one-line trace helper keeping its reason comment, added no structure |
+| case-e-nils-refactor | 0/1 | FAIL | 67 | $2.45 | `Find` comma-ok, `DiscardSink()` null object, unexported fields, options for the clock, `Record` nil-check-free; but `NewReporter` still takes a nil-able `*Sink` ("must not be nil" in a comment) and `// Sink is where events are written.` survived |
+| case-f-globals-refactor | 0/1 | FAIL | 83 | $2.07 | the ratchet worked: four deployable commits, `Config` global gone, `Load` returns a value, `main` wires values down; but the second plant (`var region` + `init()` + `//nolint:gochecknoinits`) was left, and the pool tests got no `t.Parallel()` or literal constructor call |
+| centerpiece-storify-refactor | 0/1 | FAIL | 47 | $1.63 | cognitive 76 → 10, cyclomatic 40 → 10 (want ≤ 8), `goto` and block comments gone, five results folded into `HeartbeatResult`, black-box suite still green; but the status transition is still inline, `changed || force`, `t[7:] == "eu"` and three `context.Background()` remain, and it wrote a new `decodeHeartbeat` instead of calling the tested `ParseHeartbeatLine` next door |
 
-Findings added by this subset:
+Tier pass rate 0.50 (5 of 10), average grader score 0.82. Art judges: 3 of 7 PASS.
 
-7. **The refactor path produces the art the review path refuses.** Given the Case A files
-   and the plain instruction to fix them, the workflow extracted exactly the domain type
-   the skeptic scored 1 in the review (finding 1), moved it into its own file, gave it
-   the two methods the story needs, and left nothing behind. The art judge passed it
-   with quotes for every criterion. The gap is in the review's skeptic, not in the
-   refactoring skill.
-8. **Quickfix has no stopping rule.** The lint-fixer classified correctly and reported
+Findings added by the medium tier:
+
+7. **The refactor path produces the art the review path refuses.** Cases A and B, given the
+   files and a plain instruction, extracted exactly the domain types the review's skeptic
+   scored 1 (finding 1), each into its own file with the methods the story needs, and the
+   art judge passed both with quotes for every criterion. The gap is in the review's
+   skeptic, not in the refactoring skill.
+8. **Refactors stop at "mechanically fixed" when the plant has more than one concept.**
+   Case C reached the metrics (flags gone, complexity 2) without naming the collection;
+   Case E named every absence but left a nil-able pointer and a restating comment; Case F
+   walked the global up the layers in clean commits but never touched the second global in
+   the same file; the centerpiece cut complexity by 7× while preserving behavior yet kept
+   the transition inline and re-implemented a parser that already existed. The pattern:
+   the loop satisfies the linter and the tests, then declares victory one pass before the
+   code reads as a story. Comments that restate names survive every refactor.
+9. **Quickfix has no stopping rule.** The lint-fixer classified correctly and reported
    `LINT STATUS: escalations pending (26)`; the parent then executed every escalation
    itself in one session, 41 edits and 9 new files, until the turn cap ended it without
-   a report. The command's own text says escalations route through the refactoring
-   skill design-first, so the behavior is in spec; the cost and the lost assertions are
-   the finding. lint-fixer also wrote its escalations as a table, not the `ESCALATED:`
-   lines its contract specifies.
-9. **Nothing commits.** Neither the quickfix nor the Case A refactor made a commit; the
-   working tree held the result. prepare-sms did commit, as its skill demands. The
-   refactor cases' prompts ask for the workflow, whose SHIP phase ends in a commit.
-
-Judge cost for the subset $0.05. The art judges were dry-checked on the untouched fixture
-first: six FAIL, the Case D control PASSes (`README.md` of each case's `graders/art-judge.md`).
+   a report. The command routes escalations through the refactoring skill design-first,
+   so the behavior is in spec; the cost and the lost assertions are the finding.
+   lint-fixer also wrote its escalations as a table, not the `ESCALATED:` lines its
+   contract specifies.
+10. **Commits are inconsistent.** Case F committed every step (the ratchet demands it) and
+    prepare-sms committed once; quickfix and Cases A–E and the centerpiece left the result
+    uncommitted in the working tree although the workflow's SHIP phase ends in a commit.
+11. **Fixture weakness: the Case D control has no callers.** `Grants`, `ReplicaCount` and
+    `Name` are referenced nowhere else, so deleting them is correct and the control never
+    tests "leave earned ceremony alone". Wire `Grants` into a handler before the next
+    baseline; the judge already tolerates deletion of unreferenced code.
+12. **Single-vote llm judges flip.** `main-reads-as-a-story` on Case F passed on the live
+    run and failed on regrade with the same file. Treat a one-judge change as noise; the
+    plugin-eval gate's 2-of-3 vote is the fix once it opens.
 
 ## Infrastructure notes
 

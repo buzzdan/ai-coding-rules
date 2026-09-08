@@ -1,0 +1,39 @@
+{
+  "case": "case-b-endpoint-refactor",
+  "run": 1,
+  "model": "claude-sonnet-5",
+  "passed": true,
+  "graders": [
+    {
+      "name": "art-judge",
+      "type": "llm",
+      "passed": true,
+      "detail": "judge claude-haiku-4-5: ## Evaluation\n\n1. **One box.** ✓ The `endpoint` type holds host, port, and TLS as a unified box. The constructor `newEndpoint()` owns the port-range rule exactly once (`if port \u003c= 0 || port \u003e 65535 { port = defaultPort }`). The endpoint answers its own questions: `scheme()`, `url(path)`, `address()`, and `dial()`. No free functions linger taking `(host, port, tls)` bare; all callers use the box.\n\n2. **The scheme is decided once.** ✓ In `endpoint.scheme()` only:\n   ```go\n   if e.tls {\n       return \"https\"\n   }\n   return \"http\"\n   ```\n   No branching on `c.tls` elsewhere. Exactly one place.\n\n3. **Names speak intent.** ✓ Bodies read as stories:\n   - `HealthURL()`: `return c.endpoint.url(\"/healthz\")`\n   - `Get()`: `url := c.endpoint.url(path); resp, err := c.http.Get(url)` — no manual assembly\n   - `Ping()`: `conn, err := c.endpoint.dial(); ... conn.Close()` — ask the endpoint to dial\n   \n   No `fmt.Sprintf` string building in method bodies at the Client level.\n\n4. **No leftover ceremony.** ✓ Port-range check appears once in `newEndpoint()`. The `dial()` method trusts the port is valid (uses `e.address()` which is always safe). Comments state useful contracts (\"normalizes an invalid port… so every other method can trust port is always valid\"; \"callers must close resp.Body\") rather than restating names.\n\nThe refactor is clean: `endpoint` is a true abstraction that owns its invariants and interface, and the Client now reads as orchestration rather than string plumbing.\n\nVERDICT: PASS",
+      "cost_usd": 0.011964800000000001
+    },
+    {
+      "name": "gone-host-port-clump",
+      "type": "regex",
+      "passed": true,
+      "detail": "(?m)^func [a-z][A-Za-z]*\\(host string, port int, tls bool\\) \\(?(net\\.Conn|string) over files: 0 match(es); want exactly 0"
+    },
+    {
+      "name": "one-https-owner",
+      "type": "regex",
+      "passed": true,
+      "detail": "\"https(://)?\" over files: 1 match(es); want exactly 1"
+    },
+    {
+      "name": "postcheck",
+      "type": "postcheck",
+      "passed": true,
+      "detail": "task test: ok\nPASS  task test green\ntask lint: ok\nPASS  task lint green\nPASS  port range predicate (65535 or a named max port) has one owner (1 \u003c= 1)\nPASS  scheme decided once inside transport (1 \u003c= 1)\nnew constructors: newEndpoint\nPASS  a new constructor for the endpoint value exists in internal/transport (1 \u003e= 1)\nPASS  no //nolint added to internal/transport (0)\n== black-box suite: builds cmd/svc, replays the recorded heartbeats ==\n--- PASS: TestHeartbeatContract (1.24s)\n--- PASS: TestExpectedTSVMatchesTable (0.00s)\nok  \texample.com/heartbeat-blackbox\t1.249s\nblack-box: PASS\nPASS  black-box heartbeat suite\npostcheck: all checks passed"
+    }
+  ],
+  "cost_usd": 2.7661739000000014,
+  "judge_cost_usd": 0.011964800000000001,
+  "duration_ms": 666135,
+  "num_turns": 60,
+  "segments": 1,
+  "scaffold_dir": "/tmp/ldd-eval-case-b-endpoint-refactor-2184248476"
+}

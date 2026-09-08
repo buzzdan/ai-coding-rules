@@ -1,0 +1,25 @@
+## Evaluation
+
+1. **One box.** ✓ The `endpoint` type holds host, port, and TLS as a unified box. The constructor `newEndpoint()` owns the port-range rule exactly once (`if port <= 0 || port > 65535 { port = defaultPort }`). The endpoint answers its own questions: `scheme()`, `url(path)`, `address()`, and `dial()`. No free functions linger taking `(host, port, tls)` bare; all callers use the box.
+
+2. **The scheme is decided once.** ✓ In `endpoint.scheme()` only:
+   ```go
+   if e.tls {
+       return "https"
+   }
+   return "http"
+   ```
+   No branching on `c.tls` elsewhere. Exactly one place.
+
+3. **Names speak intent.** ✓ Bodies read as stories:
+   - `HealthURL()`: `return c.endpoint.url("/healthz")`
+   - `Get()`: `url := c.endpoint.url(path); resp, err := c.http.Get(url)` — no manual assembly
+   - `Ping()`: `conn, err := c.endpoint.dial(); ... conn.Close()` — ask the endpoint to dial
+   
+   No `fmt.Sprintf` string building in method bodies at the Client level.
+
+4. **No leftover ceremony.** ✓ Port-range check appears once in `newEndpoint()`. The `dial()` method trusts the port is valid (uses `e.address()` which is always safe). Comments state useful contracts ("normalizes an invalid port… so every other method can trust port is always valid"; "callers must close resp.Body") rather than restating names.
+
+The refactor is clean: `endpoint` is a true abstraction that owns its invariants and interface, and the Client now reads as orchestration rather than string plumbing.
+
+VERDICT: PASS

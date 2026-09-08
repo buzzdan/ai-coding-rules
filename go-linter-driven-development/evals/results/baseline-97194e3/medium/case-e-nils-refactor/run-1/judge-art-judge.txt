@@ -1,0 +1,25 @@
+Looking at the FOCUS text against the RUBRIC criteria:
+
+**Condition 1 - Absence has a name:** ✓
+- `Find` returns `(Device, bool)` (catalog.go:20), not a nil pointer
+- `DiscardSink()` provides an explicit null object (reporter.go:50)
+- `Record` has no nil checks (reporter.go:76: one-liner `r.sink.Write(ev.At(r.clock()))`)
+- Default clock is set in `NewReporter` constructor (reporter.go:72: `clock: time.Now`)
+
+**Condition 2 - Constructor owns invariants:** ✓
+- `Reporter.sink` and `Reporter.clock` are unexported (reporter.go:9-10)
+- `NewReporter` takes `sink *Sink` and functional options (reporter.go:70-75)
+- No nil-nil pattern; wire.go calls `NewReporter(sink)` (wire.go:9)
+
+**Condition 3 - Methods read as sentences:** ✓
+- `Record` is a single line of intent (reporter.go:76)
+- `Announce` uses comma-ok pattern: `if d, ok := catalog.Find(name); ok` (wire.go:11)
+
+**Condition 4 - Comments earn their place:** ✗
+- The comment `// Sink is where events are written.` appears at reporter.go:47
+- This is explicitly listed in the rubric as a trivial comment that should be gone
+- It merely restates what the type name already conveys, doesn't state a contract the name cannot
+
+The rubric states outright: "`// Sink is where events are written.` and the `// forget this once → panic` warning are gone." This comment violates that requirement.
+
+VERDICT: FAIL

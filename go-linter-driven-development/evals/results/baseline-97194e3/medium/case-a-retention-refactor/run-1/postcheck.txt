@@ -12,9 +12,9 @@ PASS  Retention has no exported fields (0)
 PASS  Retention is never built by literal outside internal/snapshot/retention.go (0)
 PASS  no //nolint added to internal/snapshot (0)
 == black-box suite: builds cmd/svc, replays the recorded heartbeats ==
---- PASS: TestHeartbeatContract (1.34s)
+--- PASS: TestHeartbeatContract (1.26s)
 --- PASS: TestExpectedTSVMatchesTable (0.00s)
-ok  	example.com/heartbeat-blackbox	1.350s
+ok  	example.com/heartbeat-blackbox	1.263s
 black-box: PASS
 PASS  black-box heartbeat suite
 postcheck: all checks passed

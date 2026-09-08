@@ -1,0 +1,14 @@
+task test: ok
+PASS  task test green
+task lint: ok
+PASS  task lint green
+PASS  ReplicaCount has at most its original single method (deleted or untouched, never grown) (0 <= 1)
+PASS  ReplicaCount is declared at most once (0 <= 1)
+PASS  no TraceID-like wrapper appeared anywhere (0)
+== black-box suite: builds cmd/svc, replays the recorded heartbeats ==
+--- PASS: TestHeartbeatContract (1.27s)
+--- PASS: TestExpectedTSVMatchesTable (0.00s)
+ok  	example.com/heartbeat-blackbox	1.280s
+black-box: PASS
+PASS  black-box heartbeat suite
+postcheck: all checks passed

@@ -1,0 +1,15 @@
+task test: ok
+PASS  task test green
+task lint: ok
+PASS  task lint green
+PASS  Placer.Pick still exists in internal/placement
+  gocognit(pickReplicas) = 2
+PASS  gocognit of Pick and every receiver method it calls (2 <= 5)
+PASS  no //nolint in internal/placement production code (0)
+== black-box suite: builds cmd/svc, replays the recorded heartbeats ==
+--- PASS: TestHeartbeatContract (1.28s)
+--- PASS: TestExpectedTSVMatchesTable (0.00s)
+ok  	example.com/heartbeat-blackbox	1.282s
+black-box: PASS
+PASS  black-box heartbeat suite
+postcheck: all checks passed
