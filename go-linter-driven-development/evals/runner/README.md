@@ -9,7 +9,7 @@ only `case.yaml` (`scaffold_script`, `postcheck`, `tier`) is ours. **When the ga
 
     cd evals/runner && go build -o /root/go/bin/ldd-eval .
     ldd-eval run [--case glob] [--tag t] [--runs N] [--model m] [--judge-model m] [--plugin-dir p] \
-                 [--keep-temp] [--out dir] [--max-cost-usd x] [--threshold r] <evals-dir>
+                 [--keep-temp] [--resume] [--out dir] [--max-cost-usd x] [--threshold r] <evals-dir>
 Every run spends real money. Smoke first: `ldd-eval run --case 'trigger-*' --runs 1 --max-cost-usd 1 ..`
 
 | Flag | Default | Meaning |
@@ -21,6 +21,7 @@ Every run spends real money. Smoke first: `ldd-eval run --case 'trigger-*' --run
 | `--judge-model` | `claude-haiku-4-5` | model for `llm` graders |
 | `--plugin-dir` | parent of `<evals-dir>` | plugin root passed to `claude --plugin-dir` |
 | `--keep-temp` | off | keep scaffold dirs; path recorded as `scaffold_dir` in result.json |
+| `--resume` | off | with `--out`, reuse every run that already has a `result.json` and execute only the rest; a killed tier continues where it stopped, and reused cost still counts against `--max-cost-usd` |
 | `--out` | `<evals-dir>/results/<timestamp>` | output directory |
 | `--max-cost-usd` | unlimited | abort with exit 2 once agent + judge cost exceeds this |
 | `--threshold` | 1.0 | per-case pass rate required for exit 0 |

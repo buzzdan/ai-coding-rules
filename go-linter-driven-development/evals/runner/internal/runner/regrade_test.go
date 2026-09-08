@@ -119,6 +119,42 @@ func TestRegrade_SkipsRunStillInFlight(t *testing.T) {
 	}
 }
 
+func TestRun_ResumeReusesFinishedRunsAndExecutesTheRest(t *testing.T) {
+	// runs: 2 — the first is recorded by hand as finished, the second must execute.
+	prompt := "---\nname: probe\nruns: 2\nmodel: claude-opus-4-1\ntimeout_seconds: 1\n---\nGo.\n"
+	evalsDir := evalsWithCase(t, "mkdir -p \"$1\"\n", map[string]string{"prompt.md": prompt, "graders/g.md": passingGrader})
+	outDir := t.TempDir()
+	finished := report.RunResult{Case: "probe", Run: 1, Model: "recorded", CostUSD: 9, NumTurns: 7, Passed: true}
+	if err := os.MkdirAll(filepath.Join(outDir, "probe", "run-1"), 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := report.WriteJSON(filepath.Join(outDir, "probe", "run-1", "result.json"), finished); err != nil {
+		t.Fatalf("write recorded result: %v", err)
+	}
+	catTrace(t, doneTrace)
+	r, err := runner.New(runner.Options{EvalsDir: evalsDir, OutDir: outDir, Threshold: 1, Resume: true})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	agg, err := r.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(agg.Cases) != 1 || len(agg.Cases[0].Results) != 2 {
+		t.Fatalf("aggregate = %+v, want one case with two runs", agg)
+	}
+	got := agg.Cases[0].Results
+	if got[0].Model != "recorded" || got[0].CostUSD != 9 || got[0].NumTurns != 7 {
+		t.Errorf("run-1 = %+v, want the recorded result reused untouched", got[0])
+	}
+	if got[1].Run != 2 || got[1].CostUSD != 0.5 || got[1].Model != "claude-opus-4-1" {
+		t.Errorf("run-2 = %+v, want a fresh execution of the fake claude", got[1])
+	}
+	if agg.Aggregates.TotalCostUSD != 9.5 {
+		t.Errorf("total cost = %v, want reused 9 + fresh 0.5", agg.Aggregates.TotalCostUSD)
+	}
+}
+
 func TestRegrade_ErrorWithoutRecordedRuns(t *testing.T) {
 	t.Parallel()
 	evalsDir := evalsWithCase(t, "true\n", map[string]string{"prompt.md": promptWithModel, "graders/g.md": passingGrader})

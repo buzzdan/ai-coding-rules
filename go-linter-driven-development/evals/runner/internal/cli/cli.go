@@ -113,6 +113,7 @@ func parseFlags(cmd string, args []string, stdout, stderr io.Writer) (runner.Opt
 		fs.IntVar(&opts.Runs, "runs", 0, "runs per case (0 = the case's own runs)")
 		fs.StringVar(&opts.Model, "model", "", "agent model; overrides the case's model (default: case model, else claude-sonnet-5)")
 		fs.BoolVar(&opts.KeepTemp, "keep-temp", false, "keep the scaffold dirs (path recorded in result.json)")
+		fs.BoolVar(&opts.Resume, "resume", false, "reuse runs under --out that already have a result.json; run only the rest")
 		fs.Float64Var(&opts.MaxCostUSD, "max-cost-usd", 0, "abort with exit 2 once cumulative cost exceeds this (0 = unlimited)")
 	}
 	fs.Usage = func() {

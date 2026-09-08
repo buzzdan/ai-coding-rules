@@ -41,6 +41,7 @@ type Options struct {
 	Tag        string    // keep only cases with this tag; empty = all
 	Runs       int       // 0 = the case's runs
 	KeepTemp   bool      // keep scaffold dirs
+	Resume     bool      // reuse runs under OutDir that already have a result.json
 	MaxCostUSD float64   // 0 = unlimited
 	Threshold  float64   // per-case pass rate for exit 0
 	Progress   io.Writer // nil = discard
@@ -252,12 +253,16 @@ func (r *Runner) runCase(ctx context.Context, c evalcase.Case, led *ledger) (rep
 	info := report.CaseInfo{Name: c.Name, Tier: c.Tier, Tags: c.Tags}
 	results := make([]report.RunResult, 0, r.runsFor(c))
 	for i := 1; i <= r.runsFor(c); i++ {
-		res, err := r.runOnce(ctx, c, i)
+		res, resumed, err := r.runOrResume(ctx, c, i)
 		if err != nil {
 			return report.CaseSummary{}, false, err
 		}
 		results = append(results, res)
-		r.logf("%s run %d/%d: passed=%v cost=$%.4f turns=%d %s", c.Name, i, r.runsFor(c), res.Passed, res.TotalCostUSD(), res.NumTurns, res.Error)
+		verb := "run"
+		if resumed {
+			verb = "resumed"
+		}
+		r.logf("%s %s %d/%d: passed=%v cost=$%.4f turns=%d %s", c.Name, verb, i, r.runsFor(c), res.Passed, res.TotalCostUSD(), res.NumTurns, res.Error)
 		if led.add(res.TotalCostUSD()) {
 			r.logf("budget %s exceeded after $%.4f; stopping", r.budget, led.spent)
 			return report.SummarizeCase(info, results), true, nil
@@ -289,6 +294,24 @@ type runEnv struct {
 	caseDef evalcase.Case
 	work    string
 	outDir  string
+}
+
+// runOrResume returns the recorded result of run i when Resume is set and the
+// run already finished (result.json present), else executes it. A finished
+// run's cost still counts against the budget: the cap is per tier, not per
+// invocation.
+func (r *Runner) runOrResume(ctx context.Context, c evalcase.Case, i int) (report.RunResult, bool, error) {
+	if r.opts.Resume {
+		prev, err := report.ReadRunResult(filepath.Join(r.opts.OutDir, c.Name, fmt.Sprintf("run-%d", i), "result.json"))
+		switch {
+		case err == nil:
+			return prev, true, nil
+		case !errors.Is(err, os.ErrNotExist):
+			return report.RunResult{}, false, fmt.Errorf("runner: resume: %w", err)
+		}
+	}
+	res, err := r.runOnce(ctx, c, i)
+	return res, false, err
 }
 
 func (r *Runner) runOnce(ctx context.Context, c evalcase.Case, i int) (report.RunResult, error) {
