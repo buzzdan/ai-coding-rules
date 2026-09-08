@@ -13,20 +13,22 @@ import (
 var ErrEmptyCriteria = errors.New("grade: llm criteria is required")
 
 // ErrBadFocus is returned for an unsupported focus specification.
-var ErrBadFocus = errors.New("grade: focus must be last_message or {source: file, path: ...}")
+var ErrBadFocus = errors.New("grade: focus must be last_message, {source: file, path: ...} or {source: files, paths: [...]}")
 
 type focusKind int
 
 const (
 	focusLastMessage focusKind = iota
 	focusFile
+	focusFiles
 )
 
-// Focus names the text the judge reads: the final assistant message or one
-// file from the scaffold dir.
+// Focus names the text the judge reads: the final assistant message, one
+// file from the scaffold dir, or several files rendered one after another
+// under their paths.
 type Focus struct {
-	kind focusKind
-	path string
+	kind  focusKind
+	paths []string
 }
 
 // FocusLastMessage is the default focus.
@@ -34,31 +36,76 @@ func FocusLastMessage() Focus { return Focus{kind: focusLastMessage} }
 
 // FocusFile focuses the judge on a file relative to the scaffold dir.
 func FocusFile(path string) (Focus, error) {
+	path, err := relativePath(path)
+	if err != nil {
+		return Focus{}, err
+	}
+	return Focus{kind: focusFile, paths: []string{path}}, nil
+}
+
+// FocusFiles focuses the judge on several files relative to the scaffold dir,
+// rendered in order, each under a "### <path>" heading, so one judge can
+// check that concepts landed in the right file.
+func FocusFiles(paths []string) (Focus, error) {
+	if len(paths) == 0 {
+		return Focus{}, fmt.Errorf("%w: files focus needs at least one path", ErrBadFocus)
+	}
+	clean := make([]string, 0, len(paths))
+	for _, p := range paths {
+		rel, err := relativePath(p)
+		if err != nil {
+			return Focus{}, err
+		}
+		clean = append(clean, rel)
+	}
+	return Focus{kind: focusFiles, paths: clean}, nil
+}
+
+func relativePath(path string) (string, error) {
 	path = strings.TrimSpace(path)
 	if path == "" || filepath.IsAbs(path) {
-		return Focus{}, fmt.Errorf("%w: file path must be non-empty and relative, got %q", ErrBadFocus, path)
+		return "", fmt.Errorf("%w: file path must be non-empty and relative, got %q", ErrBadFocus, path)
 	}
-	return Focus{kind: focusFile, path: path}, nil
+	return path, nil
 }
 
 // String renders the focus for prompts and detail messages.
 func (f Focus) String() string {
-	if f.kind == focusFile {
-		return "file " + f.path
+	switch f.kind {
+	case focusFile:
+		return "file " + f.paths[0]
+	case focusFiles:
+		return "files " + strings.Join(f.paths, ", ")
+	default:
+		return "last_message"
 	}
-	return "last_message"
 }
 
-// text resolves the focus against the subject.
+// text resolves the focus against the subject. Every named file must exist;
+// a missing one fails the grader before the judge is consulted.
 func (f Focus) text(s Subject) (string, error) {
-	if f.kind == focusLastMessage {
+	switch f.kind {
+	case focusFile:
+		data, err := os.ReadFile(filepath.Join(s.Dir, f.paths[0]))
+		if err != nil {
+			return "", fmt.Errorf("read focus file: %w", err)
+		}
+		return string(data), nil
+	case focusFiles:
+		var b strings.Builder
+		for _, p := range f.paths {
+			data, err := os.ReadFile(filepath.Join(s.Dir, p))
+			if err != nil {
+				return "", fmt.Errorf("read focus file: %w", err)
+			}
+			b.WriteString("### " + p + "\n\n")
+			b.Write(data)
+			b.WriteString("\n\n")
+		}
+		return b.String(), nil
+	default:
 		return s.Trace.LastMessage(), nil
 	}
-	data, err := os.ReadFile(filepath.Join(s.Dir, f.path))
-	if err != nil {
-		return "", fmt.Errorf("read focus file: %w", err)
-	}
-	return string(data), nil
 }
 
 // LLM asks a judge model for a PASS/FAIL verdict on the focus text.

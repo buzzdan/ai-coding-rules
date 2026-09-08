@@ -31,8 +31,8 @@ them over headless `claude -p`. Every run spends real money.
 | `prepare-sms` | medium | `/go-ldd-prepare "add an SMS channel…"` | PREPARATION LOG, MULTIPLY/R11, skeptic, no feature code, tests green |
 | `wire-repo-brain` | medium | `/wire-repo-brain` | index/conventions/AGENTS/gate installed, root wired, installed gate is the oracle |
 
-Rough cost per run on sonnet-5: trigger ≈ $0.10–0.30, review ≈ $2–6, medium ≈ $3–10. Cheap-tier
-cases run 3×; medium 1×. Expensive (Autopilot) is not yet authored.
+Measured cost per run on sonnet-5 (baseline-97194e3): trigger ≈ $0.06, scoped review ≈ $1–5, review-full ≈ $7–15; medium is expected at $10–20. Cheap-tier
+cases run 2–3×; medium 1×; expensive (autopilot-sms) runs once and only on explicit cost approval.
 
 ## Running
 

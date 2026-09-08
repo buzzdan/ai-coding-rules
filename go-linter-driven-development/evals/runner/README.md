@@ -38,6 +38,9 @@ Exit codes: 0 every case ≥ threshold · 1 some case below · 2 budget exceeded
 - `tool_order`: the first `before` call must precede the first `after` call, and both must occur.
 - `llm` judge is a **single vote** (plugin-eval uses 2-of-3): one `claude -p --model <judge> --tools ""` call whose reply
   must end with `VERDICT: PASS|FAIL`. Its cost is `judge_cost_usd` in result.json and counts against `--max-cost-usd`.
+  `focus` names what the judge reads: `last_message` (default), `{source: file, path: <rel>}`, or
+  `{source: files, paths: [<rel>, …]}` which renders each file under a `### <path>` heading so one judge can
+  check that concepts landed in the right file (the `art-judge` graders of the refactor cases use it).
 - `is_error` results get a failing synthetic `execution` grader; timeouts/incomplete traces set `error` and skip grading.
   The agent runs with `IS_SANDBOX=1` because `--permission-mode bypassPermissions` is refused for root without it.
 

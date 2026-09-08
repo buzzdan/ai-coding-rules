@@ -141,8 +141,8 @@ func (fm graderFront) buildLLM(name, body string) (grade.Grader, error) {
 	return wrap(grade.NewLLM(name, fm.Criteria, body, focus))
 }
 
-// parseFocus accepts the scalar `last_message` (or nothing) or the mapping
-// `{source: file, path: <rel>}`.
+// parseFocus accepts the scalar `last_message` (or nothing), the mapping
+// `{source: file, path: <rel>}`, or `{source: files, paths: [<rel>, ...]}`.
 func parseFocus(node yaml.Node) (grade.Focus, error) {
 	switch node.Kind {
 	case yaml.ScalarNode:
@@ -165,16 +165,23 @@ func parseScalarFocus(value string) (grade.Focus, error) {
 
 func parseMappingFocus(node yaml.Node) (grade.Focus, error) {
 	var m struct {
-		Source string `yaml:"source"`
-		Path   string `yaml:"path"`
+		Source string   `yaml:"source"`
+		Path   string   `yaml:"path"`
+		Paths  []string `yaml:"paths"`
 	}
 	if err := node.Decode(&m); err != nil {
 		return grade.Focus{}, fmt.Errorf("%w: %w", grade.ErrBadFocus, err)
 	}
-	if m.Source != "file" {
+	var focus grade.Focus
+	var err error
+	switch m.Source {
+	case "file":
+		focus, err = grade.FocusFile(m.Path)
+	case "files":
+		focus, err = grade.FocusFiles(m.Paths)
+	default:
 		return grade.Focus{}, fmt.Errorf("%w: source %q", grade.ErrBadFocus, m.Source)
 	}
-	focus, err := grade.FocusFile(m.Path)
 	if err != nil {
 		return grade.Focus{}, fmt.Errorf("focus: %w", err)
 	}

@@ -32,6 +32,52 @@ func TestFocus(t *testing.T) {
 	if got := (grade.Focus{}).String(); got != "last_message" {
 		t.Errorf("zero Focus.String() = %q, want last_message", got)
 	}
+	ff, err := grade.FocusFiles([]string{"a/x.go", " b/y.go "})
+	if err != nil {
+		t.Fatalf("FocusFiles: %v", err)
+	}
+	if ff.String() != "files a/x.go, b/y.go" {
+		t.Errorf("FocusFiles().String() = %q", ff.String())
+	}
+	if _, err := grade.FocusFiles(nil); !errors.Is(err, grade.ErrBadFocus) {
+		t.Errorf("empty paths error = %v, want ErrBadFocus", err)
+	}
+	if _, err := grade.FocusFiles([]string{"ok.go", "/abs.go"}); !errors.Is(err, grade.ErrBadFocus) {
+		t.Errorf("absolute path in list error = %v, want ErrBadFocus", err)
+	}
+}
+
+func TestLLM_Grade_FilesFocusRendersEachFileUnderItsPath(t *testing.T) {
+	useFakeClaude(t)
+	dir := writeTree(t, map[string]string{"a/x.go": "package a\n", "b/y.go": "package b\n"})
+	outDir := t.TempDir()
+	focus, err := grade.FocusFiles([]string{"a/x.go", "b/y.go"})
+	if err != nil {
+		t.Fatalf("FocusFiles: %v", err)
+	}
+	g, err := grade.NewLLM("art", "c", "r", focus)
+	if err != nil {
+		t.Fatalf("NewLLM: %v", err)
+	}
+	judge, err := grade.NewJudge("fake-judge")
+	if err != nil {
+		t.Fatalf("NewJudge: %v", err)
+	}
+	out := g.Grade(context.Background(), grade.Subject{Dir: dir, OutDir: outDir, Judge: judge})
+	if !out.Passed {
+		t.Fatalf("Outcome = %+v, want PASS from the fake judge", out)
+	}
+	// The prompt the fake judge saw is what the real one would see.
+	p := g.Prompt("### a/x.go\n\npackage a\n\n\n### b/y.go\n\npackage b\n\n\n")
+	if !strings.Contains(p, "## FOCUS (files a/x.go, b/y.go)") || !strings.Contains(p, "### b/y.go\n\npackage b") {
+		t.Errorf("prompt = %q, want both files under their path headings", p)
+	}
+	// A missing member fails before the judge is consulted.
+	partial, _ := grade.FocusFiles([]string{"a/x.go", "missing.go"})
+	g2, _ := grade.NewLLM("art", "c", "", partial)
+	if out := g2.Grade(context.Background(), grade.Subject{Dir: dir}); out.Passed || !strings.Contains(out.Detail, "read focus file") {
+		t.Errorf("missing member outcome = %+v, want a read-focus failure", out)
+	}
 }
 
 func TestNewLLM_Error(t *testing.T) {

@@ -296,6 +296,7 @@ func TestLoadGrader_Success(t *testing.T) {
 		{name: "llm default focus", content: "---\ntype: llm\ncriteria: c\n---\nrubric\n", wantType: "llm"},
 		{name: "llm scalar focus", content: "---\ntype: llm\ncriteria: c\nfocus: last_message\n---\n", wantType: "llm"},
 		{name: "llm file focus", content: "---\ntype: llm\ncriteria: c\nfocus: { source: file, path: services/heartbeat.go }\n---\n", wantType: "llm"},
+		{name: "llm files focus", content: "---\ntype: llm\ncriteria: c\nfocus: { source: files, paths: [a/x.go, b/y.go] }\n---\n", wantType: "llm"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -333,6 +334,7 @@ func TestLoadGrader_Error(t *testing.T) {
 		{name: "llm bad scalar focus", content: "---\ntype: llm\ncriteria: c\nfocus: stdout\n---\n", wantErr: grade.ErrBadFocus},
 		{name: "llm bad source", content: "---\ntype: llm\ncriteria: c\nfocus: { source: url, path: x }\n---\n", wantErr: grade.ErrBadFocus},
 		{name: "llm file focus absolute", content: "---\ntype: llm\ncriteria: c\nfocus: { source: file, path: /x }\n---\n", wantErr: grade.ErrBadFocus},
+		{name: "llm files focus empty", content: "---\ntype: llm\ncriteria: c\nfocus: { source: files, paths: [] }\n---\n", wantErr: grade.ErrBadFocus},
 		{name: "llm sequence focus", content: "---\ntype: llm\ncriteria: c\nfocus: [a, b]\n---\n", wantErr: grade.ErrBadFocus},
 		{name: "llm mapping with unknown shape", content: "---\ntype: llm\ncriteria: c\nfocus: { source: [a] }\n---\n", wantErr: grade.ErrBadFocus},
 	}
