@@ -1,0 +1,6 @@
+schema_version: "1.1"
+context:
+  scaffold_script: ../scaffold/default.sh
+postcheck: ./postcheck.sh
+tier: medium
+notes: "Case F: dependency rejection of env.Config one island at a time; the ratchet reads the commit history."
