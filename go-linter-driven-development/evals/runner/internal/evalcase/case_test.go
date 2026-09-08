@@ -74,6 +74,28 @@ func TestDiscover_Error(t *testing.T) {
 	}
 }
 
+func TestDiscoverLenient_ReportsBrokenAndKeepsTheRest(t *testing.T) {
+	t.Parallel()
+	evalsDir, _ := scratchEvals(t, map[string]string{"prompt.md": minimalPrompt, "graders/g.md": regexGrader})
+	brokenDir := filepath.Join(evalsDir, "half-written")
+	if err := os.MkdirAll(brokenDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(brokenDir, "prompt.md"), []byte("no frontmatter here\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	cases, broken, err := evalcase.DiscoverLenient(evalsDir)
+	if err != nil {
+		t.Fatalf("DiscoverLenient: %v", err)
+	}
+	if len(cases) != 1 || cases[0].Name != "scratch" {
+		t.Errorf("cases = %+v, want the one good case", cases)
+	}
+	if len(broken) != 1 || broken[0].Dir != "half-written" || broken[0].Err == nil {
+		t.Errorf("broken = %+v, want the half-written dir with its error", broken)
+	}
+}
+
 func TestDiscover_MalformedEvalsPath(t *testing.T) {
 	t.Parallel()
 	evalsDir := filepath.Join(t.TempDir(), "[")

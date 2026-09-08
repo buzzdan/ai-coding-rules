@@ -76,22 +76,48 @@ type caseYAML struct {
 	Notes     string `yaml:"notes"`
 }
 
-// Discover loads every <evalsDir>/*/prompt.md as a case, sorted by name.
+// Broken is a case directory that failed to load. Dir is the directory's
+// basename — the only name a malformed case has, since its frontmatter may be
+// what is broken.
+type Broken struct {
+	Dir string
+	Err error
+}
+
+// Discover loads every <evalsDir>/*/prompt.md as a case, sorted by name. Any
+// malformed case directory fails the whole discovery.
 func Discover(evalsDir string) ([]Case, error) {
+	cases, broken, err := DiscoverLenient(evalsDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(broken) > 0 {
+		return nil, broken[0].Err
+	}
+	return cases, nil
+}
+
+// DiscoverLenient loads every case it can and reports the directories it
+// cannot, so one half-written case never hides the rest of the suite from a
+// filtered run. The caller decides whether a broken directory matters.
+func DiscoverLenient(evalsDir string) ([]Case, []Broken, error) {
 	prompts, err := filepath.Glob(filepath.Join(evalsDir, "*", "prompt.md"))
 	if err != nil {
-		return nil, fmt.Errorf("evalcase: glob %s: %w", evalsDir, err)
+		return nil, nil, fmt.Errorf("evalcase: glob %s: %w", evalsDir, err)
 	}
 	cases := make([]Case, 0, len(prompts))
+	var broken []Broken
 	for _, p := range prompts {
-		c, lerr := Load(filepath.Dir(p))
+		dir := filepath.Dir(p)
+		c, lerr := Load(dir)
 		if lerr != nil {
-			return nil, lerr
+			broken = append(broken, Broken{Dir: filepath.Base(dir), Err: lerr})
+			continue
 		}
 		cases = append(cases, c)
 	}
 	sort.Slice(cases, func(i, j int) bool { return cases[i].Name < cases[j].Name })
-	return cases, nil
+	return cases, broken, nil
 }
 
 // Load reads one case directory. The evals dir (for the default scaffold) is

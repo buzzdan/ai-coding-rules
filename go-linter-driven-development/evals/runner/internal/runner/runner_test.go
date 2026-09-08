@@ -162,6 +162,52 @@ func TestRunner_CaseGlobAndTagSelect(t *testing.T) {
 	}
 }
 
+func TestNew_BrokenCaseDirBlocksOnlyWhenSelected(t *testing.T) {
+	t.Parallel()
+	evalsDir := evalsWithCase(t, "true\n", map[string]string{"prompt.md": "---\ntags: [cheap]\n---\nGo.\n", "graders/g.md": regexGrader})
+	brokenDir := filepath.Join(evalsDir, "half-written")
+	if err := os.MkdirAll(brokenDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(brokenDir, "prompt.md"), []byte("no frontmatter\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	selected := []runner.Options{
+		{EvalsDir: evalsDir, CaseGlob: "probe"},
+		{EvalsDir: evalsDir, Tag: "cheap"},
+	}
+	for _, opts := range selected {
+		r, err := runner.New(opts)
+		if err != nil {
+			t.Fatalf("New(%+v): %v, want the good case selected past the broken dir", opts, err)
+		}
+		if len(r.Cases()) != 1 || r.Cases()[0].Name != "probe" {
+			t.Errorf("New(%+v) selected %+v, want [probe]", opts, r.Cases())
+		}
+	}
+}
+
+func TestNew_BrokenCaseDirFailsWhenSelected(t *testing.T) {
+	t.Parallel()
+	evalsDir := evalsWithCase(t, "true\n", map[string]string{"prompt.md": promptWithModel, "graders/g.md": regexGrader})
+	brokenDir := filepath.Join(evalsDir, "half-written")
+	if err := os.MkdirAll(brokenDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(brokenDir, "prompt.md"), []byte("no frontmatter\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	failing := []runner.Options{
+		{EvalsDir: evalsDir},
+		{EvalsDir: evalsDir, CaseGlob: "half-*"},
+	}
+	for _, opts := range failing {
+		if _, err := runner.New(opts); err == nil {
+			t.Errorf("New(%+v): want an error for the selected broken dir, got nil", opts)
+		}
+	}
+}
+
 func TestNew_Error(t *testing.T) {
 	t.Parallel()
 	evalsDir := evalsWithCase(t, "true\n", map[string]string{"prompt.md": promptWithModel, "graders/g.md": regexGrader})

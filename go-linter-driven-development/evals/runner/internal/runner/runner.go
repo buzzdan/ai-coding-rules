@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -113,9 +114,12 @@ func resolveOptions(opts Options) (Options, error) {
 }
 
 func selectCases(opts Options) ([]evalcase.Case, error) {
-	all, err := evalcase.Discover(opts.EvalsDir)
+	all, broken, err := evalcase.DiscoverLenient(opts.EvalsDir)
 	if err != nil {
 		return nil, fmt.Errorf("runner: %w", err)
+	}
+	if err := rejectSelectedBroken(opts, broken); err != nil {
+		return nil, err
 	}
 	selected := make([]evalcase.Case, 0, len(all))
 	for _, c := range all {
@@ -131,6 +135,42 @@ func selectCases(opts Options) ([]evalcase.Case, error) {
 		return nil, fmt.Errorf("%w: glob=%q tag=%q in %s", ErrNoCases, opts.CaseGlob, opts.Tag, opts.EvalsDir)
 	}
 	return selected, nil
+}
+
+// rejectSelectedBroken fails on a malformed case directory only when the
+// selection could include it: no filters at all, or a name glob that matches
+// its directory. A tag filter can never select a directory whose frontmatter
+// did not load, and an unmatched glob was never asking for it — those are
+// reported on the progress stream and skipped.
+func rejectSelectedBroken(opts Options, broken []evalcase.Broken) error {
+	for _, b := range broken {
+		selected, err := brokenIsSelected(opts, b.Dir)
+		if err != nil {
+			return err
+		}
+		if selected {
+			return fmt.Errorf("runner: %w", b.Err)
+		}
+		_, _ = fmt.Fprintf(opts.Progress, "skipping malformed case dir %s: %v\n", b.Dir, b.Err) // progress output is advisory
+	}
+	return nil
+}
+
+// brokenIsSelected decides whether a directory that failed to load falls
+// inside the run's selection: never under a tag filter, by name under a glob,
+// always when nothing filters.
+func brokenIsSelected(opts Options, dir string) (bool, error) {
+	if opts.Tag != "" {
+		return false, nil
+	}
+	if opts.CaseGlob == "" {
+		return true, nil
+	}
+	ok, err := path.Match(opts.CaseGlob, dir)
+	if err != nil {
+		return false, fmt.Errorf("runner: case glob %q: %w", opts.CaseGlob, err)
+	}
+	return ok, nil
 }
 
 func selects(opts Options, c evalcase.Case) (bool, error) {
