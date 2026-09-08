@@ -412,8 +412,10 @@ any OKF tool.
   gets its own doc root and index; the repo-root index links the sub-indexes.
   Mechanical discovery is keyed on `go.mod` — a sub-project in another language
   keeps its docs reachable through the root index, but is outside the gate's
-  bundle checks and Q2's Go-scoped code↔docs verification (this rule lives in
-  the Go plugin; a sibling plugin owns other languages).
+  bundle checks and Q2's code↔docs verification. Everything that touches code
+  (sub-project discovery, the declaration set, the code-edge grep, the
+  file-path ban, the symbol shapes) is supplied per language by the gate's
+  adapter block; this build carries the Go adapter.
 - Nesting inside a doc root is allowed; the index (or a sub-index) covers every
   file in it.
 

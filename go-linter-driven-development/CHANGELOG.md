@@ -57,7 +57,18 @@ inside and a CI gate outside.
   false-positive classes left. BOOTSTRAP installs it into
   target repos and suggests the
   one-line CI wiring. Exit 0 clean/not-adopted, 1 violations, 2 usage error;
-  every failure message points at conventions.md.
+  every failure message points at conventions.md. Everything language-specific
+  in the gate sits in one delimited adapter block behind a small `LANG_*` /
+  `lang_*` contract; the driver around it (Q1, Q3, Q7, doc links, `--fix`) is
+  language-agnostic. awk programs avoid interval expressions — mawk, Debian's
+  default awk, rejects them, and a silenced awk failure had let the whole Q2
+  doc scan pass.
+- **New `scripts/check-repo-brain_test.sh`**: the gate's fixture matrix as a
+  committed test — 35 cases across Q1/Q2/Q3/Q7, `--fix` round-trips, usage
+  errors, and the no-code scope, built from POSIX tools in a temp dir. Its
+  differential mode (`GATE_REF=<other script>`) fails on any output, exit-code,
+  or `--fix` difference between two versions of the gate — the contract a
+  refactor, or another language's adapter, must meet.
 
 ### Changed
 
