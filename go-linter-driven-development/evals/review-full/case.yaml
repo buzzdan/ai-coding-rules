@@ -1,0 +1,9 @@
+schema_version: "1.1"
+context:
+  scaffold_script: ../scaffold/default.sh
+tier: cheap
+notes: |
+  Read-only review of the whole go-mini fixture. recall-*/cluster-*/precision-*
+  graders are GENERATED from violations.yaml by tools/gen-review-graders.sh —
+  edit the manifest, re-run the generator; never hand-edit those files. The
+  remaining graders are hand-written protocol assertions.

@@ -1,0 +1,5 @@
+schema_version: "1.1"
+context:
+  scaffold_script: ./scaffold.sh
+tier: cheap
+notes: the same "implement X" prompt in a Python-only repo must NOT trigger the Go workflow (negative control for the skill's trigger).

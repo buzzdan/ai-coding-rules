@@ -19,9 +19,17 @@
 #                 the lint-fixer must route it to (`action: FIX` = mechanical).
 # expect.prepare  the PREPARE gate this plant trips for the named spec.
 #
+# Controls carry two extra line-oriented keys read by
+# tools/gen-review-graders.sh (the review-full precision graders):
+#   symbol: '<ERE>'     the control's distinguishing symbol; a Review report
+#                       that mentions it has flagged the control (false positive)
+#   mention_ok: true    a correct report legitimately names this symbol (as the
+#                       reuse target or the fix), so no precision grader is
+#                       generated; default: not mentioned.
+#
 # Line-oriented on purpose: `files:` is a one-line flow list, `anchor:` is one
-# single-quoted line, and the parser only reads id / rule / control / files /
-# anchor. Keep it that way.
+# single-quoted line, and the parsers only read id / rule / control / files /
+# anchor (+ symbol / mention_ok on controls). Keep it that way.
 
 # ─── The centerpiece: (*DeviceService).ProcessHeartbeat ─────────────────────
 
@@ -402,6 +410,7 @@
   control: true
   files: [internal/models/tenant.go]
   anchor: 'func ParseTenant\(raw string\) \(Tenant, error\)'
+  symbol: 'ParseTenant'
   expect: { review: { findings: 0, note: "must not be re-proposed" } }
 
 - id: CTRL.R1.region-type
@@ -409,6 +418,8 @@
   control: true
   files: [internal/models/region.go]
   anchor: 'func ParseRegion\(raw string\) \(Region, error\)'
+  symbol: 'ParseRegion'
+  mention_ok: true
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R1.named-const
@@ -416,6 +427,7 @@
   control: true
   files: [internal/pkg/deviceid/deviceid.go, internal/snapshot/schedule.go, internal/transport/client.go]
   anchor: '^const (maxLen = 64|minutesPerDay = 24 \* 60|\($)'
+  symbol: 'maxLen|minutesPerDay'
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R1.trace-id-string
@@ -424,6 +436,7 @@
   case: D
   files: [internal/handlers/trace.go]
   anchor: 'func \(h \*Handler\) trace\(w http\.ResponseWriter, traceID string\)'
+  symbol: 'TraceID'
   expect: { review: { findings: 0, not_contains: 'TraceID' } }
 
 # ─── R2 self-validating types ───────────────────────────────────────────────
@@ -476,6 +489,7 @@
   control: true
   files: [internal/snapshot/schedule.go]
   anchor: 'func ParseWindow\(start, end string\) \(Window, error\)'
+  symbol: 'ParseWindow'
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R2.snapshot-repository
@@ -483,6 +497,7 @@
   control: true
   files: [internal/snapshot/repository.go, internal/snapshot/scheduler.go]
   anchor: 'func NewRepository\(dir string\) \(Repository, error\)|if now == nil'
+  symbol: 'NewRepository\(|now == nil'
   expect: { review: { findings: 0, note: "constructor-time checks are the healthy place" } }
 
 # ─── R3 storifying (beyond the centerpiece) ─────────────────────────────────
@@ -509,6 +524,7 @@
   control: true
   files: [internal/snapshot/scheduler.go]
   anchor: 'func \(s \*Scheduler\) Prune\(raw map\[string\]string'
+  symbol: 'Prune'
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R3.guard-clauses
@@ -516,6 +532,7 @@
   control: true
   files: [internal/repository/file_repo.go, internal/repository/mem_store.go]
   anchor: 'if err := ctx\.Err\(\); err != nil'
+  symbol: 'ctx\.Err\(\)'
   expect: { review: { findings: 0 } }
 
 # ─── R4 helper placement ────────────────────────────────────────────────────
@@ -576,6 +593,7 @@
   control: true
   files: [internal/repository/store.go, internal/snapshot/schedule.go]
   anchor: '^func (key\(tenant, id string\) string|parseClock\(v string\) \(int, error\))'
+  symbol: 'parseClock'
   expect: { review: { findings: 0, note: "the promotion signal must not fire" } }
 
 # ─── R5 vertical slice ──────────────────────────────────────────────────────
@@ -636,6 +654,8 @@
   control: true
   files: [internal/snapshot/snapshot.go, internal/snapshot/repository.go, internal/snapshot/scheduler.go]
   anchor: '^package snapshot$'
+  symbol: 'internal/snapshot/'
+  mention_ok: true
   expect: { review: { findings: 0 } }
 
 # ─── R6 test-only interfaces ────────────────────────────────────────────────
@@ -704,6 +724,7 @@
   control: true
   files: [internal/repository/store.go]
   anchor: 'type Store interface'
+  symbol: 'Store interface'
   expect: { review: { findings: 0, note: "two production implementers: FileRepo and MemStore" } }
 
 - id: CTRL.R6.mem-store-in-production
@@ -711,6 +732,8 @@
   control: true
   files: [cmd/svc/main.go, internal/repository/mem_store.go]
   anchor: 'MemStore'
+  symbol: 'MemStore'
+  mention_ok: true
   expect: { review: { findings: 0 } }
 
 # ─── R7 test placement ──────────────────────────────────────────────────────
@@ -757,6 +780,7 @@
   control: true
   files: [internal/snapshot/schedule_test.go, internal/models/tenant_test.go, internal/models/region_test.go]
   anchor: '^func TestParse\w+_(Success|Error)\('
+  symbol: 'TestParse\w+_(Success|Error)'
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R7.real-collaborators
@@ -764,6 +788,8 @@
   control: true
   files: [internal/snapshot/scheduler_test.go]
   anchor: 't\.TempDir\(\)'
+  symbol: 't\.TempDir\(\)'
+  mention_ok: true
   expect: { review: { findings: 0 } }
 
 # ─── R8 no globals ──────────────────────────────────────────────────────────
@@ -811,6 +837,8 @@
   control: true
   files: [internal/repository/store.go]
   anchor: '^var ErrNotFound = errors\.New'
+  symbol: 'ErrNotFound'
+  mention_ok: true
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R8.compile-time-check
@@ -818,6 +846,7 @@
   control: true
   files: [internal/repository/store.go, internal/repository/device_repository.go]
   anchor: '_ (Store|DeviceRepository) = \(\*FileRepo\)\(nil\)'
+  symbol: '_ Store = \(\*FileRepo\)'
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R8.main-composition-root
@@ -825,6 +854,8 @@
   control: true
   files: [cmd/svc/main.go]
   anchor: 'context\.Background\(\)|env\.Load\(\)|os\.Getenv\("(PORT|WEBHOOK_URL|STORE_PATH)"\)'
+  symbol: 'cmd/svc/main\.go'
+  mention_ok: true
   expect: { review: { findings: 0, note: "globals at the composition root are the pragmatic endpoint" } }
 
 # ─── R9 repo brain ──────────────────────────────────────────────────────────
@@ -905,6 +936,8 @@
   control: true
   files: [internal/snapshot/snapshot.go]
   anchor: '^// See docs/heartbeat-protocol\.md'
+  symbol: 'snapshot/snapshot\.go'
+  mention_ok: true
   expect: { review: { findings: 0, note: "WHY-comment with one resolving See-edge" } }
 
 - id: CTRL.R9.why-comments
@@ -912,6 +945,7 @@
   control: true
   files: [internal/repository/mem_store.go, internal/handlers/trace.go, internal/snapshot/repository.go]
   anchor: 'store behind|can be joined later|races a manual cleanup'
+  symbol: 'store behind|can be joined later|races a manual cleanup'
   expect: { review: { findings: 0 } }
 
 # ─── R10 concurrency ────────────────────────────────────────────────────────
@@ -981,6 +1015,7 @@
   control: true
   files: [internal/repository/file_repo.go, internal/repository/mem_store.go]
   anchor: '[rm]\.mu\.Lock\(\)'
+  symbol: '\b[rm]\.mu\.Lock\(\)'
   expect: { review: { findings: 0, note: "mutex declared beside the state it guards, locked on every path" } }
 
 - id: CTRL.R10.main-jitter-sleep
@@ -988,6 +1023,7 @@
   control: true
   files: [cmd/svc/main.go]
   anchor: 'time\.Sleep\(time\.Duration\(rand\.IntN\(20\)\)'
+  symbol: 'rand\.IntN'
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R10.worker-range
@@ -995,6 +1031,7 @@
   control: true
   files: [internal/pool/workers.go]
   anchor: 'for j := range jobs'
+  symbol: 'range jobs'
   expect: { review: { findings: 0, note: "exits when the channel closes" } }
 
 # ─── R11 conditional dispatch ───────────────────────────────────────────────
@@ -1069,6 +1106,7 @@
   control: true
   files: [internal/models/region.go]
   anchor: 'switch r \{'
+  symbol: 'Zone\(\)'
   expect: { review: { findings: 0, note: "one site, named enum, no default" } }
 
 - id: CTRL.R11.errors-is
@@ -1076,6 +1114,8 @@
   control: true
   files: [internal/repository/file_repo.go, internal/snapshot/repository.go]
   anchor: 'errors\.Is\('
+  symbol: 'errors\.Is\('
+  mention_ok: true
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R11.value-conditional
@@ -1083,6 +1123,7 @@
   control: true
   files: [internal/snapshot/schedule.go]
   anchor: 'if w\.start < w\.end'
+  symbol: 'w\.start < w\.end'
   expect: { review: { findings: 0 } }
 
 # ─── R12 mutation discipline ────────────────────────────────────────────────
@@ -1127,6 +1168,8 @@
   control: true
   files: [internal/snapshot/schedule.go, internal/report/catalog.go]
   anchor: 'slices\.Clone\((windows|devices|p\.windows)\)'
+  symbol: 'slices\.Clone'
+  mention_ok: true
   expect: { review: { findings: 0 } }
 
 - id: CTRL.R12.honest-mutator
@@ -1134,6 +1177,7 @@
   control: true
   files: [internal/jobs/scheduler.go]
   anchor: 'func \(s \*Scheduler\) drain\(\) \[\]models\.Job'
+  symbol: 'drain\(\)'
   expect: { review: { findings: 0, note: "pops and returns, named as a mutator, every caller wants both" } }
 
 # ─── Case A — retention: inline range check, duplicated, re-check, sentinel ──

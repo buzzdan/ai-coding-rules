@@ -1,0 +1,11 @@
+schema_version: "1.1"
+context:
+  scaffold_script: ../scaffold/default.sh
+postcheck: ./postcheck.sh
+tier: medium
+notes: |
+  Standalone PREPARE with the SMS-channel spec. MULTIPLY must hit the
+  triplicated `switch a.Channel` (R11) and the raw Channel string (R1); the
+  Channel extraction goes through the overabstraction-skeptic; the god file
+  (device_service.go) is L effort → PREP-DEFERRED or untouched. No SMS code may
+  land — this is preparation, not the feature.
