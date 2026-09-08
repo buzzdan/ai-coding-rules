@@ -12,8 +12,11 @@ assert_eq "R2 Q2: no receiver-field nil re-check inside internal/report methods"
 assert_eq "R2 Q5: no 'return nil' in catalog.go" "$(count_matches 'return nil$' 'internal/report/catalog.go')" 0
 assert_le "R2 Q1: Reporter built by literal only inside its constructor" \
   "$(count_matches_prod '\bReporter\{' 'internal/report/*.go')" 1
-assert_ge "a Default*/System* constructor is CALLED (not just declared) in internal/report" \
-  "$(count_matches_prod '^\s.*\b(Default|System)\w+\(\)' 'internal/report/*.go')" 1
+# The null object is CALLED somewhere in the package, not just declared. The
+# fixture's only "no sink" caller is the test that used to pass nil, so test
+# files count; Go names the null object Discard as often as Default/System.
+assert_ge "a Default*/System*/Discard* constructor is CALLED (not just declared) in internal/report" \
+  "$(count_matches '^\s.*\b(Default|System|Discard|Nop|Noop|Null)\w*\(\)' 'internal/report/*.go')" 1
 # R6 guard rail: the fixture's report package declares no interface; replacing
 # the nil-able *Sink with a Sink interface "for testability" is the tempting
 # wrong fix (a function type like Clock is fine — it is not an interface).
