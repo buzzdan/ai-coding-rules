@@ -1,7 +1,7 @@
 ---
-# the escalation carries its route from the lint-fixer's table: rules/R3-storifying.md
+# gocognit routes to R3 storifying (same line as the linter name)
 type: regex
-pattern: 'R3-storifying'
+pattern: 'gocognit[^\n]{0,240}R3-storifying'
 match: contains
 target: trace
 ---

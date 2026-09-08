@@ -355,7 +355,7 @@ func (r *Runner) execute(ctx context.Context, env runEnv, res report.RunResult) 
 	}
 	res.CostUSD, res.DurationMS, res.NumTurns, res.Segments = tr.CostUSD(), tr.DurationMS(), tr.NumTurns(), tr.Segments()
 	if tr.IsError() {
-		res.Graders = append(res.Graders, grade.Outcome{Name: "execution", Type: "execution", Detail: "claude reported is_error (" + tr.Subtype() + ")"})
+		res.Graders = append(res.Graders, executionOutcome(tr))
 	}
 	subject := grade.Subject{Trace: tr, Dir: env.work, OutDir: env.outDir, Judge: r.judge}
 	for _, g := range env.caseDef.Graders {

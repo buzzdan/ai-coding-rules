@@ -155,6 +155,33 @@ func TestRun_ResumeReusesFinishedRunsAndExecutesTheRest(t *testing.T) {
 	}
 }
 
+func TestRegrade_KeepsTheExecutionGraderOfAnAbortedRun(t *testing.T) {
+	aborted := `{"type":"assistant","message":{"content":[{"type":"text","text":"DONE"}]}}
+{"type":"result","subtype":"error_max_turns","is_error":true,"result":"DONE","total_cost_usd":0.5,"duration_ms":42,"num_turns":120}
+`
+	evalsDir := evalsWithCase(t, "mkdir -p \"$1\"\n", map[string]string{"prompt.md": promptWithModel, "graders/g.md": passingGrader})
+	outDir := t.TempDir()
+	catTrace(t, aborted)
+	_, before := runProbe(t, runner.Options{EvalsDir: evalsDir, OutDir: outDir, Threshold: 1})
+	if before.Passed {
+		t.Fatalf("setup: an is_error run must fail, got %+v", before)
+	}
+	r, err := runner.New(runner.Options{EvalsDir: evalsDir, OutDir: outDir, Threshold: 1})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := r.Regrade(context.Background()); err != nil {
+		t.Fatalf("Regrade: %v", err)
+	}
+	after, err := report.ReadRunResult(filepath.Join(outDir, "probe", "run-1", "result.json"))
+	if err != nil {
+		t.Fatalf("read regraded result: %v", err)
+	}
+	if after.Passed || len(after.Graders) != 2 || after.Graders[0].Type != "execution" || after.Graders[0].Passed {
+		t.Errorf("regraded result = %+v, want the failing execution grader kept ahead of the case graders", after)
+	}
+}
+
 func TestRegrade_ErrorWithoutRecordedRuns(t *testing.T) {
 	t.Parallel()
 	evalsDir := evalsWithCase(t, "true\n", map[string]string{"prompt.md": promptWithModel, "graders/g.md": passingGrader})

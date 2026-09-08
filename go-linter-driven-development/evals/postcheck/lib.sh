@@ -319,17 +319,25 @@ count_assertions() {
 	grep -c 't\.\(Fatal\|Error\)' "$EVAL_DIR/$1" 2>/dev/null || true
 }
 
+# total_assertions — assertion lines across every _test.go in the tree.
+total_assertions() {
+	(cd "$EVAL_DIR" && grep -rc 't\.\(Fatal\|Error\)' --include='*_test.go' . 2>/dev/null | awk -F: '{s+=$NF} END {print s+0}')
+}
+
 # assert_assertions_kept <baseline-file> — every _test.go listed in the
 # baseline (`<count> <path>` per line, paths relative to the repo root) still
 # exists and carries at least as many assertion lines as it did (the
-# lint-fixer's "never weaken a test" hard limit). One assert per file.
+# lint-fixer's "never weaken a test" hard limit). One assert per file. A file
+# that no longer exists is a legitimate move when its package was dissolved
+# (an R4 fix), so it passes only if the tree as a whole still carries at least
+# the baseline's total assertion lines; otherwise assertions were lost.
 assert_assertions_kept() {
-	local want path
+	local want path baseline_total
+	baseline_total=$(awk '{s+=$1} END {print s+0}' "$1")
 	while read -r want path; do
 		[[ -z "$path" ]] && continue
 		if [[ ! -f "$EVAL_DIR/$path" ]]; then
-			echo "FAIL  test file removed: $path (had $want assertion lines)"
-			_pc_failures=$((_pc_failures + 1))
+			assert_ge "test file $path removed (had $want assertion lines): tree total still covers the baseline $baseline_total" "$(total_assertions)" "$baseline_total"
 			continue
 		fi
 		assert_ge "assertions kept in $path" "$(count_assertions "$path")" "$want"

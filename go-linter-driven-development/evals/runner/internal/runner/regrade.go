@@ -106,7 +106,10 @@ func (r *Runner) regradeRun(ctx context.Context, c evalcase.Case, dir string) (r
 	if res.Run == 0 {
 		res.Run = runIndex(dir)
 	}
-	res.Graders = r.regradeGraders(ctx, c, grade.Subject{Trace: tr, Dir: keptScaffold(prev.ScaffoldDir), OutDir: dir, Judge: r.judge})
+	if tr.IsError() {
+		res.Graders = append(res.Graders, executionOutcome(tr))
+	}
+	res.Graders = append(res.Graders, r.regradeGraders(ctx, c, grade.Subject{Trace: tr, Dir: keptScaffold(prev.ScaffoldDir), OutDir: dir, Judge: r.judge})...)
 	for _, g := range res.Graders {
 		res.JudgeCostUSD += g.CostUSD
 	}
@@ -115,6 +118,13 @@ func (r *Runner) regradeRun(ctx context.Context, c evalcase.Case, dir string) (r
 		return report.RunResult{}, fmt.Errorf("runner: %w", err)
 	}
 	return res, nil
+}
+
+// executionOutcome is the synthetic failing grader for a run whose result
+// event reports is_error (max turns, a crash). Both the live run and regrade
+// derive it from the trace, so an aborted run never grades clean.
+func executionOutcome(tr trace.Trace) grade.Outcome {
+	return grade.Outcome{Name: "execution", Type: "execution", Detail: "claude reported is_error (" + tr.Subtype() + ")"}
 }
 
 // keptScaffold returns the scaffold path when it still exists, else "".
