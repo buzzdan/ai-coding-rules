@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'Null Object'
+pattern: '(?i)null[- ]?object'
 match: contains
 target: last_message
 ---

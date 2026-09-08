@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: '🔗 CLUSTER:.*[Ss]tatus.*\bR11\b'
+pattern: '🔗 CLUSTER[^\n]*[Ss]tatus.*\bR11\b'
 match: contains
 target: last_message
 ---
