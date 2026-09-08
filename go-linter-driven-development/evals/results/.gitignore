@@ -1,0 +1,4 @@
+# eval run output; only baseline-<sha>/ directories are committed on purpose
+*
+!.gitignore
+!baseline-*/
