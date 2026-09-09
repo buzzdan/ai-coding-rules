@@ -107,6 +107,22 @@ func (p Profile) Ignored(rel string) bool {
 	return false
 }
 
+// IgnoredName reports whether a bare file name matches one of the patterns
+// without a slash. Those patterns name OS and editor droppings such as
+// .DS_Store, so the generator skips them as sources too; path patterns like
+// "evals/*" apply to the plugin directory only.
+func (p Profile) IgnoredName(name string) bool {
+	for _, pattern := range p.Ignore {
+		if strings.Contains(pattern, "/") {
+			continue
+		}
+		if ok, _ := path.Match(pattern, name); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func matches(pattern, rel string) bool {
 	byName := !strings.Contains(pattern, "/")
 	for prefix := rel; prefix != "." && prefix != "/"; prefix = path.Dir(prefix) {

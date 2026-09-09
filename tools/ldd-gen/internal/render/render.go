@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"strings"
 	"text/template"
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
@@ -38,17 +37,18 @@ func Render(core fs.FS, b binding.Binding) (Tree, error) {
 		return nil, err
 	}
 	r := renderer{binding: b, overrides: overrides, tree: Tree{}, seen: map[string]bool{}}
-	if err := walkFiles(core, r.renderCore); err != nil {
+	skip := b.Profile().IgnoredName
+	if err := walkFiles(core, skip, r.renderCore); err != nil {
 		return nil, err
 	}
-	if err := walkFiles(overrides, r.checkOverrideHasCoreFile); err != nil {
+	if err := walkFiles(overrides, skip, r.checkOverrideHasCoreFile); err != nil {
 		return nil, err
 	}
 	pt, err := b.Passthrough()
 	if err != nil {
 		return nil, err
 	}
-	if err := walkFiles(pt, r.copyPassthrough); err != nil {
+	if err := walkFiles(pt, skip, r.copyPassthrough); err != nil {
 		return nil, err
 	}
 	return r.tree, nil
@@ -148,17 +148,16 @@ func isExecutable(fsys fs.FS, path string) (bool, error) {
 	return info.Mode()&0o111 != 0, nil
 }
 
-// walkFiles calls visit for every regular file whose name does not start with
-// a dot; hidden files are editor and OS droppings (.DS_Store), never sources.
-// Hidden directories are walked, since .claude-plugin/ holds the manifest. A
-// root that does not exist is an error: rendering nothing from a missing
-// core/ would delete the plugin.
-func walkFiles(fsys fs.FS, visit func(fs.FS, string) error) error {
+// walkFiles calls visit for every regular file except those whose name the
+// profile ignores (OS droppings such as .DS_Store). A root that does not
+// exist is an error: rendering nothing from a missing core/ would delete the
+// plugin.
+func walkFiles(fsys fs.FS, skip func(name string) bool, visit func(fs.FS, string) error) error {
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || strings.HasPrefix(d.Name(), ".") {
+		if d.IsDir() || skip(d.Name()) {
 			return nil
 		}
 		return visit(fsys, path)

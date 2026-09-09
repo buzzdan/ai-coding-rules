@@ -43,7 +43,7 @@ type Ignore func(rel string) bool
 // path. An empty result means the directory is exactly what the generator
 // would produce.
 func Compare(want render.Tree, dir string, ignore Ignore) ([]Difference, error) {
-	have, err := readDir(dir, ignoredAndUnowned(want, ignore))
+	have, err := readDir(dir, IgnoredAndUnowned(want, ignore))
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +67,9 @@ func Compare(want render.Tree, dir string, ignore Ignore) ([]Difference, error) 
 	return diffs, nil
 }
 
-// A file the generator owns is always compared, even inside an ignored directory.
-func ignoredAndUnowned(tree render.Tree, ignore Ignore) Ignore {
+// IgnoredAndUnowned narrows ignore to paths the tree does not produce: a file
+// the generator owns is always compared, even inside an ignored directory.
+func IgnoredAndUnowned(tree render.Tree, ignore Ignore) Ignore {
 	return func(rel string) bool {
 		_, owned := tree[rel]
 		return !owned && ignore(rel)
@@ -89,7 +90,7 @@ func compareFile(want, have render.File) (Kind, bool) {
 // written, every other file that is not ignored is removed, and directories
 // left empty are dropped. Ignored files and directories are never touched.
 func Write(tree render.Tree, dir string, ignore Ignore) error {
-	skip := ignoredAndUnowned(tree, ignore)
+	skip := IgnoredAndUnowned(tree, ignore)
 	have, err := readDir(dir, skip)
 	if err != nil {
 		return err

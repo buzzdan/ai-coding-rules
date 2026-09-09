@@ -28,11 +28,13 @@ File-level rules the generator applies without template syntax:
   with no matching core file is an error.
 - File names are templates too: `core/commands/{{.CmdPrefix}}-analyze.md` renders
   to `commands/go-ldd-analyze.md` for the Go binding.
-- This README is documentation for `core/` itself and is never rendered. Files whose
-  name starts with a dot (such as `.DS_Store`) are never read as sources either.
-- `task generate` writes only into a directory that holds `.claude-plugin/plugin.json`
-  (or does not exist yet), so a wrong `plugin` name in a profile cannot delete anything
-  else in the repository.
+- This README is documentation for `core/` itself and is never rendered. Names listed
+  in the profile's `ignore` without a slash (such as `.DS_Store`) are never read as
+  sources either.
+- `task generate` refuses to write when two bindings name the same plugin, when the
+  rendering has no named `.claude-plugin/plugin.json`, or when the target directory
+  already holds files and its manifest names a different plugin. A wrong `plugin` name
+  in a profile therefore cannot delete another plugin or any other directory.
 
 Include files carry no leading or trailing blank lines; the surrounding template
 owns them. That is what keeps a rendered file byte-identical to a hand-written one.

@@ -39,7 +39,7 @@ func miniRepo(t *testing.T) string {
 	write(t, root, "lang/p/profile.yaml", profileYAML)
 	write(t, root, "lang/p/rules/R1/example.md", "example\n")
 	write(t, root, "lang/p/passthrough/CHANGELOG.md", "log\n")
-	write(t, root, "lang/p/passthrough/.claude-plugin/plugin.json", "{}\n")
+	write(t, root, "lang/p/passthrough/.claude-plugin/plugin.json", `{"name": "out-plugin"}`+"\n")
 	write(t, root, "lang/README.md", "not a binding\n")
 	write(t, root, "core/README.md", "about core\n\n<!-- residue:begin -->\nold\n<!-- residue:end -->\n")
 	write(t, root, "core/rules/R1.md", "{{include \"rules/R1/example.md\"}} in {{.Lang}}\n")
@@ -143,7 +143,38 @@ func TestGenerate_RefusesNonPluginTargets(t *testing.T) {
 	require.NoError(t, err)
 	err = repo.Generate("p")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rendering has no .claude-plugin/plugin.json")
+	assert.Contains(t, err.Error(), "no .claude-plugin/plugin.json")
+
+	otherPlugin := miniRepo(t)
+	write(t, otherPlugin, "out-plugin/.claude-plugin/plugin.json", `{"name": "someone-else"}`+"\n")
+	write(t, otherPlugin, "out-plugin/README.md", "theirs\n")
+	repo, err = gen.Open(otherPlugin)
+	require.NoError(t, err)
+	err = repo.Generate("p")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `belongs to plugin "someone-else"`)
+	assert.FileExists(t, filepath.Join(otherPlugin, "out-plugin/README.md"))
+}
+
+func TestGenerate_RefusesTwoBindingsForOnePlugin(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	write(t, root, "lang/q/profile.yaml", profileYAML)
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	err = repo.Generate("p")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `both name plugin "out-plugin"`)
+}
+
+func TestGenerate_IgnoredOwnedFileBlocksAForeignDir(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	write(t, root, "lang/p/passthrough/evals/README.md", "pointer\n")
+	write(t, root, "out-plugin/evals/README.md", "someone else's file at an owned, ignored path\n")
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	require.Error(t, repo.Generate("p"), "an owned path is overwritten, so it counts as touched")
 }
 
 func TestGenerate_EmptyTargetIsFine(t *testing.T) {

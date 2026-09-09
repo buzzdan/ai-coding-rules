@@ -93,3 +93,12 @@ func TestIgnored(t *testing.T) {
 		})
 	}
 }
+
+func TestIgnoredName(t *testing.T) {
+	t.Parallel()
+	p, err := profile.Parse([]byte(full))
+	require.NoError(t, err)
+	assert.True(t, p.IgnoredName(".DS_Store"))
+	assert.False(t, p.IgnoredName(".mcp.json"), "hidden is not the same as ignored")
+	assert.False(t, p.IgnoredName("evals"), "path patterns do not apply to bare names")
+}

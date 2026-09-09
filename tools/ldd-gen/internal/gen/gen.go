@@ -4,6 +4,7 @@
 package gen
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -88,43 +89,102 @@ func (r Repo) Render(lang string) (render.Tree, profile.Profile, error) {
 	return tree, b.Profile(), nil
 }
 
-// Generate renders one binding and writes it over its plugin directory. Both
-// the rendering and the directory on disk (when it already holds files) must
-// carry the plugin manifest: a profile that names some other directory of the
-// repository is refused before anything is deleted.
+// Generate renders one binding and writes it over its plugin directory.
+// Writing deletes files the rendering does not own, so three checks run
+// first: no two bindings may name the same plugin directory, the rendering
+// must carry a plugin manifest, and a directory already on disk must either
+// carry a manifest with the same plugin name or hold nothing the write would
+// touch. A profile that names another plugin, or some other directory of the
+// repository, is refused before anything is deleted.
 func (r Repo) Generate(lang string) error {
+	if err := r.requireUniquePlugins(); err != nil {
+		return err
+	}
 	tree, p, err := r.Render(lang)
 	if err != nil {
 		return err
 	}
-	if _, ok := tree[pluginManifest]; !ok {
-		return fmt.Errorf("generate: the %s rendering has no %s; refusing to write", lang, pluginManifest)
+	name, err := manifestName(tree[pluginManifest].Data)
+	if err != nil {
+		return fmt.Errorf("generate: the %s rendering: %w", lang, err)
 	}
 	dir := filepath.Join(r.root, p.Plugin)
-	if err := requirePluginDir(dir, p.Ignored); err != nil {
+	if err := requireOwnedDir(dir, name, check.IgnoredAndUnowned(tree, p.Ignored)); err != nil {
 		return err
 	}
 	return check.Write(tree, dir, p.Ignored)
 }
 
-// requirePluginDir accepts a directory that already holds the plugin
-// manifest, or one that holds nothing the generator would delete: it does not
-// exist yet, or every file in it is ignored.
-func requirePluginDir(dir string, ignore check.Ignore) error {
-	if _, err := os.Stat(filepath.Join(dir, pluginManifest)); err == nil {
-		return nil
-	}
-	owned, err := hasUnignoredFile(dir, ignore)
+// requireUniquePlugins fails when two bindings render into one directory: the
+// second would overwrite the first's plugin with its own rendering.
+func (r Repo) requireUniquePlugins() error {
+	langs, err := r.Langs()
 	if err != nil {
 		return err
 	}
-	if owned {
+	owner := map[string]string{}
+	for _, lang := range langs {
+		b, err := binding.Load(os.DirFS(filepath.Join(r.root, langDir, lang)))
+		if err != nil {
+			return fmt.Errorf("%s: %w", filepath.Join(langDir, lang), err)
+		}
+		plugin := b.Profile().Plugin
+		if other, dup := owner[plugin]; dup {
+			return fmt.Errorf("generate: bindings %s and %s both name plugin %q", other, lang, plugin)
+		}
+		owner[plugin] = lang
+	}
+	return nil
+}
+
+// manifestName reads the plugin name from a .claude-plugin/plugin.json body.
+// A rendering without a named manifest is not a plugin and is never written.
+func manifestName(data []byte) (string, error) {
+	var m struct {
+		Name string `json:"name"`
+	}
+	if len(data) == 0 {
+		return "", fmt.Errorf("no %s", pluginManifest)
+	}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return "", fmt.Errorf("%s: %w", pluginManifest, err)
+	}
+	if m.Name == "" {
+		return "", fmt.Errorf("%s has no name", pluginManifest)
+	}
+	return m.Name, nil
+}
+
+// requireOwnedDir accepts a directory whose manifest names the same plugin as
+// the rendering, or one that holds nothing the write would delete or replace:
+// it does not exist yet, or every file in it is ignored and unowned.
+func requireOwnedDir(dir, name string, skip check.Ignore) error {
+	onDisk, err := os.ReadFile(filepath.Join(dir, pluginManifest))
+	if err == nil {
+		return requireSameName(dir, name, onDisk)
+	}
+	touched, err := hasFile(dir, skip)
+	if err != nil {
+		return err
+	}
+	if touched {
 		return fmt.Errorf("generate: %s is not a plugin directory (no %s); refusing to write", dir, pluginManifest)
 	}
 	return nil
 }
 
-func hasUnignoredFile(dir string, ignore check.Ignore) (bool, error) {
+func requireSameName(dir, name string, onDisk []byte) error {
+	existing, err := manifestName(onDisk)
+	if err != nil {
+		return fmt.Errorf("generate: %s: %w", dir, err)
+	}
+	if existing != name {
+		return fmt.Errorf("generate: %s belongs to plugin %q, the rendering is plugin %q; refusing to write", dir, existing, name)
+	}
+	return nil
+}
+
+func hasFile(dir string, skip check.Ignore) (bool, error) {
 	found := false
 	err := fs.WalkDir(os.DirFS(dir), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -133,7 +193,7 @@ func hasUnignoredFile(dir string, ignore check.Ignore) (bool, error) {
 			}
 			return err
 		}
-		if d.IsDir() || ignore(path) {
+		if d.IsDir() || skip(path) {
 			return nil
 		}
 		found = true
