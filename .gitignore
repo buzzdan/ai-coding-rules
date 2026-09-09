@@ -21,3 +21,9 @@ Thumbs.db
 .planning/
 .ideas/
 .superpowers/
+
+# Behavioral evals live in buzzdan/ldd-evals; a run copies cases here at run time.
+go-linter-driven-development/evals/*
+!go-linter-driven-development/evals/README.md
+.evals/
+.task/

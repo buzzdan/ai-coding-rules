@@ -4,7 +4,7 @@ description: how `ldd-eval` runs, regrades and resumes cases headlessly, and wha
 ---
 # The Runner
 
-`evals/runner/` is a small Go module that builds `ldd-eval`. It exists because
+`runner/` in the evals repository is a small Go module that builds `ldd-eval`. It exists because
 `claude plugin eval`, the CLI's own command for this job, is early access and closed
 for this organization. The cases do not depend on the runner; when the gate opens,
 delete the directory and run the same cases with the CLI. The flag reference lives
@@ -14,7 +14,8 @@ in the module's own README; this page is the mechanism.
 1. **Scaffold.** Run the case's scaffold script into a temp directory: a fresh git
    repo with the fixture and one base commit, so diff-based skills and git ratchets
    have a base.
-2. **Execute.** Start `claude -p` in that directory with the plugin directory, the
+2. **Execute.** Start `claude -p` in that directory with the plugin directory
+   (`--plugin-dir`, required: a run always names the plugin it measures), the
    case's model, tool allowlist, turn and time limits, and the appended system
    prompt, in permission-bypass mode with stream-json output. Every event is written
    to `trace.jsonl` as it arrives.
@@ -24,16 +25,21 @@ in the module's own README; this page is the mechanism.
    rates and total cost. Exit 0 when every case meets the threshold, 1 otherwise,
    2 when the cost cap tripped, 3 on a usage or infrastructure error.
 
-    export PATH=$PATH:/root/go/bin
-    cd go-linter-driven-development/evals
-    ldd-eval run --tag cheap --model claude-sonnet-5 --max-cost-usd 60 --out results/baseline-<sha>/cheap .
+    # in the evals repository
+    task go:run TIER=cheap CAP=60 PLUGIN=/path/to/go-linter-driven-development
+    # from this repository: clones the evals repository into .evals/ and runs the same task
+    bash scripts/evals.sh TIER=cheap CAP=1 CASE='trigger-*'
 
-Always pin the model on the command line, always set a cost cap, and smoke-test a
-new case with the trigger cases first: they cost cents.
+The task builds the runner, copies the suite below the plugin, pins the model
+(`MODEL`, default `claude-sonnet-5`) and sets the cost cap (`CAP`). Output lands in
+`results/go-<timestamp>/<tier>/`, or under `OUT` when given. Always pin the model,
+always set a cap, and smoke-test a new case with the trigger cases first: they cost
+cents.
 
 ## Regrade
-`ldd-eval regrade --out <previous-run> .` re-applies the cases' current graders to
-the traces already recorded and rewrites each `result.json`. Agent cost, turns and
+`task go:regrade OUT=<previous run> TIER=<tier>` re-applies the cases' current
+graders to the traces already recorded under `<previous run>/<tier>` and rewrites
+each `result.json`. Agent cost, turns and
 duration are re-read from the trace; only the llm judges spend anything. This is how
 graders are calibrated without paying for agents again. Graders that read the tree
 (files, `file_exists`, postcheck) need the scaffold, so runs you intend to regrade
@@ -43,9 +49,10 @@ its synthetic execution failure.
 
 ## Resume
 The container running headless evals is reclaimed when the session goes idle, and a
-detached run dies with it. `ldd-eval run --resume --out <dir>` reuses every run
+detached run dies with it. `task go:run RESUME=1 OUT=<dir>` reuses every run
 under the output directory that already has a `result.json`, counts its cost toward
-the cap, and executes only the rest. Select the whole tier in one invocation when the
+the cap, and executes only the rest. The evals repository's manual CI workflow
+uploads the results directory even when a run fails, for the same reason. Select the whole tier in one invocation when the
 cap should be cumulative; with `--case` the ledger sees only that case.
 
 ## Segments

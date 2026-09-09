@@ -1,1 +1,0 @@
-scaffolded go-mini at /tmp/ldd-eval-case-a-retention-refactor-1355430434 (e3ad558)

@@ -1,5 +1,0 @@
-schema_version: "1.1"
-context:
-  scaffold_script: ../scaffold/default.sh
-tier: cheap
-notes: plain "implement X" in a Go repo must auto-trigger @linter-driven-development; the system prompt stops the run after pre-flight so no implementation is paid for.

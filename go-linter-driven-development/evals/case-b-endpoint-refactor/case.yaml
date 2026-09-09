@@ -1,6 +1,0 @@
-schema_version: "1.1"
-context:
-  scaffold_script: ../scaffold/default.sh
-postcheck: ./postcheck.sh
-tier: medium
-notes: "Case B: host/port/tls clump through three signatures, scheme decided twice, port range checked twice."

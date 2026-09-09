@@ -1,6 +1,0 @@
-schema_version: "1.1"
-context:
-  scaffold_script: ../scaffold/default.sh
-postcheck: ./postcheck.sh
-tier: medium
-notes: "Case C: flag-driven loop with inline node validity and a tuple return; the storify move into a collection type."

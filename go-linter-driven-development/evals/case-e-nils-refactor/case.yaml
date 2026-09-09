@@ -1,6 +1,0 @@
-schema_version: "1.1"
-context:
-  scaffold_script: ../scaffold/default.sh
-postcheck: ./postcheck.sh
-tier: medium
-notes: "Case E: nil as optional field, absent return and default parameter; R6 guard rail (no new interface in report/)."

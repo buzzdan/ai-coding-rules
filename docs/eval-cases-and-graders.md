@@ -4,9 +4,9 @@ description: how to write an eval case: prompt frontmatter, case.yaml, the five 
 ---
 # Writing Cases and Graders
 
-A case is a directory under `evals/` with three parts. The file format is
-`claude plugin eval`'s, so a case needs no change when that command becomes
-available; only `case.yaml` is ours.
+A case is a directory under `go/cases/` in the evals repository with three parts.
+The file format is `claude plugin eval`'s, so a case needs no change when that
+command becomes available; only `case.yaml` is ours.
 
 ## prompt.md
 YAML frontmatter, then the prompt the agent receives.
@@ -37,6 +37,9 @@ they were never called.
 
 ## case.yaml
 Ours, not the gate's. It names the scaffold, an optional postcheck, and the tier.
+Paths are relative to the case directory; the run task copies cases, scaffold,
+postcheck helpers and fixture side by side below the plugin, so `../scaffold/` and
+`../postcheck/` resolve there.
 
 ```yaml
 schema_version: "1.1"
@@ -77,7 +80,7 @@ Two shapes learned the hard way:
 Graders read the transcript and the tree; they do not run commands. A medium case
 adds `postcheck.sh`, run in the kept scaffold after the agent finishes with the
 directory in an environment variable, and it counts as one grader named
-`postcheck`. `evals/postcheck/lib.sh` provides the assertions: `task test` and
+`postcheck`. `go/postcheck/lib.sh` provides the assertions: `task test` and
 `task lint`, byte identity of the lint config, per-file test assertion counts with a
 tree-total fallback when a test file was legitimately moved, complexity thresholds
 on a named function, git-log ratchets (Case F requires at least three commits and a

@@ -1,1 +1,0 @@
-scaffolded go-mini at /tmp/ldd-eval-case-b-endpoint-refactor-2184248476 (0dd47c0)

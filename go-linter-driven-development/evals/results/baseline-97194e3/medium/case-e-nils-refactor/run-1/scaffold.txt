@@ -1,1 +1,0 @@
-scaffolded go-mini at /tmp/ldd-eval-case-e-nils-refactor-2827856105 (c5aa09f)

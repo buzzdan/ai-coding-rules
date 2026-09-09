@@ -42,9 +42,8 @@ only `okf_version`.
 - No file paths or line numbers as code references.
 
 ## Check your work
-Run `bash scripts/check-docs.sh` from the repo root. It runs the plugin's own
-conformance gate over this repo and filters out the eval fixture, whose
-documentation violations are planted on purpose; anything left is real. `--fix`
+Run `bash scripts/check-docs.sh` (or `task docs:check`) from the repo root. It runs the
+plugin's own conformance gate over this repo; anything it reports is real. `--fix`
 rewrites drifted index lines from each doc's `description`. Code↔docs checks cover
 Go files; docs about shell scripts and markdown get the structure checks
 (reachability, frontmatter, index drift) but no symbol verification.

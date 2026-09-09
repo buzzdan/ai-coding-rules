@@ -1,1 +1,0 @@
-scaffolded go-mini at /tmp/ldd-eval-case-a-retention-review-4040733530 (4a3a9f3)

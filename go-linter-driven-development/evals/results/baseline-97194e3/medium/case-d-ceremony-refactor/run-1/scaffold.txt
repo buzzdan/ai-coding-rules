@@ -1,1 +1,0 @@
-scaffolded go-mini at /tmp/ldd-eval-case-d-ceremony-refactor-868864948 (142cef6)

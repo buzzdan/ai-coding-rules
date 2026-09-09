@@ -1,1 +1,0 @@
-scaffolded go-mini at /tmp/ldd-eval-case-e-nils-review-1869220973 (25580f0)

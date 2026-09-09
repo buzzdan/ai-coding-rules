@@ -6,15 +6,20 @@ description: how a baseline is recorded and compared: noise floor, regrade, the 
 
 ## Recording one
 Run the cheap tier two or three times per case and the medium tier once, with the
-model pinned, `--keep-temp` on, and the output directory named for the commit of the
-cases (`results/baseline-<sha>/`). Regrade once after calibration so every
-`result.json` carries the current graders' verdict. Commit the directory: traces
-compress well and are what makes later calibration free. Write a README beside it
-with the per-case table, the findings, the noise floor and every grader change made
-after the run.
+model pinned and one `OUT` directory for both tiers (`task go:run` keeps scaffolds
+and writes each tier to `OUT/<tier>`). Regrade once after calibration so every
+`result.json` carries the current graders' verdict. Then promote the run:
+`task go:baseline OUT=<run dir> PLUGIN=<plugin dir>` creates
+`baselines/go-<plugin version>-<plugin sha>/` in the evals repository with the
+verdicts, every trace in one `traces.tar.zst`, the plugin pin in `plugin.json`, and
+a README stub with the per-case table pre-filled. Finish the README with the
+findings, the noise floor and every grader change made after the run, and commit.
+Traces compress well and are what makes later calibration free; the scaffolds are
+not committed, so graders that read the tree cannot be regraded from a clone.
 
-The current baseline measures the plugin at `main` 681fdb0 and lives at
-`evals/results/baseline-97194e3/`.
+The current baseline measures plugin 2.10.0 at 681fdb0 and lives in the evals
+repository at
+[`baselines/go-2.10.0-681fdb0/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-681fdb0).
 
 ## The noise floor
 Graders that flip between runs of the same case, on the same plugin, are the noise
@@ -33,7 +38,7 @@ This is the acceptance procedure for the language-neutral core extraction, whose
 promise is that the generated plugin behaves the same as the hand-written one:
 
 1. Run the cheap tier once and the medium tier once against the generated plugin,
-   same model, same graders, into a new `results/` directory.
+   same model, same graders, into a new run directory under `results/`.
 2. Regrade both the baseline and the new run with the same graders if any grader
    changed in between.
 3. Per case, compare pass counts and, for the whole-repo review, the grader count.

@@ -11,23 +11,32 @@ the rules say. Before the plugin's text is restructured (a language-neutral core
 plus per-language bindings) and before its behavior is deliberately changed, there
 has to be a measurement of what it does today.
 
-**Solution**: `go-linter-driven-development/evals/` holds behavioral test cases in
-the `claude plugin eval` file format. Each case gives a fresh copy of a deliberately
+**Solution**: the [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)
+repository holds behavioral test cases in the `claude plugin eval` file format, one
+suite per language under `<lang>/`. Each case gives a fresh copy of a deliberately
 bad Go service to an agent that has the plugin installed, records everything the
-agent does, and grades the transcript and the resulting tree. A baseline recorded on
-`main` is the reference every later change is compared against.
+agent does, and grades the transcript and the resulting tree. A baseline recorded
+against a named plugin commit is the reference every later change is compared
+against.
+
+The evals repository depends on this one and never the reverse: it pins the plugin
+commit each baseline measured, while this repository carries only a pointer README
+under the plugin's `evals/` directory and `scripts/evals.sh`, which clones the evals
+repository into an ignored `.evals/` directory and runs a tier against the current
+checkout (`task evals:run`). Nothing a user installs contains a fixture, a runner or
+a trace.
 
 ## One run, end to end
 
     case dir                scaffold                 agent under test               graders
-    prompt.md          ──▶  default.sh copies   ──▶  claude -p --plugin-dir .  ──▶  regex on the report
-    case.yaml               fixtures/go-mini         prompt = the case text         regex on the files
+    prompt.md          ──▶  default.sh copies   ──▶  claude -p --plugin-dir p  ──▶  regex on the report
+    case.yaml               fixture/go-mini          prompt = the case text         regex on the files
     graders/*.md            into a fresh git         writes trace.jsonl:            tool_used / tool_order
                             repo, one commit         every tool call, text,         postcheck.sh in the tree
                                                      final message                  llm judge (Haiku)
                                                                                           │
                                                                                           ▼
-                                       results/<run>/<case>/run-N/{trace.jsonl, result.json, postcheck.txt}
+                                  results/<run>/<tier>/<case>/run-N/{trace.jsonl, result.json, postcheck.txt}
 
 The runner is the stand-in for `claude plugin eval`, which exists in the CLI but is
 gated per organization; see [eval-runner.md](eval-runner.md). The fixture and its
@@ -37,17 +46,23 @@ baselines is in [eval-baseline.md](eval-baseline.md).
 
 ## Layout
 
-| Path (under `go-linter-driven-development/evals/`) | What |
+| Path (in `ldd-evals`) | What |
 |---|---|
-| `fixtures/go-mini/` | the fixture: a device-fleet service planted with every rule's violations and a control per rule; no hints in the tree |
-| `violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it |
-| `check-manifest.sh` | keeps the manifest honest: anchors match, no hint words, every rule has plants and controls |
-| `scaffold/` | `default.sh` copies the fixture into a fresh git repo; `red-lint.sh` also strips every `//nolint` |
-| `<case>/` | `prompt.md`, `graders/*.md`, `case.yaml`, optional `postcheck.sh` |
-| `postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite |
-| `tools/gen-review-graders.sh` | generates the whole-repo review's recall, cluster and precision graders from the manifest |
-| `runner/` | `ldd-eval`, the stop-gap runner; deleted the day the gate opens |
-| `results/` | run output, gitignored except `baseline-<sha>/` |
+| `runner/` | `ldd-eval`, the stop-gap runner, language-neutral; deleted the day the gate opens |
+| `go/fixture/go-mini/` | the fixture: a device-fleet service planted with every rule's violations and a control per rule; no hints in the tree |
+| `go/violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it |
+| `go/check-manifest.sh` | keeps the manifest honest: anchors match, no hint words, every rule has plants and controls |
+| `go/gen-review-graders.sh` | generates the whole-repo review's recall, cluster and precision graders from the manifest |
+| `go/scaffold/` | `default.sh` copies the fixture into a fresh git repo; `red-lint.sh` also strips every `//nolint` |
+| `go/cases/<case>/` | `prompt.md`, `graders/*.md`, `case.yaml`, optional `postcheck.sh` |
+| `go/postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite |
+| `baselines/<lang>-<plugin version>-<plugin sha>/` | committed reference runs: verdicts, one `traces.tar.zst`, the plugin pin, the write-up |
+| `results/` | run output, ignored; a run is promoted to `baselines/` by hand |
+
+At run time the `go:cases` task copies the cases, scaffold, postcheck helpers and
+fixture side by side into this repository's `go-linter-driven-development/evals/`,
+which is ignored here except for its README, because the gated `claude plugin eval`
+expects cases below the plugin directory.
 
 ## Tiers
 Tiers are tags in each case's frontmatter, selected with `--tag`.
@@ -77,13 +92,13 @@ reads the resulting package the way a reviewer glances at it.
 | E | nil as "optional" field, "absent" return and "use the default" argument | comma-ok, a null object, a constructor that owns the defaults |
 | F | a global config read from every layer | the value pushed up to the composition root one deployable commit at a time |
 
-The centerpiece is `ProcessHeartbeat`: one working, fully specified function at
+The centerpiece is the fixture's heartbeat handler: one working, fully specified function at
 cognitive complexity 76 that plants seven rules at once; a hidden black-box suite
 replays recorded heartbeats against the rebuilt binary so any refactor is judged on
 preservation.
 
 ## Results so far
-The baseline on the plugin at `main` 681fdb0 lives under
-`evals/results/baseline-97194e3/` with a write-up: cheap 10 of 23 runs pass, medium
-5 of 10, art judges 3 of 7. Its findings drive the plugin's next changes; the
+The baseline on plugin 2.10.0 at 681fdb0 lives in the evals repository under
+[`baselines/go-2.10.0-681fdb0/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-681fdb0)
+with a write-up: cheap 10 of 23 runs pass, medium 5 of 10, art judges 3 of 7. Its findings drive the plugin's next changes; the
 comparison procedure is in [eval-baseline.md](eval-baseline.md).

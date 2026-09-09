@@ -1,8 +1,0 @@
-info  installed gate exit 1
-      stderr:   [Q2] ./internal/models/heartbeat.go:7 — code edge points at missing docs/snapshots.md — see docs/conventions.md
-      stderr:   [Q2] docs/heartbeat-protocol.md:24 — cites a file path or line number (churn-prone coordinate) — see docs/conventions.md
-      stderr:   [Q2] docs/heartbeat-protocol.md:28 — backticked `SnapshotRunner` does not resolve (SnapshotRunner not declared or found in the repo) — see docs/conventions.md
-      stderr: check-repo-brain: 3 violation(s) — rules: <docroot>/conventions.md
-PASS  installed gate clean, or red only on [Q2] content-doc citations (no Q1/Q3/Q7)
-PASS  installed gate byte-identical to the plugin's scripts/check-repo-brain.sh
-postcheck: all checks passed

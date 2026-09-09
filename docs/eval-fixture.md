@@ -5,7 +5,7 @@ description: the go-mini fixture and the violations manifest: plants, controls, 
 # The Fixture and Its Answer Key
 
 ## The fixture
-`evals/fixtures/go-mini/` is a small device-fleet backend: devices post heartbeats
+`go/fixture/go-mini/` in the evals repository is a small device-fleet backend: devices post heartbeats
 over HTTP, a scheduler runs snapshot jobs, alerts go out over channels, a status
 endpoint reports. It is written to be as bad as possible in exactly the ways the
 plugin's twelve rules describe, and no worse: every rule's falsifying questions have
@@ -35,7 +35,7 @@ Ground rules, all enforced:
   package-size hook scans only those directories.
 
 ## The manifest
-`evals/violations.yaml` is the answer key, kept outside the scaffolded tree. One
+`go/violations.yaml`, beside the fixture, is the answer key, kept outside the scaffolded tree. One
 entry per plant or control, 148 in total:
 
 ```yaml
@@ -58,21 +58,23 @@ entry per plant or control, 148 in total:
 
 The manifest has three consumers, so a fact lives once:
 
-1. **The whole-repo review's graders.** `tools/gen-review-graders.sh` writes one
-   recall grader per plant (the report must name the plant's file), one cluster
-   grader per declared cluster, and one precision grader per control (the report
-   must not mention the control's `symbol`, unless `mention_ok: true` says a correct
-   report legitimately names it). Never hand-edit the generated files; edit the
-   manifest and regenerate.
+1. **The whole-repo review's graders.** `gen-review-graders.sh` (`task go:graders`)
+   writes one recall grader per plant (the report must name the plant's file), one
+   cluster grader per declared cluster (a plant may carry `cluster_match` when
+   reports spell the cluster in more than one way), and one precision grader per
+   control (the report must not mention the control's `symbol`, unless
+   `mention_ok: true` says a correct report legitimately names it). Never hand-edit
+   the generated files; edit the manifest and regenerate. The evals repository's
+   pull-request check fails when the committed graders differ from the manifest.
 2. **The refactor cases' oracles.** The `gone` patterns become file graders with
    `match: count:0` or a maximum count.
 3. **The later Python parity report.** A Python fixture will carry the same ids with
    Python anchors, so per-rule recall can be compared across languages.
 
-`check-manifest.sh` asserts that every listed file exists, that every anchor matches
-at least one line in each listed file, that every rule has at least one plant and
-one control, and that the fixture carries no hints. Run it after any change to the
-fixture or the manifest.
+`check-manifest.sh` (`task go:manifest`) asserts that every listed file exists, that
+every anchor matches at least one line in each listed file, that every rule has at
+least one plant and one control, and that the fixture carries no hints. Run it after
+any change to the fixture or the manifest.
 
 ## Known weakness
 The Case D control's types have no callers in the fixture, so an agent that deletes
