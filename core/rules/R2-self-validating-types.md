@@ -18,59 +18,7 @@ entered, carrying context, instead of deep in an unrelated call stack.
 
 ## Canonical example
 
-Compact excerpt from the Port case (`R1-primitive-obsession.md` has the full
-three-stage study — extraction, placement, testing):
-
-```go
-// Port cannot exist out of range — the constructor is the only entry.
-type Port struct {
-    name   string
-    number int32
-}
-
-func ParsePort(name string, number int32) (Port, error) {
-    if number <= 0 || number > 65535 {
-        return Port{}, fmt.Errorf("port %q: %d out of range 1-65535", name, number)
-    }
-    return Port{name: name, number: number}, nil
-}
-```
-
-Before this type existed, `p.Port > 0 && p.Port <= 65535` was duplicated across two
-loops at the use site. After, there is no `IsValid()` and no re-check anywhere: the
-concept of a maybe-invalid port is deleted from downstream logic, not relocated.
-
-The same pattern for a composed object — validate dependencies once, then trust:
-
-```go
-// ❌ every method defends
-type UserService struct {
-    Repo Repository // exported, might be nil
-}
-
-func (s *UserService) CreateUser(ctx context.Context, u User) error {
-    if s.Repo == nil { // repeated in every method; forget one → panic
-        return errors.New("repo is nil")
-    }
-    return s.Repo.Save(ctx, u)
-}
-
-// ✅ constructor validates once; methods trust the receiver
-type UserService struct {
-    repo Repository // private
-}
-
-func NewUserService(repo Repository) (*UserService, error) {
-    if repo == nil {
-        return nil, errors.New("repo is required")
-    }
-    return &UserService{repo: repo}, nil
-}
-
-func (s *UserService) CreateUser(ctx context.Context, u User) error {
-    return s.repo.Save(ctx, u) // no checks — an invalid service cannot exist
-}
-```
+{{include "rules/R2/canonical-example.md"}}
 
 ## Design guidance
 
@@ -144,46 +92,4 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
-
-1. **Can the type exist in an invalid state?**
-   Detection: for each new/changed type with invariants,
-   `grep -rn '<Type>{' --include='*.go' . | grep -v _test.go` for literal
-   construction outside its own file; check whether invariant-bearing fields are
-   exported.
-   Violation: any literal-construction site or exported invariant-bearing field
-   gives callers a path around the constructor.
-
-2. **Do methods re-check what the constructor should guarantee?**
-   Detection: `grep -nE 'if [a-z][a-zA-Z]*\.[a-zA-Z]+ == nil|if len\([a-z][a-zA-Z]*\.[a-zA-Z]+\) == 0' <changed files>`
-   inside method bodies.
-   Violation: a method validating its own receiver's fields — the check belongs in
-   the constructor.
-
-3. **Does a constructor re-validate a composed self-validating type?**
-   Detection: read each `NewX`/`ParseX` in the diff; for every parameter whose type
-   has its own constructor, grep the body for checks on that parameter.
-   Violation: re-validating a value that could only ever exist valid.
-
-4. **Does the type rely on upstream validation?**
-   Detection: `grep -rn 'caller must\|assumes valid\|already validated' --include='*.go' .`;
-   also flag exported fields consumed by logic in a package that defines no
-   constructor for the type.
-   Violation: any invariant enforced — or merely documented — outside the type
-   itself.
-
-5. **Does anything return or accept nil as a value?**
-   Detection: `grep -nE 'return nil$|return nil, nil' <changed files>` — exempt
-   `return nil, err` and `return val, nil`.
-   Violation: nil returned for a non-error value, or a function nil-checking a
-   parameter instead of the value being guaranteed by construction.
-
-6. **Does any call site pass a nil literal as a non-error argument?**
-   Detection: `grep -nE '\(nil[,)]|, nil[,)]' <changed files>` — exempt error
-   positions (`return X, nil`), comparisons (`== nil`, `!= nil`), and stdlib
-   idioms where nil is the documented sentinel (`http.NewRequest(..., nil)` for
-   a bodyless request, marshaling a nil slice/map).
-   Violation: nil passed where a value is expected. Q5 catches the return side
-   and Q2 catches the callee that defends; this catches the caller when the
-   callee does neither and simply panics later. Fix on the callee's side: make
-   nil unrepresentable — a concrete non-pointer parameter, or a validating
-   constructor that rejects nil (see the UserService example above).
+{{include "rules/R2/falsifying-questions.md"}}
