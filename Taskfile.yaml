@@ -1,7 +1,8 @@
 version: '3'
 
 # The Go plugin directory is generated: edit core/ and lang/go/, then run
-# `task generate` and commit both. `task check` is what CI runs.
+# `task generate` and commit both. CI runs `task check`, `task lint-core`, `task docs:check`
+# and `task test-gate`, plus the generator's tests and linter.
 
 tasks:
   generate:
@@ -12,7 +13,7 @@ tasks:
       - go run ./tools/ldd-gen -lang {{.BINDING}}
 
   check:
-    desc: Fail when any committed plugin directory differs from its rendering
+    desc: Fail when any plugin directory on disk differs from its rendering
     cmds:
       - go run ./tools/ldd-gen -check
 

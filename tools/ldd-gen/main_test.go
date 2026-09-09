@@ -36,6 +36,7 @@ func miniRepo(t *testing.T) string {
 	write(t, root, "lang/p/profile.yaml", profileYAML)
 	write(t, root, "core/README.md", "# Core\n\n<!-- residue:begin -->\n<!-- residue:end -->\n")
 	write(t, root, "core/rules/R1.md", "{{.Lang}} rule\n")
+	write(t, root, "lang/p/passthrough/.claude-plugin/plugin.json", "{}\n")
 	return root
 }
 

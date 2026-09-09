@@ -60,7 +60,7 @@ func (p Profile) validate() error {
 	if err := p.Vars.validate(); err != nil {
 		return err
 	}
-	if p.Plugin != path.Base(p.Plugin) || p.Plugin == "." || p.Plugin == ".." {
+	if !isPlainName(p.Plugin) {
 		return fmt.Errorf("profile: plugin %q must be a plain directory name", p.Plugin)
 	}
 	for _, pattern := range p.Ignore {
@@ -69,6 +69,13 @@ func (p Profile) validate() error {
 		}
 	}
 	return nil
+}
+
+// isPlainName accepts one directory name: no separators, not "." or "..",
+// and not hidden. The generator deletes inside this directory, so a value
+// like "/" or "../x" must never reach it.
+func isPlainName(name string) bool {
+	return name != "" && !strings.ContainsAny(name, `/\`) && name != "." && name != ".." && !strings.HasPrefix(name, ".")
 }
 
 func (v Vars) validate() error {

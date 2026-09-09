@@ -4,6 +4,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"testing/fstest"
 
@@ -93,6 +94,32 @@ func TestRender_EmptyCoreRendersOnlyPassthrough(t *testing.T) {
 	tree, err := render.Render(fstest.MapFS{}, b)
 	require.NoError(t, err)
 	assert.Len(t, tree, 1)
+}
+
+func TestRender_HiddenInputFilesAreSkipped(t *testing.T) {
+	t.Parallel()
+	core := fstest.MapFS{
+		".DS_Store":       {Data: []byte("\x00\x00{{ binary junk")},
+		"rules/.DS_Store": {Data: []byte("junk")},
+		"rules/R1.md":     {Data: []byte("r1\n")},
+	}
+	b := lang(t, fstest.MapFS{
+		"passthrough/.DS_Store":                  {Data: []byte("junk")},
+		"passthrough/.claude-plugin/plugin.json": {Data: []byte("{}\n")},
+		"overrides/.DS_Store":                    {Data: []byte("junk")},
+	})
+	tree, err := render.Render(core, b)
+	require.NoError(t, err)
+	assert.Equal(t, []string{".claude-plugin/plugin.json", "rules/R1.md"}, sortedKeys(tree))
+}
+
+func sortedKeys(tree render.Tree) []string {
+	keys := make([]string, 0, len(tree))
+	for k := range tree {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func TestRender_MissingCoreIsAnError(t *testing.T) {

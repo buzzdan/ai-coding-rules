@@ -6,8 +6,10 @@ package render
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
+	"strings"
 	"text/template"
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
@@ -83,8 +85,12 @@ func (r *renderer) renderCore(core fs.FS, path string) error {
 // and reports the executable bit of whichever file it read.
 func (r *renderer) source(core fs.FS, path string) ([]byte, bool, error) {
 	fsys := core
-	if _, err := fs.Stat(r.overrides, path); err == nil {
+	_, err := fs.Stat(r.overrides, path)
+	switch {
+	case err == nil:
 		fsys = r.overrides
+	case !errors.Is(err, fs.ErrNotExist):
+		return nil, false, fmt.Errorf("override %s: %w", path, err)
 	}
 	data, err := fs.ReadFile(fsys, path)
 	if err != nil {
@@ -142,14 +148,17 @@ func isExecutable(fsys fs.FS, path string) (bool, error) {
 	return info.Mode()&0o111 != 0, nil
 }
 
-// walkFiles calls visit for every regular file. A root that does not exist is
-// an error: rendering nothing from a missing core/ would delete the plugin.
+// walkFiles calls visit for every regular file whose name does not start with
+// a dot; hidden files are editor and OS droppings (.DS_Store), never sources.
+// Hidden directories are walked, since .claude-plugin/ holds the manifest. A
+// root that does not exist is an error: rendering nothing from a missing
+// core/ would delete the plugin.
 func walkFiles(fsys fs.FS, visit func(fs.FS, string) error) error {
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if d.IsDir() || strings.HasPrefix(d.Name(), ".") {
 			return nil
 		}
 		return visit(fsys, path)

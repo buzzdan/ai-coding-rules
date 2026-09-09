@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -23,6 +24,9 @@ const (
 	coreDir    = "core"
 	langDir    = "lang"
 	coreReadme = "core/README.md"
+	// pluginManifest marks a Claude Code plugin directory. Generate refuses to
+	// write anywhere that lacks it, since writing deletes unowned files.
+	pluginManifest = ".claude-plugin/plugin.json"
 )
 
 // Repo is a checkout of this repository, addressed by its root.
@@ -84,13 +88,61 @@ func (r Repo) Render(lang string) (render.Tree, profile.Profile, error) {
 	return tree, b.Profile(), nil
 }
 
-// Generate renders one binding and writes it over its plugin directory.
+// Generate renders one binding and writes it over its plugin directory. Both
+// the rendering and the directory on disk (when it already holds files) must
+// carry the plugin manifest: a profile that names some other directory of the
+// repository is refused before anything is deleted.
 func (r Repo) Generate(lang string) error {
 	tree, p, err := r.Render(lang)
 	if err != nil {
 		return err
 	}
-	return check.Write(tree, filepath.Join(r.root, p.Plugin), p.Ignored)
+	if _, ok := tree[pluginManifest]; !ok {
+		return fmt.Errorf("generate: the %s rendering has no %s; refusing to write", lang, pluginManifest)
+	}
+	dir := filepath.Join(r.root, p.Plugin)
+	if err := requirePluginDir(dir, p.Ignored); err != nil {
+		return err
+	}
+	return check.Write(tree, dir, p.Ignored)
+}
+
+// requirePluginDir accepts a directory that already holds the plugin
+// manifest, or one that holds nothing the generator would delete: it does not
+// exist yet, or every file in it is ignored.
+func requirePluginDir(dir string, ignore check.Ignore) error {
+	if _, err := os.Stat(filepath.Join(dir, pluginManifest)); err == nil {
+		return nil
+	}
+	owned, err := hasUnignoredFile(dir, ignore)
+	if err != nil {
+		return err
+	}
+	if owned {
+		return fmt.Errorf("generate: %s is not a plugin directory (no %s); refusing to write", dir, pluginManifest)
+	}
+	return nil
+}
+
+func hasUnignoredFile(dir string, ignore check.Ignore) (bool, error) {
+	found := false
+	err := fs.WalkDir(os.DirFS(dir), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if path == "." && errors.Is(err, fs.ErrNotExist) {
+				return fs.SkipAll
+			}
+			return err
+		}
+		if d.IsDir() || ignore(path) {
+			return nil
+		}
+		found = true
+		return fs.SkipAll
+	})
+	if err != nil {
+		return false, fmt.Errorf("generate: %w", err)
+	}
+	return found, nil
 }
 
 // Check renders every binding and compares each with its plugin directory,

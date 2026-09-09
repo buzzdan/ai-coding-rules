@@ -53,6 +53,9 @@ func TestParse_Errors(t *testing.T) {
 		{name: "plugin is dot", input: withPlugin("."), want: "plain directory name"},
 		{name: "plugin is parent", input: withPlugin(".."), want: "plain directory name"},
 		{name: "plugin is absolute", input: withPlugin("/tmp"), want: "plain directory name"},
+		{name: "plugin is the root", input: withPlugin("/"), want: "plain directory name"},
+		{name: "plugin is hidden", input: withPlugin(".git"), want: "plain directory name"},
+		{name: "plugin has a backslash", input: withPlugin(`a\b`), want: "plain directory name"},
 		{name: "bad ignore pattern", input: full + "  - 'evals/['\n", want: `ignore pattern "evals/["`},
 	}
 	for _, tc := range cases {

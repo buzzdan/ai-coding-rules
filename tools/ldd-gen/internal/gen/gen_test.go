@@ -39,6 +39,7 @@ func miniRepo(t *testing.T) string {
 	write(t, root, "lang/p/profile.yaml", profileYAML)
 	write(t, root, "lang/p/rules/R1/example.md", "example\n")
 	write(t, root, "lang/p/passthrough/CHANGELOG.md", "log\n")
+	write(t, root, "lang/p/passthrough/.claude-plugin/plugin.json", "{}\n")
 	write(t, root, "lang/README.md", "not a binding\n")
 	write(t, root, "core/README.md", "about core\n\n<!-- residue:begin -->\nold\n<!-- residue:end -->\n")
 	write(t, root, "core/rules/R1.md", "{{include \"rules/R1/example.md\"}} in {{.Lang}}\n")
@@ -82,7 +83,7 @@ func TestGenerateThenCheck(t *testing.T) {
 	var out bytes.Buffer
 	n, err := repo.Check(&out)
 	require.NoError(t, err)
-	assert.Equal(t, 2, n, "nothing generated yet: both outputs are missing")
+	assert.Equal(t, 3, n, "nothing generated yet: all outputs are missing")
 
 	write(t, root, "out-plugin/evals/cases/x.md", "copied in by an eval run\n")
 	require.NoError(t, repo.Generate("p"))
@@ -123,6 +124,35 @@ func TestCheck_NoBindingIsAnError(t *testing.T) {
 	require.NoError(t, err)
 	_, err = repo.Check(&bytes.Buffer{})
 	require.Error(t, err)
+}
+
+func TestGenerate_RefusesNonPluginTargets(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	write(t, root, "out-plugin/README.md", "some unrelated directory\n")
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	err = repo.Generate("p")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a plugin directory")
+	assert.FileExists(t, filepath.Join(root, "out-plugin/README.md"), "nothing was deleted")
+
+	noManifest := miniRepo(t)
+	require.NoError(t, os.Remove(filepath.Join(noManifest, "lang/p/passthrough/.claude-plugin/plugin.json")))
+	repo, err = gen.Open(noManifest)
+	require.NoError(t, err)
+	err = repo.Generate("p")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rendering has no .claude-plugin/plugin.json")
+}
+
+func TestGenerate_EmptyTargetIsFine(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "out-plugin"), 0o755))
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	require.NoError(t, repo.Generate("p"))
 }
 
 func TestRender_UnknownLang(t *testing.T) {
