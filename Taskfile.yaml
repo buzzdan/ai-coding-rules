@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  docs:check:
+    desc: Run the repo-brain documentation gate over this repository (pass --fix after --)
+    cmds:
+      - bash scripts/check-docs.sh {{.CLI_ARGS}}
+
+  evals:run:
+    desc: "Run the behavioral evals from buzzdan/ldd-evals against this checkout. Spends money. Vars after --: TIER= CAP= CASE="
+    cmds:
+      - bash scripts/evals.sh {{.CLI_ARGS}}

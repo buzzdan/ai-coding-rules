@@ -3,6 +3,22 @@
 All notable changes to the `go-linter-driven-development` plugin are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Behavioral evals**: the plugin's skills, agents and workflow are measured by
+  eval cases in the `claude plugin eval` format that run the plugin against a
+  deliberately bad Go service planting every R1–R12 falsifying question at least
+  once, with a control per rule. The cases, fixture, runner and baselines live in
+  the separate [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)
+  repository so an installed plugin carries none of them. This repository keeps
+  `evals/README.md` as a pointer, `scripts/evals.sh` to clone and run a tier
+  against the current checkout, and `docs/` describing the mechanism. The first
+  baseline, on plugin 2.10.0 at 681fdb0, is recorded there under
+  `baselines/go-2.10.0-681fdb0/`. Nothing a user installs changes; the plugin
+  version stays 2.10.0.
+
 ## [2.10.0] - 2026-08-20
 
 The repo brain had one audience: a session with this plugin installed. In a

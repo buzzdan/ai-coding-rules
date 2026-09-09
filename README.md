@@ -74,7 +74,8 @@ Team members then install with the same `/plugin install` commands above.
    ```
    After changes, uninstall/reinstall the plugin to pick them up.
 3. For the Go plugin, follow its architecture contract — each fact lives once: rule content goes in `rules/`, worked case studies in `examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
-4. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0)).
+4. Behavior changes to the Go plugin are measured, not eyeballed: behavioral evals run it on a deliberately bad fixture project and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals); `scripts/evals.sh` runs them against this checkout.
+5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0)).
 
 ## License
 
