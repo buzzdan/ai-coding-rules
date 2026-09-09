@@ -43,7 +43,8 @@ only `okf_version`.
 
 ## Check your work
 Run `bash scripts/check-docs.sh` (or `task docs:check`) from the repo root. It runs the
-plugin's own conformance gate over this repo; anything it reports is real. `--fix`
+plugin's own conformance gate over the files git tracks, so ignored paths such as a
+local `.evals/` clone never affect the result; anything it reports is real. `--fix`
 rewrites drifted index lines from each doc's `description`. Code↔docs checks cover
 Go files; docs about shell scripts and markdown get the structure checks
 (reachability, frontmatter, index drift) but no symbol verification.
