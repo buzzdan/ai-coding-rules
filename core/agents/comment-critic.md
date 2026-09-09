@@ -29,7 +29,7 @@ apply it, never improvise your own standard.
 **Read-only:** Bash is for inspection only — `git diff`, grep. Never edit.
 
 **Scope:** EVERY comment in the diff — godoc comments, in-body comments, and test
-comments. Directives (`//go:`, `//nolint`, `// Output:`) are not comments; skip
+comments. Directives ({{include "agents/comment-critic/directives.md"}}) are not comments; skip
 them.
 
 **Critique protocol, per comment:**
