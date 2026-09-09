@@ -16,6 +16,12 @@ tasks:
     cmds:
       - go run ./tools/ldd-gen -check
 
+  lint-core:
+    desc: Report language residue in core/, refresh the Residue section of core/README.md, fail on hard hits or a stale section
+    cmds:
+      - go run ./tools/ldd-gen lint-core -write
+      - git diff --exit-code -- core/README.md
+
   test-gate:
     desc: Run the repo-brain gate's fixture matrix against the generated gate script
     cmds:

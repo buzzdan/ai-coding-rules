@@ -4,10 +4,12 @@
 //
 // Usage:
 //
-//	ldd-gen -lang go        render lang/go into its plugin directory
-//	ldd-gen -check          render every binding; exit 1 on any difference
+//	ldd-gen -lang go            render lang/go into its plugin directory
+//	ldd-gen -check              render every binding; exit 1 on any difference
+//	ldd-gen lint-core [-write]  report language residue left in core/; exit 1
+//	                            on hard hits; -write refreshes core/README.md
 //
-// Both take -root <dir> (default "."), the repository root.
+// All take -root <dir> (default "."), the repository root.
 package main
 
 import (
@@ -27,9 +29,15 @@ func main() {
 	}
 }
 
-var errDifferences = errors.New("the committed plugin differs from the rendering; run `task generate` and commit the result")
+var (
+	errDifferences = errors.New("the committed plugin differs from the rendering; run `task generate` and commit the result")
+	errHardResidue = errors.New("hard residue in core/: each hit needs a profile scalar or an include")
+)
 
 func run(args []string, out io.Writer) error {
+	if len(args) > 0 && args[0] == "lint-core" {
+		return lintCore(args[1:], out)
+	}
 	fs := flag.NewFlagSet("ldd-gen", flag.ContinueOnError)
 	fs.SetOutput(out)
 	root := fs.String("root", ".", "repository root")
@@ -49,8 +57,30 @@ func run(args []string, out io.Writer) error {
 		return repo.Generate(*lang)
 	default:
 		fs.Usage()
-		return errors.New("pass -lang <name> or -check")
+		return errors.New("pass -lang <name>, -check, or lint-core")
 	}
+}
+
+func lintCore(args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("ldd-gen lint-core", flag.ContinueOnError)
+	fs.SetOutput(out)
+	root := fs.String("root", ".", "repository root")
+	write := fs.Bool("write", false, "rewrite the Residue section of core/README.md")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("flags: %w", err)
+	}
+	repo, err := gen.Open(*root)
+	if err != nil {
+		return err
+	}
+	hard, err := repo.LintCore(out, *write)
+	if err != nil {
+		return err
+	}
+	if hard > 0 {
+		return errHardResidue
+	}
+	return nil
 }
 
 func checkAll(repo gen.Repo, out io.Writer) error {

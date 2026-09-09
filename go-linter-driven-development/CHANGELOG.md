@@ -5,6 +5,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Internal
+
+- **Generated plugin directory**: the plugin's source now lives in the
+  repository's `core/` (language-neutral text) and `lang/go/` (the Go binding:
+  profile scalars, include snippets and files copied through), and
+  `tools/ldd-gen` renders them into this directory. The rendered files are
+  byte-identical to the hand-written ones they replace; nothing an installed
+  plugin sees changes, and the version stays 2.10.0.
+
 ### Added
 
 - **Behavioral evals**: the plugin's skills, agents and workflow are measured by

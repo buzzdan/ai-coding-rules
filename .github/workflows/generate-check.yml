@@ -22,6 +22,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Plugin directories match their rendering
         run: task check
+      - name: No hard residue in core and the Residue section is current
+        run: task lint-core
       - name: Generated gate passes its fixture matrix
         run: task test-gate
       - name: Generator tests

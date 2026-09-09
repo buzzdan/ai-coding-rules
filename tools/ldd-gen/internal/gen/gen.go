@@ -10,16 +10,19 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/check"
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/profile"
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/render"
+	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/residue"
 )
 
 const (
-	coreDir = "core"
-	langDir = "lang"
+	coreDir    = "core"
+	langDir    = "lang"
+	coreReadme = "core/README.md"
 )
 
 // Repo is a checkout of this repository, addressed by its root.
@@ -112,4 +115,21 @@ func (r Repo) checkOne(w io.Writer, lang string) (int, error) {
 		check.Report(w, diffs, tree, dir)
 	}
 	return len(diffs), nil
+}
+
+// LintCore scans core/ for language residue and writes the report to w. With
+// write set, the Residue section of core/README.md is rewritten from the
+// report. It returns the number of hard hits, which must be zero.
+func (r Repo) LintCore(w io.Writer, write bool) (int, error) {
+	report, err := residue.Scan(os.DirFS(filepath.Join(r.root, coreDir)))
+	if err != nil {
+		return 0, err
+	}
+	fmt.Fprintln(w, strings.TrimSuffix(report.Markdown(), "\n"))
+	if write {
+		if err := residue.WriteReadme(filepath.Join(r.root, coreReadme), report); err != nil {
+			return len(report.Hard), err
+		}
+	}
+	return len(report.Hard), nil
 }
