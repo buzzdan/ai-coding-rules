@@ -9,12 +9,12 @@ allowed-tools:
   - Bash
   - Write
   - Edit
-  - Skill(go-linter-driven-development:documentation)
+  - Skill({{.Plugin}}:documentation)
 ---
 
 Wire this repo's **repo brain** end to end, in a single pass.
 
-Invoke `Skill(go-linter-driven-development:documentation)` and run its **BOOTSTRAP
+Invoke `Skill({{.Plugin}}:documentation)` and run its **BOOTSTRAP
 mode** against `$ARGUMENTS` (default: the current repo root). The skill's protocol is
 authoritative; this command adds nothing to it. One pass delivers the whole chain:
 
@@ -31,7 +31,7 @@ authoritative; this command adds nothing to it. One pass delivers the whole chai
    plugin's `scripts/check-repo-brain.sh` installed — the report suggests the CI
    one-liner
 6. **Upward edges wired**: every confidently-anchorable doc gets its one-line
-   `// See <docroot>/<file>.md ...` edge on its front-door symbol
+   `{{.CommentPrefix}} See <docroot>/<file>.md ...` edge on its front-door symbol
 7. R9 confirmation pass — Q1–Q3 and Q7 via the installed script — + the advisory
    findings report (broken edges, edge-policy violations, rung-2 gaps,
    stale/unwired docs, types needing a human call)
@@ -43,16 +43,9 @@ authoritative; this command adds nothing to it. One pass delivers the whole chai
 - Add CI workflows — the report only suggests `bash scripts/check-repo-brain.sh`
 - Touch anything beyond doc files, `index.md`, `conventions.md`,
   CLAUDE.md/AGENTS.md, the copied check script, and one-line godoc edge additions
-  (verified with `go vet` after each)
+  {{include "commands/wire-repo-brain/edge-verify.md"}}
 
-**Language scope**: this is the Go plugin, so code↔docs verification is
-Go-first. On a repo with no Go, the pass still delivers the whole structure
-layer (frontmatter, index, drift check, conventions, routing, CI gate on
-structure) — but code→docs edges, symbol drift detection, and the file-path
-ban only cover `.go` files, and doc roots are only discovered at the repo root
-and `go.mod` sub-projects (a TS/Python sub-project's own docs/ is not wired —
-it is reported, not silently skipped). Non-Go CamelCase symbols cited in
-covered docs still resolve via the gate's whole-word fallback.
+{{include "commands/wire-repo-brain/language-scope.md"}}
 
 When it finishes, review the report, then `git diff` — the changes should read as
 pure documentation-network wiring. Re-run any time: the pass is idempotent (existing
