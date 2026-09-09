@@ -24,39 +24,7 @@ doubles.
 
 ## Canonical example
 
-### Before — interface exists only for a test fake
-
-```go
-// service.go — one prod impl (*worker.Store); the interface exists for the test
-type Leaves interface {
-    FindLatest(ctx context.Context, id ID) (Job, error)
-}
-
-type Service struct { leaves Leaves }
-
-// service_test.go — the ONLY other implementer is a mock
-type fakeLeaves struct{ job Job }
-
-func (f *fakeLeaves) FindLatest(context.Context, ID) (Job, error) { return f.job, nil }
-```
-
-### After — concrete dependency, tested by wiring the real collaborator
-
-```go
-// service.go — concrete; no cycle (the worker package does not import this one)
-type Service struct { leaves *worker.Store }
-
-// service_test.go — construct the REAL Store over embedded Postgres + a fake
-// (httptest) external service
-func (s *Suite) TestRerun() {
-    svc, _ := NewService(s.store, s.evaluator, s.jiraClient) // real objects, fake data
-    // ... exercise svc's public method, assert on real state
-}
-```
-
-The test now covers the seam it claims to cover: the real `Store`'s queries run
-against a real database. The interface, its indirection, and the double are all
-deleted.
+{{include "rules/R6/canonical-example.md"}}
 
 ## Design guidance
 
@@ -88,7 +56,7 @@ deleted.
   fake data (embedded DB, temp dir, `httptest` server) and exercise the consumer's
   public API (@testing for harness patterns; placement per
   `R7-test-placement.md`).
-- **Delete the double**: the fake struct in `*_test.go` / `fakes/` / `mocks/` /
+- **Delete the double**: the fake struct in `*{{.TestGlob}}` / `fakes/` / `mocks/` /
   `testutil*` goes with the interface.
 - **If a verified cycle exists, fix the layering**: extract the shared vocabulary
   into a lower package both can import, or move the consumer — the dependency arrow
@@ -97,37 +65,4 @@ deleted.
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
-
-1. **How many production implementations does each new/changed interface have?**
-   Detection: for each method of the interface,
-   `grep -rn 'func (.*) <Method>(' --include='*.go' . | grep -v _test.go` — list the
-   implementing types.
-   Violation: exactly one production implementation — the interface is a candidate
-   smell; proceed to Q2.
-
-2. **Is the only other implementer a test double?**
-   Detection: `grep -rn 'func (.*) <Method>(' --include='*_test.go' .` plus the same
-   grep over test-support packages (`fakes/`, `mocks/`, `testutil*`).
-   Violation: yes — one production implementation + a double = test-only interface;
-   delete it and test the real type.
-
-3. **Would depending on the concrete type cause a REAL import cycle?**
-   Detection — do not trust a "cycle" comment; check the import direction:
-   ```bash
-   # a real cycle exists only if the dependency package imports the consumer back:
-   grep -rn '"<module>/<consumer-pkg>"' <dependency-pkg-dir>/*.go   # no match ⇒ no cycle ⇒ interface unjustified
-   ```
-   Violation: no back-import found — the justification is false; the interface
-   exists for a test.
-
-4. **Does a consumer take an interface while every production call site passes the
-   same concrete type?**
-   Detection: `grep -rn 'New<Consumer>(' --include='*.go' . | grep -v _test.go` —
-   inspect the argument's type at each production call site.
-   Violation: one concrete type at every production call site — the interface
-   parameter is a seam for doubles; take the concrete type.
-
-5. **Does the diff justify a new interface with "for testing" or "import cycle"?**
-   Detection: `grep -rn -B2 'interface {' <changed files> | grep -iE 'for test|import cycle|mock'`
-   Violation: any hit — the comment is itself a finding; verify with Q1–Q3 and
-   expect deletion.
+{{include "rules/R6/falsifying-questions.md"}}
