@@ -29,7 +29,7 @@ mid-implementation net; this pass is the verification net on finished work.
 </timing>
 
 <inputs>
-- **Diff scope**: staged changes by default (`git diff --cached --name-only -- '*.go'`),
+- **Diff scope**: staged changes by default (`git diff --cached --name-only -- '{{.SrcGlob}}'`),
   or an explicit file list / diff range from the caller.
 - **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes — requires the
   previous report's findings).
@@ -58,14 +58,12 @@ A rule with zero hits is skipped — no hunter spawned for it.
 | R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
 | R12 | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
 
-Also in-context: a new `//nolint` directive or `.golangci.yaml` exclusion in the diff is
-itself a finding — the change must justify, with evidence, that the rule genuinely does
-not apply.
+{{include "skills/pre-commit-review/nolint-finding.md"}}
 
 Also in-context — the **when-in-Rome check**: a diff must arrive in the host repo's
 existing style, not import a new one. Flag anything the diff introduces that the repo
 does not already use: a new test mechanism (golden files, snapshot testing, a new
-assertion library), a new dependency in `go.mod`, a new tool or config file, edits to
+assertion library), a new dependency in `{{.ProjectMarker}}`, a new tool or config file, edits to
 repo-level convention files (CLAUDE.md, coding standards, lint config) bundled into a
 feature diff, or a directory layout unlike its siblings. Detection is comparative:
 for each candidate, grep the repo *outside* the diff for prior use — zero prior use
@@ -119,7 +117,7 @@ broken edges, WHAT-comments, unwired root) propose no type extractions.
 
 <step_3b_comment_critic>
 When the diff contains comment lines — prefilter:
-`git diff --cached -- '*.go' | grep -E '^\+.*//' | grep -vE '//(go:|nolint| Output:)'`
+{{include "skills/pre-commit-review/critic-prefilter.md"}}
 (any hit qualifies; directives don't count) — spawn one `comment-critic` alongside
 the skeptic (same message when both run). Its spawn prompt MUST contain:
 

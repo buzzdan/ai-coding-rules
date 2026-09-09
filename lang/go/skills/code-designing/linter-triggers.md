@@ -1,0 +1,5 @@
+- Linter failures that need a design decision, not a mechanical fix:
+  - `argument-limit` (>4 params) → design an options struct (grouping data that travels together — score it per `../../rules/R1-primitive-obsession.md`)
+  - `function-result-limit` (>3 returns) / `confusing-results` → design a named result type (same R1 scoring)
+  - `file-length-limit` (>450 lines) → split juicy types into their own files (juiciness per R1; file-per-type per `../../rules/R5-vertical-slice.md`); a single god type routes to @refactoring's god-object decomposition procedure first
+  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring `<package_decomposition>`)

@@ -1,11 +1,11 @@
 ---
 name: code-designing
 description: |
-  FORWARD view over rules/ — domain type design and architectural planning for Go code BEFORE it exists.
+  FORWARD view over rules/ — domain type design and architectural planning for {{.Lang}} code BEFORE it exists.
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
   Dispatches into the Design guidance sections of rules/R1-R8 and R10-R12.
 allowed-tools:
-  - Skill(go-linter-driven-development:testing)
+  - Skill({{.Plugin}}:testing)
 ---
 
 <objective>
@@ -22,17 +22,13 @@ Backward counterpart (fixing code that already fails lint/review): @refactoring.
 
 | Notation | Skill Tool Call |
 |----------|-----------------|
-| @testing | `Skill(go-linter-driven-development:testing)` |
+| @testing | `Skill({{.Plugin}}:testing)` |
 </skill_invocation>
 
 <when_to_use>
 - Planning a new feature (before writing code)
 - Refactoring reveals need for new types (@refactoring escalates here)
-- Linter failures that need a design decision, not a mechanical fix:
-  - `argument-limit` (>4 params) → design an options struct (grouping data that travels together — score it per `../../rules/R1-primitive-obsession.md`)
-  - `function-result-limit` (>3 returns) / `confusing-results` → design a named result type (same R1 scoring)
-  - `file-length-limit` (>450 lines) → split juicy types into their own files (juiciness per R1; file-per-type per `../../rules/R5-vertical-slice.md`); a single god type routes to @refactoring's god-object decomposition procedure first
-  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring `<package_decomposition>`)
+{{include "skills/code-designing/linter-triggers.md"}}
 - A Phase 4 review CLUSTER (≥2 hunters converging on one anchor —
   @linter-driven-development routes it here) → **cluster-scoped mode**: skip
   `<architecture_scan>` and the user-OK step (acceptance was inherited when the
@@ -47,8 +43,7 @@ Backward counterpart (fixing code that already fails lint/review): @refactoring.
 <architecture_scan priority="FIRST_STEP">
 **Default: vertical slice architecture** — `../../rules/R5-vertical-slice.md`.
 
-Scan the codebase structure: vertical (`internal/feature/{handler,service}.go`) vs
-horizontal (`internal/{handlers,services}/feature.go`)?
+{{include "skills/code-designing/layout-scan.md"}}
 
 1. **Pure vertical** → continue the pattern: implement as `internal/<new-feature>/`.
 2. **Pure horizontal** → propose starting migration (template in R5's Design
@@ -135,11 +130,7 @@ Core Domain Types (leaf):
 Orchestrating Types:
 - [Type] — dependencies (concrete unless R6-justified), methods
 
-Package Structure:
-[feature]/
-  ├── [type].go        # each juicy type in its own file
-  ├── service.go
-  └── handler.go
+{{include "skills/code-designing/package-structure.md"}}
 
 Placement Decisions (R4):
 - [helper/type] → rung 1/2/3 and why

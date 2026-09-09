@@ -6,9 +6,9 @@ description: |
   Also runs PREPARATORY mode: reshape code an approved plan touches, before the first RED, so the feature lands add-only.
   Applies storifying, type extraction, function extraction, conditional-dispatch, and mutation-discipline patterns via rules/R1-R8 and R10-R12.
 allowed-tools:
-  - Skill(go-linter-driven-development:code-designing)
-  - Skill(go-linter-driven-development:testing)
-  - Skill(go-linter-driven-development:pre-commit-review)
+  - Skill({{.Plugin}}:code-designing)
+  - Skill({{.Plugin}}:testing)
+  - Skill({{.Plugin}}:pre-commit-review)
 ---
 
 <objective>
@@ -26,29 +26,13 @@ Forward counterpart (designing before code exists): @code-designing.
 
 | Notation | Skill Tool Call |
 |----------|-----------------|
-| @code-designing | `Skill(go-linter-driven-development:code-designing)` |
-| @testing | `Skill(go-linter-driven-development:testing)` |
-| @pre-commit-review | `Skill(go-linter-driven-development:pre-commit-review)` |
+| @code-designing | `Skill({{.Plugin}}:code-designing)` |
+| @testing | `Skill({{.Plugin}}:testing)` |
+| @pre-commit-review | `Skill({{.Plugin}}:pre-commit-review)` |
 </skill_invocation>
 
 <routing_table>
-Normative linter→rule routing. (The lint-fixer agent embeds a compact copy of this
-table in `../../agents/lint-fixer.md` — keep them consistent.)
-
-| Linter failure | Route |
-|---|---|
-| `gocyclo` / `cyclop` | `../../rules/R3-storifying.md` |
-| `gocognit` | `../../rules/R3-storifying.md` |
-| `funlen` | `../../rules/R3-storifying.md` |
-| `nestif` | `../../rules/R3-storifying.md` |
-| `maintidx` | `../../rules/R3-storifying.md` + `../../rules/R1-primitive-obsession.md` |
-| `dupl` | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated blocks that switch on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
-| `exhaustive` (missing enum cases) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site; a second switch appearing is the R11 violation itself |
-| revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
-| `gochecknoglobals` / `gochecknoinits` | `../../rules/R8-no-globals.md` |
-| `ireturn` / interface lint on single-impl interfaces | `../../rules/R6-test-only-interfaces.md` |
-| `go test -race` failures; `govet` `copylocks` | `../../rules/R10-concurrency-safety.md` |
-| `wrapcheck`, `errcheck`, `goconst`, revive `early-return`, renames | Mechanical — fix directly (`fmt.Errorf("context: %w", err)`, handle the error, extract constant, invert & return early). Enum-shaped `goconst` strings → R1's "Name enum strings" move. |
+{{include "skills/refactoring/routing-table.md"}}
 </routing_table>
 
 <pattern_index>
@@ -81,33 +65,14 @@ decomposition): `reference.md` in this directory.
 </pattern_index>
 
 <file_and_package_routing>
-**`file-length-limit` (>450 lines):**
-
-| File pattern | Action |
-|---|---|
-| Multiple juicy types | Route to @code-designing — one juicy type per file (juiciness per R1) |
-| Single god type (>15 methods) | `reference.md` → god-object decomposition, then @code-designing for the composition |
-| Long functions, few types | Storify → extract functions (R3) |
-
-<package_decomposition>
-**Package-size zones** — count non-test `.go` files per directory:
-
-```
-find <dir> -maxdepth 1 -type f -name '*.go' -not -name '*_test.go' -not -name '*_gen.go' -not -name '*.pb.go' | wc -l
-```
-
-≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —
-**must decompose**. Either zone: run the 3-step design review in `reference.md` →
-"Package decomposition" (it is a *design* review — missing domain types are the
-disease, file count the symptom). Invoke @code-designing to validate extracted types.
-</package_decomposition>
+{{include "skills/refactoring/file-and-package-routing.md"}}
 </file_and_package_routing>
 
 <preparatory_mode>
 Fowler's preparatory refactoring — "make the change easy, then make the easy change":
 reshape code an approved plan is about to touch, before the first RED, so the feature
 lands as add-only. Invoked by @linter-driven-development (Phase 1.5, or Phase 2 RED
-friction) or `/go-ldd-prepare`, with a DESIGN PLAN, the touch-point file list, and
+friction) or `/{{.CmdPrefix}}-prepare`, with a DESIGN PLAN, the touch-point file list, and
 findings that already passed the four PREPARE gates (multiply / safe / bounded /
 skeptic — the gates live in @linter-driven-development `<phase_1_5_prepare>`; this
 mode trusts their verdicts and re-runs none of them). Fully autonomous — no user
@@ -148,23 +113,11 @@ Differences from failure-driven operation:
 </iteration_loop>
 
 <testing_integration>
-**MANDATORY** after creating new types or extracting functions:
-1. List created types: `grep -RnE "^type[[:space:]]+\w+" --include="*.go" .`
-2. Missing tests for any of them → STOP and invoke @testing.
-3. Coverage: `go test -cover ./...` — leaf types must show 100% (R7).
+{{include "skills/refactoring/testing-integration.md"}}
 </testing_integration>
 
 <nolint_prohibition>
-**NEVER add `//nolint` to avoid refactoring.** Handle the error, validate at the
-boundary, or reduce the complexity. Before finishing, scan all uncommitted files:
-
-```bash
-changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
-[ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep "//nolint" 2>/dev/null
-```
-
-Any hit → remove the directive and fix properly. Genuine false positives belong in
-`.golangci.yaml` exclusions — with user approval, never unilaterally.
+{{include "skills/refactoring/nolint-prohibition.md"}}
 </nolint_prohibition>
 
 <stopping_criteria>
