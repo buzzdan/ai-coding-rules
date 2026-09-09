@@ -83,4 +83,5 @@ bodies, `govet copylocks` owns copied locks. R10 hunts the residue no tool can c
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R10/falsifying-questions.md"}}

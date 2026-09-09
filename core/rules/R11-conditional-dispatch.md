@@ -104,4 +104,5 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R11/falsifying-questions.md"}}

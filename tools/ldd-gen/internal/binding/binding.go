@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+	"testing/fstest"
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/profile"
 )
@@ -19,7 +20,7 @@ const (
 	passthroughDir = "passthrough"
 )
 
-// Binding reads a language directory. Every path it hands out is relative to
+// Binding reads a language directory. Every path it accepts is relative to
 // that directory, so the same binding works from a checkout or a test FS.
 type Binding struct {
 	fsys    fs.FS
@@ -54,44 +55,33 @@ func (b Binding) Include(name string) (string, error) {
 	return strings.TrimSuffix(string(data), "\n"), nil
 }
 
-// Override returns the binding's replacement for a core template, when one
-// exists under overrides/<corePath>. The second result is false when core's
-// own file should be used.
-func (b Binding) Override(corePath string) ([]byte, bool, error) {
-	data, err := fs.ReadFile(b.fsys, overridesDir+"/"+corePath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, false, nil
-	}
-	if err != nil {
-		return nil, false, fmt.Errorf("override %q: %w", corePath, err)
-	}
-	return data, true, nil
+// Overrides returns the tree of whole-file replacements for core templates,
+// keyed by the core path they replace. A binding without an overrides
+// directory yields an empty tree.
+func (b Binding) Overrides() (fs.FS, error) {
+	return b.optionalDir(overridesDir)
 }
 
-// Passthrough returns the tree of files copied verbatim into the plugin. A
+// Passthrough returns the tree of files copied into the plugin unchanged. A
 // binding without a passthrough directory yields an empty tree.
 func (b Binding) Passthrough() (fs.FS, error) {
-	info, err := fs.Stat(b.fsys, passthroughDir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return emptyFS{}, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("passthrough: %w", err)
-	}
-	if !info.IsDir() {
-		return nil, errors.New("passthrough: not a directory")
-	}
-	sub, err := fs.Sub(b.fsys, passthroughDir)
-	if err != nil {
-		return nil, fmt.Errorf("passthrough: %w", err)
-	}
-	return sub, nil
+	return b.optionalDir(passthroughDir)
 }
 
-// emptyFS is a file system with nothing in it, so callers can walk a binding
-// that has no passthrough directory without a special case.
-type emptyFS struct{}
-
-func (emptyFS) Open(name string) (fs.File, error) {
-	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+func (b Binding) optionalDir(name string) (fs.FS, error) {
+	info, err := fs.Stat(b.fsys, name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fstest.MapFS{}, nil // an empty tree that walks cleanly
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("%s: not a directory", name)
+	}
+	sub, err := fs.Sub(b.fsys, name)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	return sub, nil
 }

@@ -12,7 +12,7 @@ commit both; `task check` fails when a plugin directory differs from its renderi
 
 ## Templating
 
-Go `text/template` with the default delimiters and exactly two constructs:
+Go `text/template` with the default delimiters. Core files use only two constructs:
 
 - `{{.Plugin}}`, `{{.Lang}}`, `{{.CmdPrefix}}`, `{{.SrcGlob}}`, `{{.TestGlob}}`,
   `{{.ProjectMarker}}`, `{{.Nolint}}`, `{{.CommentPrefix}}`, `{{.DefaultTest}}`,
@@ -22,7 +22,10 @@ Go `text/template` with the default delimiters and exactly two constructs:
 
 File-level rules the generator applies without template syntax:
 
-- `lang/<lang>/overrides/<core path>` replaces the core file of the same path.
+- `lang/<lang>/overrides/<core path>` replaces the core file of the same path (the
+  path as written in `core/`, before file-name templating). The override is rendered as
+  a template like the file it replaces and carries its own executable bit. An override
+  with no matching core file is an error.
 - File names are templates too: `core/commands/{{.CmdPrefix}}-analyze.md` renders
   to `commands/go-ldd-analyze.md` for the Go binding.
 - This README is documentation for `core/` itself and is never rendered.
@@ -37,9 +40,9 @@ clear yet. They sit under `lang/go/passthrough/` and are copied into the plugin
 unchanged. Promotion into `core/` happens when a second language needs the text:
 
 - `skills/documentation/reference.md`: the Comment Value Toolbox is portable
-  doctrine, the godoc menus and testable-example template are Go, and the templates
+  guidance, the godoc menus and testable-example template are Go, and the templates
   after them are portable but every worked example is Go code.
-- `scripts/check-repo-brain_test.sh`: the 45 cases are the language adapter's
+- `scripts/check-repo-brain_test.sh`: the fixture matrix is the language adapter's
   contract, but besides the conformant fixture several cases embed Go source,
   `go.mod` files and Go-specific path patterns.
 - `skills/testing/reference.md` and `skills/testing/examples/`: a Go test-harness
@@ -51,17 +54,18 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
 ## Residue
 
 `task lint-core` scans `core/` for language-specific text and rewrites this section.
-Hard residue is a plugin-name literal, linter name, source glob or nolint directive:
-each has a profile scalar or an include, so a hit is a missed substitution and fails
-the check. Soft residue is inline Go vocabulary (`nil`, `ctx`, goroutines, `interface`)
-that reads fine in a Go plugin; it is the list of words a second language binding
-must decide how to render, by scalar, include or whole-file override.
+Hard residue is a plugin-name or command-prefix literal, a `golangci` reference, a
+source-file glob or a nolint directive: each has a profile scalar or an include, so a
+hit is a missed substitution and fails the check. Soft residue is Go vocabulary that
+reads fine in a Go plugin (`nil`, `ctx`, goroutines, `interface`, linter and library
+names such as `exhaustive` or `testify`); it is the list of words a second language
+binding must decide how to render, by scalar, include or whole-file override.
 
 <!-- residue:begin -->
-Hard residue: none. Every plugin-name literal, linter name, source glob and
-nolint directive in the plugin comes from a binding.
+Hard residue: none. No plugin-name or command-prefix literal, golangci
+reference, source-file glob or nolint directive is left in core/.
 
-Soft residue by token (217 lines):
+Soft residue by token (212 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
@@ -72,10 +76,12 @@ Soft residue by token (217 lines):
 | nil | 18 | 6 |
 | ctx | 15 | 4 |
 | struct | 13 | 9 |
+| Go linter name | 12 | 5 |
 | context. | 12 | 5 |
 | httptest | 10 | 3 |
 | Go (the word) | 7 | 5 |
 | sync. | 7 | 4 |
+| Go library | 6 | 3 |
 | func | 5 | 3 |
 | init() | 4 | 2 |
 | wantErr | 4 | 3 |
@@ -83,31 +89,31 @@ Soft residue by token (217 lines):
 | Go code fence | 2 | 1 |
 | go test / go vet | 2 | 2 |
 
-Soft residue by file (217 lines):
+Soft residue by file (212 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
-| `rules/R10-concurrency-safety.md` | 30 | 6 |
+| `rules/R10-concurrency-safety.md` | 29 | 8 |
+| `rules/R11-conditional-dispatch.md` | 20 | 5 |
 | `rules/R6-test-only-interfaces.md` | 18 | 3 |
-| `skills/pre-commit-review/SKILL.md` | 18 | 6 |
+| `skills/pre-commit-review/SKILL.md` | 17 | 7 |
 | `rules/R2-self-validating-types.md` | 16 | 4 |
-| `rules/R11-conditional-dispatch.md` | 15 | 4 |
-| `rules/R8-no-globals.md` | 14 | 5 |
-| `skills/testing/SKILL.md` | 14 | 5 |
-| `rules/R9-repo-brain.md` | 12 | 4 |
+| `rules/R8-no-globals.md` | 11 | 5 |
+| `rules/R9-repo-brain.md` | 11 | 4 |
+| `skills/testing/SKILL.md` | 11 | 6 |
 | `rules/R5-vertical-slice.md` | 10 | 1 |
-| `skills/code-designing/SKILL.md` | 10 | 4 |
-| `rules/R7-test-placement.md` | 9 | 6 |
-| `skills/documentation/SKILL.md` | 8 | 2 |
-| `skills/refactoring/SKILL.md` | 8 | 6 |
+| `rules/R7-test-placement.md` | 10 | 7 |
+| `skills/code-designing/SKILL.md` | 10 | 5 |
+| `skills/documentation/SKILL.md` | 8 | 3 |
 | `maxims.md` | 7 | 3 |
+| `skills/refactoring/SKILL.md` | 7 | 6 |
 | `agents/rule-hunter.md` | 5 | 1 |
 | `skills/refactoring/reference.md` | 5 | 5 |
 | `skills/linter-driven-development/SKILL.md` | 4 | 4 |
 | `agents/comment-critic.md` | 3 | 1 |
-| `rules/R4-helper-placement.md` | 3 | 3 |
 | `commands/{{.CmdPrefix}}-analyze.md` | 2 | 2 |
 | `rules/R12-mutation-discipline.md` | 2 | 1 |
+| `rules/R4-helper-placement.md` | 2 | 3 |
 | `agents/lint-fixer.md` | 1 | 1 |
 | `agents/overabstraction-skeptic.md` | 1 | 1 |
 | `commands/wire-repo-brain.md` | 1 | 1 |

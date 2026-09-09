@@ -1,15 +1,16 @@
 // Command ldd-gen renders the linter-driven-development plugins from core/
 // (language-neutral templates) and lang/<lang>/ (one binding per language),
-// and checks that the committed plugin directories match that rendering.
+// and checks that the plugin directories on disk match that rendering.
 //
 // Usage:
 //
-//	ldd-gen -lang go            render lang/go into its plugin directory
-//	ldd-gen -check              render every binding; exit 1 on any difference
-//	ldd-gen lint-core [-write]  report language residue left in core/; exit 1
-//	                            on hard hits; -write refreshes core/README.md
+//	ldd-gen -lang go              render lang/go into its plugin directory
+//	ldd-gen -check                render every binding; exit 1 on any difference
+//	ldd-gen lint-core [-write]    report language residue left in core/; exit 1
+//	                              on hard hits; -write refreshes core/README.md
 //
-// All take -root <dir> (default "."), the repository root.
+// Every form takes -root <dir> (default "."), the repository root, after the
+// subcommand when there is one.
 package main
 
 import (
@@ -30,8 +31,10 @@ func main() {
 }
 
 var (
-	errDifferences = errors.New("the committed plugin differs from the rendering; run `task generate` and commit the result")
+	errDifferences = errors.New("a plugin directory differs from its rendering; edit core/ or lang/<lang>/, never the plugin directory, then run `task generate` and commit both")
 	errHardResidue = errors.New("hard residue in core/: each hit needs a profile scalar or an include")
+	errBothModes   = errors.New("-check renders every binding; do not combine it with -lang")
+	errNoMode      = errors.New("pass -lang <name>, -check, or lint-core")
 )
 
 func run(args []string, out io.Writer) error {
@@ -42,23 +45,45 @@ func run(args []string, out io.Writer) error {
 	fs.SetOutput(out)
 	root := fs.String("root", ".", "repository root")
 	lang := fs.String("lang", "", "binding under lang/ to render into its plugin directory")
-	doCheck := fs.Bool("check", false, "compare every binding's rendering with its committed plugin directory")
+	doCheck := fs.Bool("check", false, "compare every binding's rendering with its plugin directory")
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("flags: %w", err)
 	}
-	repo, err := gen.Open(*root)
+	switch {
+	case *doCheck && *lang != "":
+		return errBothModes
+	case *doCheck:
+		return checkAll(*root, out)
+	case *lang != "":
+		return generate(*root, *lang)
+	default:
+		fs.Usage()
+		return errNoMode
+	}
+}
+
+func generate(root, lang string) error {
+	repo, err := gen.Open(root)
 	if err != nil {
 		return err
 	}
-	switch {
-	case *doCheck:
-		return checkAll(repo, out)
-	case *lang != "":
-		return repo.Generate(*lang)
-	default:
-		fs.Usage()
-		return errors.New("pass -lang <name>, -check, or lint-core")
+	return repo.Generate(lang)
+}
+
+func checkAll(root string, out io.Writer) error {
+	repo, err := gen.Open(root)
+	if err != nil {
+		return err
 	}
+	n, err := repo.Check(out)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return errDifferences
+	}
+	fmt.Fprintln(out, "ldd-gen: every plugin directory matches its rendering")
+	return nil
 }
 
 func lintCore(args []string, out io.Writer) error {
@@ -80,17 +105,5 @@ func lintCore(args []string, out io.Writer) error {
 	if hard > 0 {
 		return errHardResidue
 	}
-	return nil
-}
-
-func checkAll(repo gen.Repo, out io.Writer) error {
-	n, err := repo.Check(out)
-	if err != nil {
-		return err
-	}
-	if n > 0 {
-		return errDifferences
-	}
-	fmt.Fprintln(out, "ldd-gen: every plugin directory matches its rendering")
 	return nil
 }

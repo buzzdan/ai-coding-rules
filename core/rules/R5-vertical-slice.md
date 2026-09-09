@@ -87,4 +87,5 @@ are never acceptable (`R4-helper-placement.md`).
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R5/falsifying-questions.md"}}

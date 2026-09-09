@@ -1,4 +1,3 @@
-
 1. **Does a method return an internal slice or map by reference?**
    Detection: for each type in the diff with a validating constructor, list its
    slice/map fields (`grep -A8 'type <X> struct' <file>`), then

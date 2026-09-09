@@ -69,4 +69,5 @@ should end up in those leaves; the story functions above them should be thin.
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R3/falsifying-questions.md"}}

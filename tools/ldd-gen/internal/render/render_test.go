@@ -1,6 +1,9 @@
 package render_test
 
 import (
+	"maps"
+	"os"
+	"path/filepath"
 	"testing"
 	"testing/fstest"
 
@@ -24,18 +27,15 @@ default_lint: plint
 default_lint_fix: plint --fix
 `
 
-func lang(extra fstest.MapFS) binding.Binding {
+func lang(t *testing.T, extra fstest.MapFS) binding.Binding {
+	t.Helper()
 	fsys := fstest.MapFS{
 		"profile.yaml":        {Data: []byte(profileYAML)},
 		"rules/R1/example.md": {Data: []byte("example body\n")},
 	}
-	for k, v := range extra {
-		fsys[k] = v
-	}
+	maps.Copy(fsys, extra)
 	b, err := binding.Load(fsys)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	return b
 }
 
@@ -47,7 +47,7 @@ func TestRender_Substitutions(t *testing.T) {
 		"commands/{{.CmdPrefix}}-analyze.md": {Data: []byte("Skill({{.Plugin}}:x)\n")},
 		"scripts/gate.sh":                    {Data: []byte("#!/bin/sh\n"), Mode: 0o755},
 	}
-	tree, err := render.Render(core, lang(nil))
+	tree, err := render.Render(core, lang(t, nil))
 	require.NoError(t, err)
 
 	assert.NotContains(t, tree, "README.md")
@@ -59,17 +59,25 @@ func TestRender_Substitutions(t *testing.T) {
 
 func TestRender_Override(t *testing.T) {
 	t.Parallel()
-	core := fstest.MapFS{"rules/R6.md": {Data: []byte("core text\n")}}
-	b := lang(fstest.MapFS{"overrides/rules/R6.md": {Data: []byte("{{.Lang}} text\n")}})
+	core := fstest.MapFS{
+		"rules/R6.md":     {Data: []byte("core text\n")},
+		"scripts/gate.sh": {Data: []byte("#!/bin/sh\n"), Mode: 0o755},
+	}
+	b := lang(t, fstest.MapFS{
+		"overrides/rules/R6.md":     {Data: []byte("{{.Lang}} text\n")},
+		"overrides/scripts/gate.sh": {Data: []byte("#!/bin/sh\necho override\n")},
+	})
 	tree, err := render.Render(core, b)
 	require.NoError(t, err)
 	assert.Equal(t, "Lang text\n", string(tree["rules/R6.md"].Data))
+	assert.Equal(t, "#!/bin/sh\necho override\n", string(tree["scripts/gate.sh"].Data))
+	assert.False(t, tree["scripts/gate.sh"].Exec, "the override's own mode wins, not the core file's")
 }
 
 func TestRender_Passthrough(t *testing.T) {
 	t.Parallel()
 	core := fstest.MapFS{}
-	b := lang(fstest.MapFS{
+	b := lang(t, fstest.MapFS{
 		"passthrough/CHANGELOG.md":  {Data: []byte("{{ not a template }}\n")},
 		"passthrough/hooks/hook.sh": {Data: []byte("#!/bin/sh\n"), Mode: 0o755},
 	})
@@ -79,11 +87,19 @@ func TestRender_Passthrough(t *testing.T) {
 	assert.True(t, tree["hooks/hook.sh"].Exec)
 }
 
-func TestRender_MissingCoreIsEmpty(t *testing.T) {
+func TestRender_EmptyCoreRendersOnlyPassthrough(t *testing.T) {
 	t.Parallel()
-	tree, err := render.Render(fstest.MapFS{}, lang(nil))
+	b := lang(t, fstest.MapFS{"passthrough/README.md": {Data: []byte("r\n")}})
+	tree, err := render.Render(fstest.MapFS{}, b)
 	require.NoError(t, err)
-	assert.Empty(t, tree)
+	assert.Len(t, tree, 1)
+}
+
+func TestRender_MissingCoreIsAnError(t *testing.T) {
+	t.Parallel()
+	missing := os.DirFS(filepath.Join(t.TempDir(), "nope"))
+	_, err := render.Render(missing, lang(t, nil))
+	require.Error(t, err)
 }
 
 func TestRender_Errors(t *testing.T) {
@@ -115,11 +131,23 @@ func TestRender_Errors(t *testing.T) {
 			core: fstest.MapFS{"a.md": {Data: []byte("{{ include }\n")}},
 			want: "template a.md",
 		},
+		{
+			name: "override without a core file",
+			core: fstest.MapFS{"a.md": {Data: []byte("x\n")}},
+			lang: fstest.MapFS{"overrides/b.md": {Data: []byte("y\n")}},
+			want: `override "b.md" has no core file`,
+		},
+		{
+			name: "override of the core README is never used",
+			core: fstest.MapFS{"README.md": {Data: []byte("x\n")}},
+			lang: fstest.MapFS{"overrides/README.md": {Data: []byte("y\n")}},
+			want: `override "README.md" has no core file`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := render.Render(tc.core, lang(tc.lang))
+			_, err := render.Render(tc.core, lang(t, tc.lang))
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
 		})

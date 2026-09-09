@@ -1,4 +1,3 @@
-
 1. **Is any package named after a layer or role?**
    Detection: `grep -rn 'package \(util\|utils\|helpers\|common\|shared\|misc\|domain\|services\|handlers\|models\)$' --include='*.go' .`
    and `find . -type d \( -name 'util*' -o -name 'helpers' -o -name 'common' -o -name 'domain' -o -name 'services' -o -name 'handlers' -o -name 'models' -o -name 'repositories' \)`

@@ -71,4 +71,5 @@ sentinels are fine — the target is mutable state and configuration reached sid
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R8/falsifying-questions.md"}}

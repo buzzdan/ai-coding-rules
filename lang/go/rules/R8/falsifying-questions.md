@@ -1,4 +1,3 @@
-
 1. **Does any package declare mutable state at package level?**
    Detection: `grep -rn '^var ' --include='*.go' . | grep -v _test.go` — then
    exclude const-like declarations (`var Err... = errors.New(...)` sentinels,

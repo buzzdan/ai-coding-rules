@@ -1,12 +1,11 @@
 // Package render compiles core templates plus one language binding into the
 // plugin tree: every output path with its bytes and executable bit. The tree
 // is produced in memory so the same rendering can be written to disk or
-// compared against a committed directory.
+// compared against the plugin directory.
 package render
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/fs"
 	"text/template"
@@ -14,8 +13,7 @@ import (
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
 )
 
-// coreReadme documents the core directory itself and is never rendered into a
-// plugin; every other file under core/ is a template.
+// README.md documents core/ itself; every other core file is a template.
 const coreReadme = "README.md"
 
 // File is one rendered plugin file. Exec mirrors the source file's executable
@@ -29,11 +27,19 @@ type File struct {
 type Tree map[string]File
 
 // Render templates every core file through the binding, then adds the
-// binding's passthrough files. An output path claimed twice is an error, so a
-// passthrough copy can never silently shadow a rendered template.
+// binding's passthrough files. Two mistakes are errors rather than silent
+// wins: an output path claimed twice (a passthrough copy shadowing a
+// template) and an override with no core file to replace.
 func Render(core fs.FS, b binding.Binding) (Tree, error) {
-	r := renderer{binding: b, tree: Tree{}}
+	overrides, err := b.Overrides()
+	if err != nil {
+		return nil, err
+	}
+	r := renderer{binding: b, overrides: overrides, tree: Tree{}, seen: map[string]bool{}}
 	if err := walkFiles(core, r.renderCore); err != nil {
+		return nil, err
+	}
+	if err := walkFiles(overrides, r.checkOverrideHasCoreFile); err != nil {
 		return nil, err
 	}
 	pt, err := b.Passthrough()
@@ -47,15 +53,18 @@ func Render(core fs.FS, b binding.Binding) (Tree, error) {
 }
 
 type renderer struct {
-	binding binding.Binding
-	tree    Tree
+	binding   binding.Binding
+	overrides fs.FS
+	tree      Tree
+	seen      map[string]bool // core paths visited, to detect orphan overrides
 }
 
-func (r *renderer) renderCore(fsys fs.FS, path string) error {
+func (r *renderer) renderCore(core fs.FS, path string) error {
 	if path == coreReadme {
 		return nil
 	}
-	src, err := r.source(fsys, path)
+	r.seen[path] = true
+	src, exec, err := r.source(core, path)
 	if err != nil {
 		return err
 	}
@@ -67,27 +76,34 @@ func (r *renderer) renderCore(fsys fs.FS, path string) error {
 	if err != nil {
 		return err
 	}
-	exec, err := isExecutable(fsys, path)
-	if err != nil {
-		return err
-	}
 	return r.add(string(outPath), File{Data: out, Exec: exec})
 }
 
-func (r *renderer) source(core fs.FS, path string) ([]byte, error) {
-	if data, ok, err := r.binding.Override(path); ok || err != nil {
-		return data, err
+// source picks the override when the binding has one, else the core file,
+// and reports the executable bit of whichever file it read.
+func (r *renderer) source(core fs.FS, path string) ([]byte, bool, error) {
+	fsys := core
+	if _, err := fs.Stat(r.overrides, path); err == nil {
+		fsys = r.overrides
 	}
-	data, err := fs.ReadFile(core, path)
+	data, err := fs.ReadFile(fsys, path)
 	if err != nil {
-		return nil, fmt.Errorf("core: %w", err)
+		return nil, false, fmt.Errorf("core: %w", err)
 	}
-	return data, nil
+	exec, err := isExecutable(fsys, path)
+	return data, exec, err
+}
+
+func (r *renderer) checkOverrideHasCoreFile(_ fs.FS, path string) error {
+	if !r.seen[path] {
+		return fmt.Errorf("override %q has no core file to replace", path)
+	}
+	return nil
 }
 
 func (r *renderer) execute(name, text string) ([]byte, error) {
 	funcs := template.FuncMap{"include": r.binding.Include}
-	tmpl, err := template.New(name).Funcs(funcs).Option("missingkey=error").Parse(text)
+	tmpl, err := template.New(name).Funcs(funcs).Parse(text)
 	if err != nil {
 		return nil, fmt.Errorf("template %s: %w", name, err)
 	}
@@ -126,15 +142,11 @@ func isExecutable(fsys fs.FS, path string) (bool, error) {
 	return info.Mode()&0o111 != 0, nil
 }
 
-// walkFiles calls visit for every regular file. A missing root is an empty
-// tree, which is what a binding without passthrough or a repo without core
-// looks like on day one.
+// walkFiles calls visit for every regular file. A root that does not exist is
+// an error: rendering nothing from a missing core/ would delete the plugin.
 func walkFiles(fsys fs.FS, visit func(fs.FS, string) error) error {
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			if path == "." && errors.Is(err, fs.ErrNotExist) {
-				return fs.SkipAll
-			}
 			return err
 		}
 		if d.IsDir() {

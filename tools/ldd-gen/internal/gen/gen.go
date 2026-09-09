@@ -1,6 +1,6 @@
 // Package gen ties the generator to one repository checkout: it finds core/
 // and lang/<lang>/, renders each binding, and either writes the plugin
-// directory or reports how the committed one differs from the rendering.
+// directory or reports how the directory on disk differs from the rendering.
 package gen
 
 import (
@@ -30,17 +30,27 @@ type Repo struct {
 	root string
 }
 
-// Open validates that root holds a lang/ directory; a path without one is not
-// a checkout the generator can work on.
+// Open validates that root holds both core/ and lang/. Without core/ a
+// rendering would be empty and writing it would delete every templated file,
+// so a root missing either directory is refused up front.
 func Open(root string) (Repo, error) {
-	info, err := os.Stat(filepath.Join(root, langDir))
-	if err != nil {
-		return Repo{}, fmt.Errorf("open %s: %w", root, err)
-	}
-	if !info.IsDir() {
-		return Repo{}, errors.New("open: lang is not a directory")
+	for _, dir := range []string{coreDir, langDir} {
+		if err := requireDir(filepath.Join(root, dir)); err != nil {
+			return Repo{}, err
+		}
 	}
 	return Repo{root: root}, nil
+}
+
+func requireDir(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("open: %s is not a directory", path)
+	}
+	return nil
 }
 
 // Langs lists every binding directory under lang/, sorted.
@@ -62,13 +72,14 @@ func (r Repo) Langs() ([]string, error) {
 // Render compiles core/ with one binding and returns the tree together with
 // the binding's profile, which names the output directory.
 func (r Repo) Render(lang string) (render.Tree, profile.Profile, error) {
-	b, err := binding.Load(os.DirFS(filepath.Join(r.root, langDir, lang)))
+	dir := filepath.Join(langDir, lang)
+	b, err := binding.Load(os.DirFS(filepath.Join(r.root, dir)))
 	if err != nil {
-		return nil, profile.Profile{}, err
+		return nil, profile.Profile{}, fmt.Errorf("%s: %w", dir, err)
 	}
 	tree, err := render.Render(os.DirFS(filepath.Join(r.root, coreDir)), b)
 	if err != nil {
-		return nil, profile.Profile{}, err
+		return nil, profile.Profile{}, fmt.Errorf("%s: %w", dir, err)
 	}
 	return tree, b.Profile(), nil
 }
@@ -82,12 +93,16 @@ func (r Repo) Generate(lang string) error {
 	return check.Write(tree, filepath.Join(r.root, p.Plugin), p.Ignored)
 }
 
-// Check renders every binding and compares each with its committed plugin
-// directory, writing findings to w. It returns the number of differences.
+// Check renders every binding and compares each with its plugin directory,
+// writing findings to w. It returns the number of differences. A repository
+// with no binding at all is an error, not a pass.
 func (r Repo) Check(w io.Writer) (int, error) {
 	langs, err := r.Langs()
 	if err != nil {
 		return 0, err
+	}
+	if len(langs) == 0 {
+		return 0, errors.New("check: no binding under lang/")
 	}
 	total := 0
 	for _, lang := range langs {
@@ -119,7 +134,8 @@ func (r Repo) checkOne(w io.Writer, lang string) (int, error) {
 
 // LintCore scans core/ for language residue and writes the report to w. With
 // write set, the Residue section of core/README.md is rewritten from the
-// report. It returns the number of hard hits, which must be zero.
+// report. It returns the number of hard hits; the caller fails the run when
+// that is not zero.
 func (r Repo) LintCore(w io.Writer, write bool) (int, error) {
 	report, err := residue.Scan(os.DirFS(filepath.Join(r.root, coreDir)))
 	if err != nil {

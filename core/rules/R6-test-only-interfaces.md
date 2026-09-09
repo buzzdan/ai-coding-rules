@@ -65,4 +65,5 @@ doubles.
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R6/falsifying-questions.md"}}

@@ -43,11 +43,24 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "p", b.Profile().Plugin)
 }
 
-func TestLoad_NoProfile(t *testing.T) {
+func TestLoad_Errors(t *testing.T) {
 	t.Parallel()
-	_, err := binding.Load(fstest.MapFS{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "profile.yaml")
+	cases := []struct {
+		name string
+		fsys fstest.MapFS
+		want string
+	}{
+		{name: "no profile", fsys: fstest.MapFS{}, want: "profile.yaml"},
+		{name: "invalid profile", fsys: fstest.MapFS{"profile.yaml": {Data: []byte("plugin: x\n")}}, want: "missing"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := binding.Load(tc.fsys)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
 }
 
 func TestInclude(t *testing.T) {
@@ -81,19 +94,17 @@ func TestInclude_Missing(t *testing.T) {
 	assert.Contains(t, err.Error(), "rules/R9/nope.md")
 }
 
-func TestOverride(t *testing.T) {
+func TestOverrides(t *testing.T) {
 	t.Parallel()
 	b, err := binding.Load(langFS())
 	require.NoError(t, err)
-
-	data, ok, err := b.Override("rules/R6.md")
+	ov, err := b.Overrides()
 	require.NoError(t, err)
-	assert.True(t, ok)
+	data, err := fs.ReadFile(ov, "rules/R6.md")
+	require.NoError(t, err)
 	assert.Equal(t, "replaced\n", string(data))
-
-	_, ok, err = b.Override("rules/R1.md")
-	require.NoError(t, err)
-	assert.False(t, ok)
+	_, err = fs.ReadFile(ov, "rules/R1.md")
+	require.ErrorIs(t, err, fs.ErrNotExist)
 }
 
 func TestPassthrough(t *testing.T) {
@@ -110,7 +121,7 @@ func TestPassthrough(t *testing.T) {
 	assert.NotZero(t, info.Mode()&0o111)
 }
 
-func TestPassthrough_Absent(t *testing.T) {
+func TestOptionalDirs_Absent(t *testing.T) {
 	t.Parallel()
 	b, err := binding.Load(fstest.MapFS{"profile.yaml": {Data: []byte(profileYAML)}})
 	require.NoError(t, err)
@@ -118,4 +129,20 @@ func TestPassthrough_Absent(t *testing.T) {
 	require.NoError(t, err)
 	_, err = fs.ReadFile(pt, "anything")
 	require.ErrorIs(t, err, fs.ErrNotExist)
+	ov, err := b.Overrides()
+	require.NoError(t, err)
+	_, err = fs.ReadFile(ov, "anything")
+	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+func TestOptionalDirs_NotADirectory(t *testing.T) {
+	t.Parallel()
+	b, err := binding.Load(fstest.MapFS{
+		"profile.yaml": {Data: []byte(profileYAML)},
+		"passthrough":  {Data: []byte("a file, not a directory\n")},
+	})
+	require.NoError(t, err)
+	_, err = b.Passthrough()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a directory")
 }

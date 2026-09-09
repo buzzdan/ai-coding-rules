@@ -1,4 +1,3 @@
-
 1. **Does every goroutine started in the diff have a provable exit path?**
    Detection: `grep -nE '\bgo\s+[a-zA-Z_][A-Za-z0-9_.]*\(|\.Go\(' <changed files>` —
    catches `go func(...)`, method values (`go s.run()`), package-qualified calls,

@@ -69,4 +69,5 @@ and review contract.
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R7/falsifying-questions.md"}}

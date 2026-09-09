@@ -1,4 +1,3 @@
-
 1. **Does any `t.Run` body contain a conditional?**
    Detection: `grep -rn -A6 't.Run(' --include='*_test.go' . | grep -nE 'if |switch '`
    and `grep -rn 'wantErr' --include='*_test.go' .`

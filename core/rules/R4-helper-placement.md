@@ -108,4 +108,5 @@ vocabulary of one — fold it into the vocabulary it belongs to. A role name (`u
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R4/falsifying-questions.md"}}

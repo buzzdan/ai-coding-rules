@@ -80,4 +80,5 @@ the invariants.
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R12/falsifying-questions.md"}}

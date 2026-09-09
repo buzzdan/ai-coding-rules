@@ -1,4 +1,3 @@
-
 1. **Is the same discriminator inspected in more than one place?**
    Detection: list discriminators in the diff —
    `grep -nE 'switch [a-zA-Z_.]+\.(Type|Kind|Status|Mode|Channel|Format|Level)\b' $(git diff --name-only -- '*.go')`

@@ -39,15 +39,34 @@ func miniRepo(t *testing.T) string {
 	write(t, root, "lang/p/profile.yaml", profileYAML)
 	write(t, root, "lang/p/rules/R1/example.md", "example\n")
 	write(t, root, "lang/p/passthrough/CHANGELOG.md", "log\n")
-	write(t, root, "core/README.md", "about core\n")
+	write(t, root, "lang/README.md", "not a binding\n")
+	write(t, root, "core/README.md", "about core\n\n<!-- residue:begin -->\nold\n<!-- residue:end -->\n")
 	write(t, root, "core/rules/R1.md", "{{include \"rules/R1/example.md\"}} in {{.Lang}}\n")
 	return root
 }
 
-func TestOpen_NoLangDir(t *testing.T) {
+func TestOpen_Errors(t *testing.T) {
 	t.Parallel()
-	_, err := gen.Open(t.TempDir())
-	require.Error(t, err)
+	noCore := t.TempDir()
+	write(t, noCore, "lang/p/profile.yaml", profileYAML)
+	fileAsCore := t.TempDir()
+	write(t, fileAsCore, "core", "a file\n")
+	write(t, fileAsCore, "lang/p/profile.yaml", profileYAML)
+	cases := []struct {
+		name string
+		root string
+	}{
+		{name: "empty root", root: t.TempDir()},
+		{name: "lang without core", root: noCore},
+		{name: "core is a file", root: fileAsCore},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := gen.Open(tc.root)
+			require.Error(t, err)
+		})
+	}
 }
 
 func TestGenerateThenCheck(t *testing.T) {
@@ -58,17 +77,19 @@ func TestGenerateThenCheck(t *testing.T) {
 
 	langs, err := repo.Langs()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"p"}, langs)
+	assert.Equal(t, []string{"p"}, langs, "files under lang/ are not bindings")
 
 	var out bytes.Buffer
 	n, err := repo.Check(&out)
 	require.NoError(t, err)
 	assert.Equal(t, 2, n, "nothing generated yet: both outputs are missing")
 
+	write(t, root, "out-plugin/evals/cases/x.md", "copied in by an eval run\n")
 	require.NoError(t, repo.Generate("p"))
 	got, err := os.ReadFile(filepath.Join(root, "out-plugin/rules/R1.md"))
 	require.NoError(t, err)
 	assert.Equal(t, "example in Lang\n", string(got))
+	assert.FileExists(t, filepath.Join(root, "out-plugin/evals/cases/x.md"), "generate leaves ignored files alone")
 
 	out.Reset()
 	n, err = repo.Check(&out)
@@ -84,7 +105,6 @@ func TestCheck_ReportsEdits(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, repo.Generate("p"))
 	write(t, root, "out-plugin/rules/R1.md", "hand edit\n")
-	write(t, root, "out-plugin/evals/cases/x.md", "ignored\n")
 
 	var out bytes.Buffer
 	n, err := repo.Check(&out)
@@ -94,16 +114,54 @@ func TestCheck_ReportsEdits(t *testing.T) {
 	assert.NotContains(t, out.String(), "evals/cases")
 }
 
+func TestCheck_NoBindingIsAnError(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	write(t, root, "core/README.md", "core\n")
+	write(t, root, "lang/README.md", "no bindings here\n")
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	_, err = repo.Check(&bytes.Buffer{})
+	require.Error(t, err)
+}
+
 func TestRender_UnknownLang(t *testing.T) {
 	t.Parallel()
 	repo, err := gen.Open(miniRepo(t))
 	require.NoError(t, err)
 	_, _, err = repo.Render("nope")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lang/nope")
 }
 
-// TestGolden is the invariant of the whole repository: rendering the committed
-// bindings reproduces the committed plugin directories exactly.
+func TestLintCore(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+
+	var out bytes.Buffer
+	hard, err := repo.LintCore(&out, false)
+	require.NoError(t, err)
+	assert.Zero(t, hard)
+	readme, err := os.ReadFile(filepath.Join(root, "core/README.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(readme), "\nold\n", "without -write the README is untouched")
+
+	write(t, root, "core/rules/R2.md", "run golangci-lint\n")
+	out.Reset()
+	hard, err = repo.LintCore(&out, true)
+	require.NoError(t, err)
+	assert.Equal(t, 1, hard)
+	assert.Contains(t, out.String(), "rules/R2.md:1")
+	readme, err = os.ReadFile(filepath.Join(root, "core/README.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(readme), "Hard residue (1)")
+	assert.NotContains(t, string(readme), "\nold\n")
+}
+
+// Runs against the real checkout: each plugin directory must equal its
+// rendering exactly.
 func TestGolden(t *testing.T) {
 	t.Parallel()
 	repo, err := gen.Open(filepath.Join("..", "..", "..", ".."))

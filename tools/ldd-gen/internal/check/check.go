@@ -1,6 +1,6 @@
-// Package check compares a rendered plugin tree with the directory committed
-// in git and writes the tree back to disk. The committed directory is the
-// generator's characterization test: any byte it would change is a finding.
+// Package check compares a rendered plugin tree with the plugin directory on
+// disk and writes the tree back to it. The directory is the generator's golden
+// copy: any byte the generator would change is a finding.
 package check
 
 import (
@@ -13,14 +13,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"syscall"
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/render"
 )
 
-// Kind says how a committed path disagrees with the rendered tree.
+// Kind says how a path on disk disagrees with the rendered tree.
 type Kind string
 
-// The four ways a committed file can disagree with its rendering.
+// The four ways a file on disk can disagree with its rendering.
 const (
 	Missing     Kind = "missing"      // rendered, not on disk
 	Extra       Kind = "extra"        // on disk, not rendered, not ignored
@@ -28,8 +29,7 @@ const (
 	ExecChanged Kind = "exec-changed" // same bytes, different executable bit
 )
 
-// Difference is one path where the committed directory and the rendered tree
-// disagree.
+// Difference is one path where the directory and the rendered tree disagree.
 type Difference struct {
 	Path string
 	Kind Kind
@@ -43,7 +43,7 @@ type Ignore func(rel string) bool
 // path. An empty result means the directory is exactly what the generator
 // would produce.
 func Compare(want render.Tree, dir string, ignore Ignore) ([]Difference, error) {
-	have, err := readDir(dir, orIgnored(want, ignore))
+	have, err := readDir(dir, ignoredAndUnowned(want, ignore))
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +67,8 @@ func Compare(want render.Tree, dir string, ignore Ignore) ([]Difference, error) 
 	return diffs, nil
 }
 
-// orIgnored narrows an ignore rule to paths the tree does not produce: a file
-// the generator owns is always compared, even inside an ignored directory.
-func orIgnored(tree render.Tree, ignore Ignore) Ignore {
+// A file the generator owns is always compared, even inside an ignored directory.
+func ignoredAndUnowned(tree render.Tree, ignore Ignore) Ignore {
 	return func(rel string) bool {
 		_, owned := tree[rel]
 		return !owned && ignore(rel)
@@ -88,9 +87,10 @@ func compareFile(want, have render.File) (Kind, bool) {
 
 // Write replaces dir with the rendered tree: every file the generator owns is
 // written, every other file that is not ignored is removed, and directories
-// left empty are dropped. Ignored files are never touched.
+// left empty are dropped. Ignored files and directories are never touched.
 func Write(tree render.Tree, dir string, ignore Ignore) error {
-	have, err := readDir(dir, orIgnored(tree, ignore))
+	skip := ignoredAndUnowned(tree, ignore)
+	have, err := readDir(dir, skip)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func Write(tree render.Tree, dir string, ignore Ignore) error {
 			return err
 		}
 	}
-	return removeEmptyDirs(dir)
+	return removeEmptyDirs(dir, ignore)
 }
 
 func writeFile(path string, f render.File) error {
@@ -127,13 +127,18 @@ func writeFile(path string, f render.File) error {
 	return nil
 }
 
-func removeEmptyDirs(dir string) error {
+func removeEmptyDirs(dir string, ignore Ignore) error {
 	var dirs []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err == nil && d.IsDir() && path != dir {
-			dirs = append(dirs, path)
+		if err != nil || !d.IsDir() || path == dir {
+			return err
 		}
-		return err
+		rel, _ := filepath.Rel(dir, path)
+		if ignore(filepath.ToSlash(rel)) {
+			return fs.SkipDir
+		}
+		dirs = append(dirs, path)
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("walk: %w", err)
@@ -148,14 +153,12 @@ func removeEmptyDirs(dir string) error {
 	return nil
 }
 
+// POSIX lets rmdir report a non-empty directory as either error.
 func isNotEmpty(err error) bool {
-	var pathErr *fs.PathError
-	return errors.As(err, &pathErr) && pathErr.Err.Error() == "directory not empty"
+	return errors.Is(err, syscall.ENOTEMPTY) || errors.Is(err, syscall.EEXIST)
 }
 
-// readDir loads the committed directory as a tree, skipping paths the caller
-// does not care about. A missing directory reads as empty so the first
-// generation can create it.
+// A missing directory reads as empty, so the first generation can create it.
 func readDir(dir string, skip Ignore) (render.Tree, error) {
 	tree := render.Tree{}
 	fsys := os.DirFS(dir)
@@ -195,33 +198,42 @@ func readFile(fsys fs.FS, path string) (render.File, error) {
 }
 
 // Report prints one line per difference and, for changed files, a unified
-// diff from the committed file to the rendering when diff(1) is available.
+// diff from the file on disk to the rendering when the diff command is
+// installed. When it is not, the line says so instead of staying silent.
 func Report(w io.Writer, diffs []Difference, want render.Tree, dir string) {
 	for _, d := range diffs {
 		fmt.Fprintf(w, "%-13s %s\n", d.Kind, d.Path)
 		if d.Kind == Changed {
-			unifiedDiff(w, filepath.Join(dir, d.Path), want[d.Path].Data)
+			if err := unifiedDiff(w, filepath.Join(dir, d.Path), want[d.Path].Data); err != nil {
+				fmt.Fprintf(w, "(diff unavailable: %v)\n", err)
+			}
 		}
 	}
 }
 
-func unifiedDiff(w io.Writer, committed string, rendered []byte) {
+func unifiedDiff(w io.Writer, onDisk string, rendered []byte) error {
 	tmp, err := os.CreateTemp("", "ldd-gen-*")
 	if err != nil {
-		return
+		return fmt.Errorf("temp file: %w", err)
 	}
 	defer removeTemp(tmp.Name())
 	if _, err := tmp.Write(rendered); err != nil {
-		return
+		return fmt.Errorf("temp file: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return
+		return fmt.Errorf("temp file: %w", err)
 	}
-	cmd := exec.Command("diff", "-u", committed, tmp.Name())
+	cmd := exec.Command("diff", "-u", onDisk, tmp.Name())
 	cmd.Stdout = w
-	_ = cmd.Run() // exit 1 means "files differ", which is the point
+	err = cmd.Run()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return nil // diff exits 1 when the files differ, which is the point
+	}
+	if err != nil {
+		return fmt.Errorf("diff: %w", err)
+	}
+	return nil
 }
 
-// removeTemp drops the scratch file; the diff is already printed, so a failed
-// cleanup has nothing left to affect.
 func removeTemp(path string) { _ = os.Remove(path) }

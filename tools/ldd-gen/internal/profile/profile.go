@@ -38,8 +38,11 @@ type Profile struct {
 	Ignore []string `yaml:"ignore"`
 }
 
-// Parse decodes profile.yaml strictly: unknown keys and empty scalars are
-// errors, so a typo in a key cannot silently render as an empty string.
+// Parse decodes profile.yaml strictly: unknown keys, empty scalars, a plugin
+// name that is not a plain directory name, and malformed ignore patterns are
+// errors. The generator deletes files under the plugin directory that it
+// does not own, so a profile that could point it at the wrong place, or
+// switch its ignore list off, must not load.
 func Parse(data []byte) (Profile, error) {
 	var p Profile
 	dec := yaml.NewDecoder(bytes.NewReader(data))
@@ -51,6 +54,21 @@ func Parse(data []byte) (Profile, error) {
 		return Profile{}, err
 	}
 	return p, nil
+}
+
+func (p Profile) validate() error {
+	if err := p.Vars.validate(); err != nil {
+		return err
+	}
+	if p.Plugin != path.Base(p.Plugin) || p.Plugin == "." || p.Plugin == ".." {
+		return fmt.Errorf("profile: plugin %q must be a plain directory name", p.Plugin)
+	}
+	for _, pattern := range p.Ignore {
+		if _, err := path.Match(pattern, ""); err != nil {
+			return fmt.Errorf("profile: ignore pattern %q: %w", pattern, err)
+		}
+	}
+	return nil
 }
 
 func (v Vars) validate() error {
@@ -69,20 +87,28 @@ func (v Vars) validate() error {
 }
 
 // Ignored reports whether an output path that the generator did not produce
-// is tolerated. A pattern matches the path itself or any of its parent
-// directories, so "evals/*" covers everything below evals/cases/.
+// is tolerated. A pattern with a slash matches the path itself or any of its
+// parent directories, so "evals/*" covers everything below evals/cases/. A
+// pattern without a slash matches a single name anywhere, so ".DS_Store"
+// covers that file in every directory.
 func (p Profile) Ignored(rel string) bool {
 	for _, pattern := range p.Ignore {
-		if matchesPrefix(pattern, rel) {
+		if matches(pattern, rel) {
 			return true
 		}
 	}
 	return false
 }
 
-func matchesPrefix(pattern, rel string) bool {
+func matches(pattern, rel string) bool {
+	byName := !strings.Contains(pattern, "/")
 	for prefix := rel; prefix != "." && prefix != "/"; prefix = path.Dir(prefix) {
-		if ok, _ := path.Match(pattern, prefix); ok {
+		candidate := prefix
+		if byName {
+			candidate = path.Base(prefix)
+		}
+		// Parse validated every pattern, so Match cannot fail here.
+		if ok, _ := path.Match(pattern, candidate); ok {
 			return true
 		}
 	}

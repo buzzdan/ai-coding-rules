@@ -16,13 +16,14 @@ import (
 	"strings"
 )
 
-// Markers delimit the generated Residue section inside core/README.md.
+// BeginMarker and EndMarker mark where the generated Residue section of
+// core/README.md starts and ends.
 const (
 	BeginMarker = "<!-- residue:begin -->"
 	EndMarker   = "<!-- residue:end -->"
 )
 
-// coreReadme is the one core file the scan skips: it holds this report.
+// README.md holds this report, so scanning it would hit its own output.
 const coreReadme = "README.md"
 
 // Token is one pattern the scan looks for, named the way the report shows it.
@@ -35,10 +36,12 @@ func token(name, pattern string) Token {
 	return Token{Name: name, re: regexp.MustCompile(pattern)}
 }
 
-// HardTokens have a scalar or a slot by construction; a hit fails lint-core.
+// HardTokens are names a profile scalar or an include already replaces; a hit
+// is a missed substitution and fails lint-core.
 func HardTokens() []Token {
 	return []Token{
-		token("plugin name literal", `go-linter-driven-development:`),
+		token("plugin name literal", `go-linter-driven-development`),
+		token("command prefix literal", `\bgo-ldd\b`),
 		token("golangci", `golangci`),
 		token("*.go glob", `\*\.go\b`),
 		token("_test.go", `_test\.go`),
@@ -55,6 +58,8 @@ func SoftTokens() []Token {
 		token("go test / go vet", `\bgo (test|vet)\b`),
 		token("godoc", `godoc`),
 		token("Go (the word)", `\bGo\b`),
+		token("Go linter name", `\b(errcheck|bodyclose|govet|exhaustive|gocognit|gocyclo|funlen|nestif|ireturn|dupl|gochecknoglobals|gochecknoinits|maintidx|cyclop|wrapcheck|goconst|varnamelen|misspell|revive)\b`),
+		token("Go library", `\b(testify|golang\.org/|errgroup)\b`),
 		token("nil", `\bnil\b`),
 		token("goroutine", `goroutine`),
 		token("ctx", `\bctx\b`),
@@ -130,16 +135,20 @@ func hitsOn(tokens []Token, path string, n int, line string) []Hit {
 }
 
 func (r *Report) sort() {
-	less := func(h []Hit) func(i, j int) bool {
-		return func(i, j int) bool {
-			if h[i].Path != h[j].Path {
-				return h[i].Path < h[j].Path
-			}
+	sortHits(r.Hard)
+	sortHits(r.Soft)
+}
+
+func sortHits(h []Hit) {
+	sort.SliceStable(h, func(i, j int) bool {
+		if h[i].Path != h[j].Path {
+			return h[i].Path < h[j].Path
+		}
+		if h[i].Line != h[j].Line {
 			return h[i].Line < h[j].Line
 		}
-	}
-	sort.Slice(r.Hard, less(r.Hard))
-	sort.Slice(r.Soft, less(r.Soft))
+		return h[i].Token < h[j].Token
+	})
 }
 
 // Markdown renders the report as the body of the README's Residue section:
@@ -150,11 +159,11 @@ func (r Report) Markdown() string {
 	writeHard(&b, r.Hard)
 	byToken := grouping{
 		title: "Soft residue by token", column: "Token", detail: "Files",
-		key: func(h Hit) string { return h.Token }, other: func(h Hit) string { return h.Path },
+		rowKey: func(h Hit) string { return h.Token }, countedValue: func(h Hit) string { return h.Path },
 	}
 	byFile := grouping{
 		title: "Soft residue by file", column: "File", detail: "Tokens",
-		key: func(h Hit) string { return "`" + h.Path + "`" }, other: func(h Hit) string { return h.Token },
+		rowKey: func(h Hit) string { return "`" + h.Path + "`" }, countedValue: func(h Hit) string { return h.Token },
 	}
 	writeCounts(&b, r.Soft, byToken)
 	writeCounts(&b, r.Soft, byFile)
@@ -163,7 +172,7 @@ func (r Report) Markdown() string {
 
 func writeHard(b *strings.Builder, hits []Hit) {
 	if len(hits) == 0 {
-		fmt.Fprint(b, "Hard residue: none. Every plugin-name literal, linter name, source glob and\nnolint directive in the plugin comes from a binding.\n")
+		fmt.Fprint(b, "Hard residue: none. No plugin-name or command-prefix literal, golangci\nreference, source-file glob or nolint directive is left in core/.\n")
 		return
 	}
 	fmt.Fprintf(b, "Hard residue (%d) — each is a missed substitution:\n\n", len(hits))
@@ -172,45 +181,59 @@ func writeHard(b *strings.Builder, hits []Hit) {
 	}
 }
 
-// grouping says how one soft-residue table is keyed: key picks the row,
-// other is the value counted distinctly in the last column.
 type grouping struct {
-	title  string
-	column string
-	detail string
-	key    func(Hit) string
-	other  func(Hit) string
+	title        string
+	column       string
+	detail       string
+	rowKey       func(Hit) string
+	countedValue func(Hit) string
 }
 
+// writeCounts prints one table: per row key, the number of distinct lines
+// that carry a hit, and the number of distinct counted values behind them.
 func writeCounts(b *strings.Builder, hits []Hit, g grouping) {
-	counts := map[string]int{}
-	others := map[string]map[string]bool{}
+	lines := map[string]map[string]bool{}
+	values := map[string]map[string]bool{}
+	allLines := map[string]bool{}
 	for _, h := range hits {
-		k := g.key(h)
-		counts[k]++
-		if others[k] == nil {
-			others[k] = map[string]bool{}
-		}
-		others[k][g.other(h)] = true
+		k := g.rowKey(h)
+		line := fmt.Sprintf("%s:%d", h.Path, h.Line)
+		addTo(lines, k, line)
+		addTo(values, k, g.countedValue(h))
+		allLines[line] = true
 	}
-	keys := make([]string, 0, len(counts))
-	for k := range counts {
+	keys := sortedKeys(lines)
+	fmt.Fprintf(b, "\n%s (%d lines):\n\n| %s | Lines | %s |\n|---|---:|---:|\n", g.title, len(allLines), g.column, g.detail)
+	for _, k := range keys {
+		fmt.Fprintf(b, "| %s | %d | %d |\n", k, len(lines[k]), len(values[k]))
+	}
+}
+
+func addTo(sets map[string]map[string]bool, key, value string) {
+	if sets[key] == nil {
+		sets[key] = map[string]bool{}
+	}
+	sets[key][value] = true
+}
+
+// sortedKeys orders rows by line count, largest first, then by name.
+func sortedKeys(lines map[string]map[string]bool) []string {
+	keys := make([]string, 0, len(lines))
+	for k := range lines {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		if counts[keys[i]] != counts[keys[j]] {
-			return counts[keys[i]] > counts[keys[j]]
+		if len(lines[keys[i]]) != len(lines[keys[j]]) {
+			return len(lines[keys[i]]) > len(lines[keys[j]])
 		}
 		return keys[i] < keys[j]
 	})
-	fmt.Fprintf(b, "\n%s (%d lines):\n\n| %s | Lines | %s |\n|---|---:|---:|\n", g.title, len(hits), g.column, g.detail)
-	for _, k := range keys {
-		fmt.Fprintf(b, "| %s | %d | %d |\n", k, counts[k], len(others[k]))
-	}
+	return keys
 }
 
 // WriteReadme replaces the text between the two markers in the README at path
-// with the report. The markers must both be present, in order.
+// with the report. The markers must both be present, in order. An unchanged
+// README is left untouched, so a repeated run never dirties the checkout.
 func WriteReadme(path string, r Report) error {
 	data, err := os.ReadFile(path)
 	if err != nil {

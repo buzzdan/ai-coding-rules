@@ -72,7 +72,7 @@ linters:
         - name: redefines-builtin-id
   exclusions:
     rules:
-      # Assertion-heavy tests accumulate ifs without branching logic.
+      # Tests are long and repeat literals by design.
       - path: _test\.go
         linters:
           - funlen

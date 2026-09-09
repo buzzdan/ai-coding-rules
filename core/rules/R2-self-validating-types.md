@@ -92,4 +92,5 @@ entered, carrying context, instead of deep in an unrelated call stack.
 ## Falsifying questions
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
 {{include "rules/R2/falsifying-questions.md"}}

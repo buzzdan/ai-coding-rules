@@ -1,4 +1,3 @@
-
 1. **Does the diff validate a primitive inline instead of constructing a type?**
    Detection: `grep -nE 'if [a-zA-Z_.]+ (==|!=) ""|if [a-zA-Z_.]+ (<=?|>=?) [0-9]' $(git diff --name-only -- '*.go')`
    Violation: an emptiness/range/format check on a parameter or DTO field that names

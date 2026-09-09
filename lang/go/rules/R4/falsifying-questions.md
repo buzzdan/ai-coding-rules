@@ -1,4 +1,3 @@
-
 1. **Is a symbol exported only so tests can reach it?**
    Detection: for each newly exported func/type,
    `grep -rn '<Symbol>' --include='*.go' . | grep -v _test.go` — count non-test

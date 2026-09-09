@@ -37,6 +37,9 @@ func TestParse_Success(t *testing.T) {
 
 func TestParse_Errors(t *testing.T) {
 	t.Parallel()
+	withPlugin := func(name string) string {
+		return "plugin: " + name + full[len("plugin: go-linter-driven-development"):]
+	}
 	cases := []struct {
 		name  string
 		input string
@@ -45,6 +48,12 @@ func TestParse_Errors(t *testing.T) {
 		{name: "missing scalar", input: "plugin: x\nlang: Go\n", want: "missing cmd_prefix"},
 		{name: "unknown key", input: full + "extra: 1\n", want: "field extra not found"},
 		{name: "not yaml", input: "plugin: [", want: "profile:"},
+		{name: "empty file", input: "", want: "profile:"},
+		{name: "plugin is a path", input: withPlugin("lang/go"), want: "plain directory name"},
+		{name: "plugin is dot", input: withPlugin("."), want: "plain directory name"},
+		{name: "plugin is parent", input: withPlugin(".."), want: "plain directory name"},
+		{name: "plugin is absolute", input: withPlugin("/tmp"), want: "plain directory name"},
+		{name: "bad ignore pattern", input: full + "  - 'evals/['\n", want: `ignore pattern "evals/["`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -67,10 +76,12 @@ func TestIgnored(t *testing.T) {
 	}{
 		{name: "direct child", rel: "evals/cases.yaml", want: true},
 		{name: "nested", rel: "evals/cases/trigger/prompt.md", want: true},
-		{name: "basename pattern at root", rel: ".DS_Store", want: true},
-		{name: "basename pattern nested is not covered", rel: "rules/.DS_Store", want: false},
+		{name: "name pattern at root", rel: ".DS_Store", want: true},
+		{name: "name pattern nested", rel: "rules/.DS_Store", want: true},
+		{name: "name pattern on a directory", rel: "rules/.DS_Store/x", want: true},
 		{name: "produced file elsewhere", rel: "rules/R1.md", want: false},
 		{name: "prefix without slash", rel: "evalsx/y.md", want: false},
+		{name: "the ignored directory itself", rel: "evals", want: false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

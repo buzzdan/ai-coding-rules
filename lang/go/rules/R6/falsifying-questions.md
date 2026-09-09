@@ -1,4 +1,3 @@
-
 1. **How many production implementations does each new/changed interface have?**
    Detection: for each method of the interface,
    `grep -rn 'func (.*) <Method>(' --include='*.go' . | grep -v _test.go` — list the

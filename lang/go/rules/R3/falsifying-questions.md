@@ -1,4 +1,3 @@
-
 1. **Does any changed function exceed the size/shape limits?**
    Detection: run the complexity linters (`gocyclo`, `gocognit` via
    `golangci-lint run`) on the changed files; or count —

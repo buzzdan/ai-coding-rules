@@ -1,4 +1,3 @@
-
 1. **Can the type exist in an invalid state?**
    Detection: for each new/changed type with invariants,
    `grep -rn '<Type>{' --include='*.go' . | grep -v _test.go` for literal

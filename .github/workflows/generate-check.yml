@@ -26,8 +26,11 @@ jobs:
         run: task lint-core
       - name: Generated gate passes its fixture matrix
         run: task test-gate
+      - name: Documentation gate
+        run: task docs:check
       - name: Generator tests
-        run: go test ./tools/...
+        working-directory: tools/ldd-gen
+        run: go test ./...
       - uses: golangci/golangci-lint-action@v8
         with:
           working-directory: tools/ldd-gen
