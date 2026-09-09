@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"text/template"
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
@@ -16,6 +17,23 @@ import (
 
 // README.md documents core/ itself; every other core file is a template.
 const coreReadme = "README.md"
+
+// droppings are names editors and operating systems leave next to sources.
+// They are never templates or passthrough files, whatever a profile says.
+func droppings() []string {
+	return []string{".DS_Store", "._*", "*.swp", "*~", ".#*", "Thumbs.db", "desktop.ini"}
+}
+
+// isDropping reports whether a file or directory name is an editor or OS
+// dropping, or a name the profile ignores.
+func isDropping(name string, profileIgnores func(string) bool) bool {
+	for _, pattern := range droppings() {
+		if ok, _ := path.Match(pattern, name); ok {
+			return true
+		}
+	}
+	return profileIgnores(name)
+}
 
 // File is one rendered plugin file. Exec mirrors the source file's executable
 // bit so hooks and gate scripts stay runnable after generation.
@@ -37,7 +55,7 @@ func Render(core fs.FS, b binding.Binding) (Tree, error) {
 		return nil, err
 	}
 	r := renderer{binding: b, overrides: overrides, tree: Tree{}, seen: map[string]bool{}}
-	skip := b.Profile().IgnoredName
+	skip := func(name string) bool { return isDropping(name, b.Profile().IgnoredName) }
 	if err := walkFiles(core, skip, r.renderCore); err != nil {
 		return nil, err
 	}
@@ -148,16 +166,21 @@ func isExecutable(fsys fs.FS, path string) (bool, error) {
 	return info.Mode()&0o111 != 0, nil
 }
 
-// walkFiles calls visit for every regular file except those whose name the
-// profile ignores (OS droppings such as .DS_Store). A root that does not
-// exist is an error: rendering nothing from a missing core/ would delete the
-// plugin.
+// walkFiles calls visit for every regular file, skipping files and whole
+// directories whose name skip accepts. A root that does not exist is an
+// error: rendering nothing from a missing core/ would delete the plugin.
 func walkFiles(fsys fs.FS, skip func(name string) bool, visit func(fs.FS, string) error) error {
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || skip(d.Name()) {
+		if path != "." && skip(d.Name()) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() {
 			return nil
 		}
 		return visit(fsys, path)

@@ -165,6 +165,9 @@ func TestGenerate_RefusesTwoBindingsForOnePlugin(t *testing.T) {
 	err = repo.Generate("p")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `both name plugin "out-plugin"`)
+	_, err = repo.Check(&bytes.Buffer{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `both name plugin "out-plugin"`)
 }
 
 func TestGenerate_IgnoredOwnedFileBlocksAForeignDir(t *testing.T) {

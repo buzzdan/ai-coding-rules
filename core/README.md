@@ -28,9 +28,10 @@ File-level rules the generator applies without template syntax:
   with no matching core file is an error.
 - File names are templates too: `core/commands/{{.CmdPrefix}}-analyze.md` renders
   to `commands/go-ldd-analyze.md` for the Go binding.
-- This README is documentation for `core/` itself and is never rendered. Names listed
-  in the profile's `ignore` without a slash (such as `.DS_Store`) are never read as
-  sources either.
+- This README is documentation for `core/` itself and is never rendered. Editor and OS
+  droppings (`.DS_Store`, `._*`, `*.swp`, `*~`, `.#*`, `Thumbs.db`, `desktop.ini`) and
+  any file or directory whose name the profile's `ignore` lists without a slash are never
+  read as sources either.
 - `task generate` refuses to write when two bindings name the same plugin, when the
   rendering has no named `.claude-plugin/plugin.json`, or when the target directory
   already holds files and its manifest names a different plugin. A wrong `plugin` name

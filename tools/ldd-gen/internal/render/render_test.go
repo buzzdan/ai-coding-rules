@@ -26,7 +26,7 @@ comment_prefix: "#"
 default_test: ptest
 default_lint: plint
 default_lint_fix: plint --fix
-ignore: [".DS_Store"]
+ignore: [".DS_Store", "__pycache__"]
 `
 
 func lang(t *testing.T, extra fstest.MapFS) binding.Binding {

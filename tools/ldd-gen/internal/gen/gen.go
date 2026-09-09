@@ -116,7 +116,9 @@ func (r Repo) Generate(lang string) error {
 }
 
 // requireUniquePlugins fails when two bindings render into one directory: the
-// second would overwrite the first's plugin with its own rendering.
+// second would overwrite the first's plugin with its own rendering. Every
+// binding must load for this, so a half-written binding blocks generation
+// of the others until its profile is complete.
 func (r Repo) requireUniquePlugins() error {
 	langs, err := r.Langs()
 	if err != nil {
@@ -207,7 +209,8 @@ func hasFile(dir string, skip check.Ignore) (bool, error) {
 
 // Check renders every binding and compares each with its plugin directory,
 // writing findings to w. It returns the number of differences. A repository
-// with no binding at all is an error, not a pass.
+// with no binding, or with two bindings for one plugin, is an error, not a
+// pass.
 func (r Repo) Check(w io.Writer) (int, error) {
 	langs, err := r.Langs()
 	if err != nil {
@@ -215,6 +218,9 @@ func (r Repo) Check(w io.Writer) (int, error) {
 	}
 	if len(langs) == 0 {
 		return 0, errors.New("check: no binding under lang/")
+	}
+	if err := r.requireUniquePlugins(); err != nil {
+		return 0, err
 	}
 	total := 0
 	for _, lang := range langs {

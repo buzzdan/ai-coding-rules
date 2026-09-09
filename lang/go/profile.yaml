@@ -14,9 +14,10 @@ default_lint: golangci-lint run
 default_lint_fix: golangci-lint run --fix
 # Paths in the plugin directory the generator does not own. A pattern with a
 # slash matches a path or one of its parent directories; a pattern without a
-# slash matches a file or directory name anywhere. An eval run copies its cases
-# under evals/ at run time; the pointer README there is copied through from
-# passthrough/evals/README.md and is still checked.
+# slash matches a file or directory name anywhere, in the plugin directory and
+# in the sources alike. An eval run copies its cases under evals/ at run time;
+# the pointer README there is copied through from passthrough/evals/README.md
+# and is still checked.
 ignore:
   - evals/*
   - .DS_Store
