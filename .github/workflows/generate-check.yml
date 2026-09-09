@@ -1,0 +1,31 @@
+name: generate-check
+
+# The plugin directories are generated from core/ and lang/. Every PR must keep
+# them identical to the rendering, keep the generated gate passing its fixture
+# matrix, and keep the generator itself green.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/ldd-gen/go.mod
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Plugin directories match their rendering
+        run: task check
+      - name: Generated gate passes its fixture matrix
+        run: task test-gate
+      - name: Generator tests
+        run: go test ./tools/...
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: tools/ldd-gen

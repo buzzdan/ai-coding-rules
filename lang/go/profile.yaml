@@ -1,0 +1,18 @@
+# The Go binding: every scalar a core template substitutes as {{.Name}}, plus
+# the output paths the generator does not own. Field names are the yaml keys
+# of Vars in tools/ldd-gen.
+plugin: go-linter-driven-development
+lang: Go
+cmd_prefix: go-ldd
+src_glob: "*.go"
+test_glob: "_test.go"
+project_marker: go.mod
+nolint: "//nolint"
+comment_prefix: "//"
+default_test: go test ./...
+default_lint: golangci-lint run
+default_lint_fix: golangci-lint run --fix
+# An eval run copies its cases under evals/ at run time (see evals/README.md);
+# only the pointer README there is generated.
+ignore:
+  - evals/*

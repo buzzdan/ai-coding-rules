@@ -1,6 +1,33 @@
 version: '3'
 
+# The Go plugin directory is generated: edit core/ and lang/go/, then run
+# `task generate` and commit both. `task check` is what CI runs.
+
 tasks:
+  generate:
+    desc: Render core/ + lang/<LANG>/ into the plugin directory (LANG=go)
+    vars:
+      LANG: '{{.LANG | default "go"}}'
+    cmds:
+      - go run ./tools/ldd-gen -lang {{.LANG}}
+
+  check:
+    desc: Fail when any committed plugin directory differs from its rendering
+    cmds:
+      - go run ./tools/ldd-gen -check
+
+  test-gate:
+    desc: Run the repo-brain gate's fixture matrix against the generated gate script
+    cmds:
+      - bash go-linter-driven-development/scripts/check-repo-brain_test.sh
+
+  test-gen:
+    desc: Unit tests and lint for the generator
+    dir: tools/ldd-gen
+    cmds:
+      - go test ./...
+      - golangci-lint run
+
   docs:check:
     desc: Run the repo-brain documentation gate over this repository (pass --fix after --)
     cmds:

@@ -1,0 +1,86 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - errcheck
+    - exhaustive
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - gocyclo
+    - goconst
+    - misspell
+    - nestif
+    - revive
+    - wrapcheck
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    gocognit:
+      min-complexity: 15
+    gocyclo:
+      min-complexity: 10
+    funlen:
+      lines: 50
+      statements: 40
+    nestif:
+      min-complexity: 2
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    errcheck:
+      # Report output goes to a writer the caller chose; a failed write there
+      # has nowhere better to be reported.
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+    wrapcheck:
+      # Errors from this module's own packages already carry their context.
+      ignore-package-globs:
+        - github.com/buzzdan/ai-coding-rules/tools/ldd-gen/*
+    revive:
+      rules:
+        - name: argument-limit
+          arguments: [4]
+        - name: function-result-limit
+          arguments: [3]
+        - name: early-return
+        - name: bare-return
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    rules:
+      # Assertion-heavy tests accumulate ifs without branching logic.
+      - path: _test\.go
+        linters:
+          - funlen
+          - goconst
+          - gocognit
+          - gocyclo
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
