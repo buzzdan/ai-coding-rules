@@ -1,31 +1,31 @@
 ---
 name: linter-driven-development
 description: |
-  META ORCHESTRATOR for any Go code change that should end in a commit (features, bug fixes, refactors).
-  WHEN: User requests Go code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /go-ldd-* command in a Go project.
+  META ORCHESTRATOR for any {{.Lang}} code change that should end in a commit (features, bug fixes, refactors).
+  WHEN: User requests {{.Lang}} code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /{{.CmdPrefix}}-* command in a {{.Lang}} project.
   Runs the five-phase workflow (PREPARE is an autonomous sub-phase, 1.5): DESIGN → PREPARE → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
-  - Skill(go-linter-driven-development:code-designing)
-  - Skill(go-linter-driven-development:testing)
-  - Skill(go-linter-driven-development:refactoring)
-  - Skill(go-linter-driven-development:pre-commit-review)
-  - Skill(go-linter-driven-development:documentation)
+  - Skill({{.Plugin}}:code-designing)
+  - Skill({{.Plugin}}:testing)
+  - Skill({{.Plugin}}:refactoring)
+  - Skill({{.Plugin}}:pre-commit-review)
+  - Skill({{.Plugin}}:documentation)
   - Agent
 ---
 
 <objective>
-Top-level protocol for Go implementation work: five phases plus the autonomous
+Top-level protocol for {{.Lang}} implementation work: five phases plus the autonomous
 PREPARE sub-phase (1.5), where Phase 2 is a per-behavior TDD loop. Rule knowledge lives once in `../../rules/` — this skill never
 restates it; it sequences the thin skills (which dispatch into the rules) and the
 lint-fixer agent, at the cadence each check's economics demand.
 </objective>
 
 <triggers>
-- User requests Go code work (implement, fix, add, refactor, update, change) and the
-  project is Go (`go.mod` or `.go` files present)
+- User requests {{.Lang}} code work (implement, fix, add, refactor, update, change) and the
+  project is {{.Lang}} (`{{.ProjectMarker}}` or `.go` files present)
 - User mentions "ldd" or "@ldd"
-- A `/go-ldd-*` command invokes this skill
-On trigger, announce: **"Using go-ldd workflow for this Go code work"** and run pre-flight.
+- A `/{{.CmdPrefix}}-*` command invokes this skill
+On trigger, announce: **"Using {{.CmdPrefix}} workflow for this {{.Lang}} code work"** and run pre-flight.
 </triggers>
 
 <skill_invocation>
@@ -34,14 +34,14 @@ never read its file directly.
 
 | Notation | Skill Tool Call |
 |----------|-----------------|
-| @code-designing | `Skill(go-linter-driven-development:code-designing)` |
-| @testing | `Skill(go-linter-driven-development:testing)` |
-| @refactoring | `Skill(go-linter-driven-development:refactoring)` |
-| @pre-commit-review | `Skill(go-linter-driven-development:pre-commit-review)` |
-| @documentation | `Skill(go-linter-driven-development:documentation)` |
+| @code-designing | `Skill({{.Plugin}}:code-designing)` |
+| @testing | `Skill({{.Plugin}}:testing)` |
+| @refactoring | `Skill({{.Plugin}}:refactoring)` |
+| @pre-commit-review | `Skill({{.Plugin}}:pre-commit-review)` |
+| @documentation | `Skill({{.Plugin}}:documentation)` |
 
 The lint-fixer agent is spawned with the **Agent tool**:
-`subagent_type: "go-linter-driven-development:lint-fixer"`.
+`subagent_type: "{{.Plugin}}:lint-fixer"`.
 </skill_invocation>
 
 <flow>
@@ -63,9 +63,7 @@ The lint-fixer agent is spawned with the **Agent tool**:
 </flow>
 
 <pre_flight>
-1. **Verify Go project**: `go.mod` in root or parent directories.
-2. **Discover commands** (README.md, CLAUDE.md, Makefile, Taskfile.yaml, in that
-   order): test + lint commands. Fallbacks: `go test ./...`, `golangci-lint run --fix`.
+{{include "skills/linter-driven-development/pre-flight.md"}}
 3. **List the behaviors** this change delivers — each becomes one Phase 2 TDD cycle.
    No plan or unclear scope → Phase 1 produces the plan; unclear intent → ask.
 </pre_flight>
@@ -153,7 +151,7 @@ then route through REFACTOR → @refactoring → its escalation to @code-designi
 Design revision is a deliberate checkpoint, never a mid-GREEN detour.
 
 **REFACTOR (linter-driven)** — on the code just written:
-1. Package-scoped lint (fast): `golangci-lint run ./<pkg>/...`
+{{include "skills/linter-driven-development/pkg-lint.md"}}
 2. Cheap rule greps: run the detection commands from the **Falsifying questions**
    sections of the `../../rules/R*.md` files relevant to what was written.
 Any hit → invoke @refactoring: its `<routing_table>` routes each failure to the
@@ -211,7 +209,7 @@ before.
    reviews every comment in the diff against R9's three-test standard;
    @documentation applies the verdicts and re-critiques once — R3 routes from the
    critic go back through @refactoring like any R3 finding).
-2. Present the ship summary: tests green (`go test ./...`), lint green (Phase 3),
+2. Present the ship summary: tests green (`{{.DefaultTest}}`), lint green (Phase 3),
    review delta (Phase 4), files changed, suggested commit message.
 3. User decides: commit as-is · fix deferred advisory findings first · defer.
 </phase_5_ship>
