@@ -23,7 +23,7 @@ tasks:
     desc: Report language residue in core/, refresh the Residue section of core/README.md, fail on hard hits or a stale section
     dir: tools/ldd-gen
     cmds:
-      - go run . -root {{.ROOT_DIR}} lint-core -write
+      - go run . lint-core -root {{.ROOT_DIR}} -write
       - |
         git -C {{.ROOT_DIR}} diff --exit-code -- core/README.md \
           || { echo "lint-core - the Residue section of core/README.md was rewritten; commit it"; exit 1; }
