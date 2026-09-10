@@ -7,22 +7,25 @@ version: '3'
 tasks:
   generate:
     desc: Render core/ + lang/<BINDING>/ into its plugin directory (BINDING=go)
+    dir: tools/ldd-gen
     vars:
       BINDING: '{{.BINDING | default "go"}}'
     cmds:
-      - go run ./tools/ldd-gen -lang {{.BINDING}}
+      - go run . -root {{.ROOT_DIR}} -lang {{.BINDING}}
 
   check:
     desc: Fail when any plugin directory on disk differs from its rendering
+    dir: tools/ldd-gen
     cmds:
-      - go run ./tools/ldd-gen -check
+      - go run . -root {{.ROOT_DIR}} -check
 
   lint-core:
     desc: Report language residue in core/, refresh the Residue section of core/README.md, fail on hard hits or a stale section
+    dir: tools/ldd-gen
     cmds:
-      - go run ./tools/ldd-gen lint-core -write
+      - go run . -root {{.ROOT_DIR}} lint-core -write
       - |
-        git diff --exit-code -- core/README.md \
+        git -C {{.ROOT_DIR}} diff --exit-code -- core/README.md \
           || { echo "lint-core - the Residue section of core/README.md was rewritten; commit it"; exit 1; }
 
   test-gate:

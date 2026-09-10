@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"strings"
 	"text/template"
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
@@ -150,11 +151,17 @@ func (r *renderer) copyPassthrough(fsys fs.FS, path string) error {
 	return r.add(path, File{Data: data, Exec: exec})
 }
 
-func (r *renderer) add(path string, f File) error {
-	if _, dup := r.tree[path]; dup {
-		return fmt.Errorf("output %q is produced by two sources", path)
+// add records one output. A path that is not already clean and relative
+// (a templated file name could smuggle in ".." or a leading slash) is refused,
+// so nothing can ever be written outside the plugin directory.
+func (r *renderer) add(outPath string, f File) error {
+	if outPath != path.Clean(outPath) || path.IsAbs(outPath) || outPath == "." || strings.HasPrefix(outPath, "../") {
+		return fmt.Errorf("output %q is not a clean path inside the plugin", outPath)
 	}
-	r.tree[path] = f
+	if _, dup := r.tree[outPath]; dup {
+		return fmt.Errorf("output %q is produced by two sources", outPath)
+	}
+	r.tree[outPath] = f
 	return nil
 }
 

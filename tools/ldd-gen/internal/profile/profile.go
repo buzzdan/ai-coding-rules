@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"path"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -63,6 +64,9 @@ func (p Profile) validate() error {
 	if !isPlainName(p.Plugin) {
 		return fmt.Errorf("profile: plugin %q must be a plain directory name", p.Plugin)
 	}
+	if !isSlug(p.CmdPrefix) {
+		return fmt.Errorf("profile: cmd_prefix %q must be lower-case letters, digits and dashes", p.CmdPrefix)
+	}
 	for _, pattern := range p.Ignore {
 		if _, err := path.Match(pattern, ""); err != nil {
 			return fmt.Errorf("profile: ignore pattern %q: %w", pattern, err)
@@ -77,6 +81,15 @@ func (p Profile) validate() error {
 func isPlainName(name string) bool {
 	return name != "" && !strings.ContainsAny(name, `/\`) && name != "." && name != ".." && !strings.HasPrefix(name, ".")
 }
+
+// isSlug accepts the shape Claude Code expects in a slash-command name. The
+// command prefix becomes part of output file names, so it must not carry
+// path separators or anything a command loader would not match.
+func isSlug(name string) bool {
+	return slugPattern.MatchString(name)
+}
+
+var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 func (v Vars) validate() error {
 	rv := reflect.ValueOf(v)

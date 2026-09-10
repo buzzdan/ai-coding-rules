@@ -1,6 +1,7 @@
 package profile_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,9 @@ func TestParse_Errors(t *testing.T) {
 	withPlugin := func(name string) string {
 		return "plugin: " + name + full[len("plugin: go-linter-driven-development"):]
 	}
+	withPrefix := func(prefix string) string {
+		return strings.Replace(full, "cmd_prefix: go-ldd", "cmd_prefix: "+prefix, 1)
+	}
 	cases := []struct {
 		name  string
 		input string
@@ -57,6 +61,9 @@ func TestParse_Errors(t *testing.T) {
 		{name: "plugin is hidden", input: withPlugin(".git"), want: "plain directory name"},
 		{name: "plugin has a backslash", input: withPlugin(`a\b`), want: "plain directory name"},
 		{name: "bad ignore pattern", input: full + "  - 'evals/['\n", want: `ignore pattern "evals/["`},
+		{name: "cmd_prefix escapes", input: withPrefix("../../evil"), want: "cmd_prefix"},
+		{name: "cmd_prefix with slash", input: withPrefix("go/ldd"), want: "cmd_prefix"},
+		{name: "cmd_prefix upper case", input: withPrefix("Go-LDD"), want: "cmd_prefix"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

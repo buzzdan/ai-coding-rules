@@ -156,6 +156,17 @@ func TestGenerate_RefusesNonPluginTargets(t *testing.T) {
 	assert.FileExists(t, filepath.Join(otherPlugin, "out-plugin/README.md"))
 }
 
+func TestGenerate_ManifestMustNameTheProfilePlugin(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	write(t, root, "lang/p/passthrough/.claude-plugin/plugin.json", `{"name": "copied-from-go"}`+"\n")
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	err = repo.Generate("p")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `manifest named "copied-from-go"`)
+}
+
 func TestGenerate_RefusesTwoBindingsForOnePlugin(t *testing.T) {
 	t.Parallel()
 	root := miniRepo(t)

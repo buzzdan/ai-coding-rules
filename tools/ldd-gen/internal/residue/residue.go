@@ -36,8 +36,12 @@ func token(name, pattern string) Token {
 	return Token{Name: name, re: regexp.MustCompile(pattern)}
 }
 
-// HardTokens are names a profile scalar or an include already replaces; a hit
-// is a missed substitution and fails lint-core.
+// HardTokens are the spellings that a plugin loader or a second language would
+// choke on and that a profile scalar or an include always replaces: the plugin
+// name, the command prefix, the linter name, source globs and the nolint
+// directive. A hit is a missed substitution and fails lint-core. Other scalars
+// (the project marker, the test command) also appear as plain prose in Go
+// idioms, so they stay soft.
 func HardTokens() []Token {
 	return []Token{
 		token("plugin name literal", `go-linter-driven-development`),

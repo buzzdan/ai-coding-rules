@@ -27,7 +27,11 @@ File-level rules the generator applies without template syntax:
   a template like the file it replaces and carries its own executable bit. An override
   with no matching core file is an error.
 - File names are templates too: `core/commands/{{.CmdPrefix}}-analyze.md` renders
-  to `commands/go-ldd-analyze.md` for the Go binding.
+  to `commands/go-ldd-analyze.md` for the Go binding. The profile's `cmd_prefix` is
+  limited to lower-case letters, digits and dashes, and a rendered path that is not a
+  clean path inside the plugin is an error. `commands/wire-repo-brain.md` carries no
+  prefix, so two installed bindings would both offer `/wire-repo-brain`; the second
+  binding decides whether that command gets the prefix.
 - This README is documentation for `core/` itself and is never rendered. Editor and OS
   droppings (`.DS_Store`, `._*`, `*.swp`, `*~`, `.#*`, `Thumbs.db`, `desktop.ini`) and
   any file or directory whose name the profile's `ignore` lists without a slash are never

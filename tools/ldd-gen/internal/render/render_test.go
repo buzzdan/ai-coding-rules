@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -164,6 +165,12 @@ func TestRender_Errors(t *testing.T) {
 			core: fstest.MapFS{"a.md": {Data: []byte("x\n")}},
 			lang: fstest.MapFS{"overrides/b.md": {Data: []byte("y\n")}},
 			want: `override "b.md" has no core file`,
+		},
+		{
+			name: "templated file name escaping the plugin",
+			core: fstest.MapFS{"commands/{{.Lang}}/x.md": {Data: []byte("x\n")}},
+			lang: fstest.MapFS{"profile.yaml": {Data: []byte(strings.Replace(profileYAML, "lang: Lang", "lang: ../../evil", 1))}},
+			want: "not a clean path",
 		},
 		{
 			name: "override of the core README is never used",

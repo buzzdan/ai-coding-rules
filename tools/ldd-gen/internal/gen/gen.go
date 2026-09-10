@@ -90,12 +90,13 @@ func (r Repo) Render(lang string) (render.Tree, profile.Profile, error) {
 }
 
 // Generate renders one binding and writes it over its plugin directory.
-// Writing deletes files the rendering does not own, so three checks run
-// first: no two bindings may name the same plugin directory, the rendering
-// must carry a plugin manifest, and a directory already on disk must either
-// carry a manifest with the same plugin name or hold nothing the write would
-// touch. A profile that names another plugin, or some other directory of the
-// repository, is refused before anything is deleted.
+// Writing deletes files the rendering does not own, so four checks run
+// first: no two bindings may name the same plugin directory; the rendering
+// must carry a plugin manifest; that manifest's name must equal the profile's
+// plugin, because Skill and subagent references are built from the profile
+// while Claude Code namespaces by the manifest; and a directory already on
+// disk must either carry a manifest with the same name or hold nothing the
+// write would touch.
 func (r Repo) Generate(lang string) error {
 	if err := r.requireUniquePlugins(); err != nil {
 		return err
@@ -107,6 +108,9 @@ func (r Repo) Generate(lang string) error {
 	name, err := manifestName(tree[pluginManifest].Data)
 	if err != nil {
 		return fmt.Errorf("generate: the %s rendering: %w", lang, err)
+	}
+	if name != p.Plugin {
+		return fmt.Errorf("generate: %s renders a manifest named %q but its profile says plugin %q; cross-plugin references would not resolve", lang, name, p.Plugin)
 	}
 	dir := filepath.Join(r.root, p.Plugin)
 	if err := requireOwnedDir(dir, name, check.IgnoredAndUnowned(tree, p.Ignored)); err != nil {

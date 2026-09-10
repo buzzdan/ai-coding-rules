@@ -16,6 +16,4 @@ if [[ -d "$root/.evals/.git" ]]; then
 else
   git clone -q --depth 1 "$repo" "$root/.evals"
 fi
-# The clone sits under this repository's go.work, which would otherwise stop
-# the runner's own module from building.
-exec env GOWORK=off task -d "$root/.evals" go:run PLUGIN="$root/go-linter-driven-development" "$@"
+exec task -d "$root/.evals" go:run PLUGIN="$root/go-linter-driven-development" "$@"
