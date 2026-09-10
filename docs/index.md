@@ -4,6 +4,7 @@ okf_version: "0.2"
 # Repo Map
 
 - [conventions.md](conventions.md) — how to maintain this doc root (read before editing docs)
+- [generator.md](generator.md) — how the Go plugin directory is generated from core/ and lang/go/, and the checks that keep it honest
 
 **Behavioral evals of the Go plugin**
 - [eval-harness.md](eval-harness.md) — what the behavioral evals are and how a run flows from case to verdict; `ldd-eval`, tiers, results

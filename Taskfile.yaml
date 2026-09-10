@@ -1,6 +1,45 @@
 version: '3'
 
+# The Go plugin directory is generated: edit core/ and lang/go/, then run
+# `task generate` and commit both. CI runs `task check`, `task lint-core`, `task docs:check`
+# and `task test-gate`, plus the generator's tests and linter.
+
 tasks:
+  generate:
+    desc: Render core/ + lang/<BINDING>/ into its plugin directory (BINDING=go)
+    dir: tools/ldd-gen
+    vars:
+      BINDING: '{{.BINDING | default "go"}}'
+    cmds:
+      - go run . -root {{.ROOT_DIR}} -lang {{.BINDING}}
+
+  check:
+    desc: Fail when any plugin directory on disk differs from its rendering
+    dir: tools/ldd-gen
+    cmds:
+      - go run . -root {{.ROOT_DIR}} -check
+
+  lint-core:
+    desc: Report language residue in core/, refresh the Residue section of core/README.md, fail on hard hits or a stale section
+    dir: tools/ldd-gen
+    cmds:
+      - go run . lint-core -root {{.ROOT_DIR}} -write
+      - |
+        git -C {{.ROOT_DIR}} diff --exit-code -- core/README.md \
+          || { echo "lint-core - the Residue section of core/README.md was rewritten; commit it"; exit 1; }
+
+  test-gate:
+    desc: Run the repo-brain gate's fixture matrix against the generated gate script
+    cmds:
+      - bash go-linter-driven-development/scripts/check-repo-brain_test.sh
+
+  test-gen:
+    desc: Unit tests and lint for the generator
+    dir: tools/ldd-gen
+    cmds:
+      - go test ./...
+      - golangci-lint run
+
   docs:check:
     desc: Run the repo-brain documentation gate over this repository (pass --fix after --)
     cmds:

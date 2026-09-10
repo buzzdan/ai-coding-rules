@@ -1,0 +1,2 @@
+The behavioral evals for this plugin live in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals) under `go/`; run them from this repository with `scripts/evals.sh` (or `task evals:run`), and read how they work from [docs/index.md](../../docs/index.md).
+Everything else under this directory is ignored: a run copies the cases here for the `claude plugin eval` gate, and nothing under it is committed.
