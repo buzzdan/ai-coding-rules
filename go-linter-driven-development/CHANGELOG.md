@@ -5,6 +5,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [2.10.1] - 2026-09-11
+
 ### Changed
 
 - **R2 and R11: absence is a value.** R2 gains the design point and the fix move
@@ -27,7 +29,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   profile scalars, include snippets and files copied through), and
   `tools/ldd-gen` renders them into this directory. The rendered files are
   byte-identical to the hand-written ones they replace; nothing an installed
-  plugin sees changes, and the version stays 2.10.0.
+  plugin sees changes.
 
 ### Added
 
@@ -38,10 +40,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the separate [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)
   repository so an installed plugin carries none of them. This repository keeps
   `evals/README.md` as a pointer, `scripts/evals.sh` to clone and run a tier
-  against the current checkout, and `docs/` describing the mechanism. The first
-  baseline, on plugin 2.10.0 at 681fdb0, is recorded there under
-  `baselines/go-2.10.0-681fdb0/`. Nothing a user installs changes; the plugin
-  version stays 2.10.0.
+  against the current checkout, and `docs/` describing the mechanism. Two
+  baselines on plugin 2.10.0 are recorded there: `baselines/go-2.10.0-681fdb0/`
+  on the hand-written plugin and `baselines/go-2.10.0-5828c34/` on the generated
+  one, the current reference, which the R2/R11 change above answers.
 
 ## [2.10.0] - 2026-08-20
 
