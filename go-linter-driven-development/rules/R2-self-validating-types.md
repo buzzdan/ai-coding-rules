@@ -125,13 +125,16 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
 
 - **Absence is a value too.** An *optional* collaborator — a logger, a metrics sink,
   an event writer, a clock — is not a nil-able field with a guard in every method.
-  The constructor substitutes a do-nothing value when none is given, the field is
+  The default is a named do-nothing value the constructor supplies, the field is
   never nil, and every `if x.sink != nil` disappears. This is the Null Object of
   `R11-conditional-dispatch.md`; `io.Discard` is the standard library's: a real
   `io.Writer` whose `Write` reports every byte written, so `log.New(io.Discard, ...)`
-  never branches on a missing destination. Only a *required* collaborator (a store,
-  a client the type cannot work without) is rejected in the constructor — doing
-  nothing silently there would hide a bug.
+  never branches on a missing destination. No parameter accepts nil to mean
+  "default": `if sink == nil { sink = DiscardSink() }` inside the constructor keeps
+  `NewReporter(nil)` legal and merely moves the nil-check — the default lives in an
+  option or the caller passes the Null Object by name. Only a *required*
+  collaborator (a store, a client the type cannot work without) is rejected in the
+  constructor — doing nothing silently there would hide a bug.
 
   ```go
   // ❌ optional sink kept nil-able; every method re-asks the question
@@ -139,14 +142,15 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
       if r.sink != nil { r.sink.Write(e) }
   }
 
-  // ✅ absence is a value: the constructor decides once, methods never ask
+  // ✅ absence is a named value; no argument is ever nil
   func DiscardSink() *Sink { return NewSink(io.Discard) }
 
-  func NewReporter(sink *Sink, clock func() time.Time) *Reporter {
-      if sink == nil { sink = DiscardSink() }      // or make callers pass it
-      if clock == nil { clock = time.Now }
-      return &Reporter{sink: sink, clock: clock}
+  func NewReporter(opts ...Option) *Reporter {
+      r := &Reporter{sink: DiscardSink(), clock: time.Now}
+      for _, o := range opts { o(r) }
+      return r
   }
+  // production: NewReporter(WithSink(sink)); tests: NewReporter(WithClock(fixed))
   ```
 
 - **No defensive coding.** Check arguments in the constructor so that methods contain
@@ -162,11 +166,12 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
   *required* collaborator the hoisted check rejects nil; for an *optional* one it is
   the wrong move — use the next one.
 - **Introduce Null Object** (`R11-conditional-dispatch.md`): an optional collaborator
-  gets a do-nothing value by default (`DiscardSink()`, a clock defaulting to
-  `time.Now`), the field becomes non-nil by construction, and every guard in the
-  methods is deleted. When the collaborator is a concrete type over an `io.Writer`,
-  compose `io.Discard` into it; do not introduce an interface for the sake of the
-  no-op (`R6-test-only-interfaces.md`).
+  gets a *named* do-nothing value (`DiscardSink()`, a clock defaulting to `time.Now`)
+  that the constructor supplies through an option or the caller passes explicitly;
+  the field is non-nil by construction, no parameter accepts nil, and every guard in
+  the methods is deleted. When the collaborator is a concrete type over an
+  `io.Writer`, compose `io.Discard` into it; do not introduce an interface for the
+  sake of the no-op (`R6-test-only-interfaces.md`).
 - **Delete re-validation of composed types**: if every parameter is itself
   self-validating and there is nothing left to check, the constructor loses its
   `error` return entirely.
