@@ -124,8 +124,8 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`/go-ldd-autopilot`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
 | [`/go-ldd-quickfix [files]`](commands/go-ldd-quickfix.md) | Quality-gates loop until green (code exists) | ✅ Yes | ✅ Optional |
 | [`/go-ldd-prepare <change> [files]`](commands/go-ldd-prepare.md) | Preparatory refactoring: reshape what a planned change touches, so it lands add-only | ✅ Yes | ✅ Optional |
-| [`/go-ldd-analyze [files]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
-| [`/go-ldd-review [files]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
+| [`/go-ldd-analyze [files | --all]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
+| [`/go-ldd-review [files | --all]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
 | [`/go-ldd-status`](commands/go-ldd-status.md) | Show current phase + progress | N/A | — |
 | [`/wire-repo-brain [path]`](commands/wire-repo-brain.md) | Wire the documentation network in one pass: frontmatter → upward edges → docs → index.md → CLAUDE.md/AGENTS.md + conventions.md + conformance script (@documentation BOOTSTRAP) | ✅ Wiring only | ✅ Optional |
 

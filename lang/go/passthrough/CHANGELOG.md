@@ -7,6 +7,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **Review and analyze resolve their scope by one ladder, and never widen it.** An
+  explicit argument names the scope (`--all` for the whole repository — the only way to
+  get a whole-repository audit); otherwise the working tree's changes against `HEAD`;
+  otherwise, with a clean tree, the current branch against its base (the merge-base with
+  `origin/main`, `main` or `master`), which is the ceiling; otherwise "nothing to review",
+  named as such, with no hunters and no verdict over an empty scope. Before, `/go-ldd-review`
+  inherited the review skill's "staged changes by default" and `/go-ldd-analyze` fell back
+  to every `.go` file when nothing had changed, so a clean tree produced either an empty
+  certified review or an unrequested whole-repository audit depending on the run. The
+  `pre-commit-review` skill states the same contract for its diff-scope input.
+- **Hunters, skeptic and critic run in the foreground.** The review skill now says the
+  agents are spawned as foreground calls whose results return in the same message, never
+  as background tasks followed by polling. In the go-2.10.0-5828c34 baseline six runs
+  polled `ReadNotifications` for their hunters (one 109 times, another 160), doubling
+  turns and cost without changing a finding.
+
 - **R2: the Null Object is named and no argument is nil.** The 2.10.1 example
   defaulted a nil `sink` inside the constructor, which keeps `NewReporter(nil)`
   legal and only relocates the nil-check; the first re-run of the nil-handling
