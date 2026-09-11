@@ -29,8 +29,12 @@ mid-implementation net; this pass is the verification net on finished work.
 </timing>
 
 <inputs>
-- **Diff scope**: staged changes by default (`git diff --cached --name-only -- '*.go'`),
-  or an explicit file list / diff range from the caller.
+- **Diff scope**: the caller's resolved file list or diff range. Callers resolve it by one
+  ladder — an explicit argument, else the working tree's changes against `HEAD`
+  (`git diff --name-only HEAD -- '*.go'` plus untracked files), else the current
+  branch against its base, and the whole repository only when asked for explicitly. This
+  skill never widens the scope it is given, and an empty scope is reported as "nothing to
+  review" — never as a clean verdict.
 - **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes — requires the
   previous report's findings).
 </inputs>
@@ -75,7 +79,11 @@ to the repo owner. The fix is a discussion or a separate PR, never silent inclus
 
 <step_2_spawn_hunters>
 For every rule with pre-filter hits, spawn one `rule-hunter` agent — all hunters in a
-single message, in parallel. Each spawn prompt MUST contain:
+single message, in parallel, as **foreground** `Agent` calls (`run_in_background: false`)
+whose results come back in that same message. Never as background tasks followed by
+polling (`ReadNotifications`, `ListAgents`, `Monitor`, scheduled wake-ups): a review that
+waits by polling doubles its turns and cost and changes nothing in its findings. The same
+holds for the skeptic and the critic in step 3. Each spawn prompt MUST contain:
 
 1. **The rule file's FULL content, pasted** — the hunter's entire rulebook and single
    obsession. Never a path reference alone; never more than one rule per hunter.
