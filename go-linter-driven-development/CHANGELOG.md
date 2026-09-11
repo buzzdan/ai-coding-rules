@@ -12,7 +12,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   legal and only relocates the nil-check; the first re-run of the nil-handling
   refactor on 2.10.1 reproduced exactly that shape. The example now supplies
   `DiscardSink()` through an option and the fix move says the default is named and
-  passed, never inferred from nil.
+  passed, never inferred from nil. The refactoring skill's move table carries the
+  same line, because the second re-run reached the option shape and then introduced
+  a one-implementation `Sink` interface for the no-op: the agent applying the move
+  reads the skill, not only the rule.
 
 ## [2.10.1] - 2026-09-11
 

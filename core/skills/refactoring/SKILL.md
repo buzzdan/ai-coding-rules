@@ -43,7 +43,7 @@ from there, never from memory:
 |------|-------|
 | Extract Function (named after the comment), Early Returns, Honest Rename, Extract Leaf Type | `../../rules/R3-storifying.md` |
 | Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with comma-ok, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
-| Add validating constructor, Hoist method checks, Delete re-validation, Replace nil returns | `../../rules/R2-self-validating-types.md` |
+| Add validating constructor, Hoist method checks, Delete re-validation, Replace nil returns, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
 | Demote helper (rung 1), Promote to feature/domain package (rungs 2–3), Split policy from vocabulary | `../../rules/R4-helper-placement.md` |
 | Slice out a feature, Rename layer files by role, Split a generic package by owner | `../../rules/R5-vertical-slice.md` |
 | Inline the interface, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
@@ -52,6 +52,13 @@ from there, never from memory:
 | Inject the Exit Path, Make the Goroutine Joinable, Extract Synchronized Owner, Replace Sleep with Timer Select, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
 | Replace Duplicated Switch with Interface Dispatch, Replace If-Chain with Strategy Map, Introduce Null Object, Split Flag Argument, Keep the Single Exhaustive Switch | `../../rules/R11-conditional-dispatch.md` |
 | Copy on the Way In, Copy on the Way Out / Encapsulate Collection, Separate Query from Modifier, Remove Setting Method, Split Variable | `../../rules/R12-mutation-discipline.md` |
+
+**Introduce Null Object, the Go shape.** The null object is a *named* value of the
+collaborator's existing concrete type — `DiscardSink()` composing `io.Discard`, a clock
+that is `time.Now` — supplied as the constructor's default through an option or passed by
+the caller by name. Never a new interface with one no-op implementation (R6), never a
+nil parameter that means "default" (R2): `NewReporter(nil)` must not compile or must not
+exist.
 
 **Multi-rule procedures** (sequencing, god-object decomposition, package
 decomposition): `reference.md` in this directory.
