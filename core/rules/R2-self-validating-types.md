@@ -71,6 +71,32 @@ entered, carrying context, instead of deep in an unrelated call stack.
   real value is the other one. Never pass nil into a function; then functions do not
   check parameters for nil.
 
+- **Absence is a value too.** An *optional* collaborator — a logger, a metrics sink,
+  an event writer, a clock — is not a nil-able field with a guard in every method.
+  The constructor substitutes a do-nothing value when none is given, the field is
+  never nil, and every `if x.sink != nil` disappears. This is the Null Object of
+  `R11-conditional-dispatch.md`; `io.Discard` is the standard library's: a real
+  `io.Writer` whose `Write` reports every byte written, so `log.New(io.Discard, ...)`
+  never branches on a missing destination. Only a *required* collaborator (a store,
+  a client the type cannot work without) is rejected in the constructor — doing
+  nothing silently there would hide a bug.
+
+  ```go
+  // ❌ optional sink kept nil-able; every method re-asks the question
+  func (r *Reporter) Record(e Event) {
+      if r.sink != nil { r.sink.Write(e) }
+  }
+
+  // ✅ absence is a value: the constructor decides once, methods never ask
+  func DiscardSink() *Sink { return NewSink(io.Discard) }
+
+  func NewReporter(sink *Sink, clock func() time.Time) *Reporter {
+      if sink == nil { sink = DiscardSink() }      // or make callers pass it
+      if clock == nil { clock = time.Now }
+      return &Reporter{sink: sink, clock: clock}
+  }
+  ```
+
 - **No defensive coding.** Check arguments in the constructor so that methods contain
   zero nil/emptiness checks on their own fields. A method validating its receiver is
   validation in the wrong place.
@@ -80,7 +106,15 @@ entered, carrying context, instead of deep in an unrelated call stack.
 - **Add validating constructor**: make fields private, add `NewX`/`ParseX` returning
   `(X, error)`, migrate every literal-construction site through it.
 - **Hoist method checks into the constructor**: collect the field checks scattered
-  across methods, run them once at construction, delete them from the methods.
+  across methods, run them once at construction, delete them from the methods. For a
+  *required* collaborator the hoisted check rejects nil; for an *optional* one it is
+  the wrong move — use the next one.
+- **Introduce Null Object** (`R11-conditional-dispatch.md`): an optional collaborator
+  gets a do-nothing value by default (`DiscardSink()`, a clock defaulting to
+  `time.Now`), the field becomes non-nil by construction, and every guard in the
+  methods is deleted. When the collaborator is a concrete type over an `io.Writer`,
+  compose `io.Discard` into it; do not introduce an interface for the sake of the
+  no-op (`R6-test-only-interfaces.md`).
 - **Delete re-validation of composed types**: if every parameter is itself
   self-validating and there is nothing left to check, the constructor loses its
   `error` return entirely.

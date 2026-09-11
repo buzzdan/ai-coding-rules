@@ -5,6 +5,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Changed
+
+- **R2 and R11: absence is a value.** R2 gains the design point and the fix move
+  the review was missing: an *optional* collaborator (logger, sink, clock, metrics)
+  is never a nil-able field with a guard in every method — the constructor
+  substitutes a do-nothing value (Introduce Null Object, R11), and only a
+  *required* collaborator is rejected in the constructor. R2's falsifying questions
+  Q2 and Q6 name that fork so a hunter routes each finding to the right move. R11's
+  Null Object entry now states the Go shape: a no-op implementation only when an
+  interface already exists, otherwise a value of the concrete type composing
+  `io.Discard` (the standard library's own Null Object), and never a new interface
+  for the sake of the no-op (R6). Motivated by the go-2.10.0-5828c34 eval baseline,
+  where both nil-handling reviews proposed "reject nil in the constructor" for an
+  optional sink and the refactor introduced a one-implementation interface.
+
 ### Internal
 
 - **Generated plugin directory**: the plugin's source now lives in the

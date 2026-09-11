@@ -10,7 +10,11 @@
    Detection: `grep -nE 'if [a-z][a-zA-Z]*\.[a-zA-Z]+ == nil|if len\([a-z][a-zA-Z]*\.[a-zA-Z]+\) == 0' <changed files>`
    inside method bodies.
    Violation: a method validating its own receiver's fields — the check belongs in
-   the constructor.
+   the constructor. Decide which fix by asking whether the field is required or
+   optional: a required collaborator is rejected in the constructor (Hoist method
+   checks); an optional one (logger, sink, clock, metrics) gets a Null Object
+   default there instead (Introduce Null Object, R11) — name both moves in the
+   finding when the code does not say which the field is.
 
 3. **Does a constructor re-validate a composed self-validating type?**
    Detection: read each `NewX`/`ParseX` in the diff; for every parameter whose type
@@ -38,5 +42,7 @@
    Violation: nil passed where a value is expected. Q5 catches the return side
    and Q2 catches the callee that defends; this catches the caller when the
    callee does neither and simply panics later. Fix on the callee's side: make
-   nil unrepresentable — a concrete non-pointer parameter, or a validating
-   constructor that rejects nil (see the UserService example above).
+   nil unrepresentable — a concrete non-pointer parameter, a validating
+   constructor that rejects nil (see the UserService example above), or, for an
+   optional collaborator, a Null Object default so the caller never has a reason
+   to pass nil (`NewReporter(sink, nil, nil)` is the smell; R11).
