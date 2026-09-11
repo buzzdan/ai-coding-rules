@@ -17,15 +17,21 @@ findings, the noise floor and every grader change made after the run, and commit
 Traces compress well and are what makes later calibration free; the scaffolds are
 not committed, so graders that read the tree cannot be regraded from a clone.
 
-The current baseline measures plugin 2.10.0 at 681fdb0 and lives in the evals
+The current baseline measures plugin 2.10.0 at 5828c34 and lives in the evals
 repository at
-[`baselines/go-2.10.0-681fdb0/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-681fdb0).
+[`baselines/go-2.10.0-5828c34/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-5828c34);
+its README compares it case by case with the earlier
+[`baselines/go-2.10.0-681fdb0/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-681fdb0),
+which is the worked example of the procedure below.
 
 ## The noise floor
 Graders that flip between runs of the same case, on the same plugin, are the noise
-floor. In the current baseline: two graders flip on Case C's review, five on Case
-E's, twenty-three on the whole-repo review; every other case is stable. The
-practical reading rules:
+floor. In the current baseline: two graders flip on Case A's review, one each on
+Cases B, C and F, three on Case E's and on the centerpiece's; in the medium tier,
+run twice, one grader on Case D, the centerpiece and quickfix, three on Case E. The
+whole-repo review is read on its grader count (90 of 111 against the earlier band of
+91–94), because two of its three runs reviewed an empty scope. The practical reading
+rules:
 
 - A per-case change smaller than one flipping grader is noise.
 - Compare the whole-repo review on its grader count (91 to 94 of 111), not on
