@@ -59,13 +59,16 @@ entry per plant or control, 148 in total:
 The manifest has three consumers, so a fact lives once:
 
 1. **The whole-repo review's graders.** `gen-review-graders.sh` (`task go:graders`)
-   writes one recall grader per plant (the report must name the plant's file), one
-   cluster grader per declared cluster (a plant may carry `cluster_match` when
-   reports spell the cluster in more than one way), and one precision grader per
-   control (the report must not mention the control's `symbol`, unless
-   `mention_ok: true` says a correct report legitimately names it). Never hand-edit
-   the generated files; edit the manifest and regenerate. The evals repository's
-   pull-request check fails when the committed graders differ from the manifest.
+   writes one recall grader per plant (the report must name the plant's file by
+   basename; a plant may carry `recall_match` when reports name it another way, such
+   as by its symbol), one cluster grader per declared cluster (the word "cluster" in
+   any case, then on the same line the anchor or, for a dotted anchor, its last
+   segment alone; a plant may carry `cluster_match` when reports spell the cluster
+   in more than one way), and one precision grader per control (the report must not
+   mention the control's `symbol`, unless `mention_ok: true` says a correct report
+   legitimately names it). Never hand-edit the generated files; edit the manifest
+   and regenerate. The evals repository's pull-request check fails when the
+   committed graders differ from the manifest.
 2. **The refactor cases' oracles.** The `gone` patterns become file graders with
    `match: count:0` or a maximum count.
 3. **The later Python parity report.** A Python fixture will carry the same ids with

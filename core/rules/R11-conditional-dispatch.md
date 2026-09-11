@@ -56,9 +56,16 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
   comma-ok check is a dispatch, not a conditional. Either way the decision has one
   owner.
 - **Null object over nil-checks.** A scattered `if x != nil { x.Log(...) }` is the
-  same disease with two variants. Construct a do-nothing implementation
-  (`type NopLogger struct{}`) once; delete every guard. (R2's "nil is not a value"
-  covers the constructor side.)
+  same disease with two variants. Construct a do-nothing value once; delete every
+  guard. The Go shape follows the collaborator's type: when an interface already
+  exists, a no-op implementation (`type NopLogger struct{}`); when the collaborator
+  is a concrete type, a value of that type doing nothing — a `Sink` over
+  `io.Discard`, a clock that is `time.Now` — and **no new interface** for the sake
+  of the no-op (`R6-test-only-interfaces.md`). `io.Discard` itself is the pattern:
+  a real `io.Writer` whose `Write` returns `len(p), nil`, honoring the contract, so
+  `log.New(io.Discard, "", 0)` needs no guard anywhere. Fits *optional*
+  collaborators only; a required one is rejected in the constructor
+  (`R2-self-validating-types.md`, "absence is a value too").
 - **Flag arguments are two functions.** `func Render(a Alert, short bool)` forces
   every caller through a conditional the callee then unpicks. Split into `Render` and
   `RenderShort`, or make the variant a type.
@@ -87,8 +94,12 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
   (`../examples/switch-to-polymorphism.md`).
 - **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
   `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
-- **Introduce Null Object**: absent-collaborator nil-checks → a no-op implementation
-  constructed by default; delete the guards.
+- **Introduce Null Object**: absent-collaborator nil-checks → a do-nothing value
+  substituted by the constructor when none is given; delete the guards. A no-op
+  implementation when an interface already exists, otherwise a value of the concrete
+  type (`DiscardSink()` composing `io.Discard`) — never a new interface with one
+  real implementation (R6). Optional collaborators only; required ones are rejected
+  in the constructor (R2).
 - **Split Flag Argument**: boolean/enum parameter that selects behavior → two named
   functions, or a variant type chosen by the caller's constructor.
 - **Keep the Single Exhaustive Switch**: one site, closed enum → named enum type (R1),
