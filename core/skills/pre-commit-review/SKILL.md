@@ -76,13 +76,17 @@ to the repo owner. The fix is a discussion or a separate PR, never silent inclus
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
-For every rule with pre-filter hits, spawn one `rule-hunter` agent — all hunters in a
-single message, in parallel, as **foreground** `Agent` calls whose results come back in
-that same message. Pass `run_in_background: false` **explicitly on every call**: an
-omitted flag runs the agent in the background, and a review that then waits by polling
+For every rule with pre-filter hits, spawn one `rule-hunter` agent, as **foreground**
+`Agent` calls (`run_in_background: false`) whose results come back in the same message —
+**at most six hunters per message**. The harness runs only a handful of foreground
+agents at once; a call beyond that quota is answered "Async agent launched" and runs in
+the background whatever the flag says, and a review that then waits for it by polling
 (`ReadNotifications`, `ListAgents`, `Monitor`, scheduled wake-ups) doubles its turns and
-cost and changes nothing in its findings. The same holds for the skeptic and the critic
-in step 3. Each spawn prompt MUST contain:
+cost and changes nothing in its findings. So: spawn up to six, read their results, spawn
+the next batch. If a call still comes back "Async agent launched", that batch was too
+large: do not poll for it — spawn that hunter again alone in the next message. The
+skeptic and the critic (step 3) get a message of their own once every hunter result is
+in hand. Each spawn prompt MUST contain:
 
 1. **The rule file's FULL content, pasted** — the hunter's entire rulebook and single
    obsession. Never a path reference alone; never more than one rule per hunter.
@@ -103,8 +107,9 @@ plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
 Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
 proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
 "Strategy Map" proposals — and spawn one `overabstraction-skeptic`, as a **foreground**
-`Agent` call with `run_in_background: false` passed explicitly, whose result returns in
-the same message, exactly like the hunters in step 2. Its spawn prompt MUST contain:
+`Agent` call (`run_in_background: false`) in a message of its own after every hunter
+result is in hand, so it never competes with a hunter batch for the harness's foreground
+quota. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
 2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
@@ -130,11 +135,11 @@ broken edges, WHAT-comments, unwired root) propose no type extractions.
 When the diff contains comment lines — prefilter:
 {{include "skills/pre-commit-review/critic-prefilter.md"}}
 (any hit qualifies; directives don't count) — spawn one `comment-critic` alongside
-the skeptic (same message when both run), also in the **foreground** with
-`run_in_background: false` passed explicitly: its full-repository comment sweep is the
-longest pass of the review, and waiting for it is done by the foreground call returning,
-never by a background task, a timer, a scheduled wake-up or a notification poll. Its
-spawn prompt MUST contain:
+the skeptic (same message when both run), also in the **foreground**
+(`run_in_background: false`): its full-repository comment sweep is the longest pass of
+the review, and waiting for it is done by the foreground call returning, never by a
+background task, a timer, a scheduled wake-up or a notification poll. Its spawn prompt
+MUST contain:
 
 1. Payload: R9's **Comment policy** section (`../../rules/R9-repo-brain.md`,
    Design guidance) pasted verbatim — the Comment Value Toolbox kinds, the
@@ -261,10 +266,11 @@ This skill MUST NOT:
   and cite them in findings
 - Spawn anything other than `rule-hunter`, `overabstraction-skeptic`, and
   `comment-critic`
-- Spawn any of them in the background — an `Agent` call without an explicit
-  `run_in_background: false` IS a background spawn — or wait for one by polling
+- Spawn more than six agents in one message — beyond the harness's foreground quota a
+  call runs in the background whatever its flag says — or wait for any agent by polling
   notifications, arming a monitor or scheduling a wake-up; every agent is a foreground
-  call whose result returns in the same message
+  call whose result returns in the same message, and an "Async agent launched" result
+  is re-spawned alone, never waited for
 </constraints>
 
 <who_invokes>
