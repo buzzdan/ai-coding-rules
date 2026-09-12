@@ -79,16 +79,18 @@ to the repo owner. The fix is a discussion or a separate PR, never silent inclus
 
 <step_2_spawn_hunters>
 For every rule with pre-filter hits, spawn one `rule-hunter` agent, as **foreground**
-`Agent` calls (`run_in_background: false`) whose results come back in the same message —
-**at most six hunters per message**. The harness runs only a handful of foreground
-agents at once; a call beyond that quota is answered "Async agent launched" and runs in
-the background whatever the flag says, and a review that then waits for it by polling
-(`ReadNotifications`, `ListAgents`, `Monitor`, scheduled wake-ups) doubles its turns and
-cost and changes nothing in its findings. So: spawn up to six, read their results, spawn
-the next batch. If a call still comes back "Async agent launched", that batch was too
-large: do not poll for it — spawn that hunter again alone in the next message. The
-skeptic and the critic (step 3) share one message of their own, spawned only once every
-hunter result is in hand and never alongside a hunter. Each spawn prompt MUST contain:
+`Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
+run in parallel and every result comes back in that same message. A foreground call
+blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
+and the review never waits for one any other way: no `ReadNotifications`, `ListAgents`
+or `Monitor` calls, no scheduled wake-up. One host differs: a Claude Code cloud session
+(`CLAUDE_AUTO_BACKGROUND_TASKS` set) turns a foreground call still running after 120
+seconds into a background task and answers "Async agent launched". That hunter is still
+running and its result arrives by itself when it finishes; do not poll for it and do not
+spawn it again — work through the results in hand, and when nothing is left but waiting,
+end the message and let the delivery resume the review. The skeptic and the critic
+(step 3) share one message of their own, spawned only once every hunter result is in
+hand. Each spawn prompt MUST contain:
 
 1. **The rule file's FULL content, pasted** — the hunter's entire rulebook and single
    obsession. Never a path reference alone; never more than one rule per hunter.
@@ -110,9 +112,8 @@ Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/p
 proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
 "Strategy Map" proposals — and spawn one `overabstraction-skeptic`, as a **foreground**
 `Agent` call (`run_in_background: false`) in a message with no hunters in it, after
-every hunter result is in hand, so it never competes with a hunter batch for the
-harness's foreground quota; the comment critic (step 3b), when it runs, is spawned in
-that same message. Its spawn prompt MUST contain:
+every hunter result is in hand; the comment critic (step 3b), when it runs, is spawned
+in that same message so the two run in parallel. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
 2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
@@ -138,13 +139,12 @@ broken edges, WHAT-comments, unwired root) propose no type extractions.
 When the diff contains comment lines — prefilter:
 `git diff --cached -- '*.go' | grep -E '^\+.*//' | grep -vE '//(go:|nolint| Output:)'`
 (any hit qualifies; directives don't count) — spawn one `comment-critic` in the same
-hunter-free message as the skeptic (two foreground calls sit well inside the quota and
-run in parallel; when no skeptic runs, the critic has that message alone), also in the
-**foreground**
-(`run_in_background: false`): its full-repository comment sweep is the longest pass of
-the review, and waiting for it is done by the foreground call returning, never by a
-background task, a timer, a scheduled wake-up or a notification poll. Its spawn prompt
-MUST contain:
+hunter-free message as the skeptic (when no skeptic runs, the critic has that message
+alone), also in the **foreground** (`run_in_background: false`): its full-repository
+comment sweep is the longest pass of the review, and waiting for it is done by the
+foreground call returning — or, in a cloud session that backgrounds it after 120
+seconds, by its result arriving on its own — never by a timer, a scheduled wake-up or
+a notification poll. Its spawn prompt MUST contain:
 
 1. Payload: R9's **Comment policy** section (`../../rules/R9-repo-brain.md`,
    Design guidance) pasted verbatim — the Comment Value Toolbox kinds, the
@@ -271,11 +271,10 @@ This skill MUST NOT:
   and cite them in findings
 - Spawn anything other than `rule-hunter`, `overabstraction-skeptic`, and
   `comment-critic`
-- Spawn more than six agents in one message — beyond the harness's foreground quota a
-  call runs in the background whatever its flag says — or wait for any agent by polling
-  notifications, arming a monitor or scheduling a wake-up; every agent is a foreground
-  call whose result returns in the same message, and an "Async agent launched" result
-  is re-spawned alone, never waited for
+- Wait for any agent by polling notifications, arming a monitor or scheduling a
+  wake-up, or spawn an agent a second time because its call was answered "Async agent
+  launched"; a foreground call returns its result in the same message, and a call a
+  cloud session backgrounded after 120 seconds delivers its result by itself
 </constraints>
 
 <who_invokes>

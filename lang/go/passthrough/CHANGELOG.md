@@ -7,17 +7,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
-- **The review spawns at most six hunters per message; the skeptic and critic share a
-  hunter-free message of their own.** Six whole-repository review runs on 2.10.1 and its successor
-  all passed `run_in_background: false` on every agent call and still waited by polling
-  across up to 26 self-resumed segments: the harness runs only a handful of foreground
-  agents at once and answers the rest of a twelve-hunter batch with "Async agent
-  launched", which no flag overrides (7 or 8 of 14 calls in every run). The skill now
-  batches hunters at six per message, reads each batch's results before the next,
-  spawns the skeptic and critic after every hunter is in, and re-spawns a hunter that
-  came back "Async agent launched" alone instead of polling for it. An earlier entry
-  here blamed an omitted flag; the flag was always present.
-
+- **The review's waiting rules name the real mechanism.** Hunters are spawned together
+  as foreground `Agent` calls and their results return in the same message; the skeptic
+  and the critic share one hunter-free message; the review never polls
+  (`ReadNotifications`, `ListAgents`, `Monitor`, scheduled wake-ups). Earlier drafts of
+  this entry blamed an omitted `run_in_background` flag, then a foreground quota, and
+  capped hunters at six per message; all three were wrong about the cause. A Claude Code
+  cloud session exports `CLAUDE_AUTO_BACKGROUND_TASKS`, under which the harness turns any
+  foreground call still running after 120 seconds into a background task answered "Async
+  agent launched" — every such conversion in the eval traces sits at exactly 120.0 s,
+  whatever the batch size — and the eval runner passed that flag through to the agent
+  under test. On a developer's shell the flag is unset and a foreground call blocks until
+  the hunter returns; with the flag stripped, three whole-repository reviews ran in one
+  segment each with no polling (98, 98 and 86 of 111 recall graders, against 94–95
+  before). The skill now says what a cloud session does and that an auto-backgrounded
+  hunter's result arrives by itself, never polled for and never re-spawned; the
+  six-per-message cap is gone.
 - **Review and analyze resolve their scope by one ladder, and never widen it.** An
   explicit argument names the scope (`--all` for the whole repository — the only way to
   get a whole-repository audit); otherwise the working tree's changes against `HEAD`;
@@ -28,12 +33,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   to every `.go` file when nothing had changed, so a clean tree produced either an empty
   certified review or an unrequested whole-repository audit depending on the run. The
   `pre-commit-review` skill states the same contract for its diff-scope input.
-- **Hunters, skeptic and critic run in the foreground.** The review skill now says the
-  agents are spawned as foreground calls whose results return in the same message, never
-  as background tasks followed by polling. In the go-2.10.0-5828c34 baseline six runs
-  polled `ReadNotifications` for their hunters (one 109 times, another 160), doubling
-  turns and cost without changing a finding.
-
 - **R2: the Null Object is named and no argument is nil.** The 2.10.1 example
   defaulted a nil `sink` inside the constructor, which keeps `NewReporter(nil)`
   legal and only relocates the nil-check; the first re-run of the nil-handling
