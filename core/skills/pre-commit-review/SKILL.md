@@ -101,7 +101,9 @@ plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
 <step_3_skeptic_pass>
 Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
 proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
-"Strategy Map" proposals — and spawn one `overabstraction-skeptic`. Its spawn prompt MUST contain:
+"Strategy Map" proposals — and spawn one `overabstraction-skeptic`, as a **foreground**
+`Agent` call (`run_in_background: false`) whose result returns in the same message, exactly
+like the hunters in step 2. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
 2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
@@ -127,7 +129,10 @@ broken edges, WHAT-comments, unwired root) propose no type extractions.
 When the diff contains comment lines — prefilter:
 {{include "skills/pre-commit-review/critic-prefilter.md"}}
 (any hit qualifies; directives don't count) — spawn one `comment-critic` alongside
-the skeptic (same message when both run). Its spawn prompt MUST contain:
+the skeptic (same message when both run), also in the **foreground**: its full-repository
+comment sweep is the longest pass of the review, and waiting for it is done by the
+foreground call returning, never by a background task, a timer, a scheduled wake-up or a
+notification poll. Its spawn prompt MUST contain:
 
 1. Payload: R9's **Comment policy** section (`../../rules/R9-repo-brain.md`,
    Design guidance) pasted verbatim — the Comment Value Toolbox kinds, the
@@ -254,6 +259,9 @@ This skill MUST NOT:
   and cite them in findings
 - Spawn anything other than `rule-hunter`, `overabstraction-skeptic`, and
   `comment-critic`
+- Spawn any of them in the background, or wait for one by polling notifications,
+  arming a monitor or scheduling a wake-up — every agent is a foreground call whose
+  result returns in the same message
 </constraints>
 
 <who_invokes>
