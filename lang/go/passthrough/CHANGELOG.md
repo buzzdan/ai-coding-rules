@@ -11,7 +11,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   rule sat in the hunter step only; the first whole-repository review on that text ran
   its twelve hunters in the foreground and then spawned the skeptic and critic in the
   background and polled for them across nine self-resumed segments. The rule now sits
-  in the skeptic step, the critic step and the skill's constraints.
+  in the skeptic step, the critic step and the skill's constraints, and says the flag
+  must be passed explicitly on every call: the three runs that polled left
+  `run_in_background` unset on all fourteen agent calls, and unset means background.
 
 - **Review and analyze resolve their scope by one ladder, and never widen it.** An
   explicit argument names the scope (`--all` for the whole repository — the only way to
