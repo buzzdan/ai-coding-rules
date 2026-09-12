@@ -85,8 +85,8 @@ the background whatever the flag says, and a review that then waits for it by po
 cost and changes nothing in its findings. So: spawn up to six, read their results, spawn
 the next batch. If a call still comes back "Async agent launched", that batch was too
 large: do not poll for it — spawn that hunter again alone in the next message. The
-skeptic and the critic (step 3) get a message of their own once every hunter result is
-in hand. Each spawn prompt MUST contain:
+skeptic and the critic (step 3) share one message of their own, spawned only once every
+hunter result is in hand and never alongside a hunter. Each spawn prompt MUST contain:
 
 1. **The rule file's FULL content, pasted** — the hunter's entire rulebook and single
    obsession. Never a path reference alone; never more than one rule per hunter.
@@ -107,9 +107,10 @@ plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
 Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
 proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
 "Strategy Map" proposals — and spawn one `overabstraction-skeptic`, as a **foreground**
-`Agent` call (`run_in_background: false`) in a message of its own after every hunter
-result is in hand, so it never competes with a hunter batch for the harness's foreground
-quota. Its spawn prompt MUST contain:
+`Agent` call (`run_in_background: false`) in a message with no hunters in it, after
+every hunter result is in hand, so it never competes with a hunter batch for the
+harness's foreground quota; the comment critic (step 3b), when it runs, is spawned in
+that same message. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
 2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
@@ -134,8 +135,10 @@ broken edges, WHAT-comments, unwired root) propose no type extractions.
 <step_3b_comment_critic>
 When the diff contains comment lines — prefilter:
 {{include "skills/pre-commit-review/critic-prefilter.md"}}
-(any hit qualifies; directives don't count) — spawn one `comment-critic` alongside
-the skeptic (same message when both run), also in the **foreground**
+(any hit qualifies; directives don't count) — spawn one `comment-critic` in the same
+hunter-free message as the skeptic (two foreground calls sit well inside the quota and
+run in parallel; when no skeptic runs, the critic has that message alone), also in the
+**foreground**
 (`run_in_background: false`): its full-repository comment sweep is the longest pass of
 the review, and waiting for it is done by the foreground call returning, never by a
 background task, a timer, a scheduled wake-up or a notification poll. Its spawn prompt

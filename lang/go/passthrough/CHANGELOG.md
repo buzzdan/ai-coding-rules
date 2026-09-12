@@ -7,8 +7,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
-- **The review spawns at most six hunters per message; the skeptic and critic get a
-  message of their own.** Six whole-repository review runs on 2.10.1 and its successor
+- **The review spawns at most six hunters per message; the skeptic and critic share a
+  hunter-free message of their own.** Six whole-repository review runs on 2.10.1 and its successor
   all passed `run_in_background: false` on every agent call and still waited by polling
   across up to 26 self-resumed segments: the harness runs only a handful of foreground
   agents at once and answers the rest of a twelve-hunter batch with "Async agent
