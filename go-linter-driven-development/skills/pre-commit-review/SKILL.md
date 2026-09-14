@@ -172,24 +172,40 @@ go to @refactoring.
 <step_4_merged_report>
 Merge surviving findings into one report.
 
-**Cluster pass (before categorizing):** group surviving findings by shared anchor —
-the same type, field/discriminator, or function named in ≥2 findings from *different*
-rules. Each hunter is single-obsession and blind to the others, so independent
+**Cluster pass (before categorizing):** group *every* hunter finding — kept, refuted
+by the skeptic, or never sent to it — by shared anchor: the same type,
+field/discriminator, or function named in ≥2 findings from *different* rules. The
+skeptic's verdict removes a proposed type from the fix column; it never removes the
+convergence, which is the evidence. Each hunter is single-obsession and blind to the others, so independent
 convergence on one anchor is evidence that a domain concept is missing there — the
 cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
 primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
 jurisdictions). Render each cluster as a first-class entry above the categories:
 
 ```
-🔗 CLUSTER: Alert.Channel (4 findings: R1, R11, R2, R7)
+🔗 CLUSTER: Alert.Channel
+   Convergence: 4 findings — R1, R11, R2, R7
    Hypothesis: missing domain concept — a Channel type wants to exist
+   Skeptic: CONFIRMED (score 6: switched in 3 files, +2 unrepresentable — the
+   unknown-channel default at notify.go:71 goes; +2 noun — Send/Deliver)
    Routing: design-first — @code-designing (cluster-scoped), then @refactoring
    implements; do NOT fix members independently (partial fixes undo each other)
 ```
 
-Member findings still appear under their categories below, tagged
-`[cluster: <anchor>]`. Clustering is *reporting* — this skill still never edits and
-never invokes fix skills; the caller routes.
+Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
+anchor: two findings or twenty, the largest and the smallest alike. The title is the
+anchor itself — the type, field or function name the findings share
+(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`), never a description of
+the problem; the description is the Hypothesis line beneath it. When the skeptic
+reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
+type routes design-first as above; a REFUTED one keeps the cluster (the convergence
+is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no
+extraction was proposed at the anchor (a function three rules converged on, say) the
+entry carries no verdict and routes to @refactoring. The example shows one cluster; a
+whole-repository review commonly has six or more, and the pass is not done until each
+anchor that two rules converged on has its own entry. Member findings still appear
+under their categories below, tagged `[cluster: <anchor>]`. Clustering is *reporting*
+— this skill still never edits and never invokes fix skills; the caller routes.
 
 Category mapping:
 
@@ -211,8 +227,43 @@ Category mapping:
   maintainability.
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
-Every finding carries evidence — `file:line` plus the falsifying-question answer or
-command output — never a bare verdict. Effort carries over from the hunter (S/M/L).
+**One line per finding, anchored and answered.** Every finding a hunter returned and
+the skeptic did not kill, every cheaper alternative the skeptic shipped in a refuted
+type's place, and every non-KEEP verdict the comment critic returned renders as its
+own line in the hunter's shape, `file:line | evidence | fix | effort` (a critic line's
+evidence is its verdict and reason, its fix the REWRITE text or DELETE, and its effort
+S — a comment edit is always small; a `DELETE → route R3` verdict merges into the R3
+finding on those lines and takes that finding's effort), as the report example shows:
+
+- The line opens with the `file:line` anchor the hunter cited. A finding without its
+  anchor is a claim, not a finding.
+- The evidence cell names the rule and the falsifying question the finding answers,
+  by number and in the question's own words — `R1 Q5: host, port and tls travel
+  together across three signatures` — so the reader can open the rule and check.
+- The fix cell names the move exactly as the rule's **Fix pattern** section spells it
+  (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
+  `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
+  its place. The skeptic's verdict and score follow the move when one applies.
+- Effort carries over from the hunter (S/M/L).
+
+A count is never a finding. `R9 (46 findings)` or `R1 (8 findings): highlights …`
+drops the anchors a reader needs to act on and is forbidden as a rendering, whatever
+the scope. The unit that must never be lost is the anchor: every finding's `file:line`
+appears in the report, heading its own line, or — when several findings share one
+shape (thirty restating comments, say) — listed on one shared-shape line that names
+every anchor and the shared evidence and fix once. Either way the anchors rendered
+equal the findings returned. Length is never a reason to roll up: a whole-repository
+review with a hundred and thirty findings renders a hundred and thirty anchors,
+grouped under their categories and rules.
+
+**Reconcile before emitting.** Every hunter ends with a tally (`R<N>: <M> finding(s)`).
+The report header carries, per hunter, that tally beside the number of its anchors
+rendered below (own line or shared-shape line alike) —
+`Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the two numbers agree for
+every rule before the report is emitted; a rendered count below the tally means a
+finding was dropped in the merge, and the fix is to render it, never to adjust the
+tally. A finding the skeptic refuted still counts as rendered when its
+cheaper alternative is on the page.
 Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
 Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
 </step_4_merged_report>
@@ -234,25 +285,27 @@ fixes). Use after @refactoring applies fixes or whenever the caller iterates.
 ```
 📊 CODE REVIEW REPORT
 Scope: user/service.go, user/auth.go (+ tests) · Mode: FULL
-Hunters: R1 (2 leads), R2 (1), R3 (1) · R4–R8 skipped (no pre-filter hits)
+Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skipped
 Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
 Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
-🔴 DESIGN DEBT
-user/service.go:67 | session token travels as raw string; emptiness check inline
-  (R1 Q1: yes; Q2: same predicate at user/auth.go:41 — two owners) | Replace
-  Primitive with Domain Type: SessionToken — skeptic CONFIRMED (score 5) | M
-user/auth.go:34 | Authenticator.HashCost exported; methods re-check its range
-  (R2 Q1: literal construction possible; Q2: re-check at auth.go:52) | validating
-  constructor NewAuthenticator | S
+🔴 DESIGN DEBT                       (one finding per line; wrapped here for width)
+user/service.go:67 | R1 Q1: the session token is validated inline as a raw string,
+  no ParseX owns it; Q2: the same emptiness predicate at user/auth.go:41 — two
+  owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED
+  (score 5) | M
+user/auth.go:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an
+  invalid Authenticator; Q2: Verify re-checks the range at auth.go:52 | Add
+  validating constructor: NewAuthenticator | S
 
 🟡 READABILITY DEBT
-user/auth.go:89 | Authenticate() mixes auth flow with bcrypt byte handling
-  (R3 Q1: two abstraction levels in one body) | Extract Step: comparePassword | S
-user/service.go:15 | godoc restates the name ("UserService provides user services")
-  (critic: toolbox-value floor — no toolbox item delivered) | REWRITE → wider
-  context: "Every user mutation flows through this service — auth, quota, and
-  audit hooks attach here." | S
+user/auth.go:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling
+  in one body; Q3: the block comment `// compare password` names the section |
+  Extract Function named after the comment: comparePassword | S
+user/service.go:15 | critic: the godoc restates the name ("UserService provides
+  user services") — toolbox-value floor, no toolbox item delivered | REWRITE →
+  wider context: "Every user mutation flows through this service — auth, quota,
+  and audit hooks attach here." | S
 
 🟢 POLISH
 user/auth.go:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper

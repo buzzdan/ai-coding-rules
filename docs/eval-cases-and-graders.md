@@ -1,6 +1,6 @@
 ---
 type: guide
-description: how to write an eval case: prompt frontmatter, case.yaml, the five grader types, postcheck scripts, art judges, calibration rules
+description: how to write an eval case: prompt frontmatter, case.yaml, the five grader types, the report contract graders lean on, postcheck scripts, art judges, calibration rules
 ---
 # Writing Cases and Graders
 
@@ -75,6 +75,18 @@ Two shapes learned the hard way:
   agent appears in the transcript, so a pattern like a rule id alone matches the
   plugin's own prose. Require the finding's specifics on the same line (the linter
   name with its rule route, a file anchor near the question id).
+- **Lean on the report contract, nothing else.** The review skill promises that every
+  finding's `file:line` anchor appears (heading its own line, or listed on a
+  shared-shape line with the findings that share its evidence and fix), that the
+  evidence names the rule and falsifying question by number, that the move is named
+  as the rule's Fix pattern spells it, that findings are never rolled up into a
+  count; and one
+  `🔗 CLUSTER: <anchor>` entry per anchor that two rules converged on. That is what
+  the recall graders (a plant's file basename anywhere), the question-id graders (the
+  anchor, then `Q<n>` within 500 characters), the fix graders (the move's name) and
+  the cluster graders (the word cluster and the anchor on one line, or a bullet under
+  a clusters header) read. Anything a report is not promised to say — a banner, a
+  count, a verdict's punctuation — is wording, and a grader on it will flip.
 
 ## Postcheck
 Graders read the transcript and the tree; they do not run commands. A medium case
