@@ -33,7 +33,10 @@ your entire doctrine; apply it, never improvise your own scoring.
    validating constructor as the only public entry (unexported fields, R2); and the two
    holes R2 names accounted for — the zero value (`var x T`, `T{}`) is either a valid
    value of the type or shown never to escape, and a grep of the defining package finds
-   no literal building the type outside its constructor. A bare alias of the primitive
+   no literal building the type outside its constructor. Then the value must stay valid
+   after construction (R12): no setter that assigns without the constructor's checks, no
+   internal slice or map returned or stored by reference — either the type is immutable
+   or every mutator validates as the constructor does. A bare alias of the primitive
    (`type Port int`) fails on every count — `Port(-1)` and `Port(0)` are legal — and
    earns nothing here. "Noun" only by naming the call-site loop, flag or predicate that
    becomes its method.

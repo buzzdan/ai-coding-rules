@@ -54,10 +54,12 @@ restate it.
 **Invariant and vocabulary (what the type owns for the compiler and the reader):**
 - Makes an invalid state unrepresentable — once a value exists it is valid for its
   whole lifetime, so a sentinel, a defensive re-check or a second validating copy
-  downstream is deleted. Earned only when the whole construction path holds
-  (`R2-self-validating-types.md`): unexported fields behind a validating constructor,
-  the zero value either valid or never escaping, and no in-package literal around the
-  constructor. A bare alias of the primitive admits every literal and its zero value
+  downstream is deleted. Earned only when the whole lifetime holds: the construction
+  path (`R2-self-validating-types.md`: unexported fields behind a validating
+  constructor, the zero value either valid or never escaping, no in-package literal
+  around the constructor) and the paths after it (`R12-mutation-discipline.md`: no
+  setter without the constructor's checks, no internal slice or map escaping by
+  reference). A bare alias of the primitive admits every literal and its zero value
   and earns nothing: +2
 - Gives the story a noun it needs — a loop, a flag pair or a repeated predicate at
   the call sites is really an operation on this concept and becomes a named method: +2
