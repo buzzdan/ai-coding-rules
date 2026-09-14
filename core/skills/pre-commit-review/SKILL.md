@@ -246,6 +246,14 @@ the scope. When several findings share one shape (thirty restating comments, say
 line may carry them all only if it lists every `file:line` anchor. Length is never a
 reason to roll up: a whole-repository review with a hundred and thirty findings
 renders a hundred and thirty finding lines, grouped under their categories and rules.
+
+**Reconcile before emitting.** Every hunter ends with a tally (`R<N>: <M> finding(s)`).
+The report header carries, per hunter, that tally beside the number of its findings
+rendered below — `Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the
+two numbers agree for every rule before the report is emitted; a rendered count below
+the tally means a finding was dropped in the merge, and the fix is to render it, never
+to adjust the tally. A finding the skeptic refuted still counts as rendered when its
+cheaper alternative is on the page.
 Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
 Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
 </step_4_merged_report>
@@ -267,7 +275,7 @@ fixes). Use after @refactoring applies fixes or whenever the caller iterates.
 ```
 📊 CODE REVIEW REPORT
 Scope: user/service.go, user/auth.go (+ tests) · Mode: FULL
-Hunters: R1 (2 leads), R2 (1), R3 (1) · R4–R8 skipped (no pre-filter hits)
+Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skipped
 Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
 Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
