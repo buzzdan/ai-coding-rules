@@ -5,6 +5,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Changed
+
+- **The review report renders every finding and every cluster; a count is never a
+  finding.** Each surviving finding is its own line in the hunter's shape — the
+  `file:line` anchor first, then the rule and the falsifying question it answers by
+  number and in the question's own words (`R1 Q5: host, port and tls travel together
+  across three signatures`), then the move named exactly as the rule's Fix pattern
+  section spells it, then effort. Roll-ups such as `R9 (46 findings)` or
+  `R1 (8 findings): highlights …` are forbidden whatever the scope: a finding without
+  its anchor is a claim, and a whole-repository review with a hundred and thirty
+  findings renders a hundred and thirty lines. The cluster pass renders one
+  `🔗 CLUSTER` entry per anchor that two or more rules converged on, refuted clusters
+  included, never only the largest. Motivated by the go-2.10.0-5828c34 baseline and
+  the review-full runs after it: one whole-repository report rolled its findings up by
+  rule and lost twelve recall graders, six converged clusters (retention, Catalog.Find,
+  Job.Kind, ProcessHeartbeat, Reporter, the role-named packages) were found by the
+  hunters and never rendered, and the single-file reviews of cases B, C and E named
+  the file without the question id and described the move instead of naming it.
+
 ## [2.10.2] - 2026-09-14
 
 ### Changed

@@ -187,7 +187,12 @@ jurisdictions). Render each cluster as a first-class entry above the categories:
    implements; do NOT fix members independently (partial fixes undo each other)
 ```
 
-Member findings still appear under their categories below, tagged
+Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
+anchor: two findings or twenty, skeptic CONFIRMED or REFUTED (a refuted cluster
+renders with its verdict and the cheaper alternative), the largest and the smallest
+alike. The example shows one cluster; a whole-repository review commonly has six or
+more, and the pass is not done until each anchor that two rules converged on has its
+own entry. Member findings still appear under their categories below, tagged
 `[cluster: <anchor>]`. Clustering is *reporting* — this skill still never edits and
 never invokes fix skills; the caller routes.
 
@@ -211,8 +216,27 @@ Category mapping:
   maintainability.
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
-Every finding carries evidence — `file:line` plus the falsifying-question answer or
-command output — never a bare verdict. Effort carries over from the hunter (S/M/L).
+**One line per finding, anchored and answered.** Every finding a hunter returned and
+the skeptic did not kill renders as its own line in the hunter's shape,
+`file:line | evidence | fix | effort`, as the report example shows:
+
+- The line opens with the `file:line` anchor the hunter cited. A finding without its
+  anchor is a claim, not a finding.
+- The evidence cell names the rule and the falsifying question the finding answers,
+  by number and in the question's own words — `R1 Q5: host, port and tls travel
+  together across three signatures` — so the reader can open the rule and check.
+- The fix cell names the move exactly as the rule's **Fix pattern** section spells it
+  (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
+  `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
+  its place. The skeptic's verdict and score follow the move when one applies.
+- Effort carries over from the hunter (S/M/L).
+
+A count is never a finding. `R9 (46 findings)` or `R1 (8 findings): highlights …`
+drops the anchors a reader needs to act on and is forbidden as a rendering, whatever
+the scope. When several findings share one shape (thirty restating comments, say), one
+line may carry them all only if it lists every `file:line` anchor. Length is never a
+reason to roll up: a whole-repository review with a hundred and thirty findings
+renders a hundred and thirty finding lines, grouped under their categories and rules.
 Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
 Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
 </step_4_merged_report>
