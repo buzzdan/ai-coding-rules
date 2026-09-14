@@ -120,11 +120,14 @@ in that same message so the two run in parallel. Its spawn prompt MUST contain:
    `../../rules/R1-primitive-obsession.md`, pasted.
 3. Payload: the FULL content of `../../examples/overabstraction-cidr.md`, pasted.
 
-Verdicts per finding: `CONFIRMED (score + verified evidence)` or
-`REFUTED (score 0–1 + reason) → cheaper alternative`. A refuted proposal does not ship;
-when its cheaper alternative (better naming, private fields + accessors, or R11's
-Keep the Single Exhaustive Switch) is still worth doing, report the alternative as
-🟢 Polish. When R11 dispatch proposals are under review, additionally paste the FULL
+Verdicts per finding: `CONFIRMED (score ≥4 + verified evidence)`, `CONFIRMED (score
+2–3, judgment call) — alternative: …` (the type ships as the finding's fix with the
+skeptic's cheaper move beside it; the user chooses), or `REFUTED (score 0–1 + reason) →
+cheaper alternative`. Carry the verdict word and the score into the report verbatim, as
+the report example shows. A refuted proposal does not ship; when its cheaper
+alternative (better naming, private fields + accessors, or R11's Keep the Single
+Exhaustive Switch) is still worth doing, report the alternative as 🟢 Polish. When R11
+dispatch proposals are under review, additionally paste the FULL
 content of both R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
 juiciness rejection: the switch stays, goes exhaustive) and
 `../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the

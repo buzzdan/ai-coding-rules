@@ -51,6 +51,16 @@ restate it.
 - Significantly simplifies calling code: +1
 - Makes tests cleaner: +1
 
+**Invariant and vocabulary (what the type owns for the compiler and the reader):**
+- Makes an invalid state unrepresentable — once a value exists it is valid for its
+  whole lifetime, so a sentinel, a defensive re-check or a second validating copy
+  downstream is deleted: +2
+- Gives the story a noun it needs — a loop, a flag pair or a repeated predicate at
+  the call sites is really an operation on this concept and becomes a named method: +2
+
+Both score 0 for a wrapper whose every literal is as valid as any other and whose
+only method unwraps; that is the trap below, not a type.
+
 **Verdict:**
 - Score ≥4: HIGH priority — clear win, create the type.
 - Score 2-3: MEDIUM priority — judgment call, present to the user.

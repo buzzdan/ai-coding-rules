@@ -7,6 +7,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The skeptic scores what a type owns for the compiler and the reader, and the
+  score is the verdict.** R1's juiciness scorecard gains a fourth block: making an
+  invalid state unrepresentable (a value that exists is valid for its whole lifetime,
+  so a sentinel, a defensive re-check or a second validating copy downstream is
+  deleted) and giving the story a noun it needs (a call-site loop, flag pair or
+  repeated predicate that becomes a named method) score +2 each, and both score 0 for
+  a wrapper whose every literal is as valid as any other. The skeptic earns those
+  points by evidence like the others (the `file:line` of the check the type deletes,
+  the call site that becomes its method) and no longer leans REFUTED on a marginal
+  score: 0–1 is refuted, 4 and above confirmed, and a 2–3 survives as a
+  `CONFIRMED (score N, judgment call)` with the cheaper alternative beside the type
+  for the user to choose. Motivated by the go-2.10.0-5828c34 eval baseline, where the
+  skeptic scored the retention, endpoint and node-collection types of cases A, B and C
+  at 0–3 and refuted each, while the refactor path extracted exactly those types and
+  passed the art judges; the case D ceremony wrappers (`ReplicaCount`, `Name`) still
+  score 0 on every block.
 - **The review's waiting rules name the real mechanism.** Hunters are spawned together
   as foreground `Agent` calls and their results return in the same message; the skeptic
   and the critic share one hunter-free message; the review never polls
