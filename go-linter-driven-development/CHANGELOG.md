@@ -7,6 +7,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **A refactoring stops after its last pass, not at the first green linter, and the
+  green tree is committed.** The refactoring skill's stopping criteria are five ordered
+  steps over the touched files: the gates (linter, tests, size and nesting); a re-run of
+  every routed rule's detection commands, where a remaining hit means not done; the
+  noun check, where each concept the code handles gets a named box scored with R1's
+  scorecard (a slice walked with flags is a collection type, an optional collaborator a
+  Null Object default, a value parsed twice one constructor); the comment critic over
+  the touched files with its verdicts applied; then STOP, with the over-engineering
+  signs as a check on the noun step rather than a reason to skip it. Extract Function
+  prefers the function that already exists and has a test over a sibling written
+  beside it. Then, when tests and lint are green and the tree is dirty, the
+  refactoring is committed — the workflow's Phase 5 commits the slice it ships, a
+  standalone invocation commits at STOP — and the ship summary carries the hash; the
+  user decides only about deferred advisory findings. Motivated by the
+  go-2.10.0-5828c34 baseline's medium tier, where every refactor stopped at "linter
+  green, tests green": no collection type in the picker, a nil-able field and a
+  restating comment left in the reporter, a second global left in the config package,
+  a heartbeat parser re-implemented beside the tested one, and only the case whose
+  prompt demanded commits committed anything.
 - **The review report renders every finding and every cluster; a count is never a
   finding.** Each surviving finding, each cheaper alternative the skeptic shipped and
   each non-KEEP critic verdict renders in the hunter's shape — the `file:line`

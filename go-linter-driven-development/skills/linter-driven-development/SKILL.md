@@ -58,7 +58,7 @@ The lint-fixer agent is spawned with the **Agent tool**:
 3 FULL LINT   ONE run via lint-fixer agent (Agent tool)
      mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
 4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
-5 SHIP     @documentation → commit summary → user commits
+5 SHIP     @documentation → commit (tests and lint green, tree dirty) → ship summary
 ```
 </flow>
 
@@ -211,9 +211,14 @@ before.
    reviews every comment in the diff against R9's three-test standard;
    @documentation applies the verdicts and re-critiques once — R3 routes from the
    critic go back through @refactoring like any R3 finding).
-2. Present the ship summary: tests green (`go test ./...`), lint green (Phase 3),
-   review delta (Phase 4), files changed, suggested commit message.
-3. User decides: commit as-is · fix deferred advisory findings first · defer.
+2. Commit. When tests (`go test ./...`) and lint (Phase 3) are green and the tree
+   is dirty, commit the slice with the ship summary as the message. A green slice left
+   uncommitted "for the user" is the one state this workflow never ends in: the user
+   can amend, split or revert a commit; an uncommitted tree evaporates with the
+   session. Prep commits (Phase 1.5) stay separate.
+3. Present the ship summary: the commit hash, tests green, lint green, review delta
+   (Phase 4), files changed. User decides only about the deferred advisory findings:
+   fix them now or later.
 </phase_5_ship>
 
 <success_criteria>
@@ -226,5 +231,6 @@ before.
 - [ ] @pre-commit-review INCREMENTAL delta clean, or findings explicitly deferred by user
 - [ ] @documentation (FEATURE mode) done — docs wired into the network, R9 self-check
       clean, comment-critic critique loop applied and confirmed clean (or remainder
-      reported); commit summary presented and user chose an action
+      reported); the green slice committed and the ship summary presented with its
+      hash, deferred advisory findings listed
 </success_criteria>

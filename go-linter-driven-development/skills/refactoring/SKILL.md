@@ -76,6 +76,13 @@ the caller by name. Never a new interface with one no-op implementation (R6), ne
 nil parameter that means "default" (R2): `NewReporter(nil)` must not compile or must not
 exist.
 
+**Extract Function prefers the function that exists.** Before writing a helper for a
+step — parse, decode, normalize, validate — grep the package for one that already does
+it (`grep -rn 'func .*Parse' --include='*.go'` on the step's noun) and prefer
+the one with a test. A sibling written beside a tested function is a second owner of
+the same rule (R1 Q2), not an extraction; when the existing function has the wrong
+shape, change it and its test rather than copy it, and never leave two.
+
 **Multi-rule procedures** (sequencing, god-object decomposition, package
 decomposition): `reference.md` in this directory.
 
@@ -175,10 +182,36 @@ Any hit → remove the directive and fix properly. Genuine false positives belon
 </nolint_prohibition>
 
 <stopping_criteria>
-STOP when ALL are met: linter passes (0 issues); functions <50 LOC, nesting ≤2;
-no red-zone packages; code reads like a story; no juicy extraction left (R1 scorecard
-says LOW on every remaining candidate). If linter passes AND code is readable → STOP;
-over-engineering signs (one-method types, pass-through functions) mean you went too far.
+Linter green is where stopping begins, not where it ends. STOP only when every step
+below has run, in order, over the files this session touched:
+
+1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
+   packages.
+2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
+   questions) of every rule routed in this session over the touched files. A remaining
+   hit of a routed rule means not done — route it again. The second global beside the
+   one just removed, a `context.Background()` two functions down, the flag pair in the
+   next loop: this step exists to catch them.
+3. **The noun check.** For each concept the touched code handles, ask once: does it
+   have a named box? A slice walked with flags is a collection type (Extract Leaf
+   Type); an optional collaborator that may be absent is a Null Object default, never
+   a nil-able field; a value parsed in two places has one constructor; a repeated
+   predicate is a method. Score each candidate with R1's scorecard: ≥4 → apply the
+   move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
+   it. A candidate is never skipped because the linter is already quiet.
+4. **The comment critic.** Spawn one `comment-critic` (Agent tool, foreground) over
+   the touched files with the payload @pre-commit-review step 3b names; apply its
+   TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
+   `DELETE → route R3` verdicts back to step 3.
+5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
+   reason to skip it: a one-method type that merely unwraps, a function that only
+   calls another, more layers than concepts — undo that move.
+
+Then commit. When tests and lint are green and the tree is dirty, commit the
+refactoring with the STATUS block's summary as the message — one commit per green
+step when the caller asked for deployable steps — so the green tree outlives the
+session. Inside the workflow, Phase 5 commits the slice it ships; a standalone
+invocation commits here. Never leave a green refactoring uncommitted with "your call".
 </stopping_criteria>
 
 <output_format>
