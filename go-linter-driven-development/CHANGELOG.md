@@ -13,8 +13,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   score is the verdict.** R1's juiciness scorecard gains a fourth block: making an
   invalid state unrepresentable (a value that exists is valid for its whole lifetime,
   so a sentinel, a defensive re-check or a second validating copy downstream is
-  deleted — earned only when an R2 constructor is the only way in, never by a bare
-  alias that still admits every literal) and giving the story a noun it needs (a
+  deleted — earned only when the whole R2 construction path holds: a validating
+  constructor over unexported fields, the zero value valid or never escaping, no
+  in-package literal around the constructor; never by a bare alias that still admits
+  every literal) and giving the story a noun it needs (a
   call-site loop, flag pair or repeated predicate that becomes a named method) score
   +2 each, and both score 0 for a wrapper whose every literal is as valid as any other.
   The skeptic earns those points by evidence like the others (the `file:line` of the
