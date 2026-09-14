@@ -181,8 +181,11 @@ primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, 
 jurisdictions). Render each cluster as a first-class entry above the categories:
 
 ```
-🔗 CLUSTER: Alert.Channel (4 findings: R1, R11, R2, R7)
+🔗 CLUSTER: Alert.Channel
+   Convergence: 4 findings — R1, R11, R2, R7
    Hypothesis: missing domain concept — a Channel type wants to exist
+   Skeptic: CONFIRMED (score 6: switched in 3 files, +2 unrepresentable — the
+   unknown-channel default at notify.go:71 goes; +2 noun — Send/Deliver)
    Routing: design-first — @code-designing (cluster-scoped), then @refactoring
    implements; do NOT fix members independently (partial fixes undo each other)
 ```
@@ -226,8 +229,9 @@ Category mapping:
 the skeptic did not kill, every cheaper alternative the skeptic shipped in a refuted
 type's place, and every non-KEEP verdict the comment critic returned renders as its
 own line in the hunter's shape, `file:line | evidence | fix | effort` (a critic line's
-evidence is its verdict and reason, its fix the REWRITE text or DELETE), as the
-report example shows:
+evidence is its verdict and reason, its fix the REWRITE text or DELETE, and its effort
+S — a comment edit is always small; a `DELETE → route R3` verdict merges into the R3
+finding on those lines and takes that finding's effort), as the report example shows:
 
 - The line opens with the `file:line` anchor the hunter cited. A finding without its
   anchor is a claim, not a finding.
@@ -242,17 +246,21 @@ report example shows:
 
 A count is never a finding. `R9 (46 findings)` or `R1 (8 findings): highlights …`
 drops the anchors a reader needs to act on and is forbidden as a rendering, whatever
-the scope. When several findings share one shape (thirty restating comments, say), one
-line may carry them all only if it lists every `file:line` anchor. Length is never a
-reason to roll up: a whole-repository review with a hundred and thirty findings
-renders a hundred and thirty finding lines, grouped under their categories and rules.
+the scope. The unit that must never be lost is the anchor: every finding's `file:line`
+appears in the report, heading its own line, or — when several findings share one
+shape (thirty restating comments, say) — listed on one shared-shape line that names
+every anchor and the shared evidence and fix once. Either way the anchors rendered
+equal the findings returned. Length is never a reason to roll up: a whole-repository
+review with a hundred and thirty findings renders a hundred and thirty anchors,
+grouped under their categories and rules.
 
 **Reconcile before emitting.** Every hunter ends with a tally (`R<N>: <M> finding(s)`).
-The report header carries, per hunter, that tally beside the number of its findings
-rendered below — `Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the
-two numbers agree for every rule before the report is emitted; a rendered count below
-the tally means a finding was dropped in the merge, and the fix is to render it, never
-to adjust the tally. A finding the skeptic refuted still counts as rendered when its
+The report header carries, per hunter, that tally beside the number of its anchors
+rendered below (own line or shared-shape line alike) —
+`Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the two numbers agree for
+every rule before the report is emitted; a rendered count below the tally means a
+finding was dropped in the merge, and the fix is to render it, never to adjust the
+tally. A finding the skeptic refuted still counts as rendered when its
 cheaper alternative is on the page.
 Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
 Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.

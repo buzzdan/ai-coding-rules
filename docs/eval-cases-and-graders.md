@@ -75,10 +75,12 @@ Two shapes learned the hard way:
   agent appears in the transcript, so a pattern like a rule id alone matches the
   plugin's own prose. Require the finding's specifics on the same line (the linter
   name with its rule route, a file anchor near the question id).
-- **Lean on the report contract, nothing else.** The review skill promises one line
-  per finding that opens with its `file:line` anchor, names the rule and falsifying
-  question it answers by number in the evidence, names the move as the rule's Fix
-  pattern spells it, and never rolls findings up into a count; and one
+- **Lean on the report contract, nothing else.** The review skill promises that every
+  finding's `file:line` anchor appears (heading its own line, or listed on a
+  shared-shape line with the findings that share its evidence and fix), that the
+  evidence names the rule and falsifying question by number, that the move is named
+  as the rule's Fix pattern spells it, that findings are never rolled up into a
+  count; and one
   `🔗 CLUSTER: <anchor>` entry per anchor that two rules converged on. That is what
   the recall graders (a plant's file basename anywhere), the question-id graders (the
   anchor, then `Q<n>` within 500 characters), the fix graders (the move's name) and

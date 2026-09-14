@@ -9,16 +9,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 - **The review report renders every finding and every cluster; a count is never a
   finding.** Each surviving finding, each cheaper alternative the skeptic shipped and
-  each non-KEEP critic verdict is its own line in the hunter's shape — the
-  `file:line` anchor first, then the rule and the falsifying question it answers by
-  number and in the question's own words (`R1 Q5: host, port and tls travel together
-  across three signatures`), then the move named exactly as the rule's Fix pattern
-  section spells it, then effort. Roll-ups such as `R9 (46 findings)` or
-  `R1 (8 findings): highlights …` are forbidden whatever the scope: a finding without
-  its anchor is a claim, and a whole-repository review with a hundred and thirty
-  findings renders a hundred and thirty lines, and the header reconciles each hunter's
-  tally with the lines rendered under it (`R7 7/7`) before the report is emitted, so a
-  rule dropped in the merge is visible. The cluster pass runs over every
+  each non-KEEP critic verdict renders in the hunter's shape — the `file:line`
+  anchor first, then the rule and the falsifying question it answers by number and in
+  the question's own words (`R1 Q5: host, port and tls travel together across three
+  signatures`), then the move named exactly as the rule's Fix pattern section spells
+  it, then effort (S for a critic line) — on its own line, or on one shared-shape
+  line that lists every anchor when many findings share one shape. Roll-ups such as
+  `R9 (46 findings)` or `R1 (8 findings): highlights …` are forbidden whatever the
+  scope: a finding without its anchor is a claim, a whole-repository review with a
+  hundred and thirty findings renders a hundred and thirty anchors, and the header
+  reconciles each hunter's tally with the anchors rendered under it (`R7 7/7`) before
+  the report is emitted, so a rule dropped in the merge is visible. The cluster pass runs over every
   hunter finding, kept or refuted, and renders one `🔗 CLUSTER` entry per anchor that
   two or more rules converged on — titled by the anchor itself, never by a
   description, with the skeptic's verdict when it reviewed an extraction there, and
