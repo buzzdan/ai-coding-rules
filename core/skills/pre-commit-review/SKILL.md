@@ -170,9 +170,11 @@ go to @refactoring.
 <step_4_merged_report>
 Merge surviving findings into one report.
 
-**Cluster pass (before categorizing):** group surviving findings by shared anchor —
-the same type, field/discriminator, or function named in ≥2 findings from *different*
-rules. Each hunter is single-obsession and blind to the others, so independent
+**Cluster pass (before categorizing):** group *every* hunter finding — kept, refuted
+by the skeptic, or never sent to it — by shared anchor: the same type,
+field/discriminator, or function named in ≥2 findings from *different* rules. The
+skeptic's verdict removes a proposed type from the fix column; it never removes the
+convergence, which is the evidence. Each hunter is single-obsession and blind to the others, so independent
 convergence on one anchor is evidence that a domain concept is missing there — the
 cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
 primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
@@ -186,13 +188,16 @@ jurisdictions). Render each cluster as a first-class entry above the categories:
 ```
 
 Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
-anchor: two findings or twenty, skeptic CONFIRMED or REFUTED (a refuted cluster
-renders with its verdict and the cheaper alternative), the largest and the smallest
-alike. The example shows one cluster; a whole-repository review commonly has six or
-more, and the pass is not done until each anchor that two rules converged on has its
-own entry. Member findings still appear under their categories below, tagged
-`[cluster: <anchor>]`. Clustering is *reporting* — this skill still never edits and
-never invokes fix skills; the caller routes.
+anchor: two findings or twenty, the largest and the smallest alike. When the skeptic
+reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
+type routes design-first as above; a REFUTED one keeps the cluster (the convergence
+is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no
+extraction was proposed at the anchor (a function three rules converged on, say) the
+entry carries no verdict and routes to @refactoring. The example shows one cluster; a
+whole-repository review commonly has six or more, and the pass is not done until each
+anchor that two rules converged on has its own entry. Member findings still appear
+under their categories below, tagged `[cluster: <anchor>]`. Clustering is *reporting*
+— this skill still never edits and never invokes fix skills; the caller routes.
 
 Category mapping:
 
@@ -215,8 +220,11 @@ Category mapping:
 - 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
 **One line per finding, anchored and answered.** Every finding a hunter returned and
-the skeptic did not kill renders as its own line in the hunter's shape,
-`file:line | evidence | fix | effort`, as the report example shows:
+the skeptic did not kill, every cheaper alternative the skeptic shipped in a refuted
+type's place, and every non-KEEP verdict the comment critic returned renders as its
+own line in the hunter's shape, `file:line | evidence | fix | effort` (a critic line's
+evidence is its verdict and reason, its fix the REWRITE text or DELETE), as the
+report example shows:
 
 - The line opens with the `file:line` anchor the hunter cited. A finding without its
   anchor is a claim, not a finding.
@@ -260,21 +268,23 @@ Hunters: R1 (2 leads), R2 (1), R3 (1) · R4–R8 skipped (no pre-filter hits)
 Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
 Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
-🔴 DESIGN DEBT
-user/service.go:67 | session token travels as raw string; emptiness check inline
-  (R1 Q1: yes; Q2: same predicate at user/auth.go:41 — two owners) | Replace
-  Primitive with Domain Type: SessionToken — skeptic CONFIRMED (score 5) | M
-user/auth.go:34 | Authenticator.HashCost exported; methods re-check its range
-  (R2 Q1: literal construction possible; Q2: re-check at auth.go:52) | validating
-  constructor NewAuthenticator | S
+🔴 DESIGN DEBT                       (one finding per line; wrapped here for width)
+user/service.go:67 | R1 Q1: the session token is validated inline as a raw string,
+  no ParseX owns it; Q2: the same emptiness predicate at user/auth.go:41 — two
+  owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED
+  (score 5) | M
+user/auth.go:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an
+  invalid Authenticator; Q2: Verify re-checks the range at auth.go:52 | Add
+  validating constructor: NewAuthenticator | S
 
 🟡 READABILITY DEBT
-user/auth.go:89 | Authenticate() mixes auth flow with bcrypt byte handling
-  (R3 Q1: two abstraction levels in one body) | Extract Step: comparePassword | S
-user/service.go:15 | godoc restates the name ("UserService provides user services")
-  (critic: toolbox-value floor — no toolbox item delivered) | REWRITE → wider
-  context: "Every user mutation flows through this service — auth, quota, and
-  audit hooks attach here." | S
+user/auth.go:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling
+  in one body; Q3: the block comment `// compare password` names the section |
+  Extract Function named after the comment: comparePassword | S
+user/service.go:15 | critic: the godoc restates the name ("UserService provides
+  user services") — toolbox-value floor, no toolbox item delivered | REWRITE →
+  wider context: "Every user mutation flows through this service — auth, quota,
+  and audit hooks attach here." | S
 
 🟢 POLISH
 user/auth.go:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
