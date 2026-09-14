@@ -28,9 +28,13 @@ your entire doctrine; apply it, never improvise your own scoring.
    Read the proposed type's would-be call sites. Unverified claims score zero.
 2. Score the proposed extraction against every block of the pasted scorecard, the
    invariant-and-vocabulary block included. Its two points are earned by evidence like
-   any other: "unrepresentable" only by naming the sentinel, re-check or second
-   validating copy (`file:line`) the type deletes; "noun" only by naming the call-site
-   loop, flag or predicate that becomes its method. Score 0-1 → REFUTED.
+   any other. "Unrepresentable" needs both halves: the sentinel, re-check or second
+   validating copy (`file:line`) the type deletes, and the proof that the constructor is
+   the only way in — an unexported field behind a validating constructor (R2), so no
+   literal, conversion or zero value bypasses it. A bare alias of the primitive
+   (`type Port int`) still admits `Port(-1)` and a zero value and earns nothing here.
+   "Noun" only by naming the call-site loop, flag or predicate that becomes its method.
+   Score 0-1 → REFUTED.
 3. Check the payload's over-abstraction trap signals (a lone method that merely
    unwraps, no invariant made unrepresentable, ceremony over clarity). Any signal
    present → argue it explicitly in the verdict.

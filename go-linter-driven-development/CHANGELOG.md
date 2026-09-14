@@ -5,17 +5,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [2.10.2] - 2026-09-14
+
 ### Changed
 
 - **The skeptic scores what a type owns for the compiler and the reader, and the
   score is the verdict.** R1's juiciness scorecard gains a fourth block: making an
   invalid state unrepresentable (a value that exists is valid for its whole lifetime,
   so a sentinel, a defensive re-check or a second validating copy downstream is
-  deleted) and giving the story a noun it needs (a call-site loop, flag pair or
-  repeated predicate that becomes a named method) score +2 each, and both score 0 for
-  a wrapper whose every literal is as valid as any other. The skeptic earns those
-  points by evidence like the others (the `file:line` of the check the type deletes,
-  the call site that becomes its method) and no longer leans REFUTED on a marginal
+  deleted — earned only when an R2 constructor is the only way in, never by a bare
+  alias that still admits every literal) and giving the story a noun it needs (a
+  call-site loop, flag pair or repeated predicate that becomes a named method) score
+  +2 each, and both score 0 for a wrapper whose every literal is as valid as any other.
+  The skeptic earns those points by evidence like the others (the `file:line` of the
+  check the type deletes plus the constructor that guards construction, the call site
+  that becomes its method) and no longer leans REFUTED on a marginal
   score: 0–1 is refuted, 4 and above confirmed, and a 2–3 survives as a
   `CONFIRMED (score N, judgment call)` with the cheaper alternative beside the type
   for the user to choose. Motivated by the go-2.10.0-5828c34 eval baseline, where the
