@@ -188,7 +188,10 @@ jurisdictions). Render each cluster as a first-class entry above the categories:
 ```
 
 Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
-anchor: two findings or twenty, the largest and the smallest alike. When the skeptic
+anchor: two findings or twenty, the largest and the smallest alike. The title is the
+anchor itself — the type, field or function name the findings share
+(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`), never a description of
+the problem; the description is the Hypothesis line beneath it. When the skeptic
 reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
 type routes design-first as above; a REFUTED one keeps the cluster (the convergence
 is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no

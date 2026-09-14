@@ -18,8 +18,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   its anchor is a claim, and a whole-repository review with a hundred and thirty
   findings renders a hundred and thirty lines. The cluster pass runs over every
   hunter finding, kept or refuted, and renders one `🔗 CLUSTER` entry per anchor that
-  two or more rules converged on — with the skeptic's verdict when it reviewed an
-  extraction there, and never only the largest. Motivated by the go-2.10.0-5828c34 baseline and
+  two or more rules converged on — titled by the anchor itself, never by a
+  description, with the skeptic's verdict when it reviewed an extraction there, and
+  never only the largest. Motivated by the go-2.10.0-5828c34 baseline and
   the review-full runs after it: one whole-repository report rolled its findings up by
   rule and lost twelve recall graders, six converged clusters (retention, Catalog.Find,
   Job.Kind, ProcessHeartbeat, Reporter, the role-named packages) were found by the
