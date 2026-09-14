@@ -36,8 +36,9 @@ rules:
 - A per-case change smaller than one flipping grader is noise.
 - Compare the whole-repo review on its grader count (91 to 94 of 111), not on
   pass or fail.
-- A single llm judge flipping between a live run and a regrade of the same file is
-  noise until the judge votes two of three.
+- In baselines graded by a single-vote judge (every baseline up to go-2.10.0-5828c34)
+  an llm judge flipping between a live run and a regrade of the same file is noise;
+  the runner now votes two of three, so a flip in a later baseline is a finding.
 
 ## Comparing after a refactor
 This is the acceptance procedure for the language-neutral core extraction, whose

@@ -64,8 +64,10 @@ text joined in order. Any value above 1 is the "waits badly" pathology the basel
 found, and is worth reading before trusting a cost figure.
 
 ## Parity with the gate
-Same frontmatter keys, same five grader types, same output shape. Differences: the
-llm judge is a single vote here where the gate uses two of three, so a single flip
-between a live run and a regrade is noise; `--ablation` (the with-and-without arm
-that measures the plugin's own value) is not implemented. Both are reasons to
-switch the day the gate opens.
+Same frontmatter keys, same five grader types, same output shape, and the llm judge
+votes two of three as the gate does (two agreeing replies decide, so a unanimous
+verdict costs two judge calls and a split one three; the grader's detail carries the
+tally). Baselines up to go-2.10.0-5828c34 were graded by a single vote, which is why
+a lone judge flip between a live run and a regrade there is noise. The one
+difference left: `--ablation` (the with-and-without arm that measures the plugin's
+own value) is not implemented, a reason to switch the day the gate opens.
