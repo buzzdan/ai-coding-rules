@@ -101,7 +101,8 @@ preservation.
 The current baseline measures plugin 2.10.0 at 5828c34, the first generated plugin
 directory, and lives in the evals repository under
 [`baselines/go-2.10.0-5828c34/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-5828c34)
-with a write-up: cheap 7 of 23 runs pass, medium 5 of 10 (run twice for a noise floor),
+with a write-up: cheap 8 of 23 runs pass (7 as first recorded, one more after a grader
+fix regraded its transcript), medium 5 of 10 (run twice for a noise floor),
 art judges 2 of 7. It was recorded from a Claude Code on the web container so that the
 earlier baseline on 681fdb0 and every later run share one environment; its findings
 drive the plugin's next changes, and the comparison procedure is in

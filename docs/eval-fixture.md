@@ -36,7 +36,7 @@ Ground rules, all enforced:
 
 ## The manifest
 `go/violations.yaml`, beside the fixture, is the answer key, kept outside the scaffolded tree. One
-entry per plant or control, 148 in total:
+entry per plant or control, 149 in total:
 
 ```yaml
 - id: R11.Q1.channel-switch
