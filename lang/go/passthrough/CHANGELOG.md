@@ -20,7 +20,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   report, the workflow's Phase 5 committing the slice it ships and a standalone
   invocation committing here, never "let me know if you'd like me to commit". The
   report carries a `Stop check` block with one line per step; a step with no line did
-  not run. Extract Function prefers the function that already exists and has a test
+  not run. Measured bound: the harness itself commits only when the user asks, and
+  four centerpiece runs ended with the green tree uncommitted citing that policy, so a
+  request that does not imply a commit may still end uncommitted — ask for the commit
+  in the request, as the eval prompts now do. Extract Function prefers the function that already exists and has a test
   over a sibling written beside it, and a behavioral difference between the two is a
   bug or a parameter of the one function, never a second parser. The workflow routes
   a request that delivers no new behavior ("fix the design of", "remove the global")
