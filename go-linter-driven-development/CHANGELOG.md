@@ -17,7 +17,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the touched files with its verdicts applied; then STOP, with the over-engineering
   signs as a check on the noun step rather than a reason to skip it. Extract Function
   prefers the function that already exists and has a test over a sibling written
-  beside it. Then, when tests and lint are green and the tree is dirty, the
+  beside it. The workflow routes a request that delivers no new behavior ("fix the
+  design of", "remove the global") to the refactoring skill as Phase 1.5 in its own
+  right instead of reshaping code by hand, so the stopping criteria are reached at
+  all. Then, when tests and lint are green and the tree is dirty, the
   refactoring is committed — the workflow's Phase 5 commits the slice it ships, a
   standalone invocation commits at STOP — and the ship summary carries the hash; the
   user decides only about deferred advisory findings. Motivated by the

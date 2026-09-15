@@ -59,6 +59,8 @@ The lint-fixer agent is spawned with the **Agent tool**:
      mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
 4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
 5 SHIP     @documentation → commit (tests and lint green, tree dirty) → ship summary
+
+Refactor-only request (no new behavior): 1.5 via @refactoring → 3 → 4 → 5
 ```
 </flow>
 
@@ -68,6 +70,15 @@ The lint-fixer agent is spawned with the **Agent tool**:
    order): test + lint commands. Fallbacks: `go test ./...`, `golangci-lint run --fix`.
 3. **List the behaviors** this change delivers — each becomes one Phase 2 TDD cycle.
    No plan or unclear scope → Phase 1 produces the plan; unclear intent → ask.
+4. **A request that delivers no behavior is a refactor**, and this skill never
+   reshapes code by hand. "Fix the design of", "make X readable", "remove the
+   global", "drop the nolint": zero Phase 2 cycles. Route it as Phase 1.5 in its own
+   right — the survey runs over the files the request names, the MULTIPLY gate reads
+   "the request itself names the violation", and every move is applied by invoking
+   @refactoring, which owns the moves, the five-step stopping criteria and the
+   commit of each green step. Then Phases 3, 4 and 5 as for any slice. Editing the
+   code inline from this skill skips the stopping criteria, which is how a green
+   linter ends up shipping with the second global still in place.
 </pre_flight>
 
 <phase_1_design>
