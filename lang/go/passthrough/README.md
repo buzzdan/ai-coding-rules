@@ -124,7 +124,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | Command | Purpose | Auto-Fix | File targeting |
 |---------|---------|----------|----------------|
 | [`/go-ldd-autopilot`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
-| [`/go-ldd-quickfix [files]`](commands/go-ldd-quickfix.md) | Quality-gates loop until green (code exists) | ✅ Yes | ✅ Optional |
+| [`/go-ldd-quickfix [files \| --all]`](commands/go-ldd-quickfix.md) | Quality-gates loop until green over the scope you are working on: an argument, else the working tree, else the branch; never the whole repository unasked | ✅ Yes | ✅ Optional |
 | [`/go-ldd-prepare <change> [files]`](commands/go-ldd-prepare.md) | Preparatory refactoring: reshape what a planned change touches, so it lands add-only | ✅ Yes | ✅ Optional |
 | [`/go-ldd-analyze [files | --all]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
 | [`/go-ldd-review [files | --all]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |

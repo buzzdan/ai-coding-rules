@@ -177,10 +177,13 @@ Loop to the next behavior until all behaviors are done.
 </phase_2_implement>
 
 <phase_3_full_lint>
-Delegate ONE full lint run to the lint-fixer agent (Agent tool, isolated context — the
-fix loop's token noise stays out of this conversation). Full-repo lint catches what
-package-scoped runs cannot: cross-package issues and whole-file/whole-package rules
-(file-length-limit, package-size zones).
+Delegate ONE lint run to the lint-fixer agent (Agent tool, isolated context — the
+fix loop's token noise stays out of this conversation). Its scope is the workflow's:
+the whole repository for a feature slice, where the full run catches what
+package-scoped runs cannot (cross-package issues, whole-file and whole-package rules
+such as file-length-limit and package-size zones); the packages a caller resolved when
+the entry was a scoped command (`/{{.CmdPrefix}}-quickfix` names the rung and the files).
+Name the scope in the agent's spawn prompt; it lints nothing wider.
 
 The agent returns `FIXED` (mechanical — done) and `ESCALATED` (design-level, each
 with a rule route from its embedded routing table). Route every escalation back

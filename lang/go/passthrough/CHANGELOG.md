@@ -7,6 +7,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **Quickfix fixes what is in scope, and the lint-fixer's report is a contract.**
+  `/go-ldd-quickfix` resolves its scope by the same ladder as review and analyze — an
+  argument (a file pattern, or `--all` as the only way to the whole repository), else
+  the working tree's changes, else the branch against its base, else "nothing in scope
+  to fix" with the `--all` form named — and runs Phases 3, 4 and 5 over that scope:
+  the lint-fixer lints the scope's packages and nothing wider, every escalation in scope
+  is fixed by invoking the refactoring skill with its route (never by hand from the
+  command), the review runs over the scope's diff, and SHIP commits the green tree. The
+  lint-fixer takes the scope as an input and reports in literal lines the caller and the
+  evals parse — `SCOPE:`, `FIXED:` with every linter whose issues are gone, one
+  `ESCALATED:` line per failure with its `file:line` and rule route, `LINT STATUS:`. The
+  workflow's Phase 3 names the scope in the agent's spawn prompt. Motivated by the
+  go-2.10.0-5828c34 baseline, where the bare command on a clean tree linted the whole
+  brownfield fixture, executed 26 escalations itself and ran to the turn cap ($15 one
+  pass, $27 and a dissolved package with its tests the next): quickfix is for the PR you
+  are working on, not the first run of the plugin on a repository.
 - **A refactoring stops after its last pass, not at the first green linter, and the
   green tree is committed.** The refactoring skill's stopping criteria are six ordered
   steps over the touched files: the gates (linter, tests, size and nesting); a re-run of

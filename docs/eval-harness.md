@@ -69,8 +69,8 @@ Tiers are tags in each case's frontmatter, selected with `--tag`.
 
 | Tier | Agent may | Cases | Runs | Cost per run |
 |---|---|---|---|---|
-| cheap | read only, write a report | two trigger cases, the whole-repo review, six scoped reviews (Cases A–F), the centerpiece review | 2–3 | $0.06 (trigger) to $15 (whole-repo review) |
-| medium | edit code | quickfix on the red-lint scaffold, prepare, wire-repo-brain, six refactors (A–F), the centerpiece refactor | 1 | $1–8 |
+| cheap | read only, write a report | two trigger cases, the whole-repo review, six scoped reviews (Cases A–F), the centerpiece review, two clean-tree controls (review and quickfix say "nothing in scope" and touch nothing) | 2–3 | $0.06 (trigger) to $15 (whole-repo review) |
+| medium | edit code | quickfix over two packages of the red-lint scaffold, prepare, wire-repo-brain, six refactors (A–F), the centerpiece refactor | 1 | $1–8 |
 | expensive | run the whole workflow unattended | autopilot on an SMS-channel spec | 1 | $30 or more; runs only on explicit approval |
 
 Cheap answers "does the plugin see the problems"; medium answers "does it fix them
