@@ -15,7 +15,11 @@ allowed-tools:
 Fix code that already fails lint or review. This skill is a thin directional view:
 every fix pattern lives exactly once in `../../rules/` — this protocol routes each
 failure to its owning rule, sequences multi-rule work via `reference.md`, and loops
-until green. Operates autonomously — no user confirmation between patterns.
+until green. Operates autonomously — no user confirmation between patterns, and no
+user confirmation at the end: a standalone invocation ends with the green tree
+committed and the `Stop check` block rendered (`<stopping_criteria>` step 6,
+`<output_format>`). "Nothing is committed, ready for your review" is this skill
+failing, not finishing — there is no next turn to review in.
 
 Forward counterpart (designing before code exists): @code-designing.
 </objective>
