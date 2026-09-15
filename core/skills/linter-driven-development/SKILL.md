@@ -73,7 +73,7 @@ Refactor-only request (no new behavior): 1.5 via @refactoring → 3 → 4 → 5
    global", "drop the nolint": zero Phase 2 cycles. Route it as Phase 1.5 in its own
    right — the survey runs over the files the request names, the MULTIPLY gate reads
    "the request itself names the violation", and every move is applied by invoking
-   @refactoring, which owns the moves, the five-step stopping criteria and the
+   @refactoring, which owns the moves, the six-step stopping criteria and the
    commit of each green step. Then Phases 3, 4 and 5 as for any slice. Editing the
    code inline from this skill skips the stopping criteria, which is how a green
    linter ends up shipping with the second global still in place.

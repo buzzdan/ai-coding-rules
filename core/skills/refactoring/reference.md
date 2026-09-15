@@ -23,9 +23,9 @@ Spans R3 × R1 × R2 × R4. Apply least-invasive first; re-run the linter after 
 5. **Place it** (R4) — the ladder decides where the extraction lands: unexported
    helper, feature sub-package, or shared domain package.
 
-**When to stop**: the five ordered steps of SKILL.md's `<stopping_criteria>` — linter
-green is step 1 of 5, never the finish; the detection re-run, the noun check and the
-comment critic over the touched files come before STOP, and the commit after it.
+**When to stop**: the six ordered steps of SKILL.md's `<stopping_criteria>` — linter
+green is step 1 of 6, never the finish; the detection re-run, the noun check and the
+comment critic over the touched files come before STOP, and the commit is step 6.
 Warning signs you went past the sweet spot: types with one method that merely unwraps,
 functions that only call another function, more abstraction layers than domain
 concepts. The worked rejection: `../../examples/overabstraction-cidr.md`.

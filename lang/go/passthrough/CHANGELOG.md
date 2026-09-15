@@ -8,27 +8,39 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ### Changed
 
 - **A refactoring stops after its last pass, not at the first green linter, and the
-  green tree is committed.** The refactoring skill's stopping criteria are five ordered
+  green tree is committed.** The refactoring skill's stopping criteria are six ordered
   steps over the touched files: the gates (linter, tests, size and nesting); a re-run of
   every routed rule's detection commands, where a remaining hit means not done; the
   noun check, where each concept the code handles gets a named box scored with R1's
-  scorecard (a slice walked with flags is a collection type, an optional collaborator a
-  Null Object default, a value parsed twice one constructor); the comment critic over
-  the touched files with its verdicts applied; then STOP, with the over-engineering
-  signs as a check on the noun step rather than a reason to skip it. Extract Function
-  prefers the function that already exists and has a test over a sibling written
-  beside it. The workflow routes a request that delivers no new behavior ("fix the
-  design of", "remove the global") to the refactoring skill as Phase 1.5 in its own
-  right instead of reshaping code by hand, so the stopping criteria are reached at
-  all. Then, when tests and lint are green and the tree is dirty, the
-  refactoring is committed — the workflow's Phase 5 commits the slice it ships, a
-  standalone invocation commits at STOP — and the ship summary carries the hash; the
-  user decides only about deferred advisory findings. Motivated by the
+  scorecard (a slice walked with flags is a collection type over that slice, an
+  optional collaborator a Null Object default, a value parsed twice one constructor);
+  the comment critic over the touched files with its verdicts applied; STOP, with the
+  over-engineering signs as a check on the noun step rather than a reason to skip it;
+  and the commit — tests and lint green and the tree dirty → committed before the
+  report, the workflow's Phase 5 committing the slice it ships and a standalone
+  invocation committing here, never "let me know if you'd like me to commit". The
+  report carries a `Stop check` block with one line per step; a step with no line did
+  not run. Extract Function prefers the function that already exists and has a test
+  over a sibling written beside it, and a behavioral difference between the two is a
+  bug or a parameter of the one function, never a second parser. The workflow routes
+  a request that delivers no new behavior ("fix the design of", "remove the global")
+  to the refactoring skill as Phase 1.5 in its own right instead of reshaping code by
+  hand, so the stopping criteria are reached at all. The ship summary carries the
+  commit hash; the user decides only about deferred advisory findings. Motivated by the
   go-2.10.0-5828c34 baseline's medium tier, where every refactor stopped at "linter
   green, tests green": no collection type in the picker, a nil-able field and a
   restating comment left in the reporter, a second global left in the config package,
   a heartbeat parser re-implemented beside the tested one, and only the case whose
   prompt demanded commits committed anything.
+- **R2: an option handed nil records the error; the constructor joins them.** An
+  option keeps the `Option` signature — no error return — so `WithSink(nil)` compiles;
+  it must not become a value that works. The option validates its argument and
+  appends the failure to the value under construction, and the constructor returns
+  `errors.Join` of what the options recorded after applying them, so construction
+  fails with a message naming the option and the field never holds nil. R2's Null
+  Object example shows the shape; the refactoring skill's Null Object paragraph and
+  noun check point at it. Motivated by the refactor-group measurement, where the
+  reporter kept nil representable through `WithSink(nil)`.
 - **The review report renders every finding and every cluster; a count is never a
   finding.** Each surviving finding, each cheaper alternative the skeptic shipped and
   each non-KEEP critic verdict renders in the hunter's shape — the `file:line`

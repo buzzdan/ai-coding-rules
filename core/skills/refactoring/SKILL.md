@@ -58,14 +58,21 @@ collaborator's existing concrete type — `DiscardSink()` composing `io.Discard`
 that is `time.Now` — supplied as the constructor's default through an option or passed by
 the caller by name. Never a new interface with one no-op implementation (R6), never a
 nil parameter that means "default" (R2): `NewReporter(nil)` must not compile or must not
-exist.
+exist. An option keeps its `Option` signature, so `WithSink(nil)` compiles; it records
+the error on the value under construction and the constructor returns `errors.Join` of
+what the options recorded (R2's example) — the option never substitutes the default
+and never stores the nil.
 
 **Extract Function prefers the function that exists.** Before writing a helper for a
 step — parse, decode, normalize, validate — grep the package for one that already does
 it (`grep -rn 'func .*Parse' --include='{{.SrcGlob}}'` on the step's noun) and prefer
 the one with a test. A sibling written beside a tested function is a second owner of
 the same rule (R1 Q2), not an extraction; when the existing function has the wrong
-shape, change it and its test rather than copy it, and never leave two.
+shape, change it and its test rather than copy it, and never leave two. A behavioral
+difference between the inline code and the existing function — one trims a field, the
+other does not — is not a licence for a sibling: it is a bug in one of them (fix it,
+with a test) or a parameter of the one function, and the STATUS block names which. Two
+parsers of one line format is the finding R1 Q2 exists for.
 
 **Multi-rule procedures** (sequencing, god-object decomposition, package
 decomposition): `reference.md` in this directory.
@@ -150,7 +157,8 @@ below has run, in order, over the files this session touched:
    — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
    query methods on it — not an accumulator that stands beside the loop (that is the
    flags renamed); an optional collaborator that may be absent is a Null Object
-   default, never a nil-able field and never an option or setter that accepts nil; a
+   default, never a nil-able field, and an option handed nil records the error for
+   the constructor to return rather than storing it or substituting the default; a
    value parsed in two places has one constructor; a repeated predicate is a method.
    Score each candidate with R1's scorecard: ≥4 → apply the
    move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
@@ -162,12 +170,16 @@ below has run, in order, over the files this session touched:
 5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
    reason to skip it: a one-method type that merely unwraps, a function that only
    calls another, more layers than concepts — undo that move.
+6. **Commit.** Tests and lint green and the tree dirty → `git commit` with the STATUS
+   block's summary as the message — one commit per green step when the caller asked
+   for deployable steps — so the green tree outlives the session. Inside the
+   workflow, Phase 5 commits the slice it ships; a standalone invocation commits
+   here, now, before the report. A report that ends with "let me know if you'd like
+   me to commit" or "your call" is the failure this step exists to prevent: there is
+   no next turn.
 
-Then commit. When tests and lint are green and the tree is dirty, commit the
-refactoring with the STATUS block's summary as the message — one commit per green
-step when the caller asked for deployable steps — so the green tree outlives the
-session. Inside the workflow, Phase 5 commits the slice it ships; a standalone
-invocation commits here. Never leave a green refactoring uncommitted with "your call".
+The report's `Stop check` block renders one line per step (`<output_format>`); a
+step with no line did not run.
 </stopping_criteria>
 
 <output_format>
@@ -183,8 +195,18 @@ Types Rejected (not juicy): [Type] — [cheaper alternative used]
 Metrics: cyclomatic [before]→[after], LOC [before]→[after], nesting [before]→[after]
 Files Modified: [file] (+X, -Y)
 
+Stop check:
+1 gates      lint 0 · tests green · max LOC [n] · max nesting [n]
+2 re-run     [R3, R1, R8]: [0 hits / file.go:NN still — routed again]
+3 nouns      [Region (score 5) → Replace Primitive with Domain Type applied; Tags (score 2) → recorded]
+4 critic     [n] verdicts applied · [n] DELETE → routed R3
+5 STOP       [none of the over-engineering signs / undone: <move>]
+6 commit     [abc1234 "<message>" / Phase 5 commits the slice / tree clean, nothing to commit]
+
 STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
+Every line of `Stop check` renders, in this order, with a result — never a bare
+checkmark; a missing line means the step did not run and the STATUS is not final.
 </output_format>
 
 <integration>
