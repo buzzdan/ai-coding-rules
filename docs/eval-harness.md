@@ -98,12 +98,15 @@ replays recorded heartbeats against the rebuilt binary so any refactor is judged
 preservation.
 
 ## Results so far
-The current baseline measures plugin 2.10.0 at 5828c34, the first generated plugin
-directory, and lives in the evals repository under
+The current baseline measures plugin 2.11.0 at c78b55f, the close of Phase 2, and lives
+in the evals repository under
+[`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f)
+with a write-up: cheap 22 of 29 runs pass, medium 5 of 10 (one pass; the noise floor
+reuses the two-pass measurement of the previous baseline plus the same-head swings
+observed during Phase 2), the whole-repository review at 104 and 103 of 111 in the runs
+that delivered a report. It compares every case with the previous reference,
 [`baselines/go-2.10.0-5828c34/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-5828c34)
-with a write-up: cheap 8 of 23 runs pass (7 as first recorded, one more after a grader
-fix regraded its transcript), medium 5 of 10 (run twice for a noise floor),
-art judges 2 of 7. It was recorded from a Claude Code on the web container so that the
-earlier baseline on 681fdb0 and every later run share one environment; its findings
-drive the plugin's next changes, and the comparison procedure is in
+(plugin 2.10.0, before Phase 2), and no case regressed. Both were recorded from a Claude
+Code on the web container so that every baseline shares one environment; the new one's
+findings drive the plugin's next changes, and the comparison procedure is in
 [eval-baseline.md](eval-baseline.md).

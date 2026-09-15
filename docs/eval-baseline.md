@@ -17,12 +17,15 @@ findings, the noise floor and every grader change made after the run, and commit
 Traces compress well and are what makes later calibration free; the scaffolds are
 not committed, so graders that read the tree cannot be regraded from a clone.
 
-The current baseline measures plugin 2.10.0 at 5828c34 and lives in the evals
+The current baseline measures plugin 2.11.0 at c78b55f and lives in the evals
 repository at
-[`baselines/go-2.10.0-5828c34/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-5828c34);
+[`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f);
 its README compares it case by case with the earlier
-[`baselines/go-2.10.0-681fdb0/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-681fdb0),
-which is the worked example of the procedure below.
+[`baselines/go-2.10.0-5828c34/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-5828c34),
+which is the worked example of the procedure below, and names the reading guide for
+the next comparison: one grader on a scoped review is noise, up to three on the
+refactor cases C, F and the centerpiece is inside their observed swing and needs a
+second run, any change on a case that has never flipped is a signal.
 
 ## The noise floor
 Graders that flip between runs of the same case, on the same plugin, are the noise
