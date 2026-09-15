@@ -146,10 +146,13 @@ below has run, in order, over the files this session touched:
    one just removed, a `context.Background()` two functions down, the flag pair in the
    next loop: this step exists to catch them.
 3. **The noun check.** For each concept the touched code handles, ask once: does it
-   have a named box? A slice walked with flags is a collection type (Extract Leaf
-   Type); an optional collaborator that may be absent is a Null Object default, never
-   a nil-able field; a value parsed in two places has one constructor; a repeated
-   predicate is a method. Score each candidate with R1's scorecard: ≥4 → apply the
+   have a named box? A slice walked with flags is a collection type *over that slice*
+   — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
+   query methods on it — not an accumulator that stands beside the loop (that is the
+   flags renamed); an optional collaborator that may be absent is a Null Object
+   default, never a nil-able field and never an option or setter that accepts nil; a
+   value parsed in two places has one constructor; a repeated predicate is a method.
+   Score each candidate with R1's scorecard: ≥4 → apply the
    move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
    it. A candidate is never skipped because the linter is already quiet.
 4. **The comment critic.** Spawn one `comment-critic` (Agent tool, foreground) over
