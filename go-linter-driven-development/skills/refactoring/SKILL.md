@@ -186,6 +186,13 @@ changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort 
 
 Any hit → remove the directive and fix properly. Genuine false positives belong in
 `.golangci.yaml` exclusions — with user approval, never unilaterally.
+
+A `//nolint` that was already in a touched file is the same hit: it suppresses the
+rule it names (`gochecknoglobals` → R8, `gochecknoinits` → R8, `gocyclo` → R3), so
+route it as a finding of that rule and delete it with the fix. "Pre-existing" and
+"unrelated" are not verdicts — a request to make the linter pass without suppressions
+is met when the touched packages carry none, not when the one directive the request
+named is gone and its neighbours keep their `// TODO`.
 </nolint_prohibition>
 
 <stopping_criteria>
@@ -197,8 +204,12 @@ below has run, in order, over the files this session touched:
 2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
    questions) of every rule routed in this session over the touched files. A remaining
    hit of a routed rule means not done — route it again. The second global beside the
-   one just removed, a `context.Background()` two functions down, the flag pair in the
-   next loop: this step exists to catch them.
+   one just removed, the `init()` under it, a `context.Background()` two functions
+   down, the flag pair in the next loop: this step exists to catch them. "Pre-existing"
+   and "unrelated" are not verdicts — a routed rule's hit in a touched file is this
+   session's, and a suppression directive in a touched file is a hit of the rule it
+   suppresses (`<nolint_prohibition>`). The user never asked for the neighbours to be
+   left alone; the request that named one global meant the linter, not that line.
 3. **The noun check.** For each concept the touched code handles, ask once: does it
    have a named box? A slice walked with flags is a collection type *over that slice*
    — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
@@ -211,7 +222,10 @@ below has run, in order, over the files this session touched:
    move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
    it. A candidate is never skipped because the linter is already quiet.
 4. **The comment critic.** Spawn one `comment-critic` (Agent tool, foreground) over
-   the touched files with the payload @pre-commit-review step 3b names; apply its
+   the touched files with the payload @pre-commit-review step 3b names, and state the
+   scope in the spawn prompt as *every comment in each touched file*, not the changed
+   lines — the `// Sink is where events are written.` godoc beside the code just
+   reshaped restates its name whether or not this session wrote it. Apply its
    TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
    `DELETE → route R3` verdicts back to step 3.
 5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
@@ -219,7 +233,9 @@ below has run, in order, over the files this session touched:
    calls another, more layers than concepts — undo that move.
 6. **Commit.** Tests and lint green and the tree dirty → `git commit` with the STATUS
    block's summary as the message — one commit per green step when the caller asked
-   for deployable steps — so the green tree outlives the session. Inside the
+   for deployable steps, and for R8 a step is one island and its caller (Extract Clean
+   Island, then Push the Global Up One Level, one level per commit), never every
+   caller threaded at once — so the green tree outlives the session. Inside the
    workflow, Phase 5 commits the slice it ships; a standalone invocation commits
    here, now, before the report. A report that ends with "let me know if you'd like
    me to commit" or "your call" is the failure this step exists to prevent: there is

@@ -119,7 +119,10 @@ and can still be hostile to the plan.
    the `overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
    one sharpening in the spawn prompt: the justification is the approved plan in
    hand, not an imagined future — score the extraction as if the feature already
-   existed. REFUTED → apply the cheaper alternative or defer.
+   existed. REFUTED → apply the cheaper alternative or defer. R2's construction
+   mechanics — a validating constructor, unexported fields, an `Option` type and its
+   `With*` functions, a named Null Object default — are not extractions and skip this
+   gate: apply R2 as written.
 
 **Apply** the survivors via @refactoring (`<preparatory_mode>`); full test suite and
 lint green after every move; land the prep work as its own commit(s) before the first
@@ -228,7 +231,9 @@ before.
    can amend, split or revert a commit; an uncommitted tree evaporates with the
    session. Prep commits (Phase 1.5) stay separate.
 3. Present the ship summary: the commit hash, tests green, lint green, review delta
-   (Phase 4), files changed. User decides only about the deferred advisory findings:
+   (Phase 4), files changed, and — when @refactoring ran in this session — its
+   `Stop check` block verbatim, one line per step (a refactoring whose block is
+   missing did not finish). User decides only about the deferred advisory findings:
    fix them now or later.
 </phase_5_ship>
 

@@ -134,7 +134,12 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
   `NewReporter(nil)` legal and merely moves the nil-check — the default lives in an
   option or the caller passes the Null Object by name. Only a *required*
   collaborator (a store, a client the type cannot work without) is rejected in the
-  constructor — doing nothing silently there would hide a bug.
+  constructor — doing nothing silently there would hide a bug. Promoting an optional
+  collaborator to a required positional parameter with a comment saying "pass
+  `DiscardSink()` instead of nil" changes nothing: the parameter still accepts nil,
+  the constructor neither defaults nor rejects it, and the first `Record` panics. A
+  collaborator with a sensible do-nothing default is optional; it stays an option
+  with the default in the constructor.
 
   An option keeps the `Option` signature — no error return, or every call site
   becomes a chore — so `WithSink(nil)` is a call that compiles. It must not become a

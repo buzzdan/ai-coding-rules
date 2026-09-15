@@ -41,6 +41,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   Object example shows the shape; the refactoring skill's Null Object paragraph and
   noun check point at it. Motivated by the refactor-group measurement, where the
   reporter kept nil representable through `WithSink(nil)`.
+- **The skeptic never scores R2's construction mechanics, and the refactoring
+  critic sweeps every comment in the touched files.** A validating constructor,
+  unexported fields, an `Option` type with its `With*` functions and a named Null
+  Object default are not extractions: they close the holes of a type that already
+  exists, so the review's skeptic pass and PREPARE's SKEPTICIZED gate skip them and
+  the skeptic answers `N/A (R2 mechanism)` when handed one — caller count is no
+  argument against them, and a nil-guard R2 deletes is not a regression. R2 adds that
+  promoting an optional collaborator to a required positional parameter with a
+  "pass `DiscardSink()`" comment leaves nil representable. The refactoring skill's
+  critic step states its scope as every comment in each touched file, not the
+  changed lines. Motivated by a refactor-group run where the skeptic refuted R2's own
+  canonical options example as "unearned ceremony for one caller", the model fell
+  back to nil-able positional arguments, and `// Sink is where events are written.`
+  survived two critic passes because neither had it in scope.
+- **"Pre-existing" is not a verdict.** The refactoring skill's detection re-run treats
+  a routed rule's hit in a touched file as this session's, and a `//nolint` already in
+  a touched file as a hit of the rule it suppresses, to be routed and deleted with the
+  fix; a request to make the linter pass without suppressions is met when the touched
+  packages carry none. For R8 a deployable step is one island and its caller per
+  commit, never every caller threaded at once. The workflow's ship summary carries
+  @refactoring's `Stop check` block verbatim. Motivated by a refactor-group run that
+  removed the named global, left `var region` and `init()` beside it with their
+  `// TODO` suppressions "as scoped", and threaded three packages in one commit.
 - **The review report renders every finding and every cluster; a count is never a
   finding.** Each surviving finding, each cheaper alternative the skeptic shipped and
   each non-KEEP critic verdict renders in the hunter's shape — the `file:line`
