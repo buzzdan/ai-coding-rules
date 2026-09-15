@@ -2,8 +2,7 @@
 name: linter-driven-development
 description: |
   META ORCHESTRATOR for any {{.Lang}} code change that should end in a commit (features, bug fixes, refactors).
-  WHEN: User requests {{.Lang}} code work (implement, fix, add, refactor, "make X readable", "fix the design of", "remove the global", "drop the nolint"), mentions "@ldd"/"ldd", or runs a /{{.CmdPrefix}}-* command in a {{.Lang}} project.
-  A request that delivers no new behavior is a refactor-only run: Phase 1.5 via @refactoring → 3 → 4 → 5, and Phase 5 commits the green tree.
+  WHEN: User requests {{.Lang}} code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /{{.CmdPrefix}}-* command in a {{.Lang}} project.
   Runs the five-phase workflow (PREPARE is an autonomous sub-phase, 1.5): DESIGN → PREPARE → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
   - Skill({{.Plugin}}:code-designing)

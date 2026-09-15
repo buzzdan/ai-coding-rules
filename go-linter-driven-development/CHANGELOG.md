@@ -25,9 +25,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   bug or a parameter of the one function, never a second parser. The workflow routes
   a request that delivers no new behavior ("fix the design of", "remove the global")
   to the refactoring skill as Phase 1.5 in its own right instead of reshaping code by
-  hand, so the stopping criteria are reached at all; the refactoring skill's description
-  names the workflow as the entry point for such a request, because three standalone
-  runs ended with the green tree uncommitted whatever the skill's own text said. The ship summary carries the
+  hand, so the stopping criteria are reached at all. The ship summary carries the
   commit hash; the user decides only about deferred advisory findings. Motivated by the
   go-2.10.0-5828c34 baseline's medium tier, where every refactor stopped at "linter
   green, tests green": no collection type in the picker, a nil-able field and a

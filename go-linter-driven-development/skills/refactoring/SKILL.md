@@ -2,8 +2,7 @@
 name: refactoring
 description: |
   BACKWARD view over rules/ — routes linter and review failures to the rule whose Fix pattern owns the repair.
-  INVOKED BY @linter-driven-development (Phase 1.5 PREPARE, Phase 3 lint failures, a refactor-only request) and by the caller acting on accepted @pre-commit-review findings.
-  A user request to make code readable, fix its design or remove a global STARTS AT @linter-driven-development, which routes it here as Phase 1.5 and commits the green tree in Phase 5 — do not answer such a request with this skill alone.
+  Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain.
   Also runs PREPARATORY mode: reshape code an approved plan touches, before the first RED, so the feature lands add-only.
   Applies storifying, type extraction, function extraction, conditional-dispatch, and mutation-discipline patterns via rules/R1-R8 and R10-R12.
 allowed-tools:
@@ -279,7 +278,7 @@ checkmark; a missing line means the step did not run and the STATUS is not final
 
 <integration>
 **Invoked by**: @linter-driven-development (Phase 1.5 / RED friction → `<preparatory_mode>`;
-a refactor-only request as Phase 1.5 in its own right; Phase 3, lint failures), or the caller acting
+Phase 3, lint failures), or the caller acting
 on accepted @pre-commit-review findings (@linter-driven-development Phase 4 accepted
 findings, or the user) — @pre-commit-review reports only and never invokes fix skills.
 **Invokes**: @code-designing (new types/design needed), @testing (after every extraction
