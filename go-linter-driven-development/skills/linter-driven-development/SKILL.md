@@ -2,7 +2,8 @@
 name: linter-driven-development
 description: |
   META ORCHESTRATOR for any Go code change that should end in a commit (features, bug fixes, refactors).
-  WHEN: User requests Go code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /go-ldd-* command in a Go project.
+  WHEN: User requests Go code work (implement, fix, add, refactor, "make X readable", "fix the design of", "remove the global", "drop the nolint"), mentions "@ldd"/"ldd", or runs a /go-ldd-* command in a Go project.
+  A request that delivers no new behavior is a refactor-only run: Phase 1.5 via @refactoring → 3 → 4 → 5, and Phase 5 commits the green tree.
   Runs the five-phase workflow (PREPARE is an autonomous sub-phase, 1.5): DESIGN → PREPARE → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
   - Skill(go-linter-driven-development:code-designing)

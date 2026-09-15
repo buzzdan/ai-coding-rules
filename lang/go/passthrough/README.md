@@ -56,7 +56,7 @@ The [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) sk
 5 SHIP       @documentation → commit (tests and lint green, tree dirty) → ship summary
 ```
 
-A request that delivers no new behavior ("fix the design of", "remove the global") skips Phase 2 entirely: it runs as Phase 1.5 in its own right, every move applied by @refactoring — which owns the moves, the six-step stopping criteria (the commit is the sixth) and each green step — then Phases 3, 4 and 5 as for any slice. The workflow never reshapes code by hand.
+A request that delivers no new behavior ("fix the design of", "remove the global") skips Phase 2 entirely: it runs as Phase 1.5 in its own right, every move applied by @refactoring — which owns the moves, the six-step stopping criteria (the commit is the sixth) and each green step — then Phases 3, 4 and 5 as for any slice. The workflow never reshapes code by hand, and a user's refactor request starts at the workflow, not at `@refactoring` directly: the refactoring skill is invoked, never the entry point, so the commit in Phase 5 is always reached.
 
 Design happens once, up front (Phase 1); the RED test's shape carries that design into GREEN. PREPARE makes the change easy before making the easy change — reshaping only what the plan touches and only violations the plan would multiply, gated autonomously (the over-abstraction skeptic judges any extraction) so autopilot never stops to ask. The cheap per-cycle greps in Phase 2's REFACTOR are the mid-implementation net; the Phase 4 hunter/skeptic pass is the verification net on finished work.
 
@@ -106,7 +106,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 |-------|------|
 | [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) | Meta-orchestrator — sequences the five phases (plus the autonomous PREPARE sub-phase, 1.5) |
 | [`@code-designing`](skills/code-designing/SKILL.md) | FORWARD view — which rule to open at each design step (Phase 1) |
-| [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern; preparatory mode reshapes ahead of a planned change (Phase 1.5) |
+| [`@refactoring`](skills/refactoring/SKILL.md) | BACKWARD view — routes each linter/review failure to its owning rule's Fix pattern; preparatory mode reshapes ahead of a planned change (Phase 1.5). Invoked by the workflow; a user's refactor request starts at `@linter-driven-development`, which commits the result in Phase 5 |
 | [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) | Orchestrates the hunter/skeptic review (Phase 4); reports, never edits |
 | [`@testing`](skills/testing/SKILL.md) | The composition ladder — test each behavior at the lowest rung that contains it |
 | [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring, OKF conformance + conventions self-hosting; FEATURE mode (Phase 5) / BOOTSTRAP mode |
