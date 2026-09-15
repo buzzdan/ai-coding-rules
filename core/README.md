@@ -76,19 +76,19 @@ binding must decide how to render, by scalar, include or whole-file override.
 Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob or nolint directive is left in core/.
 
-Soft residue by token (254 lines):
+Soft residue by token (256 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
 | interface | 51 | 13 |
 | nil | 41 | 7 |
-| .go suffix | 32 | 9 |
+| .go suffix | 33 | 10 |
 | godoc | 23 | 7 |
 | goroutine | 18 | 5 |
 | ctx | 15 | 4 |
+| Go linter name | 13 | 6 |
 | context. | 13 | 6 |
 | struct | 13 | 9 |
-| Go linter name | 12 | 5 |
 | func | 11 | 5 |
 | httptest | 10 | 3 |
 | Go (the word) | 9 | 7 |
@@ -100,7 +100,7 @@ Soft residue by token (254 lines):
 | pkg_test | 3 | 2 |
 | go test / go vet | 2 | 2 |
 
-Soft residue by file (254 lines):
+Soft residue by file (256 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -123,10 +123,10 @@ Soft residue by file (254 lines):
 | `agents/overabstraction-skeptic.md` | 4 | 3 |
 | `skills/linter-driven-development/SKILL.md` | 4 | 4 |
 | `agents/comment-critic.md` | 3 | 1 |
+| `agents/lint-fixer.md` | 3 | 3 |
 | `commands/{{.CmdPrefix}}-analyze.md` | 2 | 2 |
 | `rules/R12-mutation-discipline.md` | 2 | 1 |
 | `rules/R4-helper-placement.md` | 2 | 3 |
-| `agents/lint-fixer.md` | 1 | 1 |
 | `commands/wire-repo-brain.md` | 1 | 1 |
 | `rules/R1-primitive-obsession.md` | 1 | 1 |
 <!-- residue:end -->
