@@ -8,3 +8,10 @@ changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort 
 
 Any hit → remove the directive and fix properly. Genuine false positives belong in
 `.golangci.yaml` exclusions — with user approval, never unilaterally.
+
+A `//nolint` that was already in a touched file is the same hit: it suppresses the
+rule it names (`gochecknoglobals` → R8, `gochecknoinits` → R8, `gocyclo` → R3), so
+route it as a finding of that rule and delete it with the fix. "Pre-existing" and
+"unrelated" are not verdicts — a request to make the linter pass without suppressions
+is met when the touched packages carry none, not when the one directive the request
+named is gone and its neighbours keep their `// TODO`.

@@ -76,57 +76,57 @@ binding must decide how to render, by scalar, include or whole-file override.
 Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob or nolint directive is left in core/.
 
-Soft residue by token (236 lines):
+Soft residue by token (254 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
 | interface | 51 | 13 |
-| .go suffix | 31 | 8 |
-| nil | 29 | 6 |
-| godoc | 22 | 6 |
+| nil | 41 | 7 |
+| .go suffix | 32 | 9 |
+| godoc | 23 | 7 |
 | goroutine | 18 | 5 |
 | ctx | 15 | 4 |
+| context. | 13 | 6 |
 | struct | 13 | 9 |
 | Go linter name | 12 | 5 |
-| context. | 12 | 5 |
+| func | 11 | 5 |
 | httptest | 10 | 3 |
 | Go (the word) | 9 | 7 |
-| func | 8 | 3 |
 | sync. | 7 | 4 |
 | Go library | 6 | 3 |
-| init() | 4 | 2 |
+| init() | 5 | 2 |
 | wantErr | 4 | 3 |
 | Go code fence | 3 | 1 |
 | pkg_test | 3 | 2 |
 | go test / go vet | 2 | 2 |
 
-Soft residue by file (236 lines):
+Soft residue by file (254 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
-| `rules/R2-self-validating-types.md` | 31 | 5 |
+| `rules/R2-self-validating-types.md` | 39 | 5 |
 | `rules/R10-concurrency-safety.md` | 29 | 8 |
 | `rules/R11-conditional-dispatch.md` | 25 | 6 |
 | `rules/R6-test-only-interfaces.md` | 18 | 3 |
 | `skills/pre-commit-review/SKILL.md` | 18 | 7 |
+| `skills/refactoring/SKILL.md` | 17 | 11 |
 | `rules/R8-no-globals.md` | 11 | 5 |
 | `rules/R9-repo-brain.md` | 11 | 4 |
 | `skills/testing/SKILL.md` | 11 | 6 |
 | `rules/R5-vertical-slice.md` | 10 | 1 |
 | `rules/R7-test-placement.md` | 10 | 7 |
 | `skills/code-designing/SKILL.md` | 10 | 5 |
-| `skills/refactoring/SKILL.md` | 10 | 7 |
 | `skills/documentation/SKILL.md` | 8 | 3 |
 | `maxims.md` | 7 | 3 |
 | `agents/rule-hunter.md` | 5 | 1 |
 | `skills/refactoring/reference.md` | 5 | 5 |
+| `agents/overabstraction-skeptic.md` | 4 | 3 |
 | `skills/linter-driven-development/SKILL.md` | 4 | 4 |
 | `agents/comment-critic.md` | 3 | 1 |
 | `commands/{{.CmdPrefix}}-analyze.md` | 2 | 2 |
 | `rules/R12-mutation-discipline.md` | 2 | 1 |
 | `rules/R4-helper-placement.md` | 2 | 3 |
 | `agents/lint-fixer.md` | 1 | 1 |
-| `agents/overabstraction-skeptic.md` | 1 | 1 |
 | `commands/wire-repo-brain.md` | 1 | 1 |
 | `rules/R1-primitive-obsession.md` | 1 | 1 |
 <!-- residue:end -->

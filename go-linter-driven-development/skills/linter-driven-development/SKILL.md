@@ -58,7 +58,9 @@ The lint-fixer agent is spawned with the **Agent tool**:
 3 FULL LINT   ONE run via lint-fixer agent (Agent tool)
      mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
 4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
-5 SHIP     @documentation → commit summary → user commits
+5 SHIP     @documentation → commit (tests and lint green, tree dirty) → ship summary
+
+Refactor-only request (no new behavior): 1.5 via @refactoring → 3 → 4 → 5
 ```
 </flow>
 
@@ -68,6 +70,15 @@ The lint-fixer agent is spawned with the **Agent tool**:
    order): test + lint commands. Fallbacks: `go test ./...`, `golangci-lint run --fix`.
 3. **List the behaviors** this change delivers — each becomes one Phase 2 TDD cycle.
    No plan or unclear scope → Phase 1 produces the plan; unclear intent → ask.
+4. **A request that delivers no behavior is a refactor**, and this skill never
+   reshapes code by hand. "Fix the design of", "make X readable", "remove the
+   global", "drop the nolint": zero Phase 2 cycles. Route it as Phase 1.5 in its own
+   right — the survey runs over the files the request names, the MULTIPLY gate reads
+   "the request itself names the violation", and every move is applied by invoking
+   @refactoring, which owns the moves, the six-step stopping criteria and the
+   commit of each green step. Then Phases 3, 4 and 5 as for any slice. Editing the
+   code inline from this skill skips the stopping criteria, which is how a green
+   linter ends up shipping with the second global still in place.
 </pre_flight>
 
 <phase_1_design>
@@ -108,7 +119,10 @@ and can still be hostile to the plan.
    the `overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
    one sharpening in the spawn prompt: the justification is the approved plan in
    hand, not an imagined future — score the extraction as if the feature already
-   existed. REFUTED → apply the cheaper alternative or defer.
+   existed. REFUTED → apply the cheaper alternative or defer. R2's construction
+   mechanics — a validating constructor, unexported fields, an `Option` type and its
+   `With*` functions, a named Null Object default — are not extractions and skip this
+   gate: apply R2 as written.
 
 **Apply** the survivors via @refactoring (`<preparatory_mode>`); full test suite and
 lint green after every move; land the prep work as its own commit(s) before the first
@@ -211,9 +225,16 @@ before.
    reviews every comment in the diff against R9's three-test standard;
    @documentation applies the verdicts and re-critiques once — R3 routes from the
    critic go back through @refactoring like any R3 finding).
-2. Present the ship summary: tests green (`go test ./...`), lint green (Phase 3),
-   review delta (Phase 4), files changed, suggested commit message.
-3. User decides: commit as-is · fix deferred advisory findings first · defer.
+2. Commit. When tests (`go test ./...`) and lint (Phase 3) are green and the tree
+   is dirty, commit the slice with the ship summary as the message. A green slice left
+   uncommitted "for the user" is the one state this workflow never ends in: the user
+   can amend, split or revert a commit; an uncommitted tree evaporates with the
+   session. Prep commits (Phase 1.5) stay separate.
+3. Present the ship summary: the commit hash, tests green, lint green, review delta
+   (Phase 4), files changed, and — when @refactoring ran in this session — its
+   `Stop check` block verbatim, one line per step (a refactoring whose block is
+   missing did not finish). User decides only about the deferred advisory findings:
+   fix them now or later.
 </phase_5_ship>
 
 <success_criteria>
@@ -226,5 +247,6 @@ before.
 - [ ] @pre-commit-review INCREMENTAL delta clean, or findings explicitly deferred by user
 - [ ] @documentation (FEATURE mode) done — docs wired into the network, R9 self-check
       clean, comment-critic critique loop applied and confirmed clean (or remainder
-      reported); commit summary presented and user chose an action
+      reported); the green slice committed and the ship summary presented with its
+      hash, deferred advisory findings listed
 </success_criteria>

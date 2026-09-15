@@ -53,8 +53,10 @@ The [`@linter-driven-development`](skills/linter-driven-development/SKILL.md) sk
 3 FULL LINT  ONE full-repo run via the lint-fixer agent (isolated context)
       mechanical → FIXED · design → ESCALATED → back to Phase 2's REFACTOR (@refactoring)
 4 REVIEW     per completed slice: @pre-commit-review spawns hunters + skeptic → advisory report
-5 SHIP       @documentation → commit summary → user commits
+5 SHIP       @documentation → commit (tests and lint green, tree dirty) → ship summary
 ```
+
+A request that delivers no new behavior ("fix the design of", "remove the global") skips Phase 2 entirely: it runs as Phase 1.5 in its own right, every move applied by @refactoring — which owns the moves, the six-step stopping criteria (the commit is the sixth) and each green step — then Phases 3, 4 and 5 as for any slice. The workflow never reshapes code by hand.
 
 Design happens once, up front (Phase 1); the RED test's shape carries that design into GREEN. PREPARE makes the change easy before making the easy change — reshaping only what the plan touches and only violations the plan would multiply, gated autonomously (the over-abstraction skeptic judges any extraction) so autopilot never stops to ask. The cheap per-cycle greps in Phase 2's REFACTOR are the mid-implementation net; the Phase 4 hunter/skeptic pass is the verification net on finished work.
 

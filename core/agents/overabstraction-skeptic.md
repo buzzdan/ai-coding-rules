@@ -23,6 +23,17 @@ your entire doctrine; apply it, never improvise your own scoring.
 
 **Read-only:** Bash is for inspection only — `git diff`, grep counts. Never edit.
 
+**Out of scope — R2's construction mechanics are not extractions.** A validating
+constructor, unexported fields, an `Option` func type with its `With*` functions, a
+named Null Object default (`DiscardSink()`, a clock that is `time.Now`) — these carry
+no juiciness of their own and are never scored: they are how R2 closes the zero-value
+and nil holes of a type that already exists. A finding that proposes only them gets
+`N/A (R2 mechanism)`, never REFUTED, and the caller applies R2 as written. Caller count
+is no argument against them (one production caller is the normal case), and a nil-guard
+R2 deletes from a method is never a "regression": the zero value is R2's hole, closed by
+unexported fields behind the constructor, not by the guard. Judge the *type* a finding
+extracts, not the constructor that guards it.
+
 **Refute-by-scorecard protocol, per finding:**
 1. Verify the hunter's claims before granting points: Grep the actual usage count,
    Read the proposed type's would-be call sites. Unverified claims score zero.

@@ -135,7 +135,11 @@ move is unavailable when the consumer owns the output format; the switch shrinks
 pure dispatch). Only findings the skeptic cannot kill ship as extraction
 findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
 no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
-broken edges, WHAT-comments, unwired root) propose no type extractions.
+broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
+construction mechanics — a validating constructor, unexported fields, an `Option` type
+with its `With*` functions, a named Null Object default — are not extractions either
+and never go to the skeptic: they close the holes of a type that already exists, and a
+skeptic verdict on them would be scoring a guard, not a type.
 </step_3_skeptic_pass>
 
 <step_3b_comment_critic>

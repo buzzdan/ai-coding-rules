@@ -96,7 +96,10 @@ directory in an environment variable, and it counts as one grader named
 `task lint`, byte identity of the lint config, per-file test assertion counts with a
 tree-total fallback when a test file was legitimately moved, complexity thresholds
 on a named function, git-log ratchets (Case F requires at least three commits and a
-non-increasing count of global reads), and the hidden black-box suite for the
+non-increasing count of global reads; every refactor case requires at least one commit
+after the scaffold base and a clean tree at the end, because a green refactoring the
+plugin leaves uncommitted has not shipped — and every refactor prompt asks for the
+commit, because the harness commits only when the user asks), and the hidden black-box suite for the
 centerpiece, which builds the service and replays recorded heartbeats.
 
 ## Art judges

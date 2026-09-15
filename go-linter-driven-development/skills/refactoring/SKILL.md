@@ -15,7 +15,11 @@ allowed-tools:
 Fix code that already fails lint or review. This skill is a thin directional view:
 every fix pattern lives exactly once in `../../rules/` — this protocol routes each
 failure to its owning rule, sequences multi-rule work via `reference.md`, and loops
-until green. Operates autonomously — no user confirmation between patterns.
+until green. Operates autonomously — no user confirmation between patterns, and no
+user confirmation at the end: a standalone invocation ends with the green tree
+committed and the `Stop check` block rendered (`<stopping_criteria>` step 6,
+`<output_format>`). "Nothing is committed, ready for your review" is this skill
+failing, not finishing — there is no next turn to review in.
 
 Forward counterpart (designing before code exists): @code-designing.
 </objective>
@@ -74,7 +78,21 @@ collaborator's existing concrete type — `DiscardSink()` composing `io.Discard`
 that is `time.Now` — supplied as the constructor's default through an option or passed by
 the caller by name. Never a new interface with one no-op implementation (R6), never a
 nil parameter that means "default" (R2): `NewReporter(nil)` must not compile or must not
-exist.
+exist. An option keeps its `Option` signature, so `WithSink(nil)` compiles; it records
+the error on the value under construction and the constructor returns `errors.Join` of
+what the options recorded (R2's example) — the option never substitutes the default
+and never stores the nil.
+
+**Extract Function prefers the function that exists.** Before writing a helper for a
+step — parse, decode, normalize, validate — grep the package for one that already does
+it (`grep -rn 'func .*Parse' --include='*.go'` on the step's noun) and prefer
+the one with a test. A sibling written beside a tested function is a second owner of
+the same rule (R1 Q2), not an extraction; when the existing function has the wrong
+shape, change it and its test rather than copy it, and never leave two. A behavioral
+difference between the inline code and the existing function — one trims a field, the
+other does not — is not a licence for a sibling: it is a bug in one of them (fix it,
+with a test) or a parameter of the one function, and the STATUS block names which. Two
+parsers of one line format is the finding R1 Q2 exists for.
 
 **Multi-rule procedures** (sequencing, god-object decomposition, package
 decomposition): `reference.md` in this directory.
@@ -172,13 +190,63 @@ changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort 
 
 Any hit → remove the directive and fix properly. Genuine false positives belong in
 `.golangci.yaml` exclusions — with user approval, never unilaterally.
+
+A `//nolint` that was already in a touched file is the same hit: it suppresses the
+rule it names (`gochecknoglobals` → R8, `gochecknoinits` → R8, `gocyclo` → R3), so
+route it as a finding of that rule and delete it with the fix. "Pre-existing" and
+"unrelated" are not verdicts — a request to make the linter pass without suppressions
+is met when the touched packages carry none, not when the one directive the request
+named is gone and its neighbours keep their `// TODO`.
 </nolint_prohibition>
 
 <stopping_criteria>
-STOP when ALL are met: linter passes (0 issues); functions <50 LOC, nesting ≤2;
-no red-zone packages; code reads like a story; no juicy extraction left (R1 scorecard
-says LOW on every remaining candidate). If linter passes AND code is readable → STOP;
-over-engineering signs (one-method types, pass-through functions) mean you went too far.
+Linter green is where stopping begins, not where it ends. STOP only when every step
+below has run, in order, over the files this session touched:
+
+1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
+   packages.
+2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
+   questions) of every rule routed in this session over the touched files. A remaining
+   hit of a routed rule means not done — route it again. The second global beside the
+   one just removed, the `init()` under it, a `context.Background()` two functions
+   down, the flag pair in the next loop: this step exists to catch them. "Pre-existing"
+   and "unrelated" are not verdicts — a routed rule's hit in a touched file is this
+   session's, and a suppression directive in a touched file is a hit of the rule it
+   suppresses (`<nolint_prohibition>`). The user never asked for the neighbours to be
+   left alone; the request that named one global meant the linter, not that line.
+3. **The noun check.** For each concept the touched code handles, ask once: does it
+   have a named box? A slice walked with flags is a collection type *over that slice*
+   — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
+   query methods on it — not an accumulator that stands beside the loop (that is the
+   flags renamed); an optional collaborator that may be absent is a Null Object
+   default, never a nil-able field, and an option handed nil records the error for
+   the constructor to return rather than storing it or substituting the default; a
+   value parsed in two places has one constructor; a repeated predicate is a method.
+   Score each candidate with R1's scorecard: ≥4 → apply the
+   move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
+   it. A candidate is never skipped because the linter is already quiet.
+4. **The comment critic.** Spawn one `comment-critic` (Agent tool, foreground) over
+   the touched files with the payload @pre-commit-review step 3b names, and state the
+   scope in the spawn prompt as *every comment in each touched file*, not the changed
+   lines — the `// Sink is where events are written.` godoc beside the code just
+   reshaped restates its name whether or not this session wrote it. Apply its
+   TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
+   `DELETE → route R3` verdicts back to step 3.
+5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
+   reason to skip it: a one-method type that merely unwraps, a function that only
+   calls another, more layers than concepts — undo that move.
+6. **Commit.** Tests and lint green and the tree dirty → `git commit` with the STATUS
+   block's summary as the message — one commit per green step when the caller asked
+   for deployable steps, and for R8 a step is one island and its caller (Extract Clean
+   Island, then Push the Global Up One Level, one level per commit), never every
+   caller threaded at once — so the green tree outlives the session. Inside the
+   workflow, Phase 5 commits the slice it ships; a standalone invocation commits
+   here, now, before the report. A report that ends with "let me know if you'd like
+   me to commit" or "your call" is the failure this step exists to prevent: there is
+   no next turn.
+
+The report's `Stop check` block renders one line per step (`<output_format>`); a
+step with no line did not run.
 </stopping_criteria>
 
 <output_format>
@@ -194,8 +262,18 @@ Types Rejected (not juicy): [Type] — [cheaper alternative used]
 Metrics: cyclomatic [before]→[after], LOC [before]→[after], nesting [before]→[after]
 Files Modified: [file] (+X, -Y)
 
+Stop check:
+1 gates      lint 0 · tests green · max LOC [n] · max nesting [n]
+2 re-run     [R3, R1, R8]: [0 hits / file.go:NN still — routed again]
+3 nouns      [Region (score 5) → Replace Primitive with Domain Type applied; Tags (score 2) → recorded]
+4 critic     [n] verdicts applied · [n] DELETE → routed R3
+5 STOP       [none of the over-engineering signs / undone: <move>]
+6 commit     [abc1234 "<message>" / Phase 5 commits the slice / tree clean, nothing to commit]
+
 STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
+Every line of `Stop check` renders, in this order, with a result — never a bare
+checkmark; a missing line means the step did not run and the STATUS is not final.
 </output_format>
 
 <integration>

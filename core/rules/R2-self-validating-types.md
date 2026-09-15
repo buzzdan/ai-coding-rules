@@ -82,7 +82,19 @@ entered, carrying context, instead of deep in an unrelated call stack.
   `NewReporter(nil)` legal and merely moves the nil-check — the default lives in an
   option or the caller passes the Null Object by name. Only a *required*
   collaborator (a store, a client the type cannot work without) is rejected in the
-  constructor — doing nothing silently there would hide a bug.
+  constructor — doing nothing silently there would hide a bug. Promoting an optional
+  collaborator to a required positional parameter with a comment saying "pass
+  `DiscardSink()` instead of nil" changes nothing: the parameter still accepts nil,
+  the constructor neither defaults nor rejects it, and the first `Record` panics. A
+  collaborator with a sensible do-nothing default is optional; it stays an option
+  with the default in the constructor.
+
+  An option keeps the `Option` signature — no error return, or every call site
+  becomes a chore — so `WithSink(nil)` is a call that compiles. It must not become a
+  value that works: the option validates its argument and records the failure on the
+  value under construction, and the constructor returns `errors.Join` of everything
+  recorded after applying the options. Construction fails with a message naming the
+  option; the field never holds nil; no method ever asks.
 
   ```go
   // ❌ optional sink kept nil-able; every method re-asks the question
@@ -93,10 +105,21 @@ entered, carrying context, instead of deep in an unrelated call stack.
   // ✅ absence is a named value; no argument is ever nil
   func DiscardSink() *Sink { return NewSink(io.Discard) }
 
-  func NewReporter(opts ...Option) *Reporter {
+  func WithSink(s *Sink) Option {
+      return func(r *Reporter) {
+          if s == nil {
+              r.errs = append(r.errs, errors.New("reporter: WithSink(nil)"))
+              return
+          }
+          r.sink = s
+      }
+  }
+
+  func NewReporter(opts ...Option) (*Reporter, error) {
       r := &Reporter{sink: DiscardSink(), clock: time.Now}
       for _, o := range opts { o(r) }
-      return r
+      if err := errors.Join(r.errs...); err != nil { return nil, err }
+      return r, nil
   }
   // production: NewReporter(WithSink(sink)); tests: NewReporter(WithClock(fixed))
   ```
@@ -116,8 +139,9 @@ entered, carrying context, instead of deep in an unrelated call stack.
 - **Introduce Null Object** (`R11-conditional-dispatch.md`): an optional collaborator
   gets a *named* do-nothing value (`DiscardSink()`, a clock defaulting to `time.Now`)
   that the constructor supplies through an option or the caller passes explicitly;
-  the field is non-nil by construction, no parameter accepts nil, and every guard in
-  the methods is deleted. When the collaborator is a concrete type over an
+  the field is non-nil by construction, an option handed nil records the error for
+  the constructor's `errors.Join` instead of substituting the default, and every
+  guard in the methods is deleted. When the collaborator is a concrete type over an
   `io.Writer`, compose `io.Discard` into it; do not introduce an interface for the
   sake of the no-op (`R6-test-only-interfaces.md`).
 - **Delete re-validation of composed types**: if every parameter is itself
