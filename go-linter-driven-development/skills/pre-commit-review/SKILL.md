@@ -270,6 +270,13 @@ tally. A finding the skeptic refuted still counts as rendered when its
 cheaper alternative is on the page.
 Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
 Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
+
+**The report is the message.** The report is emitted as the text of the message that
+ends the review — never written to a file, never attached, never replaced by a summary
+that points at a file or at "the report I sent". Length is no reason: a
+whole-repository report of thirty kilobytes is the normal size and goes in the message
+whole, under its categories. This skill has nothing to write to disk; a Write call
+during a review is the report leaving the page.
 </step_4_merged_report>
 
 </protocol>
@@ -325,6 +332,8 @@ Caller decides: commit as-is · fix 🔴 first · fix all. Findings are advisory
 <constraints>
 This skill MUST NOT:
 - Edit code, fix findings, or invoke fix skills (@refactoring, @code-designing, @testing)
+- Write the report, or any part of it, to a file — the report is the message that
+  ends the review, whole, whatever its length
 - Run the linter or tests — the caller does (see @linter-driven-development)
 - Block commits — every finding is advisory; the caller decides what to fix
 - Restate rule content — rules live once in `../../rules/`; paste them as spawn payload

@@ -71,8 +71,9 @@ isolated context, spawned with the package list)
   @pre-commit-review in INCREMENTAL mode
 
 **Phase 5 — SHIP**: tests and lint green and the tree dirty → commit, then the ship
-summary with the hash, the scope line and the lint-fixer's `FIXED:` / `ESCALATED:`
-tallies.
+summary with the hash, the scope line, the lint-fixer's `FIXED:` / `ESCALATED:`
+tallies and — when @refactoring ran — its `Stop check` block verbatim, six labelled
+lines; without the block the refactoring did not finish and the summary is not final.
 
 **Loop until**:
 ✅ Tests pass | ✅ `LINT STATUS: green` over the scope | ✅ @pre-commit-review INCREMENTAL delta clean (or findings explicitly deferred)

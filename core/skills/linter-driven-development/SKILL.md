@@ -233,9 +233,11 @@ before.
    session. Prep commits (Phase 1.5) stay separate.
 3. Present the ship summary: the commit hash, tests green, lint green, review delta
    (Phase 4), files changed, and — when @refactoring ran in this session — its
-   `Stop check` block verbatim, one line per step (a refactoring whose block is
-   missing did not finish). User decides only about the deferred advisory findings:
-   fix them now or later.
+   `Stop check` block verbatim: the six labelled lines (`1 gates` … `6 commit`), not
+   a prose account of them. The block is a precondition of the summary, not an
+   ornament: no block, or fewer than six lines, means the refactoring did not finish —
+   run its `<stopping_criteria>` now, render the block, then present. User decides
+   only about the deferred advisory findings: fix them now or later.
 </phase_5_ship>
 
 <success_criteria>
