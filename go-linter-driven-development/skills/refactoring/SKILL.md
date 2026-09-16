@@ -197,17 +197,21 @@ changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort 
 Any hit → remove the directive and fix properly. Genuine false positives belong in
 `.golangci.yaml` exclusions — with user approval, never unilaterally.
 
-A `//nolint` that was already in a touched file is the same hit: it suppresses the
-rule it names (`gochecknoglobals` → R8, `gochecknoinits` → R8, `gocyclo` → R3), so
-route it as a finding of that rule and delete it with the fix. "Pre-existing" and
-"unrelated" are not verdicts — a request to make the linter pass without suppressions
-is met when the touched packages carry none, not when the one directive the request
-named is gone and its neighbours keep their `// TODO`.
+A `//nolint` that was already in a touched file is the same hit when it sits on a
+function or type this session changed, or on a package-level declaration in a touched
+package (`gochecknoglobals` → R8, `gochecknoinits` → R8): it suppresses the rule it
+names, so route it as a finding of that rule and delete it with the fix. "Pre-existing"
+and "unrelated" are not verdicts for those — a request to make the linter pass without
+suppressions is met when the touched functions and the touched packages' declarations
+carry none, not when the one directive the request named is gone and its neighbours
+keep their `// TODO`. A directive elsewhere in a touched file — `gocyclo` → R3 on a
+function this session never opened — is a BROADER CONTEXT line under the `Stop check`
+block: reported with its rule, not fixed in this session, not silent.
 </nolint_prohibition>
 
 <stopping_criteria>
 Linter green is where stopping begins, not where it ends. The exit is six actions over
-the files this session touched, run in order; each action ends by writing its line of
+the code this session touched, run in order; each action ends by writing its line of
 the `Stop check` block (`<output_format>`). The line is the receipt: an action with no
 line has not run, and the line is written when the action finishes, never from memory
 at the end.
@@ -215,16 +219,29 @@ at the end.
 1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
    packages. Line `1 gates`: the four measurements.
 2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
-   questions) of every rule routed in this session over the touched files. A remaining
-   hit of a routed rule means not done — route it again. The second global beside the
-   one just removed, the `init()` under it, a `context.Background()` two functions
-   down, the flag pair in the next loop: this step exists to catch them. "Pre-existing"
-   and "unrelated" are not verdicts — a routed rule's hit in a touched file is this
-   session's, and a suppression directive in a touched file is a hit of the rule it
-   suppresses (`<nolint_prohibition>`). The user never asked for the neighbours to be
-   left alone; the request that named one global meant the linter, not that line.
-   Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits` or
-   the anchor still standing and where it was routed again.
+   questions) of every rule routed in this session over the touched files — and for
+   R8 over the touched packages, because a package-level variable, an `init()` or a
+   singleton has no function to sit in: the sibling file of the one just edited is in
+   R8's scope, and in no other rule's. The bound on every remaining hit is what this
+   session touched, never the file it landed in:
+   - **Fixed** when the hit sits in a function or type this session changed, or is an
+     R8 package-level declaration in a touched package: the second global beside the
+     one just removed, the `init()` under it, the `context.Background()` in the
+     function just reshaped, the flag pair in the loop just storified. Route it again;
+     a hit here means not done. "Pre-existing" and "unrelated" are not verdicts for
+     these — the request that named one global meant the linter, not that line — and
+     a suppression directive on a touched function or type is a hit of the rule it
+     suppresses (`<nolint_prohibition>`).
+   - **Reported** when it sits anywhere else in a touched file — a function this
+     session never opened, a type it only called: one `BROADER CONTEXT` line per hit
+     under the block (`<output_format>`), `file:line — rule and question — what
+     stands`. Reported, not fixed, not silent. A one-line change to a brownfield file
+     does not make that file's other suppressions this session's work: the
+     `//nolint` on an eight-linter function two hundred lines from the edit is a
+     line in the report, never a storifying detour inside a globals request.
+   Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits`, the
+   anchor still standing and where it was routed again, or `n reported` for the hits
+   on BROADER CONTEXT lines.
 3. **The noun check.** For each concept the touched code handles, ask once: does it
    have a named box? A slice walked with flags is a collection type *over that slice*
    — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
@@ -264,7 +281,9 @@ at the end.
 The six lines are the block, and the block goes where the user reads: the message
 that ends the turn, whichever path invoked this skill — a standalone invocation's
 report, the workflow's Phase 5 ship summary, quickfix's ship summary. A caller that
-summarises this skill's work carries the block verbatim above its own summary. Prose
+summarises this skill's work carries the block verbatim above its own summary, and
+the BROADER CONTEXT lines under it travel with the block: what step 2 reported instead
+of fixing is the caller's to hear, not this session's to bury. Prose
 that narrates the steps ("re-ran detection, spawned the critic, committed") in place
 of the six lines is the block missing, and a missing block means the refactoring did
 not finish.
@@ -291,14 +310,20 @@ Stop check:
 5 STOP       [none of the over-engineering signs / undone: <move>]
 6 commit     [abc1234 "<message>" / Phase 5 commits the slice / tree clean, nothing to commit]
 
+BROADER CONTEXT
+  [file.go:NN — R3 Q1 — //nolint on an eight-linter function this session never opened / none]
+
 STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
 Every line of `Stop check` renders, in this order, with a result — never a bare
 checkmark; a missing line means the step did not run and the STATUS is not final.
 Each line opens with its step number and keyword exactly as shown — `1 gates`,
 `2 re-run`, `3 nouns`, `4 critic`, `5 STOP`, `6 commit` — so the six receipts can be
-found without reading the prose, and the result follows on the same line. The block
-is copied verbatim into whatever message ends the turn (`<stopping_criteria>`).
+found without reading the prose, and the result follows on the same line. Under the
+block, `BROADER CONTEXT` lists every hit step 2 reported rather than fixed, one line
+each with its `file:line`, rule and question, or `none`. The block and its BROADER
+CONTEXT lines are copied verbatim into whatever message ends the turn
+(`<stopping_criteria>`).
 </output_format>
 
 <integration>
