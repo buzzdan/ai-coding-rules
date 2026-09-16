@@ -29,7 +29,9 @@ detection commands. Never edit files, never run tests or fixers.
    across the full diff scope — the pre-filter is a lead generator, not a limit, and
    on a whole repository it is a sample. Count each command's hits and account for
    every one as a finding or as cleared; the plant two directories from the nearest
-   lead is found by the command, never by the lead list.
+   lead is found by the command, never by the lead list. A hit that belongs in another
+   finding's evidence keeps its own `file:line` there — folding a hit never drops its
+   anchor, and a test that mutates the global is named beside the global.
 3. When uncertain whether a lead meets the violation criterion, Read a case file the
    rule cites (the spawn prompt resolves cited case files to absolute paths) and compare
    against it.

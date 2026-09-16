@@ -16,7 +16,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   R5 on `internal/common` and `internal/utils` are one cluster titled with both
   packages. Each rule hunter now ends with one receipt line per falsifying question
   (`Q<n>: <hits> hit(s) → <findings> finding(s)`) over the full scope, so a
-  whole-repository hunt that stopped at its leads is visible. R1's Go detection for Q1
+  whole-repository hunt that stopped at its leads is visible, and a hit folded into
+  another finding's evidence keeps its `file:line`. The pass counts what the evidence
+  cites, not lines, and a finding line carrying two rules' or two questions' evidence
+  is a folded cluster that must have its entry: the first measurement found the
+  convergence on all four anchors and rendered each as one Design Debt line. R1's Go detection for Q1
   reads the whole `if` line (the check often sits after `err != nil ||`) and for Q4
   includes `return nil` and survives a trailing comment. Motivated by the
   go-2.11.0-c78b55f whole-repository review: four cluster graders failed in every run —
