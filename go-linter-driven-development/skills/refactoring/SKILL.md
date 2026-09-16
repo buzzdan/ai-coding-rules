@@ -3,6 +3,7 @@ name: refactoring
 description: |
   BACKWARD view over rules/ — routes linter and review failures to the rule whose Fix pattern owns the repair.
   Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain.
+  Also the skill for removing a `//nolint` directive or a package-level global (R8): "drop the suppression", "remove the global", "make the linter pass without suppressions" route here, one green step per commit.
   Also runs PREPARATORY mode: reshape code an approved plan touches, before the first RED, so the feature lands add-only.
   Applies storifying, type extraction, function extraction, conditional-dispatch, and mutation-discipline patterns via rules/R1-R8 and R10-R12.
 allowed-tools:
@@ -16,8 +17,8 @@ Fix code that already fails lint or review. This skill is a thin directional vie
 every fix pattern lives exactly once in `../../rules/` — this protocol routes each
 failure to its owning rule, sequences multi-rule work via `reference.md`, and loops
 until green. Operates autonomously — no user confirmation between patterns, and no
-user confirmation at the end: a standalone invocation ends with the green tree
-committed and the `Stop check` block rendered (`<stopping_criteria>` step 6,
+user confirmation at the end: every invocation ends with the green tree committed
+and the `Stop check` block in the message that ends the turn (`<stopping_criteria>`,
 `<output_format>`). "Nothing is committed, ready for your review" is this skill
 failing, not finishing — there is no next turn to review in.
 
@@ -170,6 +171,11 @@ Differences from failure-driven operation:
    vocabulary (`../../maxims.md`) — name *why* the code resists ("every caller asks
    this struct three questions and then decides — the design wants Tell-Don't-Ask"),
    not just which linter stayed red.
+6. **Green is the exit condition, not the exit.** Linter green → leave the loop
+   through `<stopping_criteria>`: its six steps run in order and each writes its line
+   of the `Stop check` block as it finishes. The loop has ended when the block has
+   its six lines and sits in the message that ends the turn; a green linter with no
+   block is the loop still running.
 </iteration_loop>
 
 <testing_integration>
@@ -200,11 +206,14 @@ named is gone and its neighbours keep their `// TODO`.
 </nolint_prohibition>
 
 <stopping_criteria>
-Linter green is where stopping begins, not where it ends. STOP only when every step
-below has run, in order, over the files this session touched:
+Linter green is where stopping begins, not where it ends. The exit is six actions over
+the files this session touched, run in order; each action ends by writing its line of
+the `Stop check` block (`<output_format>`). The line is the receipt: an action with no
+line has not run, and the line is written when the action finishes, never from memory
+at the end.
 
 1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
-   packages.
+   packages. Line `1 gates`: the four measurements.
 2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
    questions) of every rule routed in this session over the touched files. A remaining
    hit of a routed rule means not done — route it again. The second global beside the
@@ -214,6 +223,8 @@ below has run, in order, over the files this session touched:
    session's, and a suppression directive in a touched file is a hit of the rule it
    suppresses (`<nolint_prohibition>`). The user never asked for the neighbours to be
    left alone; the request that named one global meant the linter, not that line.
+   Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits` or
+   the anchor still standing and where it was routed again.
 3. **The noun check.** For each concept the touched code handles, ask once: does it
    have a named box? A slice walked with flags is a collection type *over that slice*
    — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
@@ -224,17 +235,21 @@ below has run, in order, over the files this session touched:
    value parsed in two places has one constructor; a repeated predicate is a method.
    Score each candidate with R1's scorecard: ≥4 → apply the
    move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
-   it. A candidate is never skipped because the linter is already quiet.
+   it. A candidate is never skipped because the linter is already quiet. Line
+   `3 nouns`: each candidate with its score and verdict — `none scored ≥2` when
+   nothing qualified, never a blank.
 4. **The comment critic.** Spawn one `comment-critic` (Agent tool, foreground) over
    the touched files with the payload @pre-commit-review step 3b names, and state the
    scope in the spawn prompt as *every comment in each touched file*, not the changed
    lines — the `// Sink is where events are written.` godoc beside the code just
    reshaped restates its name whether or not this session wrote it. Apply its
    TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
-   `DELETE → route R3` verdicts back to step 3.
+   `DELETE → route R3` verdicts back to step 3. Line `4 critic`: the verdict counts
+   applied and routed.
 5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
    reason to skip it: a one-method type that merely unwraps, a function that only
-   calls another, more layers than concepts — undo that move.
+   calls another, more layers than concepts — undo that move. Line `5 STOP`: none of
+   the signs, or the move undone.
 6. **Commit.** Tests and lint green and the tree dirty → `git commit` with the STATUS
    block's summary as the message — one commit per green step when the caller asked
    for deployable steps, and for R8 a step is one island and its caller (Extract Clean
@@ -243,10 +258,16 @@ below has run, in order, over the files this session touched:
    workflow, Phase 5 commits the slice it ships; a standalone invocation commits
    here, now, before the report. A report that ends with "let me know if you'd like
    me to commit" or "your call" is the failure this step exists to prevent: there is
-   no next turn.
+   no next turn. Line `6 commit`: the hash and message, `Phase 5 commits the slice`,
+   or `tree clean, nothing to commit`.
 
-The report's `Stop check` block renders one line per step (`<output_format>`); a
-step with no line did not run.
+The six lines are the block, and the block goes where the user reads: the message
+that ends the turn, whichever path invoked this skill — a standalone invocation's
+report, the workflow's Phase 5 ship summary, quickfix's ship summary. A caller that
+summarises this skill's work carries the block verbatim above its own summary. Prose
+that narrates the steps ("re-ran detection, spawned the critic, committed") in place
+of the six lines is the block missing, and a missing block means the refactoring did
+not finish.
 </stopping_criteria>
 
 <output_format>
@@ -274,6 +295,10 @@ STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
 Every line of `Stop check` renders, in this order, with a result — never a bare
 checkmark; a missing line means the step did not run and the STATUS is not final.
+Each line opens with its step number and keyword exactly as shown — `1 gates`,
+`2 re-run`, `3 nouns`, `4 critic`, `5 STOP`, `6 commit` — so the six receipts can be
+found without reading the prose, and the result follows on the same line. The block
+is copied verbatim into whatever message ends the turn (`<stopping_criteria>`).
 </output_format>
 
 <integration>

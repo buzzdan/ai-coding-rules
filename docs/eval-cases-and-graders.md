@@ -87,6 +87,10 @@ Two shapes learned the hard way:
   the cluster graders (the word cluster and the anchor on one line, or a bullet under
   a clusters header) read. Anything a report is not promised to say — a banner, a
   count, a verdict's punctuation — is wording, and a grader on it will flip.
+  The refactoring skill promises the same of its `Stop check` block: six lines
+  opening `1 gates` … `6 commit`, in the message that ends the turn, whichever path
+  invoked the skill (standalone, the workflow's ship summary, quickfix's). The
+  `stop-check` grader in every refactor case reads those six openings.
 
 ## Postcheck
 Graders read the transcript and the tree; they do not run commands. A medium case
@@ -102,8 +106,15 @@ plugin leaves uncommitted has not shipped — and every refactor prompt asks for
 commit, because the harness commits only when the user asks), and the hidden black-box suite for the
 centerpiece, which builds the service and replays recorded heartbeats.
 
-## Art judges
-Every refactor case carries `graders/art-judge.md`, an llm grader whose focus is the
+## Art judges and the stop check
+Every refactor case carries `graders/stop-check.md`, a regex over the final message
+for the refactoring skill's six labelled `Stop check` lines in order: it fails when the
+refactoring never rendered its exit, whether because a step was skipped or because the
+ship summary narrated the steps in prose. It is the measurement that makes the
+stopping criteria a contract rather than a checklist, the way the reconciliation header
+did for the review report.
+
+Every refactor case also carries `graders/art-judge.md`, an llm grader whose focus is the
 whole package (concepts move into new files, and a judge pinned to a filename cannot
 see that). The rubric asks four things and demands a quoted line for each: one named
 box per concept; method names in domain words, not mechanics; one abstraction level

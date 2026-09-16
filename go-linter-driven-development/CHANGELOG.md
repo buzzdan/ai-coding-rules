@@ -5,6 +5,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Changed
+
+- **The `Stop check` block is the refactoring's exit, and it is in the message that
+  ends the turn.** The refactoring skill's iteration loop no longer ends at a green
+  linter: green is the exit condition, and the exit is the six stopping-criteria
+  actions run in order, each writing its line of the `Stop check` block as it finishes
+  (`1 gates`, `2 re-run`, `3 nouns`, `4 critic`, `5 STOP`, `6 commit`, the keyword
+  opening each line). The line is the receipt of the step; a step with no line has not
+  run, and the noun line says `none scored ≥2` rather than staying blank. The block goes
+  where the user reads, whichever path invoked the skill: the workflow's Phase 5 ship
+  summary and quickfix's ship summary carry it verbatim above their own summary, and a
+  summary without the six lines is not final — the workflow runs the stopping criteria
+  and renders the block before presenting. The skill's description also names the
+  request that removes a `//nolint` directive or a package-level global as its own, so
+  "make the linter pass without suppressions" reaches the stopping criteria instead of
+  being edited by hand. Motivated by the go-2.11.0-c78b55f baseline: against identical
+  text the picker refactor scored 8/8 in one run and 5/8 in the next, the centerpiece
+  9/11 then 5/11, and the block that would have shown which steps were skipped rendered
+  in one refactor run of seven; the globals case never invoked a plugin skill at all.
+- **The review report is the message.** The pre-commit review's report is emitted as
+  the text of the message that ends the review — never written to a file, never replaced
+  by a summary that points at one — and `/go-ldd-review` says the same of its `--all`
+  form; writing the report to disk is now a listed constraint violation. Motivated by
+  the baseline's third whole-repository run, which did the full review and then wrote
+  its 36 KB report to a scratchpad file with the Write tool and sent a two-kilobyte
+  summary ending "it's in the report I just sent you".
+
 ## [2.11.0] - 2026-09-15
 
 ### Changed
