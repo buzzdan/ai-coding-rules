@@ -197,16 +197,18 @@ changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort 
 Any hit → remove the directive and fix properly. Genuine false positives belong in
 `.golangci.yaml` exclusions — with user approval, never unilaterally.
 
-A `//nolint` that was already in a touched file is the same hit when it sits on a
-function or type this session changed, or on a package-level declaration in a touched
-package (`gochecknoglobals` → R8, `gochecknoinits` → R8): it suppresses the rule it
-names, so route it as a finding of that rule and delete it with the fix. "Pre-existing"
-and "unrelated" are not verdicts for those — a request to make the linter pass without
-suppressions is met when the touched functions and the touched packages' declarations
-carry none, not when the one directive the request named is gone and its neighbours
-keep their `// TODO`. A directive elsewhere in a touched file — `gocyclo` → R3 on a
-function this session never opened — is a BROADER CONTEXT line under the `Stop check`
-block: reported with its rule, not fixed in this session, not silent.
+A `//nolint` that was already in a touched file is the same hit when it names a linter
+of a rule routed this session and sits on a function or type this session changed, or
+on a package-level declaration in a touched package (`gochecknoglobals` → R8,
+`gochecknoinits` → R8 in a globals request): it suppresses the rule it names, so route
+it as a finding of that rule and delete it with the fix. "Pre-existing" and "unrelated"
+are not verdicts for those — a request to make the linter pass without suppressions is
+met when the touched functions and the touched packages' declarations carry none of
+the routed rules' directives, not when the one directive the request named is gone and
+its neighbours keep their `// TODO`. A directive elsewhere in a touched file, or one
+naming a linter of a rule this session never routed — `gocyclo,gocognit` → R3 on the
+function whose one global read was just replaced — is a BROADER CONTEXT line under the
+`Stop check` block: reported with its rule, not fixed in this session, not silent.
 </nolint_prohibition>
 
 <stopping_criteria>
@@ -222,8 +224,11 @@ at the end.
    questions) of every rule routed in this session over the touched files — and for
    R8 over the touched packages, because a package-level variable, an `init()` or a
    singleton has no function to sit in: the sibling file of the one just edited is in
-   R8's scope, and in no other rule's. The bound on every remaining hit is what this
-   session touched, never the file it landed in:
+   R8's scope, and in no other rule's. The rules routed this session are the outer
+   bound: a rule no failure routed here has no re-run and no fix in this session,
+   whatever a suppression in the touched code names. Inside that bound, every
+   remaining hit is measured by what this session touched, never the file it landed
+   in:
    - **Fixed** when the hit sits in a function or type this session changed, or is an
      R8 package-level declaration in a touched package: the second global beside the
      one just removed, the `init()` under it, the `context.Background()` in the
@@ -231,14 +236,18 @@ at the end.
      a hit here means not done. "Pre-existing" and "unrelated" are not verdicts for
      these — the request that named one global meant the linter, not that line — and
      a suppression directive on a touched function or type is a hit of the rule it
-     suppresses (`<nolint_prohibition>`).
+     suppresses (`<nolint_prohibition>`) when that rule was routed this session.
    - **Reported** when it sits anywhere else in a touched file — a function this
-     session never opened, a type it only called: one `BROADER CONTEXT` line per hit
-     under the block (`<output_format>`), `file:line — rule and question — what
-     stands`. Reported, not fixed, not silent. A one-line change to a brownfield file
-     does not make that file's other suppressions this session's work: the
-     `//nolint` on an eight-linter function two hundred lines from the edit is a
-     line in the report, never a storifying detour inside a globals request.
+     session never opened, a type it only called — or when it is a hit of a rule this
+     session never routed, wherever it sits: one `BROADER CONTEXT` line per hit under
+     the block (`<output_format>`), `file:line — rule and question — what stands`.
+     Reported, not fixed, not silent. Replacing one global read inside a brownfield
+     function does not make that function's eight-linter `//nolint` this session's
+     work: the complexity rules it names were never routed by a globals request, so
+     the directive is a line in the report, never a storifying detour. The reverse
+     bound holds too: a hit in code this session wrote or moved is never a BROADER
+     CONTEXT line — the sibling parser this session extracted beside the tested one
+     (R1 Q2) is fixed, and "pre-existing" is not a word for it.
    Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits`, the
    anchor still standing and where it was routed again, or `n reported` for the hits
    on BROADER CONTEXT lines.
