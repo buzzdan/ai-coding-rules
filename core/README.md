@@ -76,12 +76,12 @@ binding must decide how to render, by scalar, include or whole-file override.
 Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob or nolint directive is left in core/.
 
-Soft residue by token (258 lines):
+Soft residue by token (259 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
 | interface | 51 | 13 |
-| nil | 41 | 7 |
+| nil | 42 | 7 |
 | .go suffix | 34 | 10 |
 | godoc | 23 | 7 |
 | goroutine | 18 | 5 |
@@ -100,16 +100,16 @@ Soft residue by token (258 lines):
 | pkg_test | 3 | 2 |
 | go test / go vet | 2 | 2 |
 
-Soft residue by file (258 lines):
+Soft residue by file (259 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
 | `rules/R2-self-validating-types.md` | 39 | 5 |
 | `rules/R10-concurrency-safety.md` | 29 | 8 |
 | `rules/R11-conditional-dispatch.md` | 25 | 6 |
+| `skills/pre-commit-review/SKILL.md` | 19 | 7 |
 | `skills/refactoring/SKILL.md` | 19 | 11 |
 | `rules/R6-test-only-interfaces.md` | 18 | 3 |
-| `skills/pre-commit-review/SKILL.md` | 18 | 7 |
 | `rules/R8-no-globals.md` | 11 | 5 |
 | `rules/R9-repo-brain.md` | 11 | 4 |
 | `skills/testing/SKILL.md` | 11 | 6 |

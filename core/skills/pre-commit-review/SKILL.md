@@ -102,7 +102,10 @@ reviewed project's cwd and cannot resolve plugin-relative paths on its own.
 
 Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
-plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
+plus one receipt line per falsifying question (`Q<n>: <hits> hit(s) → <findings>
+finding(s)`) and a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
+The receipts are how a whole-repository hunt is read: a question with no receipt was
+not run over the scope, and the leads were never the scope.
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
@@ -175,10 +178,19 @@ go to @refactoring.
 Merge surviving findings into one report.
 
 **Cluster pass (before categorizing):** group *every* hunter finding — kept, refuted
-by the skeptic, or never sent to it — by shared anchor: the same type,
-field/discriminator, or function named in ≥2 findings from *different* rules. The
-skeptic's verdict removes a proposed type from the fix column; it never removes the
-convergence, which is the evidence. Each hunter is single-obsession and blind to the others, so independent
+by the skeptic, or never sent to it — by shared anchor. An anchor is the named thing a
+finding is about, never its line: a type (a finding on one of its fields and a finding
+on one of its methods share the type), a function, a discriminator, or a package (two
+findings on files of one package share the package, and findings that name the same
+two packages together share both as one anchor). List the anchors first, then count.
+An anchor converges when ≥2 findings from *different* rules land on it, or ≥2
+findings answering *different* falsifying questions of one rule — exported nilable
+fields, a method that re-checks them and a nil handed to the constructor are three
+questions of R2 answered on one type, and one missing constructor, not three lines.
+Two findings of the same question on one anchor are a shared-shape line below, not a
+cluster. The skeptic's verdict removes a proposed type from the fix column; it never
+removes the convergence, which is the evidence. Each hunter is single-obsession and
+blind to the others, and each falsifying question is blind to the next, so independent
 convergence on one anchor is evidence that a domain concept is missing there — the
 cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
 primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
@@ -196,9 +208,10 @@ jurisdictions). Render each cluster as a first-class entry above the categories:
 
 Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
 anchor: two findings or twenty, the largest and the smallest alike. The title is the
-anchor itself — the type, field or function name the findings share
-(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`), never a description of
-the problem; the description is the Hypothesis line beneath it. When the skeptic
+anchor itself — the type, field, function or package name the findings share
+(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`,
+`🔗 CLUSTER: internal/common, internal/utils`), never a description of the problem;
+the description is the Hypothesis line beneath it. When the skeptic
 reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
 type routes design-first as above; a REFUTED one keeps the cluster (the convergence
 is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no

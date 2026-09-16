@@ -7,6 +7,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **Clusters group by anchor, not by line, and a hunter accounts for every question.**
+  The pre-commit review's cluster pass names an anchor as the thing a finding is about —
+  a type with its fields and methods, a function, a discriminator, or a package (two
+  packages named together are one anchor) — and an anchor converges when findings from
+  different rules land on it, or findings answering different falsifying questions of
+  one rule: three R2 questions answered on one type are one missing constructor, R4 and
+  R5 on `internal/common` and `internal/utils` are one cluster titled with both
+  packages. Each rule hunter now ends with one receipt line per falsifying question
+  (`Q<n>: <hits> hit(s) → <findings> finding(s)`) over the full scope, so a
+  whole-repository hunt that stopped at its leads is visible. R1's Go detection for Q1
+  reads the whole `if` line (the check often sits after `err != nil ||`) and for Q4
+  includes `return nil` and survives a trailing comment. Motivated by the
+  go-2.11.0-c78b55f whole-repository review: four cluster graders failed in every run —
+  `Reporter` (three R2 findings rendered as singletons), the role-named packages (R4 on
+  each package, no package anchor), `Catalog.Find` and retention (the R1 hunter received
+  no lead for `internal/snapshot`, whose `days <= 0 || days > 365` sits after
+  `err != nil ||` and whose `return 0 // sentinel` carries a comment, and never ran the
+  commands itself there) — while the same plants cluster in every scoped review.
 - **The detection re-run is bounded by what the session touched, and R8 reads the
   package.** The refactoring skill's stopping-criteria step 2 now sends each remaining
   hit one of two ways, inside the outer bound of the rules routed this session: fixed
