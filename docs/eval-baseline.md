@@ -6,18 +6,19 @@ description: how a baseline is recorded and compared: noise floor, regrade, the 
 
 ## Recording one
 Run the cheap tier two or three times per case and the medium tier once, with the
-model pinned and one `OUT` directory for both tiers (`task go:run` keeps scaffolds
+model pinned and one `OUT` directory for both tiers (`task <lang>:run` keeps scaffolds
 and writes each tier to `OUT/<tier>`). Regrade once after calibration so every
 `result.json` carries the current graders' verdict. Then promote the run:
-`task go:baseline OUT=<run dir> PLUGIN=<plugin dir>` creates
-`baselines/go-<plugin version>-<plugin sha>/` in the evals repository with the
+`task <lang>:baseline OUT=<run dir> PLUGIN=<plugin dir>` creates
+`baselines/go-<plugin version>-<plugin sha>/` (or `baselines/python-…/` for the
+Python suite) in the evals repository with the
 verdicts, every trace in one `traces.tar.zst`, the plugin pin in `plugin.json`, and
 a README stub with the per-case table pre-filled. Finish the README with the
 findings, the noise floor and every grader change made after the run, and commit.
 Traces compress well and are what makes later calibration free; the scaffolds are
 not committed, so graders that read the tree cannot be regraded from a clone.
 
-The current baseline measures plugin 2.11.0 at c78b55f and lives in the evals
+The Go suite's current baseline measures plugin 2.11.0 at c78b55f and lives in the evals
 repository at
 [`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f);
 its README compares it case by case with the earlier
@@ -25,7 +26,10 @@ its README compares it case by case with the earlier
 which is the worked example of the procedure below, and names the reading guide for
 the next comparison: one grader on a scoped review is noise, up to three on the
 refactor cases C, F and the centerpiece is inside their observed swing and needs a
-second run, any change on a case that has never flipped is a signal.
+second run, any change on a case that has never flipped is a signal. The first
+Python baseline, once the Python plugin exists, adds the parity report to its
+README: per rule, recall on py-mini against recall on go-mini under the Go plugin,
+so the rules with a large gap are where the Python binding spends next.
 
 ## The noise floor
 Graders that flip between runs of the same case, on the same plugin, are the noise

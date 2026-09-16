@@ -1,8 +1,8 @@
 ---
 type: architecture
-description: the go-mini fixture and the violations manifest: plants, controls, scaffolds, and the checks that keep them honest
+description: the go-mini and py-mini fixtures and their violations manifests: plants, controls, scaffolds, and the checks that keep them honest
 ---
-# The Fixture and Its Answer Key
+# The Fixtures and Their Answer Key
 
 ## The fixture
 `go/fixture/go-mini/` in the evals repository is a small device-fleet backend: devices post heartbeats
@@ -12,6 +12,17 @@ plugin's twelve rules describe, and no worse: every rule's falsifying questions 
 at least one plant that trips that question's own detection command, and every rule
 has a control — healthy code the plugin must leave alone. Recall is measured on
 plants, precision on controls.
+
+`py/fixture/py-mini/` is the same service written in Python for the Python plugin:
+the same packages as modules under `internal/`, the composition root as
+`svc/__main__.py`, tests beside the code as `test_*.py`, and the same HTTP contract
+(the two suites share one recording of heartbeat exchanges, so a black-box suite
+written for one passes against the other). What differs is only what the language
+forces: goroutines are daemon threads, nil is None, interfaces are Protocols,
+lint is two tools (ruff and mypy) with two suppression directives (`# noqa` and
+`# type: ignore`), and a Go idiom with no Python twin becomes the nearest disease
+the same rule catches (`context.Background()` in library code becomes
+`logging.basicConfig` at import, the labeled `continue` a for/else `break`).
 
 Ground rules, all enforced:
 
@@ -24,19 +35,28 @@ Ground rules, all enforced:
   alert channel is an HTTP webhook, so the test-double plants are demonstrably
   unnecessary.
 - **Two lint states from one tree.** Every design-level lint plant carries a
-  `//nolint:<linter> // TODO` directive. `scaffold/default.sh` copies the tree as is
+  suppression: `//nolint:<linter> // TODO` in Go, `# noqa: <codes>  # TODO` or
+  `# type: ignore[<code>]` in Python. `scaffold/default.sh` copies the tree as is
   (lint green, and the review must flag every directive). `scaffold/red-lint.sh`
-  strips the directives first: 51 real findings across 13 linters, which is what
-  the quickfix case exercises.
-- **House style is plain.** Standard-library testing and logging, a Taskfile, no
-  assertion library. Anything the agent introduces beyond that is a
-  when-in-Rome finding it must raise on itself.
-- **Everything lives under `internal/`, `cmd/` and `pkg/`** because the plugin's
-  package-size hook scans only those directories.
+  strips the directives first: 51 real findings across 13 linters in go-mini, 61
+  ruff findings across 21 rules plus 3 mypy errors in py-mini, which is what the
+  quickfix case exercises. In py-mini every remaining `# noqa` is live: ruff's
+  unused-noqa rule is on.
+- **House style is plain.** Standard-library testing and logging (pytest in
+  Python), a Taskfile, no assertion library. Anything the agent introduces beyond
+  that is a when-in-Rome finding it must raise on itself.
+- **Everything lives under `internal/`, `cmd/` and `pkg/`** in go-mini because the
+  Go plugin's package-size hook scans only those directories; py-mini keeps
+  `internal/` and puts the entry point in `svc/`, since a top-level `cmd` package
+  would shadow the standard library module of that name.
 
 ## The manifest
 `go/violations.yaml`, beside the fixture, is the answer key, kept outside the scaffolded tree. One
-entry per plant or control, 149 in total:
+entry per plant or control, 149 in total. `py/violations.yaml` carries the same 149
+ids in the same order with Python files and anchors; where a plant's disease had
+to change with the language, a comment on the entry says so, and `expect.lint`
+names the ruff rule that fires (or `"-"` where ruff has no rule for the plant, such
+as duplicate code, file length or exhaustiveness, so the plant is review-only).
 
 ```yaml
 - id: R11.Q1.channel-switch
@@ -71,13 +91,15 @@ The manifest has three consumers, so a fact lives once:
    committed graders differ from the manifest.
 2. **The refactor cases' oracles.** The `gone` patterns become file graders with
    `match: count:0` or a maximum count.
-3. **The later Python parity report.** A Python fixture will carry the same ids with
-   Python anchors, so per-rule recall can be compared across languages.
+3. **The Python parity report.** Because py-mini carries the same ids with Python
+   anchors, per-rule recall can be compared across languages one rule at a time.
 
-`check-manifest.sh` (`task go:manifest`) asserts that every listed file exists, that
-every anchor matches at least one line in each listed file, that every rule has at
-least one plant and one control, and that the fixture carries no hints. Run it after
-any change to the fixture or the manifest.
+`check-manifest.sh` (`task go:manifest`, `task py:manifest`) asserts that every
+listed file exists, that every anchor matches at least one line in each listed
+file, that every rule has at least one plant and one control, and that the fixture
+carries no hints. Run it after any change to a fixture or its manifest. The Python
+grader generator is the Go script called with the Python manifest and graders
+directory (`task py:graders`).
 
 ## Known weakness
 The Case D control's types have no callers in the fixture, so an agent that deletes
