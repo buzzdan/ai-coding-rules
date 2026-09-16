@@ -89,8 +89,9 @@ Two shapes learned the hard way:
   count, a verdict's punctuation — is wording, and a grader on it will flip.
   The refactoring skill promises the same of its `Stop check` block: six lines
   opening `1 gates` … `6 commit`, in the message that ends the turn, whichever path
-  invoked the skill (standalone, the workflow's ship summary, quickfix's). The
-  `stop-check` grader in every refactor case reads those six openings.
+  invoked the skill (standalone, the workflow's ship summary, quickfix's), and under
+  them one `BROADER CONTEXT` line per hit the detection re-run reported rather than
+  fixed. The `stop-check` grader in every refactor case reads those six openings.
 
 ## Postcheck
 Graders read the transcript and the tree; they do not run commands. A medium case
@@ -99,8 +100,10 @@ directory in an environment variable, and it counts as one grader named
 `postcheck`. `go/postcheck/lib.sh` provides the assertions: `task test` and
 `task lint`, byte identity of the lint config, per-file test assertion counts with a
 tree-total fallback when a test file was legitimately moved, complexity thresholds
-on a named function, git-log ratchets (Case F requires at least three commits and a
-non-increasing count of global reads; every refactor case requires at least one commit
+on a named function, git-log ratchets (Case F requires at least three commits, a
+non-increasing count of global reads, and no commit whose code changes reach beyond an
+island and its caller — two packages — where a commit that changes only comments or
+blank lines is not counted; every refactor case requires at least one commit
 after the scaffold base and a clean tree at the end, because a green refactoring the
 plugin leaves uncommitted has not shipped — and every refactor prompt asks for the
 commit, because the harness commits only when the user asks), and the hidden black-box suite for the

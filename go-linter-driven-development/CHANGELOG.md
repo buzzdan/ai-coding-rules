@@ -7,6 +7,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The detection re-run is bounded by what the session touched, and R8 reads the
+  package.** The refactoring skill's stopping-criteria step 2 now sends each remaining
+  hit one of two ways, inside the outer bound of the rules routed this session: fixed
+  when it sits in a function or type this session changed, or is a package-level
+  variable, `init()` or singleton in a package this session touched (R8's re-run unit
+  is the touched package, because a global has no function to sit in); reported when
+  it sits anywhere else in a touched file, or is a hit of a rule this session never
+  routed, as one `BROADER CONTEXT` line under the `Stop check` block — `file:line`,
+  rule and question, what stands — and not fixed in that session. The nolint
+  prohibition says the same of a `//nolint` that was already in a touched file: a
+  directive naming a linter of an unrouted rule is reported, even on a touched
+  function. Motivated by the first stop-check
+  measurement (#40): one globals run changed a single line of a brownfield file for a
+  constructor parameter, took on that file's eight-linter suppression under "a
+  suppression in a touched file is a hit", storified it inside the globals request and
+  died at the turn cap seven green commits in; the other run reported `R8: 0 hits` over
+  the touched files while the sibling file of the one it edited kept two package-level
+  variables and an `init()`.
 - **The `Stop check` block is the refactoring's exit, and it is in the message that
   ends the turn.** The refactoring skill's iteration loop no longer ends at a green
   linter: green is the exit condition, and the exit is the six stopping-criteria
