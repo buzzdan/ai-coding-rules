@@ -21,6 +21,11 @@ comment_prefix: "//"
 default_test: go test ./...
 default_lint: golangci-lint run
 default_lint_fix: golangci-lint run --fix
+nil: nil
+task: goroutine
+doc_form: godoc
+doc_comment: godoc comment
+src_ext: .go
 ignore:
   - evals/*
   - .DS_Store
@@ -33,6 +38,11 @@ func TestParse_Success(t *testing.T) {
 	assert.Equal(t, "go-linter-driven-development", p.Plugin)
 	assert.Equal(t, "go-ldd", p.CmdPrefix)
 	assert.Equal(t, "golangci-lint run --fix", p.DefaultLintFix)
+	assert.Equal(t, "nil", p.Nil)
+	assert.Equal(t, "goroutine", p.Task)
+	assert.Equal(t, "godoc", p.DocForm)
+	assert.Equal(t, "godoc comment", p.DocComment)
+	assert.Equal(t, ".go", p.SrcExt)
 	assert.Equal(t, []string{"evals/*", ".DS_Store"}, p.Ignore)
 }
 
@@ -50,6 +60,7 @@ func TestParse_Errors(t *testing.T) {
 		want  string
 	}{
 		{name: "missing scalar", input: "plugin: x\nlang: Go\n", want: "missing cmd_prefix"},
+		{name: "missing word scalar", input: strings.Replace(full, "nil: nil\n", "", 1), want: "missing nil"},
 		{name: "unknown key", input: full + "extra: 1\n", want: "field extra not found"},
 		{name: "not yaml", input: "plugin: [", want: "profile:"},
 		{name: "empty file", input: "", want: "profile:"},

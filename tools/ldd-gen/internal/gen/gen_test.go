@@ -23,6 +23,11 @@ comment_prefix: "#"
 default_test: ptest
 default_lint: plint
 default_lint_fix: plint --fix
+nil: none
+task: fiber
+doc_form: docstring
+doc_comment: doc comment
+src_ext: .p
 ignore: ["evals/*"]
 `
 

@@ -73,14 +73,41 @@ func TestHardTokens(t *testing.T) {
 	}
 }
 
-func TestSoftTokens_LinterAndLibraryNames(t *testing.T) {
-	t.Parallel()
-	r := scanLine(t, "the `exhaustive` linter and testify")
+func softTokens(t *testing.T, line string) []string {
+	t.Helper()
 	var names []string
-	for _, h := range r.Soft {
+	for _, h := range scanLine(t, line).Soft {
 		names = append(names, h.Token)
 	}
-	assert.ElementsMatch(t, []string{"Go linter name", "Go library"}, names)
+	return names
+}
+
+func TestSoftTokens(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		line string
+		want []string
+	}{
+		{name: "linter and library names", line: "the `exhaustive` linter and testify", want: []string{"Go linter name", "Go library"}},
+		{name: "linter name with a sub-check", line: "`govet copylocks` owns copied locks", want: []string{"Go linter name"}},
+		{name: "english exhaustive is not the linter", line: "one exhaustive switch is not a defect", want: nil},
+		{name: "context package", line: "no `context.Background()` in library code", want: []string{"context."}},
+		{name: "english context at a sentence end", line: "belongs to the main context. Return them", want: nil},
+		{name: "error tuple", line: "add `NewX`/`ParseX` returning `(X, error)`", want: []string{"error tuple"}},
+		{name: "absence tuple", line: "`(X, bool)` for absence", want: []string{"error tuple"}},
+		{name: "pointer tuple", line: "func NewReporter(opts ...Option) (*Reporter, error) {", want: []string{"error tuple", "func"}},
+		{name: "subtest", line: "a conditional inside `t.Run` means one case is really two", want: []string{"t.Run"}},
+		{name: "testable example", line: "Add testable examples (`Example_*`)", want: []string{"Example_"}},
+		{name: "stdlib call", line: "`io.Discard` is the standard library's; `time.Now` too", want: []string{"Go stdlib"}},
+		{name: "stdlib lower-case is not a symbol", line: "the io package and time budgets", want: nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ElementsMatch(t, tc.want, softTokens(t, tc.line))
+		})
+	}
 }
 
 func TestMarkdown(t *testing.T) {

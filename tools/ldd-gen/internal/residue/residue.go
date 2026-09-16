@@ -53,7 +53,10 @@ func HardTokens() []Token {
 	}
 }
 
-// SoftTokens are reported, never fatal.
+// SoftTokens are reported, never fatal. Linter names count only inside
+// backticks, the way the rule text always writes them, so the English word
+// "exhaustive" is not a hit; `context.` needs a capital letter after the dot
+// so a sentence ending in "context." is not one either.
 func SoftTokens() []Token {
 	return []Token{
 		token("Go code fence", "```go"),
@@ -62,12 +65,12 @@ func SoftTokens() []Token {
 		token("go test / go vet", `\bgo (test|vet)\b`),
 		token("godoc", `godoc`),
 		token("Go (the word)", `\bGo\b`),
-		token("Go linter name", `\b(errcheck|bodyclose|govet|exhaustive|gocognit|gocyclo|funlen|nestif|ireturn|dupl|gochecknoglobals|gochecknoinits|maintidx|cyclop|wrapcheck|goconst|varnamelen|misspell|revive)\b`),
+		token("Go linter name", "`(errcheck|bodyclose|govet|exhaustive|gocognit|gocyclo|funlen|nestif|ireturn|dupl|gochecknoglobals|gochecknoinits|maintidx|cyclop|wrapcheck|goconst|varnamelen|misspell|revive)( [a-z]+)?`"),
 		token("Go library", `\b(testify|golang\.org/|errgroup)\b`),
 		token("nil", `\bnil\b`),
 		token("goroutine", `goroutine`),
 		token("ctx", `\bctx\b`),
-		token("context.", `\bcontext\.`),
+		token("context.", `\bcontext\.[A-Z]`),
 		token("sync.", `\bsync\.`),
 		token("pkg_test", `pkg_test`),
 		token("func", `\bfunc `),
@@ -76,6 +79,10 @@ func SoftTokens() []Token {
 		token("init()", `\binit\(\)`),
 		token("wantErr", `wantErr`),
 		token("httptest", `httptest`),
+		token("error tuple", `\([^()]*, (error|bool)\)`),
+		token("t.Run", `\bt\.Run\b`),
+		token("Example_", `\bExample_`),
+		token("Go stdlib", `\b(strings|errors|fmt|io|time|bytes|atomic|slog)\.[A-Z][A-Za-z0-9]*`),
 	}
 }
 

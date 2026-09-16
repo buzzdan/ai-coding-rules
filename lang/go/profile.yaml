@@ -12,6 +12,13 @@ comment_prefix: "//"
 default_test: go test ./...
 default_lint: golangci-lint run
 default_lint_fix: golangci-lint run --fix
+# Single words core prose uses as common nouns: the missing value, a unit of
+# concurrent work, the documentation comment form, and the source-file suffix.
+nil: nil
+task: goroutine
+doc_form: godoc
+doc_comment: godoc comment
+src_ext: .go
 # Paths in the plugin directory the generator does not own. A pattern with a
 # slash matches a path or one of its parent directories; a pattern without a
 # slash matches a file or directory name anywhere, in the plugin directory and

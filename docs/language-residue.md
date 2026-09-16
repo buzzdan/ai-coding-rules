@@ -126,7 +126,7 @@ token for `(X, error)`-shaped tuples so the next language finds them.
 | Principle: "public API only, `pkg_test` package" | pkg_test | Include | `rules/R7/principle-public-api.md`, inline — the parenthetical's last item. Python has no external test package; its text says "importing only public names" |
 | Why: "a conditional inside `t.Run` means one case is really two" | — | Include | `rules/R7/why-subtest.md`, inline; unflagged today, `t.Run` gains a soft token |
 | Design guidance: the four bullets from "Leaf types (rung 0)" through "Complexity 1 inside every `t.Run`" | pkg_test, httptest, interface, wantErr | Include | `rules/R7/design-guidance-mechanics.md` — external test package, `httptest`, `t.Run`, `wantErr bool`, `TestX_Success`. The two neutral bullets that follow (private-test urge, ladder pointer) stay in core |
-| Design guidance: "**Mechanics**: named struct fields … no `time.Sleep` … testify suites" | struct, testify | Include | `rules/R7/mechanics.md` |
+| Design guidance: "**Mechanics**: named struct fields … no `time.Sleep` … testify suites" | struct, testify, Go stdlib | Include | `rules/R7/mechanics.md` |
 | Fix pattern: "**Split `wantErr` tables**" | wantErr | Include | `rules/R7/fix-split-tables.md` |
 | Fix pattern: "**Replace sleep with synchronization**: channel + `select`/timeout, or `sync.WaitGroup`" | sync. | Include | `rules/R7/fix-replace-sleep.md` |
 
@@ -137,6 +137,7 @@ token for `(X, error)`-shaped tuples so the next language finds them.
 | Principle: "no package-level mutable state, no `init()` writing state, no singletons fetched from inside business logic, no `context.Background()` in library code — `ctx` flows from caller to callee" | init(), context., ctx | Include | `rules/R8/principle-prohibitions.md`, inline. Python's list: no module-level mutable state, no import-time side effects, no singletons reached from business logic |
 | Why: "`context.Background()` deep in a call chain is the same sin in context form: it severs cancellation, timeouts, and tracing" | context. | Include | `rules/R8/why-context.md`, inline |
 | Why: "couples every caller to one config struct" | struct | Aside | |
+| Why: "loggers designed to be global (`slog`, `zerolog`), constants, and `var Err... = errors.New` sentinels are fine" | Go stdlib | Include | `rules/R8/acceptable-globals.md`, inline — the list of globals that are not defects; Python's names `logging.getLogger`, constants and exception classes |
 | Design guidance: the three bullets "`ctx` flows down", "`init()` computes nothing observable", "Singletons are wiring, not access" | ctx, context., init(), sync. | Include | `rules/R8/design-guidance-language.md` |
 | Fix pattern: "**Replace `init()` with a constructor**" and "**Thread `ctx`**" | init(), ctx, context. | Include | `rules/R8/fix-pattern-language.md` — the two Go moves; "Extract Clean Island" and "Push the Global Up One Level" stay in core |
 
@@ -151,12 +152,14 @@ token for `(X, error)`-shaped tuples so the next language finds them.
 | "let the `exhaustive` linter prove completeness" and Fix "no `default`, `exhaustive` linter enforcing completeness" | linter name | Include | `rules/R11/exhaustiveness-check.md`, inline at both sites. Python: mypy with `assert_never`; generic: the linter's exhaustiveness check where the language has one |
 | "`if err != nil`, guard clauses" | nil | Include | part of the state-conditional examples; `rules/R11/state-conditional-examples.md`, inline |
 | Fix, Introduce Null Object: "absent-collaborator nil-checks", "(`DiscardSink()` composing `io.Discard`)" | nil, interface | Scalar + Include | `{{.Nil}}-checks`; the parenthetical is `rules/R11/fix-null-object-example.md`, inline |
+| Fix, Replace Duplicated Switch: "introduce `ParseX(raw) (X, error)` as the single decision point" | error tuple | Include | `rules/R11/decision-point-signature.md`, inline |
 
 ### Other rules
 
 | File and anchor | Tokens | Outcome | Slot or reason |
 |---|---|---|---|
 | R1, scorecard: "Replacing `map[string]interface{}`: +2" | interface | Include | `rules/R1/scorecard-untyped-map.md`, inline — Python `dict[str, Any]`, generic "an untyped map" |
+| R1, Fix: "introduce `ParseX(raw) (X, error)`" and "absence/invalidity → `(X, bool)` or `(X, error)`" | error tuple | Include | `rules/R1/constructor-signature.md` and `rules/R1/comma-ok-signature.md`, inline — Python: a classmethod that raises, and `X | None` for absence |
 | R4, Design guidance: "The Go accelerant: embedding a domain type … `sync` primitives per `R10-concurrency-safety.md`" | Go, struct, interface, sync. | Include | `rules/R4/embedding-accelerant.md` — Python's accelerant is inheriting from a domain type; the generic text names inheritance or embedding |
 | R5, role-named files: parser, handler, repository, service and the rename `<feature>_service` → `service` | source suffix (10 lines) | Scalar | `{{.SrcExt}}` on every file name; the layout is the same in a Python package |
 | R9, "godoc comments → repo docs → the index", "a godoc comment lives beside the code" | godoc | Scalar | `{{.DocComment}}` |
@@ -166,12 +169,14 @@ token for `(X, error)`-shaped tuples so the next language finds them.
 | R9, monorepo note: "this build carries the Go adapter" | Go | Scalar | `{{.Lang}}` — a missed substitution |
 | R12, Principle: "to Go, where slices and maps are references into shared backing storage" | Go | Include | `rules/R12/aliasing-semantics.md`, inline — true of Python lists and dicts too, with different nouns |
 | R12, Why: "In Go, `return g.perms` does not return the permissions; it returns a mutable alias" | Go | Include | `rules/R12/aliasing-example.md`, inline |
+| R12, no setters: "or returns a new value (`WithPort(n) (Server, error)`)" | error tuple | Include | `rules/R12/with-method-example.md`, inline — the parenthetical |
+| R9, comment budget: "anything bigger belongs in an `Example_*` testable example" | Example_ | Include | `rules/R9/inline-example-overflow.md`, inline — Python: a doctest or an example under the docs |
 
 ### maxims.md
 
 Aside, the whole file. The Go proverbs are attributed quotations and the scanner
 already exempts the attribution lines. Their "Ask" and "Compiled into" paragraphs
-mention `bytes.Buffer`, `sync.Mutex`, `io.Reader` and "this struct" as illustrations
+mention `ParseX(raw) (X, error)`, `bytes.Buffer`, `sync.Mutex`, `io.Reader` and "this struct" as illustrations
 of quoted doctrine; a Python or generic plugin quotes the same proverbs with the same
 illustrations, the way a book on design quotes Go proverbs.
 
@@ -214,6 +219,7 @@ illustrations, the way a book on design quotes Go proverbs.
 | documentation SKILL, "narration in a godoc", "godocs and feature docs", "Rung 1 — godoc", "richer inline godoc", "godoc: <symbols touched>", "expanding its godoc" | godoc | Scalar | `{{.DocForm}}` |
 | documentation SKILL, "A package that earns more moves its godoc to …" and "Add testable examples (`Example_*`)" | godoc, source suffix | Include | `skills/documentation/package-doc-and-examples.md` — the package-doc-file sentence and the `Example_*` sentence; the latter is unflagged Go today |
 | documentation SKILL, "beats an exhaustive doc" | exhaustive | Aside | English |
+| documentation SKILL, report artifacts: "testable examples: <Example_* functions>" | Example_ | Include | `skills/documentation/testable-examples-artifact.md` — the artifact line; Python lists doctests |
 | linter-driven-development, trigger: "(`{{.ProjectMarker}}` or … files present)" | source suffix | Scalar | `{{.SrcExt}}` |
 | linter-driven-development, SAFE gate: "(`go test -cover` on the touched packages)" | go test | Include | `skills/linter-driven-development/coverage-check.md`, inline — pytest spells it `--cov` |
 | linter-driven-development, "creates a type/interface/package" | interface | Aside | |
@@ -235,24 +241,21 @@ illustrations, the way a book on design quotes Go proverbs.
 | analyze command, the "Analyze specific file" usage example | source suffix | Scalar | `{{.SrcExt}}` |
 | wire-repo-brain command, "one-line godoc edge additions" | godoc | Scalar | `{{.DocForm}}` |
 
-## What the scanner learns from this
+## How the scanner enforces this
 
-`task lint-core` needs these changes so the decisions above are enforced rather than
-remembered:
+`task lint-core` is what keeps these decisions from being remembered instead of
+enforced:
 
-- **Hard tokens for the new scalars.** Once `nil`, `godoc`, `goroutine` and the Go
-  source suffix have scalars, their literals in core are missed substitutions. `nil` inside a
-  code fence is the one exception worth keeping soft, because fences move to includes
-  in the same sweep.
-- **Two false positives.** `\bcontext\.` matches the English word at a sentence end
-  ("the main context.", "provides context."); the pattern needs a capital letter
-  after the dot. The English "exhaustive" is indistinguishable from the linter name;
-  the linter-name token should require the backticks the rule text always puts
-  around it.
-- **Unflagged Go.** Error-tuple signatures such as `(X, error)` and `(X, bool)`,
-  `t.Run`, `Example_*`, `strings.` and `errors.New` appear in core with no token.
-  Each gets a soft token so the report is complete before the Python binding is
-  written.
+- **Soft tokens cover every idiom named above.** Besides the words with scalars, the
+  scanner reports error-tuple signatures such as `(X, error)` and `(X, bool)`,
+  `t.Run`, `Example_*`, and capitalized standard-library calls (`errors.New`,
+  `io.Discard`, `time.Now`). A linter name counts only inside backticks, so the
+  English word "exhaustive" is not a hit; `context.` needs a capital letter after
+  the dot, so a sentence ending in "context." is not one either.
+- **A scalar's literal becomes a hard token once no core line spells it.** While a
+  literal is still triaged as an include that has not moved, it stays soft; the
+  promotion to hard lands in the same change that moves the last literal, so
+  `task lint-core` stays green on every commit.
 - **A binding that overrides nothing** is the expected shape after this triage; the
   override mechanism stays for files outside the rules, such as a plugin README that
   differs entirely.

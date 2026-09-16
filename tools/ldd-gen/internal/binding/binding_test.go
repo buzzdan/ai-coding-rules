@@ -22,6 +22,11 @@ comment_prefix: "#"
 default_test: xtest
 default_lint: xlint
 default_lint_fix: xlint --fix
+nil: none
+task: fiber
+doc_form: docstring
+doc_comment: doc comment
+src_ext: .p
 `
 
 func langFS() fstest.MapFS {

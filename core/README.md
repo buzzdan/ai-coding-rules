@@ -16,7 +16,13 @@ Go `text/template` with the default delimiters. Core files use only two construc
 
 - `{{.Plugin}}`, `{{.Lang}}`, `{{.CmdPrefix}}`, `{{.SrcGlob}}`, `{{.TestGlob}}`,
   `{{.ProjectMarker}}`, `{{.Nolint}}`, `{{.CommentPrefix}}`, `{{.DefaultTest}}`,
-  `{{.DefaultLint}}`, `{{.DefaultLintFix}}` — scalars from `profile.yaml`.
+  `{{.DefaultLint}}`, `{{.DefaultLintFix}}`, `{{.Nil}}`, `{{.Task}}`, `{{.DocForm}}`,
+  `{{.DocComment}}`, `{{.SrcExt}}` — scalars from `profile.yaml`. The last five are
+  single words core prose uses as common nouns (the missing value, a unit of
+  concurrent work, the documentation comment form, the source-file suffix); which
+  sentences use them, and which Go idioms are includes instead, is recorded in
+  `docs/language-residue.md`. A template that names a scalar the profile does not
+  define fails to render.
 - `{{include "rules/R1/canonical-example.md"}}` — the body of that file under
   `lang/<lang>/`, with exactly one trailing newline removed.
 
@@ -68,65 +74,71 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
 Hard residue is a plugin-name or command-prefix literal, a `golangci` reference, a
 source-file glob or a nolint directive: each has a profile scalar or an include, so a
 hit is a missed substitution and fails the check. Soft residue is Go vocabulary that
-reads fine in a Go plugin (`nil`, `ctx`, goroutines, `interface`, linter and library
-names such as `exhaustive` or `testify`); it is the list of words a second language
-binding must decide how to render, by scalar, include or whole-file override.
+reads fine in a Go plugin (`nil`, `ctx`, goroutines, `interface`, error tuples,
+standard-library calls, linter and library names such as `exhaustive` or `testify`);
+it is the list of words a second language binding must decide how to render, by
+scalar, include or whole-file override. The decision per token is recorded in
+`docs/language-residue.md`.
 
 <!-- residue:begin -->
 Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob or nolint directive is left in core/.
 
-Soft residue by token (259 lines):
+Soft residue by token (283 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
 | interface | 51 | 13 |
 | nil | 42 | 7 |
 | .go suffix | 34 | 10 |
+| Go stdlib | 34 | 9 |
 | godoc | 23 | 7 |
 | goroutine | 18 | 5 |
 | ctx | 15 | 4 |
-| Go linter name | 13 | 6 |
-| context. | 13 | 6 |
+| error tuple | 13 | 6 |
 | struct | 13 | 9 |
 | func | 11 | 5 |
+| context. | 10 | 4 |
 | httptest | 10 | 3 |
 | Go (the word) | 9 | 7 |
 | sync. | 7 | 4 |
 | Go library | 6 | 3 |
 | init() | 6 | 2 |
+| Go linter name | 4 | 2 |
 | wantErr | 4 | 3 |
+| Example_ | 3 | 2 |
 | Go code fence | 3 | 1 |
 | pkg_test | 3 | 2 |
 | go test / go vet | 2 | 2 |
+| t.Run | 2 | 1 |
 
-Soft residue by file (259 lines):
+Soft residue by file (283 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
-| `rules/R2-self-validating-types.md` | 39 | 5 |
-| `rules/R10-concurrency-safety.md` | 29 | 8 |
-| `rules/R11-conditional-dispatch.md` | 25 | 6 |
-| `skills/pre-commit-review/SKILL.md` | 19 | 7 |
-| `skills/refactoring/SKILL.md` | 19 | 11 |
+| `rules/R2-self-validating-types.md` | 51 | 7 |
+| `rules/R10-concurrency-safety.md` | 32 | 9 |
+| `rules/R11-conditional-dispatch.md` | 24 | 8 |
+| `skills/refactoring/SKILL.md` | 22 | 12 |
 | `rules/R6-test-only-interfaces.md` | 18 | 3 |
-| `rules/R8-no-globals.md` | 11 | 5 |
-| `rules/R9-repo-brain.md` | 11 | 4 |
+| `skills/pre-commit-review/SKILL.md` | 18 | 6 |
+| `rules/R8-no-globals.md` | 13 | 7 |
+| `rules/R9-repo-brain.md` | 12 | 5 |
+| `rules/R7-test-placement.md` | 11 | 9 |
 | `skills/testing/SKILL.md` | 11 | 6 |
 | `rules/R5-vertical-slice.md` | 10 | 1 |
-| `rules/R7-test-placement.md` | 10 | 7 |
-| `skills/code-designing/SKILL.md` | 10 | 5 |
-| `skills/documentation/SKILL.md` | 8 | 3 |
-| `maxims.md` | 7 | 3 |
-| `agents/rule-hunter.md` | 5 | 1 |
-| `skills/refactoring/reference.md` | 5 | 5 |
-| `agents/overabstraction-skeptic.md` | 4 | 3 |
+| `skills/code-designing/SKILL.md` | 10 | 4 |
+| `skills/documentation/SKILL.md` | 9 | 3 |
+| `maxims.md` | 8 | 5 |
+| `agents/rule-hunter.md` | 6 | 2 |
+| `agents/overabstraction-skeptic.md` | 5 | 4 |
 | `skills/linter-driven-development/SKILL.md` | 4 | 4 |
+| `skills/refactoring/reference.md` | 4 | 4 |
 | `agents/comment-critic.md` | 3 | 1 |
-| `agents/lint-fixer.md` | 3 | 3 |
+| `rules/R1-primitive-obsession.md` | 3 | 2 |
+| `rules/R12-mutation-discipline.md` | 3 | 2 |
 | `commands/{{.CmdPrefix}}-analyze.md` | 2 | 2 |
-| `rules/R12-mutation-discipline.md` | 2 | 1 |
 | `rules/R4-helper-placement.md` | 2 | 3 |
+| `agents/lint-fixer.md` | 1 | 1 |
 | `commands/wire-repo-brain.md` | 1 | 1 |
-| `rules/R1-primitive-obsession.md` | 1 | 1 |
 <!-- residue:end -->
