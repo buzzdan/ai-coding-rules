@@ -8,7 +8,7 @@ policy, index policy, root wiring, doc-root discovery — lives ONCE in
 ## Contents
 
 - [Comment Value Toolbox](#comment-value-toolbox) — the growable catalog of ways a comment delivers value
-- [Godoc Menus](#godoc-menus) — package, type, function menus; testable examples
+- [Doc Comment Menus](#doc-comment-menus) — package, type, function menus; runnable examples
 - [Frontmatter Templates (OKF Bundle)](#frontmatter-templates-okf-bundle) — content doc, root index
 - [Feature Doc Template](#feature-doc-template) — frontmatter, symbol-cited key players
 - [The Index and Root Wiring](#the-index-and-root-wiring) — index.md, map of maps, CLAUDE.md import, AGENTS.md routing block
@@ -79,7 +79,7 @@ and any API whose caller needs the contract before the first call.
 
 ### Guarantees
 
-Thread safety, nil handling, invariants — promises the signature cannot express.
+Thread safety, null handling, invariants — promises the signature cannot express.
 
 ```go
 // ✅ Safe for concurrent use; callbacks run outside the lock.
@@ -122,16 +122,16 @@ resolves inside a repo doc — a reader without the decoder ring gets nothing.
 The fact goes in the comment as plain prose; the doc gets ONE trailing
 See-edge; the ID stays in the doc.
 
-```go
-// ❌ userResponse is the flat REST response shape for a user account
-//    (spec §4). It deliberately has NO field for the password hash — the
-//    response omission is structural (T-04-02), not a zero-value
-//    coincidence ... additive to the {uid} addressing scheme (D-06/D-07).
+```text
+❌ userResponse is the flat REST response shape for a user account
+   (spec §4). It deliberately has NO field for the password hash — the
+   response omission is structural (T-04-02), not an accident of the
+   default value ... additive to the {uid} addressing scheme (D-06/D-07).
 
-// ✅ userResponse is the flat REST response shape for a user account.
-//    It has no field for the password hash or the API token, so a response
-//    can never leak them.
-//    See docs/accounts-api.md.
+✅ userResponse is the flat REST response shape for a user account.
+   It has no field for the password hash or the API token, so a response
+   can never leak them.
+   See docs/accounts-api.md.
 ```
 
 ### What never earns a line: restated repo idiom
@@ -197,11 +197,11 @@ var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 ---
 
-## Godoc Menus
+## Doc Comment Menus
 
 **These are MENUS, not forms** (normative: R9's tiered comment-budget policy —
-**1–5 prose lines** scaled to the symbol's role; blank `//` lines, the See-edge, and
-short inline examples of 2–4 lines are free). The menus price **exported** API
+**1–5 prose lines** scaled to the symbol's role; blank separator lines, the See-edge,
+and short inline examples of 2–4 lines are free). The menus price **public** API
 only — unexported symbols default to no comment at all (R9's visibility
 default; special case: one very-high-value line). The WHY is the default
 content; the tier caps how much of a menu any one symbol can order:
@@ -209,7 +209,7 @@ content; the tier caps how much of a menu any one symbol can order:
 - **Helper** (small method, plain constructor, obvious accessor) → 0–1 line, or
   nothing; a tiny example only if it clarifies.
 - **Contract** (parsing constructor like `ParsePort`, self-validating type, ordinary
-  exported API) → 2–3 lines; a dos/don'ts example is free and often earns its place.
+  public API) → 2–3 lines; a dos/don'ts example is free and often earns its place.
 - **Crossroads** (entry point, orchestrator, state machine, feature front door) →
   up to 5 lines: WHY, architectural context, use cases.
 
@@ -222,11 +222,16 @@ What fills the chosen menu lines comes from the [Comment Value Toolbox](#comment
 above — every prose line must deliver one of its values, in plain English (R9's
 three-test standard).
 
-### Package Godoc Menu
+Write each menu in the language's documentation form and place: `//` line comments
+above the declaration in Go, Rust, TypeScript, Java or C#; a `#` block above it in
+shell or Ruby; a docstring as the first statement of the module, class or function
+in Python. The menus below use `//` only as the example marker.
 
-Pick only the lines this package needs:
+### Package Doc Comment Menu
 
-```go
+Pick only the lines this package or module needs:
+
+```text
 // Package [name] provides [high-level purpose].          <- always (one line)
 //
 // [1-2 sentences: what problem this solves]              <- usually
@@ -241,19 +246,20 @@ Pick only the lines this package needs:
 //   - [Key decision and why]
 //
 // See docs/[feature].md for architecture and usage.      <- whenever the doc exists
-package name
 ```
 
-**The `doc.go` hatch (R9):** when a package genuinely earns more than the standard
-budget — flow sketch, core-types list, and design decisions all pulling their
-weight — move the package godoc to a dedicated `doc.go`, bounded at ~20–30 lines.
-A package comment inline in a regular file stays within the standard tier budget.
+**The dedicated package-doc hatch (R9):** when a package genuinely earns more than
+the standard budget — flow sketch, core-types list, and design decisions all pulling
+their weight — move the package comment to the language's dedicated package-doc
+file (a `doc` source file in Go, the package's `__init__` docstring in Python, an
+`index` or `mod` file's header elsewhere), bounded at ~20–30 lines. A package
+comment inline in a regular file stays within the standard tier budget.
 
-### Type Godoc Menu
+### Type Doc Comment Menu
 
 Pick per symbol kind (hints above):
 
-```go
+```text
 // TypeName is [one-line domain meaning].                 <- always
 //
 // [WHY it exists: rationale, incident, constraint —      <- the default content
@@ -266,51 +272,41 @@ Pick per symbol kind (hints above):
 //   [when to reach for it, or a short flow sketch]
 //
 // Example:                                               <- parsing constructors:
-//   p, err := ParsePolicy("3x100ms")  // valid              dos/don'ts inputs
-//   _, err = ParsePolicy("0x")        // rejected: zero attempts
+//   ParsePolicy("3x100ms")   valid                          dos/don'ts inputs
+//   ParsePolicy("0x")        rejected: zero attempts
 //
 // See docs/[feature].md for the full picture.            <- whenever the doc exists
-type TypeName struct {
-    // ...
-}
 ```
 
-### Function Godoc Menu
+### Function Doc Comment Menu
 
 Only for non-obvious behavior; a small method or plain constructor gets one line, or
 nothing:
 
-```go
+```text
 // FunctionName [does what] for [purpose].                <- always, if documented at all
 //
 // [Error conditions, non-obvious behavior,               <- only when non-obvious
 //  performance characteristics]
 //
 // See docs/[feature].md#section for the detailed flow.   <- whenever the doc exists
-func FunctionName(ctx context.Context, input InputType) (OutputType, error) {
-    // ...
-}
 ```
 
-### Testable Example Template
+### Runnable Example Template
 
-```go
-// Example_TypeName demonstrates typical usage of TypeName.
-func Example_TypeName() {
-    id, _ := NewUserID("usr_123")
-    fmt.Println(id)
-    // Output: usr_123
-}
+Where the language runs examples as tests — Go's example functions, Python
+doctests, Rust doc tests — add one per complex/core type, in that form:
 
-// Example_TypeName_validation shows validation behavior.
-func Example_TypeName_validation() {
-    _, err := NewUserID("")
-    fmt.Println(err != nil)
-    // Output: true
-}
+```text
+Example for TypeName: typical usage.
+    id = NewUserID("usr_123")
+    print(id)                      -> usr_123
+
+Example for TypeName, validation: the constructor rejects an empty id.
+    NewUserID("")                  -> fails
 ```
 
-Testable examples show happy-path usage. Keep simple — complex scenarios belong in
+Runnable examples show happy-path usage. Keep simple — complex scenarios belong in
 feature docs.
 
 ---
@@ -547,8 +543,9 @@ only `okf_version`.
 Run `bash scripts/check-repo-brain.sh` from the repo root — it verifies the rules
 above mechanically and points at this file when something breaks.
 `--fix` rewrites drifted index lines from each doc's `description`.
-Code↔docs checks cover Go files; docs about other languages get the structure
-checks (reachability, frontmatter, index drift) but no symbol verification.
+Code↔docs checks cover the source files of the language the check script's adapter
+detects; docs about other languages get the structure checks (reachability,
+frontmatter, index drift) but no symbol verification.
 ```
 
 ---
@@ -559,7 +556,7 @@ checks (reachability, frontmatter, index drift) but no symbol verification.
   none exists).
 - `.ai/` and `.ainav/` are AI-navigation conventions — when a repo already uses one,
   it IS the doc root; do not create a parallel `docs/`.
-- Monorepo: each sub-project (own `go.mod` or equivalent boundary) gets its own doc
+- Monorepo: each sub-project (own `the language's project manifest` or equivalent boundary) gets its own doc
   root + `index.md`; the repo-root index links the sub-indexes (map-of-maps form
   above).
 - Nesting inside a doc root is allowed as long as the index (or a sub-index) covers
@@ -628,14 +625,14 @@ anchor is the doc's front door, chosen in this order:
 1. **The doc's central exported symbol** — the type or constructor the doc most
    centrally describes: usually the first symbol its index line cites, or the type
    in the doc's title (`spanlogger-api.md` → the `SpanLogger` type).
-2. **The package godoc** — when the doc spans a whole package rather than one
+2. **The package doc comment** — when the doc spans a whole package rather than one
    symbol (`versioning.md` → `package version`'s doc comment).
 3. **No confident anchor** → do not guess. Report the doc as `unwired` in the
    advisory findings; a wrong edge is worse than a missing one (it survives Q2 —
    it resolves — while pointing readers somewhere unhelpful).
 
 Mechanics: append the edge as the final line of the anchor's EXISTING doc comment —
-`// See <docroot>/<file>.md for <three-to-six-word reason>.` Never restructure the
+`<comment-marker> See <docroot>/<file>.md for <three-to-six-word reason>.` Never restructure the
 comment around it; never create a doc comment solely to host an edge (a naked symbol
 is a Q5 finding for FEATURE mode, not a wiring target); confirm the package still
 vets after the edit.
@@ -684,15 +681,16 @@ vets after the edit.
       identifier
 - [ ] Every doc comment fits its tier budget — helper 0–1 / contract 2–3 /
       crossroads ≤5 prose lines (R9's tiered comment policy); overflow moved to the
-      feature doc, `doc.go` (~20–30 lines) used for package docs that earn it
+      feature doc, the language's dedicated package-doc file (~20–30 lines) used for
+      package docs that earn it
 - [ ] Menu sections included only where they earn their place for that symbol,
       within the tier budget
-- [ ] Crossroads that deserve richer inline godoc got an expand recommendation in
-      the report — never extra lines beyond budget
+- [ ] Crossroads that deserve a richer inline doc comment got an expand
+      recommendation in the report — never extra lines beyond budget
 - [ ] `See docs/<feature>.md` edge present wherever a feature doc exists — on its
       own trailing line, never woven into the summary sentence
-- [ ] Testable examples: at least one `Example_*` per complex/core type; runnable;
-      happy path only; `// Output:` comments included
+- [ ] Runnable examples, where the language runs them as tests: at least one per
+      complex/core type; happy path only; expected output stated
 
 ### Quality Gates
 
@@ -735,18 +733,18 @@ reflect correct behavior.
 ✅ DO UPDATE existing "Validation" section:
 ## Validation
 Email addresses must include a valid TLD (e.g., .com, .org).
-Invalid formats return ErrInvalidEmail with descriptive message.
+Invalid formats fail with ErrInvalidEmail and a descriptive message.
 ```
 
 **Example — Parser Edge Case:**
 ```
 ❌ DON'T ADD:
 ## v1.2.3 Changes
-- Fixed edge case where empty input caused panic
+- Fixed edge case where empty input crashed the parser
 
 ✅ DO UPDATE existing "Input Handling" section:
 ## Input Handling
-Empty input returns ErrEmptyInput. All inputs are validated before parsing.
+Empty input fails with ErrEmptyInput. All inputs are validated before parsing.
 ```
 
 **Why this matters:** someone reading docs in 5 years wants to know "How does
@@ -897,21 +895,15 @@ See the user package tests for usage examples.
 *Why bad?*: forces the reader to hunt through test code.
 
 #### ✅ Inline Runnable Example
-```go
-// Create validated types
-id, err := user.NewUserID("usr_12345")
-if err != nil {
-    panic(err) // invalid ID format
-}
+```text
+# Create validated types — each constructor fails on invalid input,
+# in the language's failure form (an error result, an exception)
+id = user.NewUserID("usr_12345")
+email = user.NewEmail("alice@example.com")
 
-email, err := user.NewEmail("alice@example.com")
-if err != nil {
-    panic(err) // invalid email format
-}
-
-// Create and use the service
-svc, _ := user.NewUserService(repo, notifier)
-err = svc.CreateUser(ctx, user.User{ID: id, Email: email, Name: "Alice"})
+# Create and use the service
+service = user.NewUserService(repo, notifier)
+service.CreateUser(User(id, email, name="Alice"))
 ```
 
 ### Common Documentation Scenarios
@@ -955,5 +947,5 @@ constraints to maintain:
 ## Design Invariants
 - UserID must always be non-empty after construction
 - Email validation follows RFC 5322
-- UserService assumes repository is never nil (validated in constructor)
+- UserService assumes repository is never null (validated in constructor)
 ```

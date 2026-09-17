@@ -25,11 +25,15 @@ append_system_prompt: |
   when you spawn agents, run them in the foreground and wait for every result.
   Do not schedule wakeups; finish the task and print your final report.
 ---
-/go-ldd-review internal/snapshot/policy.go internal/snapshot/config.go
+/{{cmd_prefix}}-review internal/snapshot/policy.go internal/snapshot/config.go
 ```
 
 Keys: `name`, `tags` (the first tag is the tier), `runs`, `max_turns`,
 `timeout_seconds`, `allowed_tools`, optional `model`, `append_system_prompt`. The
+body names slash commands and the workflow's announcement line through the token
+`{{cmd_prefix}}`, in graders and postchecks too; the run task writes the plugin's
+real prefix (`go-ldd`, `ldd`) into the copy below the plugin, so one suite measures
+every plugin built from the same core. The
 non-interactive paragraph is in every case for a reason: without it, the first
 baseline run ended its turn while background subagents were still working.
 Read-only cases omit the editing tools from `allowed_tools`, and a grader confirms

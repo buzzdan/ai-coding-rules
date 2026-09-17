@@ -10,6 +10,11 @@
       "description": "Rules-as-data linter-driven development workflow for Go: 12 single-source rule files, thin directional skills (design, TDD implementation, refactoring, testing, review, documentation), and a hunter/skeptic/critic review architecture with parallel single-rule reviewers, an over-abstraction skeptic, and a comment critic enforcing the Comment Value Toolbox"
     },
     {
+      "name": "linter-driven-development",
+      "source": "./linter-driven-development",
+      "description": "Rules-as-data linter-driven development workflow for any language: the Go plugin's 12 rules, thin directional skills and hunter/skeptic/critic review, with the language detected from the repository at run time and its own linter run instead of a bundled one"
+    },
+    {
       "name": "ts-react-linter-driven-development",
       "source": "./ts-react-linter-driven-development",
       "description": "Linter-driven development workflow for TypeScript + React with 6 specialized skills: meta orchestrator, component design, testing, refactoring, review, and documentation"

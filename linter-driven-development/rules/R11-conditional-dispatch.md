@@ -1,0 +1,234 @@
+# R11 — Conditional Dispatch (Anti-IF)
+
+## Principle
+
+A conditional that asks what a value *is* — a type switch, or a switch/if-chain on a
+kind/status/mode discriminator — may exist **once**. The second copy of that
+discriminator is a missing polymorphic type: the variants want to be implementations
+of an interface (or entries in a dispatch map), chosen once at the boundary, so
+downstream code *tells* the value what to do instead of asking what it is. One
+well-placed, exhaustive switch is not a defect; a duplicated one always is.
+
+## Why
+
+Every `if (new kind) { new code }` doubles the execution paths through the function —
+five conditionals means 32 paths to reason about and test. Worse, kind-switches
+replicate: the same `switch msg.Channel` appears in send, validate, format, and retry
+code, and adding a variant means finding and editing every copy — the one you miss is
+the bug that ships. The compiler cannot help: an if-chain has no notion of
+completeness, so a forgotten variant falls through silently. Dispatching once —
+constructing the right implementation at the boundary (`R2-self-validating-types.md`
+owns "validate once at the edge"; this rule is its behavioral twin: *decide* once at
+the edge) — collapses N switches into one construction site, makes each variant a
+leaf that unit-tests in isolation, and turns "add a variant" into "add a type" with
+zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
+2007): the enemy is not `if`, it is the duplicated kind-conditional.
+
+## Canonical example
+
+A notifier must deliver alerts over email, Slack, or PagerDuty. The channel is decided
+by a string field, and three parts of the codebase ask which one it is.
+
+### Before
+
+```text
+# ❌ alert/send — first copy of the discriminator
+send(alert):
+    switch alert.channel:
+        "email":     return smtpSend(alert.recipient, renderEmail(alert))
+        "slack":     return slackPost(alert.recipient, renderSlack(alert))
+        "pagerduty": return pdCreateIncident(alert.recipient, alert.summary)
+        otherwise:   fail "unknown channel <channel>"
+
+# ❌ alert/validate — second copy, drifting already: nobody added pagerduty here
+validRecipient(alert):
+    switch alert.channel:
+        "email": return alert.recipient contains "@"
+        "slack": return alert.recipient starts with "#"
+    return false
+
+# ❌ alert/retry — third copy, as an if-chain this time
+retryDelay(alert):
+    if alert.channel == "pagerduty": return 0
+    if alert.channel == "slack":     return 5 seconds
+    return 1 minute
+```
+
+Three owners of one decision, already inconsistent: `validRecipient` silently returns
+`false` for PagerDuty because the second copy was never updated. Adding SMS means
+finding all three (and the fourth one hiding in a test helper). Every function also
+carries the `otherwise` error path — the "maybe-unknown channel" concept leaks into
+each call site, the behavioral twin of R1's maybe-invalid port.
+
+### After
+
+```text
+# Channel is the behavior, not a string. Each variant is a leaf type.
+Channel                      # an interface / protocol / trait with three methods
+    send(alert)
+    validRecipient(recipient)
+    retryDelay()
+
+# parseChannel is the ONLY place the raw string is inspected —
+# the decision is made once, at the boundary, like R2's parsePort.
+parseChannel(name):
+    switch name:
+        "email":     return Email()
+        "slack":     return Slack()
+        "pagerduty": return PagerDuty()
+        otherwise:   fail "unknown channel <name>"
+
+Slack
+    send(alert):             return slackPost(alert.recipient, renderSlack(alert))
+    validRecipient(r):       return r starts with "#"
+    retryDelay():            return 5 seconds
+```
+
+The three switches are gone — call sites read `alert.channel.send(alert)`,
+`alert.channel.retryDelay()`. There is no `otherwise` anywhere downstream: an `Alert`
+that exists holds a `Channel` that exists, so "unknown channel" is unrepresentable
+past the boundary. Adding SMS is one new type plus one case in `parseChannel` —
+existing files untouched, and each channel's behavior unit-tests as a leaf with
+literals. In a language without interfaces the same move is a class per variant
+with a shared base, or a dispatch table from name to variant object.
+
+## Design guidance
+
+- **The trigger is duplication, not existence.** Count the sites that inspect the same
+  discriminator. One site — keep the switch (make it exhaustive). Two or more —
+  the variants are a type family; dispatch.
+- **A duplicated two-way decision that produces a value is R1's, not this rule's.**
+  When the repeated conditional does not *dispatch behavior* but *picks one of a fixed
+  set of literals* — `scheme := "http"; if tls { scheme = "https" }` in two functions —
+  the finding is R1 Q3 and the fix is Name enum strings (`type Scheme` with its
+  constants and one constructor from the flag), never a helper that returns the same
+  bare string. Route it to R1 and cite that move; this rule's Interface Dispatch and
+  Strategy Map are for variants that behave differently, not values that spell
+  differently.
+- **Decide once, at the edge.** The one legitimate inspection of the raw discriminator
+  is the constructor/parser that picks the implementation
+  (`R2-self-validating-types.md` for the constructor discipline). Downstream code
+  holds the chosen behavior and never re-asks. The corollary: a type switch over an
+  interface the same package owns is always a re-ask — the decision was made when
+  the value was constructed; cases that unpack the variants' fields are behavior
+  asking to live on the interface (`../examples/switch-to-polymorphism.md`).
+- **Dispatch requires owning the output.** An interface method can only be written
+  in the package that declares the interface, and it cannot reference another
+  package's unexported types. When the switch's output format belongs to a consumer
+  (a private wire request in a client package) and the variants live in a shared API
+  package, the move is unavailable — and forcing it (exporting the wire type,
+  per-consumer `fill<X>Request` methods on domain types) inverts the dependency.
+  There the switch is the honest boundary tax: shrink it to pure dispatch (one
+  converter call per case) and stop. Worked counter-case, including the fill-style
+  method shape for when the move IS available:
+  `../examples/switch-to-polymorphism.md`.
+- **Interface vs strategy map.** Variants with several behaviors or state → interface
+  with one type per variant. Variants that differ by a single function → a map
+  (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
+  comma-ok check is a dispatch, not a conditional. Either way the decision has one
+  owner.
+- **Null object over null-checks.** A scattered "if the logger is set, log" is
+  the same disease with two variants. Construct a do-nothing value once; delete every
+  guard. The shape follows the collaborator's type: when an interface already exists,
+  a no-op implementation; when the collaborator is a concrete type, a value of that
+  type doing nothing — a sink over the standard no-op writer, a clock that is the
+  real clock — and **no new interface** for the sake of the no-op
+  (`R6-test-only-interfaces.md`). The standard library's no-op writer is the pattern:
+  a real writer that honors the contract by reporting every byte written, so a logger
+  built over it needs no guard anywhere. Fits *optional* collaborators only; a required one is rejected in the constructor
+  (`R2-self-validating-types.md`, "absence is a value too").
+- **Flag arguments are two functions.** A boolean flag parameter — `Render(alert,
+  short)` — forces every caller through a conditional the callee then unpicks. Split into `Render` and
+  `RenderShort`, or make the variant a type.
+- **A kept switch must be exhaustive.** When one switch over a closed enum stays
+  (single site, trivial variance), name the enum (`R1-primitive-obsession.md`,
+  "Name enum strings"), drop the `default`, and let the linter's exhaustiveness
+  check prove completeness — the linter then does what the if-chain never could: fail the build
+  when a variant is added but not handled.
+- **The over-abstraction trap, dispatch edition.** An interface with one production
+  implementation is R6's territory; two trivial implementations behind one switch at
+  one site score LOW on R1's juiciness scorecard — keep the conditional. Conditionals
+  on *state/values* (`if n > threshold`, an error check, guard clauses per
+  `R3-storifying.md`) are healthy control flow, not dispatch — this rule never
+  touches them.
+
+## Fix pattern
+
+- **Replace Duplicated Switch with Interface Dispatch**: define the interface from the
+  union of what all copies of the switch do (one method per switching site is a
+  starting point, then collapse); one type per variant; move each `case` body into
+  its variant; introduce `ParseX(raw)` as the single decision point and
+  migrate call sites to method calls. When the dispatch produces an output that
+  carries fields the variants don't own (shared name/TLS on a wire request), give
+  the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
+  the caller owns the shared fields, each variant fills its own
+  (`../examples/switch-to-polymorphism.md`).
+- **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
+  `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
+- **Introduce Null Object**: absent-collaborator null-checks → a do-nothing value
+  substituted by the constructor when none is given; delete the guards. A no-op
+  implementation when an interface already exists, otherwise a value of the concrete
+  type composing the standard no-op — never a new interface with one
+  real implementation (R6). Optional collaborators only; required ones are rejected
+  in the constructor (R2).
+- **Split Flag Argument**: boolean/enum parameter that selects behavior → two named
+  functions, or a variant type chosen by the caller's constructor.
+- **Keep the Single Exhaustive Switch**: one site, closed enum → named enum type (R1),
+  no `default`, the linter's exhaustiveness check enforcing completeness. This is the rule's
+  sanctioned form — record it as the decision, not a TODO.
+- New types this creates must pass R1's juiciness scorecard, land per
+  `R4-helper-placement.md`, and never become test-only interfaces
+  (`R6-test-only-interfaces.md`). Rejection case law — juiciness (the switch stays,
+  goes exhaustive): `../examples/anti-if-dispatch.md`; dependency direction (the
+  move is unavailable across the package boundary):
+  `../examples/switch-to-polymorphism.md`.
+
+## Falsifying questions
+
+Answer each with evidence (`file:line`, command output) — never a bare verdict.
+
+Build each search over the language's source files (`detected-language source`).
+
+1. **Is the same discriminator inspected in more than one place?**
+   Detection: list discriminators in the diff — switch, match or if-chain statements
+   on a field named like `type`, `kind`, `status`, `mode`, `channel`, `format` or
+   `level` (`switch x.Kind`, `match self.kind`, `if alert.channel ==`); then count
+   each across the package: every switch or equality comparison on the same field.
+   Violation: ≥2 sites inspecting one discriminator — the decision has no single
+   owner; route to Interface Dispatch or Strategy Map.
+
+2. **Does a type switch dispatch on concrete types outside a boundary?**
+   Detection: search for the language's runtime type test in a branching position
+   (a type switch, `isinstance` chains, `instanceof` chains, `match` on a class) —
+   for each hit, is it in a `ParseX`/decoder/boundary adapter, or in business
+   logic?
+   Violation: a type switch in domain logic whose cases call variant-specific
+   behavior or unpack the variants' fields — the behavior belongs on the variants.
+   A switch over an interface the *same package* owns is a violation even at a
+   single site and even in a converter: the decision was already made at
+   construction, and interface satisfaction gives the completeness proof a
+   switch can't. The boundary exemption applies only when the output format
+   belongs to a *different* package than the cased types — there, the finding is
+   limited to shrinking the switch to pure dispatch. Error-type matching and
+   decode/unmarshal of foreign types are not this pattern.
+
+3. **Does a default branch (or trailing `else`) handle "unknown kind" away from the boundary?**
+   Detection: for each switch found in Q1, check the default arm for an error or
+   exception carrying an unknown-kind message.
+   Violation: unknown-kind errors deep in the call graph — the maybe-unknown concept
+   leaked past construction; dispatch should have been chosen at `ParseX`.
+
+4. **Does a boolean parameter select between behaviors?**
+   Detection: in the changed files, find function signatures with a boolean
+   parameter named like `is*`, `use*`, `with*`, `enable*`, `skip*`; check whether
+   the function branches on it near the top.
+   Violation: a flag argument whose branches share little code — Split Flag Argument.
+
+5. **Inverse — is a NEW dispatch abstraction in the diff unearned?**
+   Detection: for each new interface/strategy map in the diff, count production
+   implementations/entries and the number of sites the old conditional occupied
+   (`git log -p` or the pre-diff file).
+   Violation: one switching site with trivial variance replaced by an interface —
+   score it (R1 scorecard); if LOW, the finding is the *extraction*, and the fix is
+   Keep the Single Exhaustive Switch. An interface whose second implementation exists
+   only in tests is an R6 violation, not a dispatch win.
