@@ -5,6 +5,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-09-17
+
 ### Changed
 
 - **A duplicated two-way decision that picks a value is R1's enum, not R11's
