@@ -1,7 +1,7 @@
 ---
 name: code-designing
 description: |
-  {{include "skills/code-designing/description-scope.md"}}
+{{include "skills/code-designing/description-scope.md"}}
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
   Dispatches into the Design guidance sections of rules/R1-R8 and R10-R12.
 allowed-tools:

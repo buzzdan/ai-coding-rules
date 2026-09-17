@@ -1,7 +1,7 @@
 ---
 name: code-designing
 description: |
-    FORWARD view over rules/ — domain type design and architectural planning for Go code BEFORE it exists.
+  FORWARD view over rules/ — domain type design and architectural planning for Go code BEFORE it exists.
   Use when planning new features, designing self-validating types, preventing primitive obsession, or when refactoring reveals need for new types.
   Dispatches into the Design guidance sections of rules/R1-R8 and R10-R12.
 allowed-tools:

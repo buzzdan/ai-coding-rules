@@ -1,7 +1,7 @@
 ---
 name: linter-driven-development
 description: |
-  {{include "skills/linter-driven-development/description-scope.md"}}
+{{include "skills/linter-driven-development/description-scope.md"}}
   Runs the five-phase workflow (PREPARE is an autonomous sub-phase, 1.5): DESIGN → PREPARE → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
   - Skill({{.Plugin}}:code-designing)
