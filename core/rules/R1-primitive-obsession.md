@@ -98,7 +98,12 @@ Stage 2 shows it applied.
 - **Replace Sentinel with comma-ok**: `return 0` / `return ""` meaning
   absence/invalidity → `(X, bool)` or `(X, error)`.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
-  `const StatusReady Status = "READY"`.
+  `const StatusReady Status = "READY"`. The same move owns a string *assigned* from a
+  fixed set of literals: `scheme := "http"; if tls { scheme = "https" }` written in two
+  functions is a two-value enum with no name, and the fix is `type Scheme string`, its
+  two constants, and one constructor from the flag (`SchemeFor(tls bool) Scheme`) —
+  never a private helper that returns the same bare string, which dedupes the
+  decision and keeps the primitive.
 - **Introduce Parameter Object** (Fowler): the same group of parameters traveling
   through multiple signatures (`host string, port int, useTLS bool`) becomes one
   type — that is the scorecard's "grouping related data that travels together" made

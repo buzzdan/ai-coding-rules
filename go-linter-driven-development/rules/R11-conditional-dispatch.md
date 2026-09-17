@@ -120,6 +120,14 @@ Full worked study including the strategy-map variant and the rejection counter-c
 - **The trigger is duplication, not existence.** Count the sites that inspect the same
   discriminator. One site — keep the switch (make it exhaustive). Two or more —
   the variants are a type family; dispatch.
+- **A duplicated two-way decision that produces a value is R1's, not this rule's.**
+  When the repeated conditional does not *dispatch behavior* but *picks one of a fixed
+  set of literals* — `scheme := "http"; if tls { scheme = "https" }` in two functions —
+  the finding is R1 Q3 and the fix is Name enum strings (`type Scheme` with its
+  constants and one constructor from the flag), never a helper that returns the same
+  bare string. Route it to R1 and cite that move; this rule's Interface Dispatch and
+  Strategy Map are for variants that behave differently, not values that spell
+  differently.
 - **Decide once, at the edge.** The one legitimate inspection of the raw discriminator
   is the constructor/parser that picks the implementation
   (`R2-self-validating-types.md` for the constructor discipline). Downstream code
