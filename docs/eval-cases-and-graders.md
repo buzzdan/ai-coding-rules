@@ -81,7 +81,8 @@ Two shapes learned the hard way:
   evidence names the rule and falsifying question by number, that the move is named
   as the rule's Fix pattern spells it, that findings are never rolled up into a
   count; and one
-  `🔗 CLUSTER: <anchor>` entry per anchor that two rules converged on. That is what
+  `🔗 CLUSTER: <anchor>` entry per anchor — a type, function, discriminator or package —
+  that two rules, or two falsifying questions of one rule, converged on. That is what
   the recall graders (a plant's file basename anywhere), the question-id graders (the
   anchor, then `Q<n>` within 500 characters), the fix graders (the move's name) and
   the cluster graders (the word cluster and the anchor on one line, or a bullet under

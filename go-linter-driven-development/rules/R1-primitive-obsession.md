@@ -288,7 +288,9 @@ Stage 2 shows it applied.
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Does the diff validate a primitive inline instead of constructing a type?**
-   Detection: `grep -nE 'if [a-zA-Z_.]+ (==|!=) ""|if [a-zA-Z_.]+ (<=?|>=?) [0-9]' $(git diff --name-only -- '*.go')`
+   Detection: `grep -nE '^\s*(} else )?if .*\b[a-zA-Z_.]+ (==|!=) ""|^\s*(} else )?if .*\b[a-zA-Z_.]+ (<=?|>=?) [0-9]' $(git diff --name-only -- '*.go')`
+   — the check often sits second in a compound condition (`if err != nil || days <= 0
+   || days > 365`), so the pattern reads the whole `if` line, not its first clause.
    Violation: an emptiness/range/format check on a parameter or DTO field that names
    a domain concept (port, id, email, path, addr), outside a `ParseX`/`NewX`
    constructor.
@@ -306,8 +308,11 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    would carry it.
 
 4. **Does any function return a sentinel to mean "not found / invalid"?**
-   Detection: grep the diff for `return 0`, `return ""`, `return -1` in functions
-   whose signature has no `bool` or `error` result.
+   Detection: `grep -nE 'return (0|""|-1|nil)\s*(//.*)?$' $(git diff --name-only -- '*.go')`,
+   then read each hit's function signature: the hit is a sentinel when the signature
+   has no `bool` or `error` result (`return nil` from a `*Device` result is one; from
+   an `error` result it is not). A trailing comment (`return 0 // sentinel`) does not
+   hide the hit.
    Violation: validity encoded in-band — requires comma-ok or `(X, error)`.
 
 5. **Do the same parameters travel together across signatures?**
