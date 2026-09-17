@@ -184,20 +184,13 @@ by the skeptic, or never sent to it — by shared anchor. An anchor is the named
 finding is about, never its line: a type (a finding on one of its fields and a finding
 on one of its methods share the type), a function, a discriminator, or a package (two
 findings on files of one package share the package, and findings that name the same
-two packages together share both as one anchor). List the anchors first, then count
-what the evidence cites, never the lines: a hunter block whose evidence answers Q1 and
-Q6 on one type is two answers on that anchor. An anchor converges when ≥2 rules land
-on it, or ≥2 *different* falsifying questions of one rule — exported nilable fields, a
-method that re-checks them and a nil handed to the constructor are three questions of
-R2 answered on one type, and one missing constructor, not three lines. Two answers to
-the same question on one anchor are a shared-shape line below, not a cluster.
-Folding is how a convergence disappears: a finding line below that carries two rules'
-evidence, or two questions', is a cluster written as a line — the range check one rule
-finds duplicated and another finds re-validated, the function one rule finds returning
-nil and another finds leaking a pointer, the two packages one rule names for their
-role and another for their layer. Give that anchor its entry above and tag the line
-`[cluster: <anchor>]`; a line that cites two rules and has no entry is the pass
-skipped. The skeptic's verdict removes a proposed type from the fix column; it never
+two packages together share both as one anchor). List the anchors first, then count.
+An anchor converges when ≥2 findings from *different* rules land on it, or ≥2
+findings answering *different* falsifying questions of one rule — exported nilable
+fields, a method that re-checks them and a nil handed to the constructor are three
+questions of R2 answered on one type, and one missing constructor, not three lines.
+Two findings of the same question on one anchor are a shared-shape line below, not a
+cluster. The skeptic's verdict removes a proposed type from the fix column; it never
 removes the convergence, which is the evidence. Each hunter is single-obsession and
 blind to the others, and each falsifying question is blind to the next, so independent
 convergence on one anchor is evidence that a domain concept is missing there — the
