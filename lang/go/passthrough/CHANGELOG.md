@@ -7,6 +7,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **A duplicated two-way decision that picks a value is R1's enum, not R11's
+  dispatch.** R1's Name enum strings now owns a string *assigned* from a fixed set of
+  literals — `scheme := "http"; if tls { scheme = "https" }` in two functions is a
+  two-value enum with no name, fixed by `type Scheme`, its constants and one
+  constructor from the flag, never a private helper returning the bare string. R11's
+  design guidance draws the same boundary from its side and routes the case to R1, and
+  R1's Go detection for Q3 greps for a literal assigned to a variable beside the
+  enum-comparison grep. Motivated by the go-2.11.0-c78b55f baseline: both case B
+  reviews found the byte-identical scheme block in `Get` and `healthURL`, routed it to
+  R11 as a duplicated switch and proposed a private `scheme()` helper; the
+  `fix-name-enum` grader has missed in every run.
 - **Clusters group by anchor, not by line, and a hunter accounts for every question.**
   The pre-commit review's cluster pass names an anchor as the thing a finding is about —
   a type with its fields and methods, a function, a discriminator, or a package (two

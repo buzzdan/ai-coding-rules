@@ -271,7 +271,12 @@ Stage 2 shows it applied.
 - **Replace Sentinel with comma-ok**: `return 0` / `return ""` meaning
   absence/invalidity → `(X, bool)` or `(X, error)`.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
-  `const StatusReady Status = "READY"`.
+  `const StatusReady Status = "READY"`. The same move owns a string *assigned* from a
+  fixed set of literals: `scheme := "http"; if tls { scheme = "https" }` written in two
+  functions is a two-value enum with no name, and the fix is `type Scheme string`, its
+  two constants, and one constructor from the flag (`SchemeFor(tls bool) Scheme`) —
+  never a private helper that returns the same bare string, which dedupes the
+  decision and keeps the primitive.
 - **Introduce Parameter Object** (Fowler): the same group of parameters traveling
   through multiple signatures (`host string, port int, useTLS bool`) becomes one
   type — that is the scorecard's "grouping related data that travels together" made
@@ -301,9 +306,14 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Violation: ≥2 hits — the rule has no single owner; a type is missing.
 
 3. **Does named behavior run on a bare primitive?** Loops/switches over `[]string`,
-   string-literal status comparisons, format logic on a `string` field.
+   string-literal status comparisons, format logic on a `string` field, a variable
+   assigned one of a fixed set of literals under a flag.
    Detection: `grep -rnE '== "[A-Z_]+"' --include='*.go' .` for enum-shaped
-   comparisons; inspect diff for loops whose body interprets a primitive.
+   comparisons; `grep -rnE '^\s*[a-z]\w* :?= "[a-z]+"$' --include='*.go' .` for a
+   literal assigned to a variable, then read whether the same variable takes a second
+   literal under a condition (`scheme := "http"; if tls { scheme = "https" }`) and
+   whether that pair appears in more than one function; inspect diff for loops whose
+   body interprets a primitive.
    Violation: behavior attached to a bare primitive where a named method on a type
    would carry it.
 

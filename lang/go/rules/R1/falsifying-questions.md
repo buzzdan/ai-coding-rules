@@ -12,9 +12,14 @@
    Violation: ≥2 hits — the rule has no single owner; a type is missing.
 
 3. **Does named behavior run on a bare primitive?** Loops/switches over `[]string`,
-   string-literal status comparisons, format logic on a `string` field.
+   string-literal status comparisons, format logic on a `string` field, a variable
+   assigned one of a fixed set of literals under a flag.
    Detection: `grep -rnE '== "[A-Z_]+"' --include='*.go' .` for enum-shaped
-   comparisons; inspect diff for loops whose body interprets a primitive.
+   comparisons; `grep -rnE '^\s*[a-z]\w* :?= "[a-z]+"$' --include='*.go' .` for a
+   literal assigned to a variable, then read whether the same variable takes a second
+   literal under a condition (`scheme := "http"; if tls { scheme = "https" }`) and
+   whether that pair appears in more than one function; inspect diff for loops whose
+   body interprets a primitive.
    Violation: behavior attached to a bare primitive where a named method on a type
    would carry it.
 
