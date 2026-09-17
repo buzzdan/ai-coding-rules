@@ -144,6 +144,15 @@ func TestRender_DefaultIncludes(t *testing.T) {
 	assert.False(t, rendered, "core/includes/ holds defaults, never outputs")
 }
 
+func TestRender_IncludesAreTemplates(t *testing.T) {
+	t.Parallel()
+	core := fstest.MapFS{"rules/R1.md": {Data: []byte("{{include \"rules/R1/example.md\"}}\n")}}
+	b := lang(t, fstest.MapFS{"rules/R1/example.md": {Data: []byte("files end in {{.SrcExt}}\n")}})
+	tree, err := render.Render(core, b)
+	require.NoError(t, err)
+	assert.Equal(t, "files end in .p\n", string(tree["rules/R1.md"].Data))
+}
+
 func TestRender_MissingCoreIsAnError(t *testing.T) {
 	t.Parallel()
 	missing := os.DirFS(filepath.Join(t.TempDir(), "nope"))
@@ -163,6 +172,12 @@ func TestRender_Errors(t *testing.T) {
 			name: "unknown variable",
 			core: fstest.MapFS{"a.md": {Data: []byte("{{.Nope}}\n")}},
 			want: "template a.md",
+		},
+		{
+			name: "nested include",
+			core: fstest.MapFS{"a.md": {Data: []byte("{{include \"rules/R1/example.md\"}}\n")}},
+			lang: fstest.MapFS{"rules/R1/example.md": {Data: []byte("{{include \"x.md\"}}\n")}},
+			want: "cannot include another file",
 		},
 		{
 			name: "missing include",

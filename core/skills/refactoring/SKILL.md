@@ -48,29 +48,30 @@ from there, never from memory:
 |------|-------|
 | Extract Function (named after the comment), Early Returns, Honest Rename, Extract Leaf Type | `../../rules/R3-storifying.md` |
 | Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with comma-ok, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
-| Add validating constructor, Hoist method checks, Delete re-validation, Replace nil returns, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
+| Add validating constructor, Hoist method checks, Delete re-validation, Separate Failure from Absence, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
 | Demote helper (rung 1), Promote to feature/domain package (rungs 2–3), Split policy from vocabulary | `../../rules/R4-helper-placement.md` |
 | Slice out a feature, Rename layer files by role, Split a generic package by owner | `../../rules/R5-vertical-slice.md` |
-| Inline the interface, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
-| Move test down a rung, Split `wantErr` tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
-| Extract Clean Island, Push Global Up One Level, Replace `init()` with constructor, Thread `ctx` | `../../rules/R8-no-globals.md` |
-| Inject the Exit Path, Make the Goroutine Joinable, Extract Synchronized Owner, Replace Sleep with Timer Select, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
+| Delete the Test Seam, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
+| Move test down a rung, Split Success and Error Tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
+| Extract Clean Island, Push Global Up One Level, Replace Import-Time Initialization with a Constructor, Pass Cancellation Down | `../../rules/R8-no-globals.md` |
+| Inject the Exit Path, Make Concurrent Work Joinable, Extract Synchronized Owner, Replace Sleep with Cancellable Wait, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
 | Replace Duplicated Switch with Interface Dispatch, Replace If-Chain with Strategy Map, Introduce Null Object, Split Flag Argument, Keep the Single Exhaustive Switch | `../../rules/R11-conditional-dispatch.md` |
 | Copy on the Way In, Copy on the Way Out / Encapsulate Collection, Separate Query from Modifier, Remove Setting Method, Split Variable | `../../rules/R12-mutation-discipline.md` |
 
-**Introduce Null Object, the Go shape.** The null object is a *named* value of the
-collaborator's existing concrete type — `DiscardSink()` composing `io.Discard`, a clock
-that is `time.Now` — supplied as the constructor's default through an option or passed by
-the caller by name. Never a new interface with one no-op implementation (R6), never a
-nil parameter that means "default" (R2): `NewReporter(nil)` must not compile or must not
-exist. An option keeps its `Option` signature, so `WithSink(nil)` compiles; it records
-the error on the value under construction and the constructor returns `errors.Join` of
-what the options recorded (R2's example) — the option never substitutes the default
-and never stores the nil.
+**Introduce Null Object, the shape.** The null object is a *named* value of the
+collaborator's existing concrete type — a sink composing the standard no-op writer, a
+clock that is the real clock — supplied as the constructor's default through an option
+or passed by the caller by name. Never a new interface with one no-op implementation
+(R6), never a {{.Nil}} parameter that means "default" (R2). An option handed {{.Nil}}
+records the error on the value under construction and the constructor fails with it
+(R2's example) — the option never substitutes the default and never stores the
+{{.Nil}}.
+
+{{include "skills/refactoring/null-object-mechanics.md"}}
 
 **Extract Function prefers the function that exists.** Before writing a helper for a
 step — parse, decode, normalize, validate — grep the package for one that already does
-it (`grep -rn 'func .*Parse' --include='{{.SrcGlob}}'` on the step's noun) and prefer
+it (grep the package for a function named after the step's noun) and prefer
 the one with a test. A sibling written beside a tested function is a second owner of
 the same rule (R1 Q2), not an extraction; when the existing function has the wrong
 shape, change it and its test rather than copy it, and never leave two. A behavioral
@@ -162,8 +163,8 @@ at the end.
    packages. Line `1 gates`: the four measurements.
 2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
    questions) of every rule routed in this session over the touched files — and for
-   R8 over the touched packages, because a package-level variable, an `init()` or a
-   singleton has no function to sit in: the sibling file of the one just edited is in
+   R8 over the touched packages, because a package-level variable, an import-time
+   initializer or a singleton has no function to sit in: the sibling file of the one just edited is in
    R8's scope, and in no other rule's. The rules routed this session are the outer
    bound: a rule no failure routed here has no re-run and no fix in this session,
    whatever a suppression in the touched code names. Inside that bound, every
@@ -171,8 +172,8 @@ at the end.
    in:
    - **Fixed** when the hit sits in a function or type this session changed, or is an
      R8 package-level declaration in a touched package: the second global beside the
-     one just removed, the `init()` under it, the `context.Background()` in the
-     function just reshaped, the flag pair in the loop just storified. Route it again;
+     one just removed, the import-time initializer under it, the manufactured root
+     context in the function just reshaped, the flag pair in the loop just storified. Route it again;
      a hit here means not done. "Pre-existing" and "unrelated" are not verdicts for
      these — the request that named one global meant the linter, not that line — and
      a suppression directive on a touched function or type is a hit of the rule it
@@ -196,7 +197,7 @@ at the end.
    — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
    query methods on it — not an accumulator that stands beside the loop (that is the
    flags renamed); an optional collaborator that may be absent is a Null Object
-   default, never a nil-able field, and an option handed nil records the error for
+   default, never an optional field that may be absent, and an option handed {{.Nil}} records the error for
    the constructor to return rather than storing it or substituting the default; a
    value parsed in two places has one constructor; a repeated predicate is a method.
    Score each candidate with R1's scorecard: ≥4 → apply the
@@ -204,10 +205,10 @@ at the end.
    it. A candidate is never skipped because the linter is already quiet. Line
    `3 nouns`: each candidate with its score and verdict — `none scored ≥2` when
    nothing qualified, never a blank.
-4. **The comment critic.** Spawn one `comment-critic` (Agent tool, foreground) over
+4. **The comment critic.** Spawn one `{{.Plugin}}:comment-critic` (Agent tool, foreground) over
    the touched files with the payload @pre-commit-review step 3b names, and state the
    scope in the spawn prompt as *every comment in each touched file*, not the changed
-   lines — the `// Sink is where events are written.` godoc beside the code just
+   lines — the `Sink is where events are written.` {{.DocForm}} beside the code just
    reshaped restates its name whether or not this session wrote it. Apply its
    TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
    `DELETE → route R3` verdicts back to step 3. Line `4 critic`: the verdict counts
@@ -253,14 +254,14 @@ Files Modified: [file] (+X, -Y)
 
 Stop check:
 1 gates      lint 0 · tests green · max LOC [n] · max nesting [n]
-2 re-run     [R3, R1, R8]: [0 hits / file.go:NN still — routed again]
+2 re-run     [R3, R1, R8]: [0 hits / file{{.SrcExt}}:NN still — routed again]
 3 nouns      [Region (score 5) → Replace Primitive with Domain Type applied; Tags (score 2) → recorded]
 4 critic     [n] verdicts applied · [n] DELETE → routed R3
 5 STOP       [none of the over-engineering signs / undone: <move>]
 6 commit     [abc1234 "<message>" / Phase 5 commits the slice / tree clean, nothing to commit]
 
 BROADER CONTEXT
-  [file.go:NN — R3 Q1 — {{.Nolint}} on an eight-linter function this session never opened / none]
+  [file{{.SrcExt}}:NN — R3 Q1 — {{.Nolint}} on an eight-linter function this session never opened / none]
 
 STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```

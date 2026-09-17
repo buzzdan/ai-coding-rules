@@ -18,19 +18,19 @@ func TestScan(t *testing.T) {
 	core := fstest.MapFS{
 		"README.md":   {Data: []byte("golangci lives here and is not a hit\n")},
 		"rules/R1.md": {Data: []byte("Run `golangci-lint run`.\nA goroutine and a nil.\nfine line\n")},
-		"maxims.md":   {Data: []byte("— Rob Pike, Go Proverbs\nGo is mentioned here\n")},
+		"maxims.md":   {Data: []byte("— Rob Pike, Go Proverbs\nGo is mentioned here; nil too\n")},
 	}
 	r, err := residue.Scan(core)
 	require.NoError(t, err)
 
 	assert.Equal(t, []residue.Hit{
 		{Path: "rules/R1.md", Line: 1, Token: "golangci", Text: "Run `golangci-lint run`."},
-	}, r.Hard)
-	assert.Equal(t, []residue.Hit{
-		{Path: "maxims.md", Line: 2, Token: "Go (the word)", Text: "Go is mentioned here"},
 		{Path: "rules/R1.md", Line: 2, Token: "goroutine", Text: "A goroutine and a nil."},
 		{Path: "rules/R1.md", Line: 2, Token: "nil", Text: "A goroutine and a nil."},
-	}, r.Soft, "sorted by path, line, then token")
+	}, r.Hard, "sorted by path, line, then token; maxims.md is exempt from hard tokens")
+	assert.Equal(t, []residue.Hit{
+		{Path: "maxims.md", Line: 2, Token: "Go (the word)", Text: "Go is mentioned here; nil too"},
+	}, r.Soft)
 }
 
 func scanLine(t *testing.T, line string) residue.Report {
@@ -51,13 +51,17 @@ func TestHardTokens(t *testing.T) {
 		{name: "plugin name bare", line: "see go-linter-driven-development/rules", want: "plugin name literal"},
 		{name: "command prefix", line: "run /go-ldd-review", want: "command prefix literal"},
 		{name: "golangci", line: "`.golangci.yaml`", want: "golangci"},
-		{name: "source glob", line: "--include='*.go'", want: "*.go glob"},
-		{name: "test suffix", line: "in `*_test.go` files", want: "_test.go"},
+		{name: "source glob", line: "--include='*.go'", want: ".go suffix"},
+		{name: "test suffix", line: "in `*_test.go` files", want: ".go suffix"},
 		{name: "nolint", line: "never add //nolint", want: "//nolint"},
 		{name: "near miss glob", line: "*.gold files", want: ""},
 		{name: "near miss nolint", line: "the nolint prohibition", want: ""},
 		{name: "near miss prefix", line: "a go-lddx thing", want: ""},
 		{name: "template scalar", line: "Skill({{.Plugin}}:testing) and /{{.CmdPrefix}}-review", want: ""},
+		{name: "scalar word spelled out", line: "an unexported symbol", want: "unexported"},
+		{name: "retired idiom", line: "add a `ctx.Done()` case", want: "ctx"},
+		{name: "error tuple", line: "returning `(X, error)`", want: "error tuple"},
+		{name: "english context", line: "belongs to the main context. Return", want: ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,17 +96,10 @@ func TestSoftTokens(t *testing.T) {
 		{name: "linter and library names", line: "the `exhaustive` linter and testify", want: []string{"Go linter name", "Go library"}},
 		{name: "linter name with a sub-check", line: "`govet copylocks` owns copied locks", want: []string{"Go linter name"}},
 		{name: "english exhaustive is not the linter", line: "one exhaustive switch is not a defect", want: nil},
-		{name: "context package", line: "no `context.Background()` in library code", want: []string{"context."}},
-		{name: "english context at a sentence end", line: "belongs to the main context. Return them", want: nil},
-		{name: "error tuple", line: "add `NewX`/`ParseX` returning `(X, error)`", want: []string{"error tuple"}},
-		{name: "absence tuple", line: "`(X, bool)` for absence", want: []string{"error tuple"}},
-		{name: "pointer tuple", line: "func NewReporter(opts ...Option) (*Reporter, error) {", want: []string{"error tuple", "func"}},
-		{name: "subtest", line: "a conditional inside `t.Run` means one case is really two", want: []string{"t.Run"}},
-		{name: "testable example", line: "Add testable examples (`Example_*`)", want: []string{"Example_"}},
+		{name: "pointer receiver func", line: "func NewReporter(opts ...Option) *Reporter {", want: []string{"func"}},
 		{name: "stdlib call", line: "`io.Discard` is the standard library's; `time.Now` too", want: []string{"Go stdlib"}},
 		{name: "stdlib lower-case is not a symbol", line: "the io package and time budgets", want: nil},
-		{name: "go runtime facts", line: "a latent panic; the race detector finds races only at runtime", want: []string{"panic", "race detector"}},
-		{name: "visibility and zero value", line: "an unexported symbol gets NO comment; a zero-value path", want: []string{"unexported", "zero value"}},
+		{name: "race detector", line: "a race detector finds races only at runtime", want: []string{"race detector"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

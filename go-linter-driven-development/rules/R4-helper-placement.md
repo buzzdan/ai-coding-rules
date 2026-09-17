@@ -129,10 +129,9 @@ vocabulary of one — fold it into the vocabulary it belongs to. A role name (`u
   is a worse copy of its field's API — delete the forwards and hand callers the part
   (`o.Customer()`), keeping only delegations that carry a rule (`ShippingAddress()`
   choosing gift recipient over buyer earns its place; `CustomerEmail()` does not).
-  The Go accelerant: embedding a domain type (`type Order struct{ Customer }`)
-  manufactures this smell in one line by promoting the entire foreign API onto the
-  outer type — embed for genuine is-a (interface embedding, `sync` primitives per
-  `R10-concurrency-safety.md`), never to save typing `o.customer.`.
+  The accelerant: embedding or inheriting a domain type manufactures this smell in
+  one line by promoting the entire foreign API onto the outer type — embed or inherit
+  for genuine is-a, never to save typing `o.customer.`.
 - Multi-rule extraction sequencing: `../skills/refactoring/reference.md`. Forward
   design of the promoted package: @code-designing.
 

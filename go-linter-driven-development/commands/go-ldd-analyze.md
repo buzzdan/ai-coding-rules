@@ -70,12 +70,12 @@ Name the rung in the report's scope line.
 
 1. **Tests**: `Bash([discovered test command])`
 2. **Linter (report-only)**: `Bash([discovered lint command, no --fix])` — surfaces
-   what needs refactoring without changing anything. (The `lint-fixer` agent, which
+   what needs refactoring without changing anything. (The `go-linter-driven-development:lint-fixer` agent, which
    auto-fixes, is intentionally NOT used here — this command never edits.)
 3. **Design review**: invoke `Skill(go-linter-driven-development:pre-commit-review)`
    in FULL mode over the file scope. It grep-prefilters the diff against rules R1–R12,
-   spawns one parallel `rule-hunter` per rule with hits, runs the
-   `overabstraction-skeptic` over every type/package-extraction proposal, and returns
+   spawns one parallel `go-linter-driven-development:rule-hunter` per rule with hits, runs the
+   `go-linter-driven-development:overabstraction-skeptic` over every type/package-extraction proposal, and returns
    evidence-backed findings. It reports — it never edits.
 
 ## Step 4: Display Combined Report

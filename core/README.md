@@ -28,7 +28,8 @@ Go `text/template` with the default delimiters. Core files use only two construc
   file of that name, the body comes from `core/includes/` under the same path: the
   language-neutral default, so a binding adds a file only where its language differs.
   A name found in neither place is an error. Files under `core/includes/` are never
-  rendered as outputs. An include sits at a block boundary — a bullet, paragraph,
+  rendered as outputs. An include body is itself a template — it may name scalars —
+  but it may not include another file. An include sits at a block boundary — a bullet, paragraph,
   fence or table row — never inside a sentence; which text is an include and which is
   reworded in core is decided in `docs/language-residue.md`.
 
@@ -88,67 +89,33 @@ scalar, include or whole-file override. The decision per token is recorded in
 
 <!-- residue:begin -->
 Hard residue: none. No plugin-name or command-prefix literal, golangci
-reference, source-file glob or nolint directive is left in core/.
+reference, source-file glob, nolint directive, scalar word or retired Go idiom is
+left in core/.
 
-Soft residue by token (312 lines):
+Soft residue by token (52 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
-| interface | 51 | 13 |
-| nil | 42 | 7 |
-| .go suffix | 34 | 10 |
-| Go stdlib | 34 | 9 |
-| godoc | 23 | 7 |
-| unexported | 20 | 13 |
-| goroutine | 18 | 5 |
-| ctx | 15 | 4 |
-| error tuple | 13 | 6 |
-| struct | 13 | 9 |
-| func | 11 | 5 |
-| context. | 10 | 4 |
-| httptest | 10 | 3 |
-| Go (the word) | 9 | 7 |
-| zero value | 8 | 4 |
-| sync. | 7 | 4 |
-| Go library | 6 | 3 |
-| init() | 6 | 2 |
-| Go linter name | 4 | 2 |
-| wantErr | 4 | 3 |
-| Example_ | 3 | 2 |
-| Go code fence | 3 | 1 |
-| pkg_test | 3 | 2 |
-| go test / go vet | 2 | 2 |
-| panic | 2 | 1 |
-| t.Run | 2 | 1 |
+| interface | 48 | 11 |
+| Go stdlib | 2 | 1 |
+| struct | 2 | 2 |
 | race detector | 1 | 1 |
+| sync. | 1 | 1 |
 
-Soft residue by file (312 lines):
+Soft residue by file (52 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
-| `rules/R2-self-validating-types.md` | 53 | 9 |
-| `rules/R10-concurrency-safety.md` | 33 | 10 |
-| `rules/R11-conditional-dispatch.md` | 25 | 9 |
-| `skills/refactoring/SKILL.md` | 22 | 12 |
-| `skills/pre-commit-review/SKILL.md` | 20 | 7 |
-| `rules/R6-test-only-interfaces.md` | 19 | 4 |
-| `rules/R9-repo-brain.md` | 14 | 6 |
-| `rules/R8-no-globals.md` | 13 | 7 |
-| `skills/code-designing/SKILL.md` | 12 | 5 |
-| `skills/testing/SKILL.md` | 12 | 7 |
-| `rules/R7-test-placement.md` | 11 | 9 |
-| `agents/overabstraction-skeptic.md` | 10 | 6 |
-| `maxims.md` | 10 | 6 |
-| `rules/R5-vertical-slice.md` | 10 | 1 |
-| `skills/documentation/SKILL.md` | 10 | 4 |
-| `agents/rule-hunter.md` | 6 | 2 |
-| `rules/R1-primitive-obsession.md` | 6 | 4 |
-| `rules/R4-helper-placement.md` | 5 | 4 |
-| `skills/linter-driven-development/SKILL.md` | 5 | 5 |
-| `skills/refactoring/reference.md` | 5 | 5 |
-| `agents/comment-critic.md` | 4 | 2 |
-| `rules/R12-mutation-discipline.md` | 3 | 2 |
-| `commands/{{.CmdPrefix}}-analyze.md` | 2 | 2 |
-| `agents/lint-fixer.md` | 1 | 1 |
-| `commands/wire-repo-brain.md` | 1 | 1 |
+| `rules/R11-conditional-dispatch.md` | 13 | 1 |
+| `rules/R6-test-only-interfaces.md` | 13 | 1 |
+| `maxims.md` | 7 | 4 |
+| `skills/code-designing/SKILL.md` | 5 | 1 |
+| `skills/refactoring/SKILL.md` | 4 | 2 |
+| `skills/testing/SKILL.md` | 4 | 1 |
+| `agents/overabstraction-skeptic.md` | 1 | 1 |
+| `rules/R10-concurrency-safety.md` | 1 | 1 |
+| `rules/R2-self-validating-types.md` | 1 | 1 |
+| `rules/R7-test-placement.md` | 1 | 1 |
+| `skills/linter-driven-development/SKILL.md` | 1 | 1 |
+| `skills/refactoring/reference.md` | 1 | 1 |
 <!-- residue:end -->

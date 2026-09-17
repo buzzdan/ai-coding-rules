@@ -3,7 +3,7 @@
 ## Principle
 
 Documentation is a network ranked by the documentation ladder: storified code →
-godoc comments → repo docs → the index, each fact placed at the lowest rung that can
+{{.DocComment}}s → repo docs → the index, each fact placed at the lowest rung that can
 carry it, higher rungs summarizing and pointing down, never duplicating. Two
 invariants hold the network together: **reachability** (every doc is reachable from
 the root: CLAUDE.md → index.md → doc — no orphans) and **bidirectionality** (code
@@ -16,7 +16,7 @@ and every index line is drift-checked against the `description` one level down
 ## Why
 
 Each rung of the documentation ladder has its own drift economics. Rung 0 cannot
-drift — the code *is* the behavior. Rung 1 drifts slowly: a godoc comment lives
+drift — the code *is* the behavior. Rung 1 drifts slowly: a {{.DocComment}} lives
 beside its symbol and gets reviewed with every diff that touches it. Rung 2 drifts
 on its own unless networked: nothing in a normal diff forces `docs/` open, so a
 feature doc rots silently — *unless* an edge from the changed code names it and an
@@ -28,7 +28,7 @@ overview reader looks.
 The network exists for cold starts. A fresh Claude session — or a new engineer —
 enters the repo through one of three doors: a grep hit on a symbol, a file open, or
 CLAUDE.md at session start. From any door, full context must be two hops away:
-symbol → its godoc → the feature doc; CLAUDE.md → index.md → the feature doc. An
+symbol → its {{.DocForm}} → the feature doc; CLAUDE.md → index.md → the feature doc. An
 unlinked doc is an unread doc, and unread docs rot — orphaning is not a tidiness
 problem, it is the mechanism by which documentation dies. Drift-detection depends on
 the same wiring: only a **literal, greppable** edge can be mechanically verified
@@ -48,7 +48,7 @@ Forward guidance — what @documentation applies when writing docs after a featu
 | Rung | Layer | Drift | Owns |
 |---|---|---|---|
 | 0 | Storified code | none — it IS the behavior | the story; names carry context (owned by `R3-storifying.md`, cited not restated) |
-| 1 | Code comments (godoc) | low — lives beside the code, reviewed with diffs | the WHY within a tiered 1–5 prose-line budget (policy below); network edges: `See docs/<feature>.md` |
+| 1 | Code comments ({{.DocForm}}) | low — lives beside the code, reviewed with diffs | the WHY within a tiered 1–5 prose-line budget (policy below); network edges: `See docs/<feature>.md` |
 | 2 | Repo docs | medium — drifts unless networked | feature/architecture docs in the doc root; point back down via greppable symbol references (edge policy below) |
 | 3 | The map | minimal — short and drift-checked (Q7) | `index.md` in the doc root: one line per doc, grouped by topic; wired into CLAUDE.md / AGENTS.md |
 
@@ -58,7 +58,7 @@ lowest rung that can carry it, always.)
 **Placement rule:** document each fact at the lowest rung of the documentation
 ladder that can carry it; higher rungs summarize and point down, never duplicate.
 Good overlap: the index says "capped-jitter retries", the feature doc explains the
-cap math, the godoc states the incident — each level adds detail. Bad overlap: the
+cap math, the {{.DocForm}} states the incident — each level adds detail. Bad overlap: the
 same paragraph pasted at two rungs; it *will* drift. Before writing any comment,
 first ask whether a rename or extraction (`R3-storifying.md`) makes it unnecessary —
 rung 0 beats rung 1.
@@ -80,7 +80,7 @@ more of these values (the growable catalog with worked examples lives in
 - **Wider context** — where this sits architecturally; what depends on it
 - **Important use cases / flows** — when to reach for it
 - **Boundary contract** — dos/don'ts, valid inputs, error behavior
-- **Guarantees** — thread safety, nil handling, invariants
+- **Guarantees** — thread safety, {{.Nil}} handling, invariants
 - **Network edge** — `See docs/<feature>.md` wiring a critical point into the
   repo brain
 
@@ -138,8 +138,8 @@ comment-critic agent enforces them adversarially after writing:
 - the `See docs/<feature>.md` network-edge line — free ONLY as its own trailing
   line; a doc reference woven into a prose sentence is not an edge, it is clutter
   in that sentence's line count
-- short inline example lines, bounded at 2–4 lines — anything bigger belongs in an
-  `Example_*` testable example
+- short inline example lines, bounded at 2–4 lines — anything bigger belongs in a
+  testable example
 
 **Role-based tiers** — judge the tier from the symbol's role in the code:
 
@@ -149,8 +149,8 @@ comment-critic agent enforces them adversarially after writing:
 | **Contract** | parsing constructor (`ParsePolicy`, `ParsePort`), self-validating type, ordinary exported API | 2–3 prose lines | WHY + boundary contract; dos/don'ts example (free) |
 | **Crossroads** | entry point, orchestrator, state machine, feature front door | up to 5 prose lines | WHY, architectural context, use cases + See-edge |
 
-**Visibility default — unexported symbols get no comment.** The tier table
-prices exported API. An unexported function, type, constant, or variable
+**Visibility default — {{.Unexported}} symbols get no comment.** The tier table
+prices exported API. An {{.Unexported}} function, type, constant, or variable
 defaults to **zero** comment lines: the name is the documentation, and a name
 that needs a comment wants a rename or an extraction first
 (`R3-storifying.md`). The special case is **one line carrying a very
@@ -164,14 +164,14 @@ four survive as one-liners, five get nothing.
 
 **Two bounded escape hatches:**
 
-- **Package docs in `doc.go`**: a package that genuinely earns more (data-flow
+- **Package docs in a dedicated file**: a package that genuinely earns more (data-flow
   sketch, core-types list, design decisions all pulling their weight) moves its
-  package godoc to a dedicated `doc.go`, bounded at ~20–30 lines. A package comment
+  package {{.DocForm}} to the language's dedicated package-doc file, bounded at ~20–30 lines. A package comment
   inline in a regular file stays within the standard budget.
 - **Crossroads expand recommendation**: the writer never self-exceeds the 5-line
-  cap. When a critical crossroads would benefit from richer inline godoc beyond the
+  cap. When a critical crossroads would benefit from richer inline {{.DocForm}} beyond the
   doc reference, write within budget and append an optional, end-of-report
-  recommendation — `consider expanding <Symbol>'s godoc inline — <rationale>` —
+  recommendation — `consider expanding <Symbol>'s {{.DocForm}} inline — <rationale>` —
   for a human to decide later (@documentation's report carries it).
 
 Never fill a template for its own sake — @documentation's templates are menus to
@@ -294,7 +294,7 @@ any OKF tool.
   bundle checks and Q2's code↔docs verification. Everything that touches code
   (sub-project discovery, the declaration set, the code-edge grep, the
   file-path ban, the symbol shapes) is supplied per language by the gate's
-  adapter block; this build carries the Go adapter.
+  adapter block; this build carries the {{.Lang}} adapter.
 - Nesting inside a doc root is allowed; the index (or a sub-index) covers every
   file in it.
 

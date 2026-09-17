@@ -49,8 +49,8 @@ ESCALATED: <linter> → <rule route> at <file:line>
 LINT STATUS: green | escalations pending (<N>)
 ```
 One `ESCALATED:` line per failure, each carrying its own `file:line` and its route from
-the table above (`gocognit → rules/R3-storifying.md (via @refactoring) at
-internal/services/device_service.go:42`). A `FIXED:` line lists every linter whose
+the table above (`<linter> → rules/R3-storifying.md (via @refactoring) at
+<path>:<line>`). A `FIXED:` line lists every linter whose
 issues are gone; nothing fixed → `FIXED: none`.
 
 FIXED counts every issue resolved since the first run — including those the

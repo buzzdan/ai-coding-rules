@@ -51,7 +51,7 @@ drifting apart.
   manifest all cite moves by name. A name that changes per language is not in the
   catalogue. So every move name is language-neutral core text — "Split Success and
   Error Tables", "Pass Cancellation Down", "Replace Import-Time Initialization with a
-  Constructor", "Separate Failure from Absence", "Make the {{.Task}} Joinable" — and
+  Constructor", "Separate Failure from Absence", "Make Concurrent Work Joinable" — and
   the Go spelling (`wantErr`, `ctx`, `init()`) lives in the move's body or the
   canonical example.
 - **The generic binding is not a third rendering of the same text.** It detects the

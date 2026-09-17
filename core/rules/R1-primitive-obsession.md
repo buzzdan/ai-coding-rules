@@ -43,7 +43,7 @@ restate it.
 - Parsing unstructured data into fields: +3
 - Grouping related data that travels together: +2
 - Making implicit structure explicit: +2
-- Replacing `map[string]interface{}`: +2
+- Replacing an untyped map: +2
 
 **Usage (simplifies code):**
 - Used in 5+ places: +2
@@ -55,11 +55,11 @@ restate it.
 - Makes an invalid state unrepresentable — once a value exists it is valid for its
   whole lifetime, so a sentinel, a defensive re-check or a second validating copy
   downstream is deleted. Earned only when the whole lifetime holds: the construction
-  path (`R2-self-validating-types.md`: unexported fields behind a validating
-  constructor, the zero value either valid or never escaping, no in-package literal
+  path (`R2-self-validating-types.md`: {{.Unexported}} fields behind a validating
+  constructor, the default-constructed value either valid or never escaping, no in-package literal
   around the constructor) and the paths after it (`R12-mutation-discipline.md`: no
   setter without the constructor's checks, no internal slice or map escaping by
-  reference). A bare alias of the primitive admits every literal and its zero value
+  reference). A bare alias of the primitive admits every literal and its default value
   and earns nothing: +2
 - Gives the story a noun it needs — a loop, a flag pair or a repeated predicate at
   the call sites is really an operation on this concept and becomes a named method: +2
@@ -90,13 +90,13 @@ Stage 2 shows it applied.
 
 ## Fix pattern
 
-- **Replace Primitive with Domain Type**: introduce `ParseX(raw) (X, error)`
-  (`R2-self-validating-types.md`); migrate call sites so raw values cross into `X`
+- **Replace Primitive with Domain Type**: introduce `ParseX(raw)`, returning the value
+  or an error (`R2-self-validating-types.md`); migrate call sites so raw values cross into `X`
   exactly once, at the boundary.
 - **Extract Collection Type**: when logic loops over `[]primitive` or `[]DTO`, wrap
   the slice (`type Ports []Port`) and move the loop into a named query method.
 - **Replace Sentinel with comma-ok**: `return 0` / `return ""` meaning
-  absence/invalidity → `(X, bool)` or `(X, error)`.
+  absence/invalidity → an explicit absence result, or an error.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
   `const StatusReady Status = "READY"`. The same move owns a string *assigned* from a
   fixed set of literals: `scheme := "http"; if tls { scheme = "https" }` written in two

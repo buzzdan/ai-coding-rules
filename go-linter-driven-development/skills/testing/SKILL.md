@@ -36,7 +36,7 @@ Ready after tests? Run linter: `task lintwithfix`
 <manual_invocation>
 - User explicitly requests tests to be written
 - User asks for testing advice, recommendations, or "what to do"
-- When testing strategy is unclear (table-driven vs testify suites)
+- When testing strategy is unclear (table-driven vs suites)
 - When choosing between dependency levels (in-memory vs binary vs test-containers)
 - When adding tests to existing untested code
 - When user needs testing expert guidance or consultation
@@ -45,15 +45,15 @@ Ready after tests? Run linter: `task lintwithfix`
 
 <philosophy>
 **Test only the public API**
-- Use `pkg_test` package name
+- Import the package as a consumer would, so privates are unreachable
 - Test types through their constructors
 - No testing private methods/functions — the urge to unit-test an unexported helper directly is a promotion signal: give the helper its own package (`../../rules/R4-helper-placement.md`), never test privates.
 
-**No mocks — and a struct that only satisfies a production interface in a test IS a mock**
-- A "fake" is a *real implementation with fake data* (embedded DB, `httptest` server, fake binary, temp dir) — NOT a struct written to satisfy a dependency interface.
-- Terminology: the banned "mock" is an interface-injected struct double. The "in-memory mock servers" elsewhere in this skill (testutils DSL, `httptest` wrappers) are fakes in this sense — real servers speaking the real protocol with configurable fake data — and remain the recommended stand-in for external APIs you don't control (wired via URL/config, never via a production interface).
-- Use in-memory implementations (fastest, no external deps), HTTP test servers (httptest), temp files/directories, or the real dependency.
-- **Orchestrators are tested by wiring their real collaborators** (real Store/Evaluator over embedded DB + `httptest` external services), never by injecting doubles.
+**No mocks — and a type that only satisfies a production interface in a test IS a mock**
+- A "fake" is a *real implementation with fake data* (embedded DB, in-process HTTP server, fake binary, temp dir) — NOT a type written to satisfy a dependency interface, and NOT a patched-in stand-in.
+- Terminology: the banned "mock" is an interface-injected or patched-in double. The "in-memory mock servers" elsewhere in this skill are fakes in this sense — real servers speaking the real protocol with configurable fake data — and remain the recommended stand-in for external APIs you don't control (wired via URL/config, never via a production interface).
+- Use in-memory implementations (fastest, no external deps), in-process HTTP test servers, temp files/directories, or the real dependency.
+- **Orchestrators are tested by wiring their real collaborators** (real Store/Evaluator over embedded DB + in-process external services), never by injecting doubles.
 - If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and `../../rules/R6-test-only-interfaces.md`).
 
 **Coverage targets**

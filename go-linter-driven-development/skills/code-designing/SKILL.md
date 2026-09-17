@@ -99,7 +99,7 @@ For each concept in the design, open the rule that owns the question and apply i
 | `../../rules/R5-vertical-slice.md` | Package structure and naming: feature slices with roles inside, flatcase domain vocabulary, migration template. |
 | `../../rules/R6-test-only-interfaces.md` | Default dependencies to concrete types; an interface must be earned by a second production implementation or a grep-verified import cycle. |
 | `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors; orchestrators integration-tested over real collaborators. |
-| `../../rules/R8-no-globals.md` | Dependencies injected via constructors, `ctx` threaded from callers, globals only at entry points. |
+| `../../rules/R8-no-globals.md` | Dependencies injected via constructors, cancellation passed down from callers, globals only at entry points. |
 | `../../rules/R10-concurrency-safety.md` | Every planned goroutine gets an owner (stop + wait) and an exit path at construction time; shared state designed with its guard on one type — or designed away via handoff/confinement. |
 | `../../rules/R11-conditional-dispatch.md` | How each kind/variant family dispatches: behavior-heavy or open set → interface chosen once at the boundary; single-behavior variance → strategy map; single-site closed enum → one exhaustive switch (named enum per R1). |
 | `../../rules/R12-mutation-discipline.md` | Each type's mutation surface: constructors copy slice/map arguments; queries return copies or iterators, never internal references; no setters around validating constructors; query and modifier as separate methods. |
@@ -115,7 +115,7 @@ Before presenting the plan, verify against the rules (cite, don't restate):
 - [ ] Vertical slice structure; package names are flatcase domain vocabulary, never roles/containers (R5)
 - [ ] No test-only interfaces: every interface has a second production implementation OR breaks a real import cycle, verified by grepping the import direction (detection command in `../../rules/R6-test-only-interfaces.md`); otherwise depend on the concrete type
 - [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in @refactoring `<package_decomposition>`)
-- [ ] Dependencies constructor-injected and validated; ctx flows down; no new globals (R8, R2)
+- [ ] Dependencies constructor-injected and validated; cancellation flows down; no new globals (R8, R2)
 - [ ] Every goroutine has an owner and exit path; shared state guarded where it lives, or confined (R10)
 - [ ] Every kind/variant family has ONE dispatch owner — interface, strategy map, or a single exhaustive switch; no discriminator inspected in two places (R11)
 - [ ] Every validated type's mutation surface is closed: slice/map arguments copied in, internal collections never returned by reference, no unvalidated setters (R12)

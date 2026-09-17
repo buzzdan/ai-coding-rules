@@ -79,8 +79,8 @@ Look *inside* the package before looking at the file list:
   the behavior attached.
 - **Big structs with disjoint method sets**: methods `A() B()` use fields `x y` while
   `D() E()` use `z w` — two types fused together; split them.
-- **Top-level functions that belong on a type**: `func normalizeFoo(s string) string`
-  wants to be `(f Foo) Normalize()`.
+- **Top-level functions that belong on a type**: a top-level `normalizeFoo(s)`
+  wants to be `Foo.Normalize()`.
 
 Extracting types often shrinks the package below threshold with no sub-package split.
 Invoke @code-designing to validate the extractions.
@@ -92,7 +92,7 @@ Invoke @code-designing to validate the extractions.
   sub-package for pure domain types.
 - Often: both.
 
-**Persistence naming**: `Store`, not `Repository` (Go-idiomatic, concrete). Each
+**Persistence naming**: `Store`, not `Repository` (concrete, not a pattern name). Each
 sub-package gets its own Store with focused queries; constructor everywhere:
 `NewStore(db *sql.DB, opts ...StoreOption)`.
 

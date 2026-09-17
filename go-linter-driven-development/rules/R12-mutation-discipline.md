@@ -8,14 +8,14 @@ queries return copies (or iterators), not the internal reference; a method is a 
 or a modifier, not both; and a type with a validating constructor exposes no setter
 that skips the validation. This rule adapts Fowler's *Mutable Data* smell family
 (Refactoring, 2nd ed.: Encapsulate Collection, Separate Query from Modifier, Remove
-Setting Method, Split Variable) to Go, where slices and maps are references into
-shared backing storage.
+Setting Method, Split Variable) to languages where collections are passed by
+reference into shared backing storage.
 
 ## Why
 
 R2's payoff — validate once, trust the value everywhere after — is void the moment an
-internal slice escapes. In Go, `return g.perms` does not return the permissions; it
-returns a mutable alias into them. The caller can sort, truncate, or overwrite the
+internal slice escapes. Returning an internal collection does not return the
+permissions; it returns a mutable alias into them. The caller can sort, truncate, or overwrite the
 "validated" state without calling a single method, so no grep for setters and no
 review of the type's own file will ever find the write that broke the invariant. The
 same aliasing runs backward: a constructor that stores a caller's slice without
@@ -124,7 +124,7 @@ them.
 - **No setters around a validating constructor.** A `SetPort(n)` that assigns without
   checking is a hole in `ParsePort`'s wall. If post-construction change is a real
   requirement, the mutator validates exactly as the constructor does — or returns a
-  new value (`WithPort(n) (Server, error)`). If it isn't a real requirement, there is
+  new value (`WithPort(n)`, returning a new value or an error). If it isn't a real requirement, there is
   no setter. (`R2-self-validating-types.md` owns construction; this rule owns the
   paths that could bypass it afterward.)
 - **One variable, one purpose.** A variable reassigned to mean something new
