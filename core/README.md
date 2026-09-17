@@ -73,8 +73,11 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
   catalogue. The generic binding ships a short `skills/testing/reference.md` of its
   own that says so and points at the repository's test utilities.
 - `examples/`: worked case studies written as Go code. Core rules and skills cite
-  them by relative path; a binding without an `examples/` directory renders those
-  citations as names of studies, not files.
+  them by relative path, and the review skill pastes two of them into agent
+  payloads, so every binding must ship the directory. The generic binding carries
+  copies under `lang/generic/passthrough/examples/`, each opening with a note that
+  the Go is for demonstration only; a change to a case study is made in both copies
+  until a binding writes the study in its own language.
 - `README.md`, `CHANGELOG.md`, `.claude-plugin/plugin.json`, `hooks/`: describe or
   configure the Go plugin itself.
 

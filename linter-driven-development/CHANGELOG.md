@@ -29,8 +29,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   fixture matrix runs once per supported language.
 - Commands `/ldd-autopilot`, `/ldd-quickfix`, `/ldd-prepare`, `/ldd-analyze`,
   `/ldd-review`, `/ldd-status` and `/wire-repo-brain`.
+- **The worked case files** under `examples/`, shared with the Go plugin. Their code
+  is Go for demonstration only, and each says so at the top; the skeptic and the
+  critic read them as their payload in this plugin exactly as in the Go one.
 
 ### Not included
 
-- No worked case files (`examples/`), no test-harness catalogue, no hooks: those are
-  written in Go and ship with the Go plugin.
+- No test-harness catalogue and no hooks: those are Go-specific and ship with the Go
+  plugin.

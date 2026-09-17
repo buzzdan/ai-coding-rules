@@ -69,6 +69,8 @@ linter-driven-development/
 │                 pre-commit-review · testing · documentation   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer
 ├── commands/     ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
+├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
+│                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Go for demonstration)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with a detected language adapter
 ```
 
@@ -86,10 +88,14 @@ linter-driven-development/
   index, reachability, drift) run and the first line of output says the code↔docs
   edges are unverified.
 
-Not shipped here, because they are written in Go and belong to the Go plugin: the
-worked case files under `examples/`, the test-harness catalogue, and the
-package-size hook. Rules that cite a case file by path do so for the Go plugin; in
-this plugin the citation names the study, not a file you can open.
+- **[`examples/`](examples/)** — the worked case studies the rules cite: the
+  storified leaf type, the over-abstraction rejection the skeptic scores against,
+  dependency rejection, the two dispatch cases, the private-comment verdicts. Their
+  code is Go, for demonstration only; each opens with that note. The move and the
+  reasoning hold in any language — read the Go as the shape and spell it in yours.
+
+Not shipped here, because they are Go-specific rather than Go-illustrated: the
+test-harness catalogue and the package-size hook.
 
 ## The Five-Phase Flow
 
