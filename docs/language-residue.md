@@ -1,6 +1,6 @@
 ---
 type: architecture
-description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's placeholders, and the Claude Code names a second plugin must not collide on
+description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, and the Claude Code names a second plugin must not collide on
 ---
 # Language Residue Decisions
 
@@ -55,8 +55,9 @@ drifting apart.
   the Go spelling (`wantErr`, `ctx`, `init()`) lives in the move's body or the
   canonical example.
 - **The generic binding is not a third rendering of the same text.** It detects the
-  language at run time, so none of its per-language scalars has a value. See "The
-  generic binding" below.
+  language at run time, so its per-language scalars are general phrases and its
+  includes are instructions with cross-language examples. See "The generic binding"
+  below.
 - **No rule is an override.** An override would be written by every binding — Go,
   generic and Python alike — and a core rule that no binding renders is dead text: an
   edit to its Principle would reach nobody. R2 (`nil`), R10 (goroutines) and R6
@@ -71,7 +72,7 @@ drifting apart.
 | `task` | `{{.Task}}` | goroutine | concurrent task | concurrent task | a unit of concurrent work: R10's Principle and Why, "R10 {{.Task}} leaks", "no {{.Task}}s" at rung 0. Python says "concurrent task" too, so a leaked thread is in scope, not only an asyncio task |
 | `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | the documentation form as a noun or adjective: "its {{.DocForm}}", "kind ({{.DocForm}}/in-body/test)" |
 | `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | the two-word noun in R9 and the comment critic; one scalar would render "docstring comments" |
-| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | `.<ext>` | `*.py` minus the star | the source-file suffix in worked-example paths and R5's role-named files |
+| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | the language's source suffix | `*.py` minus the star | the source-file suffix in worked-example paths and R5's role-named files |
 | `unexported` | `{{.Unexported}}` | unexported | unexported | underscore-prefixed | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads |
 
 Plural forms append `s` to the scalar; every value above pluralizes that way. A
@@ -90,15 +91,29 @@ Failure from Absence".
 `linter-driven-development` is rendered from the same core for repositories without
 a language binding. It detects the language at run time from marker files, so
 `src_glob`, `test_glob`, `project_marker`, `nolint`, `comment_prefix`, `src_ext`,
-`default_test`, `default_lint` and `default_lint_fix` have no value to render. Its
-profile carries short angle-bracket placeholders instead — `<src-glob>`,
-`<test-suffix>`, `<project-marker>`, `<nolint>`, `<comment-prefix>`, `.<ext>`,
-`<test-command>`, `<lint-command>` — and one include in the pre-flight of every
-command binds them: "the detection step resolves each placeholder for the detected
-language, and every later command substitutes the resolved value". A placeholder
-reads correctly inside a file path (`parser.<ext>`), a grep argument
-(`--include='<src-glob>'`) and a count ("non-test `.<ext>` files"); a descriptive
-phrase in those positions does not.
+`default_test`, `default_lint` and `default_lint_fix` have no fixed value. The
+binding answers this differently for text the model reads and for the script it
+installs:
+
+- **Model-facing text is an instruction with examples, not a lookup.** The generic
+  scalars are short general phrases — "the language's source files", "the language's
+  suppression directive", "the repository's test command" — and the generic default
+  includes tell the model to adjust to what it sees: "Keep the doc comment on an
+  important function or type short and point to the repo-brain doc for the rest.
+  Use the language's documentation form — `//` line comments in Go, Rust or
+  TypeScript, `#` in shell or Ruby, a docstring in Python." The same shape covers
+  source globs (grep the files of the detected language), suppression directives
+  (`//nolint`, `# noqa`, `eslint-disable`) and the test and lint commands (run the
+  ones the repository already defines in its Taskfile, Makefile, package scripts or
+  CI; none found is a finding, not a guess). The model reads the repository and
+  substitutes; a placeholder scheme adds nothing it does not already do.
+- **The gate script cannot adjust.** `check-repo-brain.sh` is bash: resolving a
+  backticked symbol against real declarations and banning file-path citations need a
+  parser per language. The generic binding's adapter block is a dispatch on the
+  detected marker — `go.mod` selects the Go block, `pyproject.toml` the Python block —
+  and an unknown marker keeps the structure checks (frontmatter, index, reachability,
+  drift) while reporting code edges as unverified. This is the one place in the
+  generic plugin where a lookup table is real, and it is code, not prose.
 
 Its includes are the core defaults wherever core has one. That is what keeps the
 generic binding a profile plus a handful of files rather than a second copy of core:
@@ -121,9 +136,11 @@ coupling point, whether or not it looks like language:
   repository. The language clause of the orchestrator, code-designing and testing
   descriptions is an include; the generic one says it applies when no
   language-specific plugin is installed for the detected language.
-- **Commands** carry `{{.CmdPrefix}}` in their file names. `wire-repo-brain` is the
-  one command without a prefix; the second binding decides whether it gets one, and
-  the documentation skill's text that names `/wire-repo-brain` follows that decision.
+- **Commands** carry `{{.CmdPrefix}}` in their file names. `wire-repo-brain` keeps
+  no prefix: the documentation network it wires is a property of the repository, not
+  of a language, and the only language-shaped part — the gate's declaration parser —
+  lives in the adapter block the binding supplies. Two plugins installed side by side
+  offer the same command doing the same structural work.
 - **Report literals are core and never move.** The words evals parse — `FIXED:`,
   `ESCALATED:`, `LINT STATUS:`, the `Stop check` lines, `R<N>: <M> finding(s)`, the
   category headers, `🔗 CLUSTER:` — are the report contract; no binding include
@@ -176,6 +193,5 @@ enforced:
    their "Ask" illustrations are the author's, quoted the way a design book quotes Go
    proverbs.
 
-Open, for the plugin owner: whether `/wire-repo-brain` gains the command prefix
-(which renames the Go command too), and what the generic plugin's README promises
-about its linter phase.
+Open, for the plugin owner: what the generic plugin's README promises about its
+linter phase.
