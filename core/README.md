@@ -17,14 +17,20 @@ Go `text/template` with the default delimiters. Core files use only two construc
 - `{{.Plugin}}`, `{{.Lang}}`, `{{.CmdPrefix}}`, `{{.SrcGlob}}`, `{{.TestGlob}}`,
   `{{.ProjectMarker}}`, `{{.Nolint}}`, `{{.CommentPrefix}}`, `{{.DefaultTest}}`,
   `{{.DefaultLint}}`, `{{.DefaultLintFix}}`, `{{.Nil}}`, `{{.Task}}`, `{{.DocForm}}`,
-  `{{.DocComment}}`, `{{.SrcExt}}` — scalars from `profile.yaml`. The last five are
-  single words core prose uses as common nouns (the missing value, a unit of
-  concurrent work, the documentation comment form, the source-file suffix); which
-  sentences use them, and which Go idioms are includes instead, is recorded in
-  `docs/language-residue.md`. A template that names a scalar the profile does not
+  `{{.DocComment}}`, `{{.SrcExt}}`, `{{.Unexported}}` — scalars from `profile.yaml`.
+  The last six are single words core prose uses as common nouns (the missing value, a
+  unit of concurrent work, the documentation comment form, the source-file suffix,
+  the visibility of a non-public symbol); which sentences use them, and which Go
+  idioms are includes instead, is recorded in `docs/language-residue.md`. A template that names a scalar the profile does not
   define fails to render.
 - `{{include "rules/R1/canonical-example.md"}}` — the body of that file under
-  `lang/<lang>/`, with exactly one trailing newline removed.
+  `lang/<lang>/`, with exactly one trailing newline removed. When the binding has no
+  file of that name, the body comes from `core/includes/` under the same path: the
+  language-neutral default, so a binding adds a file only where its language differs.
+  A name found in neither place is an error. Files under `core/includes/` are never
+  rendered as outputs. An include sits at a block boundary — a bullet, paragraph,
+  fence or table row — never inside a sentence; which text is an include and which is
+  reworded in core is decided in `docs/language-residue.md`.
 
 File-level rules the generator applies without template syntax:
 
@@ -84,7 +90,7 @@ scalar, include or whole-file override. The decision per token is recorded in
 Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob or nolint directive is left in core/.
 
-Soft residue by token (283 lines):
+Soft residue by token (312 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
@@ -93,6 +99,7 @@ Soft residue by token (283 lines):
 | .go suffix | 34 | 10 |
 | Go stdlib | 34 | 9 |
 | godoc | 23 | 7 |
+| unexported | 20 | 13 |
 | goroutine | 18 | 5 |
 | ctx | 15 | 4 |
 | error tuple | 13 | 6 |
@@ -101,6 +108,7 @@ Soft residue by token (283 lines):
 | context. | 10 | 4 |
 | httptest | 10 | 3 |
 | Go (the word) | 9 | 7 |
+| zero value | 8 | 4 |
 | sync. | 7 | 4 |
 | Go library | 6 | 3 |
 | init() | 6 | 2 |
@@ -110,35 +118,37 @@ Soft residue by token (283 lines):
 | Go code fence | 3 | 1 |
 | pkg_test | 3 | 2 |
 | go test / go vet | 2 | 2 |
+| panic | 2 | 1 |
 | t.Run | 2 | 1 |
+| race detector | 1 | 1 |
 
-Soft residue by file (283 lines):
+Soft residue by file (312 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
-| `rules/R2-self-validating-types.md` | 51 | 7 |
-| `rules/R10-concurrency-safety.md` | 32 | 9 |
-| `rules/R11-conditional-dispatch.md` | 24 | 8 |
+| `rules/R2-self-validating-types.md` | 53 | 9 |
+| `rules/R10-concurrency-safety.md` | 33 | 10 |
+| `rules/R11-conditional-dispatch.md` | 25 | 9 |
 | `skills/refactoring/SKILL.md` | 22 | 12 |
-| `rules/R6-test-only-interfaces.md` | 18 | 3 |
-| `skills/pre-commit-review/SKILL.md` | 18 | 6 |
+| `skills/pre-commit-review/SKILL.md` | 20 | 7 |
+| `rules/R6-test-only-interfaces.md` | 19 | 4 |
+| `rules/R9-repo-brain.md` | 14 | 6 |
 | `rules/R8-no-globals.md` | 13 | 7 |
-| `rules/R9-repo-brain.md` | 12 | 5 |
+| `skills/code-designing/SKILL.md` | 12 | 5 |
+| `skills/testing/SKILL.md` | 12 | 7 |
 | `rules/R7-test-placement.md` | 11 | 9 |
-| `skills/testing/SKILL.md` | 11 | 6 |
+| `agents/overabstraction-skeptic.md` | 10 | 6 |
+| `maxims.md` | 10 | 6 |
 | `rules/R5-vertical-slice.md` | 10 | 1 |
-| `skills/code-designing/SKILL.md` | 10 | 4 |
-| `skills/documentation/SKILL.md` | 9 | 3 |
-| `maxims.md` | 8 | 5 |
+| `skills/documentation/SKILL.md` | 10 | 4 |
 | `agents/rule-hunter.md` | 6 | 2 |
-| `agents/overabstraction-skeptic.md` | 5 | 4 |
-| `skills/linter-driven-development/SKILL.md` | 4 | 4 |
-| `skills/refactoring/reference.md` | 4 | 4 |
-| `agents/comment-critic.md` | 3 | 1 |
-| `rules/R1-primitive-obsession.md` | 3 | 2 |
+| `rules/R1-primitive-obsession.md` | 6 | 4 |
+| `rules/R4-helper-placement.md` | 5 | 4 |
+| `skills/linter-driven-development/SKILL.md` | 5 | 5 |
+| `skills/refactoring/reference.md` | 5 | 5 |
+| `agents/comment-critic.md` | 4 | 2 |
 | `rules/R12-mutation-discipline.md` | 3 | 2 |
 | `commands/{{.CmdPrefix}}-analyze.md` | 2 | 2 |
-| `rules/R4-helper-placement.md` | 2 | 3 |
 | `agents/lint-fixer.md` | 1 | 1 |
 | `commands/wire-repo-brain.md` | 1 | 1 |
 <!-- residue:end -->

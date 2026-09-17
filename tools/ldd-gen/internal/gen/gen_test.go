@@ -28,6 +28,7 @@ task: fiber
 doc_form: docstring
 doc_comment: doc comment
 src_ext: .p
+unexported: hidden
 ignore: ["evals/*"]
 `
 

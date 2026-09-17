@@ -83,6 +83,10 @@ func SoftTokens() []Token {
 		token("t.Run", `\bt\.Run\b`),
 		token("Example_", `\bExample_`),
 		token("Go stdlib", `\b(strings|errors|fmt|io|time|bytes|atomic|slog)\.[A-Z][A-Za-z0-9]*`),
+		token("panic", `\bpanics?\b`),
+		token("zero value", `\bzero[ -]values?\b`),
+		token("unexported", `\bunexported\b`),
+		token("race detector", `\brace detector\b`),
 	}
 }
 

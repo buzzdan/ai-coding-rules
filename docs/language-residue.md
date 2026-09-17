@@ -1,6 +1,6 @@
 ---
 type: architecture
-description: how each Go idiom left in core prose is rendered per language binding — the scalar, include and aside decision for every soft residue token, and why no rule is a whole-file override
+description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's placeholders, and the Claude Code names a second plugin must not collide on
 ---
 # Language Residue Decisions
 
@@ -9,272 +9,173 @@ but the Go plugin was written first, so some sentences still reason from Go: `ni
 as the missing value, goroutines, `ctx`, godoc, table tests with `wantErr`. The
 generator's `task lint-core` scans `core/` for these words and writes the count per
 token and per file into the Residue section of [core/README.md](../core/README.md).
-That section says *where* the residue is. This document says *what happens to each
-hit*: which mechanism renders it for a second language, and why.
+That section says *where* the residue is. This document says *what happens to a
+hit*: which mechanism renders it for a second language, and the rules that decide
+between mechanisms. The line-by-line work list that applies these rules lives
+outside the repository, in the stream's planning notes, because it is stale the day
+the text moves.
 
-## The four outcomes
+## The five outcomes
 
-Every hit gets exactly one of these. The Go plugin must render byte-identical after
-each decision is applied, which is what `task check` proves.
+Every hit gets exactly one of these.
 
 | Outcome | When | Mechanism |
 |---|---|---|
-| **Scalar** | One word or spelling that recurs in five or more lines, and substituting it keeps every sentence true in every binding | A new `profile.yaml` key, rendered as `{{.Name}}`. Its Go literal then becomes hard residue, so a missed site fails `task lint-core` |
-| **Include** | A sentence, bullet, list or code fence that reasons from one language's idiom (error tuples, options, `io.Discard`, Go's package-doc file, external test packages) | `{{include "path"}}` under `lang/<lang>/`. The Go include is the old text verbatim. An include may sit inline mid-sentence; the generator trims exactly one trailing newline |
-| **Aside** | A Go word used as the common noun for a concept every language has, where the sentence stays true as written | Nothing changes. The decision is recorded below so the token is not re-triaged |
-| **Override** | A whole core file whose text differs per language | `lang/<lang>/overrides/<core path>`. **Not used for any rule** — see the next section |
+| **Rewrite** | A Go *spelling* of a universal idea sits inside a core sentence: `pkg_test` for "imported as a consumer would", `context.Background()` for "a library that manufactures its own root cancellation", `(X, error)` for "the value or an error" | The core sentence is reworded so it is true in every language; the Go spelling moves into the rule's canonical example, which the binding owns. This changes the Go plugin's text, so it ships as a content change with a version bump, never inside a byte-identical refactor |
+| **Scalar** | One word or spelling that recurs in five or more lines, and substituting it keeps every sentence true in every binding | A `profile.yaml` key rendered as `{{.Name}}`. Its Go literal then becomes hard residue, so a missed site fails `task lint-core` |
+| **Include** | A whole block — bullet, paragraph, code fence, table row — whose *content* is one language's mechanism, not just its spelling: R10's guard and exit-path mechanics, R7's table-test mechanics, a worked example in Go | `{{include "path"}}`. The generator reads `lang/<lang>/path`; when the binding has no such file it reads `core/includes/path`, the language-neutral default. A binding adds a file only where its language truly differs |
+| **Aside** | A Go word used as the common noun for a concept every language has, where the sentence stays true as written: "interface", "struct" as a shape, the attributed Go proverbs in `maxims.md` | Nothing changes; the decision is recorded once so the token is not re-triaged |
+| **Override** | A whole core file whose text differs per language | `lang/<lang>/overrides/<core path>`. Never used for a rule, skill, agent or command; kept for files such as a plugin README that differ entirely |
 
-## Why no rule is an override
+## Seam rules
 
-Three rules looked like override candidates: R2 (`nil`), R10 (goroutines) and R6
-(interfaces versus mocks). All three stay in core with includes, because an override
-would be written by every binding — Go, generic and Python alike — and a core file
-that no binding renders is dead text: an edit to its Principle would reach nobody.
-Includes keep the shared parts shared:
+These decide which outcome a hit gets, and they are what keeps three bindings from
+drifting apart.
 
-- **Principle and Why stay one text.** Where a Principle names a Go word (R10's
-  goroutine, R2's nil), a scalar carries the language's word; where a clause is a Go
-  idiom (R8's `context.Background()` prohibition), an inline include carries the
-  clause.
-- **Fix-pattern move names are vocabulary.** The refactoring skill's pattern index,
-  the code-designing dispatch table and the pre-commit-review hunter table all name a
-  rule's moves. For R7, R8 and R10 the move names are Go-shaped ("Split `wantErr`
-  tables", "Thread `ctx`", "Make the Goroutine Joinable"), so the rule's Fix pattern
-  body and the three rows that cite it are includes owned by the same binding. For
-  every other rule the names are neutral and stay in core.
-- **R6's word is "interface".** The rule's failure mode — a hand-written double
-  standing in for the real collaborator — exists in every language. Python's
-  version adds `unittest.mock.patch` and MagicMock stand-ins that need no
-  interface at all; that story belongs in R6's canonical example and falsifying
-  questions, which the binding already owns. The prose keeps "interface" as the
-  general term (Java, C#, TypeScript, Go and PHP use the keyword; Python's Protocol
-  and Rust's trait are structural interfaces).
+- **Includes sit at block boundaries, never inside a sentence.** A clause-level
+  include splits a core sentence across two files: the core author can no longer read
+  their own sentence, and a per-language clause stops fitting the grammar around it
+  without any check noticing. A lone Go clause is a Rewrite; three or more contiguous
+  language-shaped bullets in one section are one include for that section
+  (`rules/R10/design-guidance.md`), with the neutral bullets kept in core before or
+  after it.
+- **Doctrine is core; mechanism is binding.** Principle, Why, the reasoning in Design
+  guidance and the *names and one-line meaning* of every Fix-pattern move stay in
+  core. What a binding adds is how the mechanism is spelled in its language. When
+  a section is mostly mechanism, core keeps the neutral bullets and ends the section
+  with one include for the language's mechanics, whose core default is empty or a
+  short neutral note.
+- **Move names are catalogue names.** A refactoring move is shared vocabulary: the
+  refactoring skill's pattern index, the code-designing dispatch table, the
+  pre-commit-review hunter table, the skeptic's scope note and the evals' violation
+  manifest all cite moves by name. A name that changes per language is not in the
+  catalogue. So every move name is language-neutral core text — "Split Success and
+  Error Tables", "Pass Cancellation Down", "Replace Import-Time Initialization with a
+  Constructor", "Separate Failure from Absence", "Make the {{.Task}} Joinable" — and
+  the Go spelling (`wantErr`, `ctx`, `init()`) lives in the move's body or the
+  canonical example.
+- **The generic binding is not a third rendering of the same text.** It detects the
+  language at run time, so none of its per-language scalars has a value. See "The
+  generic binding" below.
+- **No rule is an override.** An override would be written by every binding — Go,
+  generic and Python alike — and a core rule that no binding renders is dead text: an
+  edit to its Principle would reach nobody. R2 (`nil`), R10 (goroutines) and R6
+  (interfaces versus mocks) looked like override candidates and are rendered with
+  scalars, rewrites and block includes instead.
 
-## New scalars
+## Scalars
 
-| Key | `{{.Name}}` | Go | Generic | Python | Replaces |
+| Key | `{{.Name}}` | Go | Generic | Python | Carries |
 |---|---|---|---|---|---|
-| `nil` | `{{.Nil}}` | nil | null | None | "nil" as a noun in prose: nil-checks, nil holes, nil handling, "nil is not a value", "Replace nil returns" (the move name) |
-| `task` | `{{.Task}}` | goroutine | concurrent task | task | "goroutine" in prose: R10's Principle and Why, "R10 goroutine leaks", "no goroutines" at rung 0, "every planned goroutine gets an owner" |
-| `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | "godoc" as a noun or adjective: "its godoc", "godocs", "kind (godoc/in-body/test)", "godoc + feature docs" |
-| `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | the two-word noun "godoc comment(s)" in R9 and the comment critic; a single scalar would render "docstring comments" |
-| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | (per detected row) | `*.py` minus the star | file names in worked examples and role-file names in R5; the ldd trigger's "source files present" clause; the package-size zone's "non-test source files" count |
+| `nil` | `{{.Nil}}` | nil | null | None | the missing value as a noun: "{{.Nil}}-checks", "{{.Nil}} holes", "{{.Nil}} handling" |
+| `task` | `{{.Task}}` | goroutine | concurrent task | concurrent task | a unit of concurrent work: R10's Principle and Why, "R10 {{.Task}} leaks", "no {{.Task}}s" at rung 0. Python says "concurrent task" too, so a leaked thread is in scope, not only an asyncio task |
+| `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | the documentation form as a noun or adjective: "its {{.DocForm}}", "kind ({{.DocForm}}/in-body/test)" |
+| `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | the two-word noun in R9 and the comment critic; one scalar would render "docstring comments" |
+| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | `.<ext>` | `*.py` minus the star | the source-file suffix in worked-example paths and R5's role-named files |
+| `unexported` | `{{.Unexported}}` | unexported | unexported | underscore-prefixed | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads |
 
-`{{.Lang}}` already exists; R9's monorepo note still says "this build carries the Go
-adapter" as a literal and renders through the scalar instead.
+Plural forms append `s` to the scalar; every value above pluralizes that way. A
+scalar never carries a sentence: when substitution would need a different article,
+verb or clause per language, the site is a Rewrite or an include.
 
-Plural forms append `s` to the scalar (`{{.Task}}s`, `{{.DocForm}}s`); every value
-above pluralizes that way. The generic binding's `src_ext` is not a fixed value: the
-generic plugin detects the language at run time, so its profile carries the phrase
-the detection step defines.
+Two sentences the scalars do not fix on their own, and the Rewrite that does: "nil as
+a value" in the hunter table renders "None as a value", which in Python is a
+legitimate `X | None`; the neutral wording is "the missing value returned where a
+real value is expected". "Replace nil returns" as a move name says stop while its
+Python body says `X | None` is the answer for absence; the catalogue name is "Separate
+Failure from Absence".
 
-## Decisions by file
+## The generic binding
 
-Anchors quote the phrase in the core text rather than a line number, because line
-numbers move with every edit. Where an include is named, the Go binding's file holds
-the current core text unchanged.
+`linter-driven-development` is rendered from the same core for repositories without
+a language binding. It detects the language at run time from marker files, so
+`src_glob`, `test_glob`, `project_marker`, `nolint`, `comment_prefix`, `src_ext`,
+`default_test`, `default_lint` and `default_lint_fix` have no value to render. Its
+profile carries short angle-bracket placeholders instead — `<src-glob>`,
+`<test-suffix>`, `<project-marker>`, `<nolint>`, `<comment-prefix>`, `.<ext>`,
+`<test-command>`, `<lint-command>` — and one include in the pre-flight of every
+command binds them: "the detection step resolves each placeholder for the detected
+language, and every later command substitutes the resolved value". A placeholder
+reads correctly inside a file path (`parser.<ext>`), a grep argument
+(`--include='<src-glob>'`) and a count ("non-test `.<ext>` files"); a descriptive
+phrase in those positions does not.
 
-### rules/R2-self-validating-types.md
+Its includes are the core defaults wherever core has one. That is what keeps the
+generic binding a profile plus a handful of files rather than a second copy of core:
+neutral text is written once, under `core/includes/`, and Go and Python add a file
+only where their mechanism differs.
 
-| Anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| Why: "nil-checks, emptiness checks" | nil | Scalar | `{{.Nil}}-checks` |
-| "a struct-literal or zero-value path around the constructor" | struct | Aside | "struct literal" reads as "building the value directly, bypassing the constructor" in any language with literals or default constructors |
-| Validation ownership: the Config code fence | fence, struct, func, nil | Include | `rules/R2/validation-ownership-example.md` |
-| Trust composed values: the Address code fence | fence, func, nil | Include | `rules/R2/trust-composed-example.md` |
-| "**Nil is not a value.**" through the end of "Absence is a value too", including the Reporter code fence and the option paragraph | nil, func, fence | Include | `rules/R2/absence-guidance.md`. The two bullets reason from Go's error positions (`nil, err`), functional options, `errors.Join` and `io.Discard`. Python's text says None, raises, keyword defaults and a sentinel object; the generic text names the language's null and a named do-nothing value |
-| No defensive coding: "zero nil/emptiness checks" | nil | Scalar | `{{.Nil}}/emptiness checks` |
-| Fix, Hoist method checks: "the hoisted check rejects nil" | nil | Scalar | |
-| Fix, Introduce Null Object: the bullet body after the name | nil, interface | Include | `rules/R2/fix-null-object.md` — options, `errors.Join`, `io.Writer` and `io.Discard` |
-| Fix, "**Replace nil returns**: `(X, error)` for failures, `(X, bool)` for absence" | nil | Scalar + Include | the name renders `Replace {{.Nil}} returns`; the body is `rules/R2/fix-nil-returns.md` (Python: raise for failure, `X | None` only for absence) |
+## Claude Code names a second plugin must not collide on
 
-Not flagged by the scanner but Go all the same: the constructor signatures
-`ParseX(raw) (X, error)` and `NewX(deps) (X, error)` in "Constructors are the only
-entry" and in "Add validating constructor", and "loses its `error` return entirely"
-in "Delete re-validation". These are the error-tuple idiom; they become the include
-`rules/R2/constructor-signatures.md` (inline, twice) and the scanner gains a soft
-token for `(X, error)`-shaped tuples so the next language finds them.
+Two plugins from this core can be installed side by side — Go and generic in a
+monorepo, or Go and Python. Everything a skill reaches by name is therefore a
+coupling point, whether or not it looks like language:
 
-### rules/R10-concurrency-safety.md
-
-| Anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| Principle: "Every goroutine has an owner", "who stops the goroutine" | goroutine | Scalar | `{{.Task}}` — the Principle is neutral once the word is |
-| Why: "a `for { <-ch }` goroutine has no way out" | goroutine | Include | `rules/R10/why-no-exit.md`, inline: the clause with the code |
-| Why: "a leaked goroutine accumulates", "a goroutine nobody can stop", "two goroutines without a guard" | goroutine | Scalar | |
-| Why: "an unsynchronized concurrent map write is a **fatal runtime crash**, not an error; a bare `time.Sleep` in a retry loop" | — | Include | `rules/R10/why-failures.md`, inline. Go-specific facts: Python's dict writes do not crash, its sleep is `time.sleep` versus `asyncio.sleep` |
-| Why: "The mechanical neighbors of this rule belong to the linter … `errcheck` … `bodyclose` … `govet copylocks`" | linter names | Include | `rules/R10/why-linter-neighbors.md`; the Design guidance already has `rules/R10/linter-neighbors.md` for the same list |
-| Design guidance: every bullet from "Whoever starts a goroutine" through "Production code does not sleep" | goroutine, ctx, context., sync., errgroup, golang.org | Include | `rules/R10/design-guidance.md` — one include for the section body. Each bullet is a Go mechanism: `select` on `ctx.Done()`, `atomic`, `sync.Map`, `sync.OnceFunc`, `time.After`, `context.WithoutCancel`, `golang.org/x/time/rate`. Python's says asyncio tasks kept by reference, cancellation and `gather`, `threading.Event`, locks and the GIL; the generic one states the owner, exit path, guard-with-state and no-sleep principles by concept |
-| Design guidance: "`ctx` threading discipline: `R8-no-globals.md`" | ctx | Include | `rules/R10/cross-ref-cancellation.md`, inline |
-| Fix pattern: all five moves | ctx, goroutine, errgroup, sync., go vet | Include | `rules/R10/fix-pattern.md`. Move names are binding-owned (see "Fix-pattern move names are vocabulary") |
-
-### rules/R6-test-only-interfaces.md
-
-| Anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| "interface" throughout Principle, Why, Design guidance and Fix pattern | interface | Aside | the general term for the concept; see "R6's word is interface" |
-| Why: "A hand-written struct that only satisfies a production interface" | struct | Aside | struct as "object" |
-| Why: "embedded DB, `httptest` server, temp dir" | httptest | Include | `rules/R6/fake-examples.md`, inline — the list of real-with-fake-data harnesses |
-| Design guidance: "(real store over embedded DB, real client against `httptest`)" | httptest | Include | `rules/R6/wire-real-examples.md`, inline |
-| Fix pattern: "(embedded DB, temp dir, `httptest` server)" | httptest | Include | `rules/R6/rewrite-examples.md`, inline |
-| Fix pattern: "the fake struct in `*{{.TestGlob}}` / `fakes/` / `mocks/`" | struct | Aside | |
-
-### rules/R7-test-placement.md
-
-| Anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| Principle: "public API only, `pkg_test` package" | pkg_test | Include | `rules/R7/principle-public-api.md`, inline — the parenthetical's last item. Python has no external test package; its text says "importing only public names" |
-| Why: "a conditional inside `t.Run` means one case is really two" | — | Include | `rules/R7/why-subtest.md`, inline; unflagged today, `t.Run` gains a soft token |
-| Design guidance: the four bullets from "Leaf types (rung 0)" through "Complexity 1 inside every `t.Run`" | pkg_test, httptest, interface, wantErr | Include | `rules/R7/design-guidance-mechanics.md` — external test package, `httptest`, `t.Run`, `wantErr bool`, `TestX_Success`. The two neutral bullets that follow (private-test urge, ladder pointer) stay in core |
-| Design guidance: "**Mechanics**: named struct fields … no `time.Sleep` … testify suites" | struct, testify, Go stdlib | Include | `rules/R7/mechanics.md` |
-| Fix pattern: "**Split `wantErr` tables**" | wantErr | Include | `rules/R7/fix-split-tables.md` |
-| Fix pattern: "**Replace sleep with synchronization**: channel + `select`/timeout, or `sync.WaitGroup`" | sync. | Include | `rules/R7/fix-replace-sleep.md` |
-
-### rules/R8-no-globals.md
-
-| Anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| Principle: "no package-level mutable state, no `init()` writing state, no singletons fetched from inside business logic, no `context.Background()` in library code — `ctx` flows from caller to callee" | init(), context., ctx | Include | `rules/R8/principle-prohibitions.md`, inline. Python's list: no module-level mutable state, no import-time side effects, no singletons reached from business logic |
-| Why: "`context.Background()` deep in a call chain is the same sin in context form: it severs cancellation, timeouts, and tracing" | context. | Include | `rules/R8/why-context.md`, inline |
-| Why: "couples every caller to one config struct" | struct | Aside | |
-| Why: "loggers designed to be global (`slog`, `zerolog`), constants, and `var Err... = errors.New` sentinels are fine" | Go stdlib | Include | `rules/R8/acceptable-globals.md`, inline — the list of globals that are not defects; Python's names `logging.getLogger`, constants and exception classes |
-| Design guidance: the three bullets "`ctx` flows down", "`init()` computes nothing observable", "Singletons are wiring, not access" | ctx, context., init(), sync. | Include | `rules/R8/design-guidance-language.md` |
-| Fix pattern: "**Replace `init()` with a constructor**" and "**Thread `ctx`**" | init(), ctx, context. | Include | `rules/R8/fix-pattern-language.md` — the two Go moves; "Extract Clean Island" and "Push the Global Up One Level" stay in core |
-
-### rules/R11-conditional-dispatch.md
-
-| Anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| "interface" throughout | interface | Aside | |
-| "exhaustive switch", "make it exhaustive", "goes exhaustive" | exhaustive (the word) | Aside | English, not the linter |
-| "Null object over nil-checks" bullet: from "A scattered `if x != nil`" through "absence is a value too" | nil, Go (the word), struct, interface | Include | `rules/R11/null-object-shape.md` — "The Go shape follows the collaborator's type", `type NopLogger struct{}`, `io.Discard`, `time.Now` |
-| "**Flag arguments are two functions.** `func Render(a Alert, short bool)`" | func | Include | `rules/R11/flag-argument-example.md`, inline — the example signature |
-| "let the `exhaustive` linter prove completeness" and Fix "no `default`, `exhaustive` linter enforcing completeness" | linter name | Include | `rules/R11/exhaustiveness-check.md`, inline at both sites. Python: mypy with `assert_never`; generic: the linter's exhaustiveness check where the language has one |
-| "`if err != nil`, guard clauses" | nil | Include | part of the state-conditional examples; `rules/R11/state-conditional-examples.md`, inline |
-| Fix, Introduce Null Object: "absent-collaborator nil-checks", "(`DiscardSink()` composing `io.Discard`)" | nil, interface | Scalar + Include | `{{.Nil}}-checks`; the parenthetical is `rules/R11/fix-null-object-example.md`, inline |
-| Fix, Replace Duplicated Switch: "introduce `ParseX(raw) (X, error)` as the single decision point" | error tuple | Include | `rules/R11/decision-point-signature.md`, inline |
-
-### Other rules
-
-| File and anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| R1, scorecard: "Replacing `map[string]interface{}`: +2" | interface | Include | `rules/R1/scorecard-untyped-map.md`, inline — Python `dict[str, Any]`, generic "an untyped map" |
-| R1, Fix: "introduce `ParseX(raw) (X, error)`" and "absence/invalidity → `(X, bool)` or `(X, error)`" | error tuple | Include | `rules/R1/constructor-signature.md` and `rules/R1/comma-ok-signature.md`, inline — Python: a classmethod that raises, and `X | None` for absence |
-| R4, Design guidance: "The Go accelerant: embedding a domain type … `sync` primitives per `R10-concurrency-safety.md`" | Go, struct, interface, sync. | Include | `rules/R4/embedding-accelerant.md` — Python's accelerant is inheriting from a domain type; the generic text names inheritance or embedding |
-| R5, role-named files: parser, handler, repository, service and the rename `<feature>_service` → `service` | source suffix (10 lines) | Scalar | `{{.SrcExt}}` on every file name; the layout is the same in a Python package |
-| R9, "godoc comments → repo docs → the index", "a godoc comment lives beside the code" | godoc | Scalar | `{{.DocComment}}` |
-| R9, "its godoc", "Code comments (godoc)", "the godoc states the incident", "richer inline godoc", "expanding <Symbol>'s godoc" | godoc | Scalar | `{{.DocForm}}` |
-| R9, Guarantees: "thread safety, nil handling, invariants" | nil | Scalar | |
-| R9, escape hatch: the "**Package docs in** …" bullet naming Go's dedicated package-doc file | source suffix, godoc | Include | `rules/R9/package-doc-file.md` — Python's package docstring lives in the package's init module |
-| R9, monorepo note: "this build carries the Go adapter" | Go | Scalar | `{{.Lang}}` — a missed substitution |
-| R12, Principle: "to Go, where slices and maps are references into shared backing storage" | Go | Include | `rules/R12/aliasing-semantics.md`, inline — true of Python lists and dicts too, with different nouns |
-| R12, Why: "In Go, `return g.perms` does not return the permissions; it returns a mutable alias" | Go | Include | `rules/R12/aliasing-example.md`, inline |
-| R12, no setters: "or returns a new value (`WithPort(n) (Server, error)`)" | error tuple | Include | `rules/R12/with-method-example.md`, inline — the parenthetical |
-| R9, comment budget: "anything bigger belongs in an `Example_*` testable example" | Example_ | Include | `rules/R9/inline-example-overflow.md`, inline — Python: a doctest or an example under the docs |
-
-### maxims.md
-
-Aside, the whole file. The Go proverbs are attributed quotations and the scanner
-already exempts the attribution lines. Their "Ask" and "Compiled into" paragraphs
-mention `ParseX(raw) (X, error)`, `bytes.Buffer`, `sync.Mutex`, `io.Reader` and "this struct" as illustrations
-of quoted doctrine; a Python or generic plugin quotes the same proverbs with the same
-illustrations, the way a book on design quotes Go proverbs.
-
-### Skills
-
-| File and anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| pre-commit-review, hunter table row R2: "nil as a value"; cluster pass: "a nil handed to the constructor" | nil | Scalar | |
-| pre-commit-review, hunter table rows R7 and R8: "wantErr conditionals", "`context.Background()` in library code" | wantErr, context. | Include | `skills/pre-commit-review/hunt-R7.md`, `hunt-R8.md`, one per row; the other ten rows are neutral and stay |
-| pre-commit-review, hunter table row R10: "goroutines without exit paths or owners" | goroutine | Scalar | `{{.Task}}s` |
-| pre-commit-review, Bugs category: "(nil returned as a value, cancellation swallowed by `context.Background()`, R10 goroutine leaks and unguarded concurrent writes)" | nil, context., goroutine | Include | `skills/pre-commit-review/bug-examples.md`, inline — the parenthetical |
-| pre-commit-review, "(godoc, in-body, test)" and the report example's "the godoc restates the name" | godoc | Scalar | `{{.DocForm}}` |
-| pre-commit-review, the cluster example's notify path and the report example's file paths | source suffix (11 lines) | Scalar | `{{.SrcExt}}`; the example's `// compare password` uses `{{.CommentPrefix}}`, which exists |
-| pre-commit-review, "the switch stays, goes exhaustive" | exhaustive | Aside | |
-| refactoring SKILL, pattern index row R2: "Replace nil returns" | nil | Scalar | |
-| refactoring SKILL, pattern index rows R7, R8, R10 | wantErr, init(), ctx, goroutine | Include | `skills/refactoring/moves-R7.md`, `moves-R8.md`, `moves-R10.md` — the move-name cells; they must match the binding's Fix pattern includes |
-| refactoring SKILL, "**Introduce Null Object, the Go shape.**" paragraph | Go, nil, interface | Include | `skills/refactoring/null-object-shape.md` |
-| refactoring SKILL, "(`grep -rn 'func .*Parse' --include='{{.SrcGlob}}'` on the step's noun)" | func | Include | `skills/refactoring/find-existing-function.md`, inline — the grep pattern is Go syntax |
-| refactoring SKILL, stop check step 2: "because a package-level variable, an `init()` or a singleton has no function to sit in" | init() | Include | `skills/refactoring/package-level-declarations.md`, inline — the list of R8 shapes that live outside any function |
-| refactoring SKILL, stop check step 2: "the `init()` under it, the `context.Background()` in the function just reshaped" | init(), context. | Include | `skills/refactoring/rerun-leftovers.md`, inline — the list of illustrative leftovers |
-| refactoring SKILL, noun check: "never a nil-able field, and an option handed nil records the error" | nil | Scalar | |
-| refactoring SKILL, critic step: "the `// Sink is where events are written.` godoc beside the code" | godoc | Include | `skills/refactoring/restating-comment-example.md`, inline; a docstring is not a `#` comment, so the comment-prefix scalar does not fit |
-| refactoring SKILL, "interface dispatch", "owned interface", "this struct three questions" | interface, struct | Aside | |
-| refactoring SKILL, stop check step 2, the "still — routed again" example path, and the BROADER CONTEXT example line | source suffix | Scalar | `{{.SrcExt}}` |
-| refactoring reference, "≥13 non-test … files at one directory level" | source suffix | Scalar | `{{.SrcExt}}` |
-| refactoring reference, "`func normalizeFoo(s string) string` wants to be `(f Foo) Normalize()`" | func | Include | `skills/refactoring/method-candidate-example.md`, inline |
-| refactoring reference, "**Persistence naming**: Store, not Repository (Go-idiomatic, concrete)" | Go | Include | `skills/refactoring/persistence-naming.md` — the claim is about Go idiom |
-| refactoring reference, "the package provides context." | context. | Aside | scanner false positive: the English word at a sentence end |
-| refactoring reference, "Never invert the arrow with an interface" | interface | Aside | |
-| testing SKILL, "(table-driven vs testify suites)" | testify | Include | `skills/testing/strategy-choices.md`, inline |
-| testing SKILL, "Use `pkg_test` package name" | pkg_test | Include | `skills/testing/public-api-package.md` — the bullet |
-| testing SKILL, the five bullets under "No mocks" naming `httptest`, struct doubles and testutils | httptest, struct, interface | Include | `skills/testing/no-mocks-bullets.md`; the heading stays in core |
-| testing SKILL, "**Assertions**: testify is the default … goweka uses stdlib assertions" | testify | Include | `skills/testing/assertions.md` |
-| testing SKILL, rung 0: "No I/O, no goroutines, no production dependencies" | goroutine | Scalar | `{{.Task}}s` |
-| testing SKILL, "httptest server, bufconn gRPC, in-memory NATS, temp files, embedded VictoriaMetrics" | httptest | Include | `skills/testing/real-layer-examples.md`, inline |
-| code-designing, rule dispatch row R2: "nil is not a value" | nil | Scalar | |
-| code-designing, rule dispatch row R8: "`ctx` threaded from callers" | ctx | Include | `skills/code-designing/dispatch-R8.md` — the cell |
-| code-designing, rule dispatch row R10 and checklist R10: "Every planned goroutine", "Every goroutine has an owner" | goroutine | Scalar | `{{.Task}}` — the rest of both lines is neutral |
-| code-designing, checklist R8: "ctx flows down" | ctx | Include | `skills/code-designing/checklist-R8.md` — the line |
-| code-designing, "Every planned interface", "No test-only interfaces", "interface, strategy map, or a single exhaustive switch" | interface, exhaustive | Aside | |
-| documentation SKILL, "narration in a godoc", "godocs and feature docs", "Rung 1 — godoc", "richer inline godoc", "godoc: <symbols touched>", "expanding its godoc" | godoc | Scalar | `{{.DocForm}}` |
-| documentation SKILL, "A package that earns more moves its godoc to …" and "Add testable examples (`Example_*`)" | godoc, source suffix | Include | `skills/documentation/package-doc-and-examples.md` — the package-doc-file sentence and the `Example_*` sentence; the latter is unflagged Go today |
-| documentation SKILL, "beats an exhaustive doc" | exhaustive | Aside | English |
-| documentation SKILL, report artifacts: "testable examples: <Example_* functions>" | Example_ | Include | `skills/documentation/testable-examples-artifact.md` — the artifact line; Python lists doctests |
-| linter-driven-development, trigger: "(`{{.ProjectMarker}}` or … files present)" | source suffix | Scalar | `{{.SrcExt}}` |
-| linter-driven-development, SAFE gate: "(`go test -cover` on the touched packages)" | go test | Include | `skills/linter-driven-development/coverage-check.md`, inline — pytest spells it `--cov` |
-| linter-driven-development, "creates a type/interface/package" | interface | Aside | |
-| linter-driven-development, Phase 5: "godoc + feature docs" | godoc | Scalar | `{{.DocForm}}` |
-
-### Agents and commands
-
-| File and anchor | Tokens | Outcome | Slot or reason |
-|---|---|---|---|
-| rule-hunter, the worked example block from "Lead (pre-filter)" to the Finding line | source suffix (6 lines) | Include | `agents/rule-hunter/worked-example.md` — besides the paths it reads `strings.Contains` and `errors.New`, which the scanner does not flag; the block is one example and moves whole |
-| overabstraction-skeptic, "A validating constructor, unexported fields, an Option func type with its `With*` functions, a named Null Object default …" | func | Include | `agents/overabstraction-skeptic/r2-mechanisms.md`, inline — the list |
-| overabstraction-skeptic, "nil holes", "a nil-guard R2 deletes" | nil | Scalar | |
-| overabstraction-skeptic, "the bigger the interface, the weaker the abstraction" | interface | Aside | attributed quotation |
-| comment-critic, "after it writes godocs", "kind (godoc/in-body/test)" | godoc | Scalar | `{{.DocForm}}` |
-| comment-critic, "godoc comments, in-body comments, and test comments" | godoc | Scalar | `{{.DocComment}}s` |
-| lint-fixer, the parenthetical route example "(`gocognit → rules/R3-storifying.md (via @refactoring) at` …)" | linter name, source suffix | Include | `agents/lint-fixer/escalation-example.md`, inline — a Go linter name and a Go path in one example |
-| lint-fixer, "belongs to the main context." | context. | Aside | scanner false positive |
-| analyze command, "(incl. R10 goroutine leaks and unguarded concurrent writes)" | goroutine | Scalar | `{{.Task}}` |
-| analyze command, the "Analyze specific file" usage example | source suffix | Scalar | `{{.SrcExt}}` |
-| wire-repo-brain command, "one-line godoc edge additions" | godoc | Scalar | `{{.DocForm}}` |
+- **Agents** are registered as `<plugin>:<agent>`. Core spawns them as
+  `{{.Plugin}}:rule-hunter`, `{{.Plugin}}:lint-fixer`, `{{.Plugin}}:comment-critic`
+  and `{{.Plugin}}:overabstraction-skeptic`, the same way `Skill({{.Plugin}}:…)`
+  already names skills. A bare agent name with two plugins installed is a guess, and
+  the wrong lint-fixer brings the wrong routing table.
+- **Skill descriptions drive auto-triggering.** "META ORCHESTRATOR for any {{.Lang}}
+  code change" collides when the generic plugin's description also matches a Go
+  repository. The language clause of the orchestrator, code-designing and testing
+  descriptions is an include; the generic one says it applies when no
+  language-specific plugin is installed for the detected language.
+- **Commands** carry `{{.CmdPrefix}}` in their file names. `wire-repo-brain` is the
+  one command without a prefix; the second binding decides whether it gets one, and
+  the documentation skill's text that names `/wire-repo-brain` follows that decision.
+- **Report literals are core and never move.** The words evals parse — `FIXED:`,
+  `ESCALATED:`, `LINT STATUS:`, the `Stop check` lines, `R<N>: <M> finding(s)`, the
+  category headers, `🔗 CLUSTER:` — are the report contract; no binding include
+  rewrites them.
+- **Hooks and the repo-brain adapter are binding files**, not core.
+  `hooks/check-package-sizes.sh` counts Go files; the gate's adapter block hardcodes
+  the same globs and marker the profile holds. A binding that ships either writes its
+  own; the generic binding's adapter dispatches on the detected language.
 
 ## How the scanner enforces this
 
 `task lint-core` is what keeps these decisions from being remembered instead of
 enforced:
 
-- **Soft tokens cover every idiom named above.** Besides the words with scalars, the
-  scanner reports error-tuple signatures such as `(X, error)` and `(X, bool)`,
-  `t.Run`, `Example_*`, and capitalized standard-library calls (`errors.New`,
-  `io.Discard`, `time.Now`). A linter name counts only inside backticks, so the
-  English word "exhaustive" is not a hit; `context.` needs a capital letter after
-  the dot, so a sentence ending in "context." is not one either.
-- **A scalar's literal becomes a hard token once no core line spells it.** While a
-  literal is still triaged as an include that has not moved, it stays soft; the
-  promotion to hard lands in the same change that moves the last literal, so
-  `task lint-core` stays green on every commit.
-- **A binding that overrides nothing** is the expected shape after this triage; the
-  override mechanism stays for files outside the rules, such as a plugin README that
-  differs entirely.
+- **Soft tokens cover every idiom the outcomes name**: the words with scalars,
+  error-tuple signatures such as `(X, error)` and `(X, bool)`, `t.Run`, `Example_*`,
+  capitalized standard-library calls (`errors.New`, `io.Discard`, `time.Now`),
+  `panic`, `zero value`, `unexported` and "race detector". A linter name counts only
+  inside backticks, so the English word "exhaustive" is not a hit; `context.` needs a
+  capital letter after the dot, so a sentence ending in "context." is not one either.
+- **A scalar's literal becomes a hard token once no core line spells it.** Until
+  then it stays soft, and the promotion lands in the same change that removes the
+  last literal, so `task lint-core` is green on every commit.
+- **Rendered-tree checks guard the seams the scanner cannot see.** After rendering,
+  the generator verifies that every move name a table cites appears verbatim as a
+  Fix-pattern bullet of the rule the row points at, and that every relative link in a
+  rendered file resolves inside the plugin tree — so a binding without `examples/`
+  cannot ship a rule that points there. These two checks are what make block-level
+  includes and shared move names safe to edit.
 
-## Decisions taken to the plugin owner
+## Decisions taken
 
-The defaults below are what this document applies; each is one line to flip.
+1. **Rewrite exists as an outcome, and it changes Go text.** The neutral rewording of
+   about thirty clauses, the catalogue move names, the namespaced agent spawns and
+   R6's smell-first opening sentence ship together as one content change with a
+   version bump, measured like any other behavior change, before the includes are
+   cut. The byte-identical sweep that follows is then a third of the size it would
+   have been.
+2. **Six scalars**, all recurring words: `nil`, `task`, `doc_form`, `doc_comment`,
+   `src_ext`, `unexported`. Anything used fewer than five times, or needing grammar
+   variants, is a Rewrite or an include.
+3. **Move names are language-neutral core text**; no table row is an include.
+4. **Includes are blocks with a core default**; the generic binding fills nothing
+   that core already says.
+5. **No rule is an override.**
+6. **`interface` stays the general term**, including in R6, whose Principle opens
+   with the smell — a seam that exists only so a test can substitute a double — so a
+   Python hunter recognizes `mock.patch` on a concrete class as the same defect.
+7. **`maxims.md` is an aside as a whole**: the proverbs are attributed quotations and
+   their "Ask" illustrations are the author's, quoted the way a design book quotes Go
+   proverbs.
 
-1. **`nil` is a scalar, not an override.** Python renders None, the generic plugin
-   renders null; the Go idiom blocks around it are includes. The alternative — an R2
-   override per binding — leaves core R2 unrendered by anyone.
-2. **R6 and R10 are not overrides either**, for the same reason. R10's Design guidance
-   and Fix pattern are each one include, which is the same amount of binding text an
-   override would carry, without duplicating the Principle.
-3. **Five new scalars**, all recurring words: `nil`, `task`, `doc_form`,
-   `doc_comment`, `src_ext`. Anything used fewer than five times is an include, so the
-   profile stays a list of spellings rather than a phrasebook.
-4. **Move names for R7, R8 and R10 are binding-owned.** The three tables that cite
-   them carry per-row includes for those rules only.
-5. **`interface` is the general term** and stays in core prose, including R6's. The
-   Python-specific mock forms live in R6's canonical example and questions.
+Open, for the plugin owner: whether `/wire-repo-brain` gains the command prefix
+(which renames the Go command too), and what the generic plugin's README promises
+about its linter phase.

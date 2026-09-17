@@ -26,6 +26,7 @@ task: goroutine
 doc_form: godoc
 doc_comment: godoc comment
 src_ext: .go
+unexported: unexported
 ignore:
   - evals/*
   - .DS_Store
@@ -43,6 +44,7 @@ func TestParse_Success(t *testing.T) {
 	assert.Equal(t, "godoc", p.DocForm)
 	assert.Equal(t, "godoc comment", p.DocComment)
 	assert.Equal(t, ".go", p.SrcExt)
+	assert.Equal(t, "unexported", p.Unexported)
 	assert.Equal(t, []string{"evals/*", ".DS_Store"}, p.Ignore)
 }
 

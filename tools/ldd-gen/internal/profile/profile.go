@@ -18,9 +18,9 @@ import (
 // Vars holds every scalar a core template may reference as {{.Name}}. Each
 // field is required; an empty one means the binding forgot to say how the
 // language spells that concept, so parsing fails instead of rendering blanks.
-// The last five are single words core prose uses as common nouns — the
-// missing value, a unit of concurrent work, the documentation comment form and
-// the source-file suffix — so a sentence like "no {{.Nil}}-checks" reads in
+// The last six are single words core prose uses as common nouns — the
+// missing value, a unit of concurrent work, the documentation comment form,
+// the source-file suffix and the visibility of a non-public symbol — so a sentence like "no {{.Nil}}-checks" reads in
 // every language; a Go idiom that needs more than a word is an include instead.
 type Vars struct {
 	Plugin         string `yaml:"plugin"`
@@ -39,6 +39,7 @@ type Vars struct {
 	DocForm        string `yaml:"doc_form"`
 	DocComment     string `yaml:"doc_comment"`
 	SrcExt         string `yaml:"src_ext"`
+	Unexported     string `yaml:"unexported"`
 }
 
 // Profile is a parsed profile.yaml. Plugin doubles as the output directory

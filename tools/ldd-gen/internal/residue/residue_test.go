@@ -101,6 +101,8 @@ func TestSoftTokens(t *testing.T) {
 		{name: "testable example", line: "Add testable examples (`Example_*`)", want: []string{"Example_"}},
 		{name: "stdlib call", line: "`io.Discard` is the standard library's; `time.Now` too", want: []string{"Go stdlib"}},
 		{name: "stdlib lower-case is not a symbol", line: "the io package and time budgets", want: nil},
+		{name: "go runtime facts", line: "a latent panic; the race detector finds races only at runtime", want: []string{"panic", "race detector"}},
+		{name: "visibility and zero value", line: "an unexported symbol gets NO comment; a zero-value path", want: []string{"unexported", "zero value"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
