@@ -184,7 +184,7 @@ illustrations, the way a book on design quotes Go proverbs.
 
 | File and anchor | Tokens | Outcome | Slot or reason |
 |---|---|---|---|
-| pre-commit-review, hunter table row R2: "nil as a value" | nil | Scalar | |
+| pre-commit-review, hunter table row R2: "nil as a value"; cluster pass: "a nil handed to the constructor" | nil | Scalar | |
 | pre-commit-review, hunter table rows R7 and R8: "wantErr conditionals", "`context.Background()` in library code" | wantErr, context. | Include | `skills/pre-commit-review/hunt-R7.md`, `hunt-R8.md`, one per row; the other ten rows are neutral and stay |
 | pre-commit-review, hunter table row R10: "goroutines without exit paths or owners" | goroutine | Scalar | `{{.Task}}s` |
 | pre-commit-review, Bugs category: "(nil returned as a value, cancellation swallowed by `context.Background()`, R10 goroutine leaks and unguarded concurrent writes)" | nil, context., goroutine | Include | `skills/pre-commit-review/bug-examples.md`, inline — the parenthetical |
@@ -195,11 +195,12 @@ illustrations, the way a book on design quotes Go proverbs.
 | refactoring SKILL, pattern index rows R7, R8, R10 | wantErr, init(), ctx, goroutine | Include | `skills/refactoring/moves-R7.md`, `moves-R8.md`, `moves-R10.md` — the move-name cells; they must match the binding's Fix pattern includes |
 | refactoring SKILL, "**Introduce Null Object, the Go shape.**" paragraph | Go, nil, interface | Include | `skills/refactoring/null-object-shape.md` |
 | refactoring SKILL, "(`grep -rn 'func .*Parse' --include='{{.SrcGlob}}'` on the step's noun)" | func | Include | `skills/refactoring/find-existing-function.md`, inline — the grep pattern is Go syntax |
-| refactoring SKILL, stop check step 2: "the `init()` under it, a `context.Background()` two functions down" | init(), context. | Include | `skills/refactoring/rerun-leftovers.md`, inline — the list of illustrative leftovers |
+| refactoring SKILL, stop check step 2: "because a package-level variable, an `init()` or a singleton has no function to sit in" | init() | Include | `skills/refactoring/package-level-declarations.md`, inline — the list of R8 shapes that live outside any function |
+| refactoring SKILL, stop check step 2: "the `init()` under it, the `context.Background()` in the function just reshaped" | init(), context. | Include | `skills/refactoring/rerun-leftovers.md`, inline — the list of illustrative leftovers |
 | refactoring SKILL, noun check: "never a nil-able field, and an option handed nil records the error" | nil | Scalar | |
 | refactoring SKILL, critic step: "the `// Sink is where events are written.` godoc beside the code" | godoc | Include | `skills/refactoring/restating-comment-example.md`, inline; a docstring is not a `#` comment, so the comment-prefix scalar does not fit |
 | refactoring SKILL, "interface dispatch", "owned interface", "this struct three questions" | interface, struct | Aside | |
-| refactoring SKILL, stop check step 2, the "still — routed again" example path | source suffix | Scalar | `{{.SrcExt}}` |
+| refactoring SKILL, stop check step 2, the "still — routed again" example path, and the BROADER CONTEXT example line | source suffix | Scalar | `{{.SrcExt}}` |
 | refactoring reference, "≥13 non-test … files at one directory level" | source suffix | Scalar | `{{.SrcExt}}` |
 | refactoring reference, "`func normalizeFoo(s string) string` wants to be `(f Foo) Normalize()`" | func | Include | `skills/refactoring/method-candidate-example.md`, inline |
 | refactoring reference, "**Persistence naming**: Store, not Repository (Go-idiomatic, concrete)" | Go | Include | `skills/refactoring/persistence-naming.md` — the claim is about Go idiom |
