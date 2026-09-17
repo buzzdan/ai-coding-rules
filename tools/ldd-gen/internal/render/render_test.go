@@ -27,6 +27,12 @@ comment_prefix: "#"
 default_test: ptest
 default_lint: plint
 default_lint_fix: plint --fix
+nil: none
+task: fiber
+doc_form: docstring
+doc_comment: doc comment
+src_ext: .p
+unexported: hidden
 ignore: [".DS_Store", "__pycache__"]
 `
 
@@ -124,6 +130,20 @@ func sortedKeys(tree render.Tree) []string {
 	return keys
 }
 
+func TestRender_DefaultIncludes(t *testing.T) {
+	t.Parallel()
+	core := fstest.MapFS{
+		"rules/R1.md":                  {Data: []byte("{{include \"rules/R1/example.md\"}} {{include \"rules/R1/shared.md\"}}\n")},
+		"includes/rules/R1/example.md": {Data: []byte("core example\n")},
+		"includes/rules/R1/shared.md":  {Data: []byte("core shared\n")},
+	}
+	tree, err := render.Render(core, lang(t, nil))
+	require.NoError(t, err)
+	assert.Equal(t, "example body core shared\n", string(tree["rules/R1.md"].Data), "the binding's file wins; the core default fills the slot the binding leaves empty")
+	_, rendered := tree["includes/rules/R1/shared.md"]
+	assert.False(t, rendered, "core/includes/ holds defaults, never outputs")
+}
+
 func TestRender_MissingCoreIsAnError(t *testing.T) {
 	t.Parallel()
 	missing := os.DirFS(filepath.Join(t.TempDir(), "nope"))
@@ -147,7 +167,7 @@ func TestRender_Errors(t *testing.T) {
 		{
 			name: "missing include",
 			core: fstest.MapFS{"a.md": {Data: []byte("{{include \"rules/R9/x.md\"}}\n")}},
-			want: "rules/R9/x.md",
+			want: `include "rules/R9/x.md": not in the binding or under core/includes`,
 		},
 		{
 			name: "passthrough shadows a template",

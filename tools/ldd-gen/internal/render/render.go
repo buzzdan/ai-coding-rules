@@ -16,8 +16,13 @@ import (
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
 )
 
-// README.md documents core/ itself; every other core file is a template.
-const coreReadme = "README.md"
+// README.md documents core/ itself; every other core file is a template,
+// except the files under includes/, which are the language-neutral defaults
+// an {{include}} falls back to when the binding has no file of that name.
+const (
+	coreReadme  = "README.md"
+	includesDir = "includes"
+)
 
 // droppings are names editors and operating systems leave next to sources.
 // They are never templates or passthrough files, whatever a profile says.
@@ -55,7 +60,7 @@ func Render(core fs.FS, b binding.Binding) (Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := renderer{binding: b, overrides: overrides, tree: Tree{}, seen: map[string]bool{}}
+	r := renderer{core: core, binding: b, overrides: overrides, tree: Tree{}, seen: map[string]bool{}}
 	skip := func(name string) bool { return isDropping(name, b.Profile().IgnoredName) }
 	if err := walkFiles(core, skip, r.renderCore); err != nil {
 		return nil, err
@@ -74,6 +79,7 @@ func Render(core fs.FS, b binding.Binding) (Tree, error) {
 }
 
 type renderer struct {
+	core      fs.FS
 	binding   binding.Binding
 	overrides fs.FS
 	tree      Tree
@@ -81,7 +87,7 @@ type renderer struct {
 }
 
 func (r *renderer) renderCore(core fs.FS, path string) error {
-	if path == coreReadme {
+	if path == coreReadme || strings.HasPrefix(path, includesDir+"/") {
 		return nil
 	}
 	r.seen[path] = true
@@ -126,8 +132,29 @@ func (r *renderer) checkOverrideHasCoreFile(_ fs.FS, path string) error {
 	return nil
 }
 
+// include resolves an {{include}}: the binding's file when it has one, else
+// the language-neutral default under core/includes/. A binding therefore adds
+// a file only where its language truly differs from the shared text.
+func (r *renderer) include(name string) (string, error) {
+	body, err := r.binding.Include(name)
+	if err == nil {
+		return body, nil
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
+	data, err := fs.ReadFile(r.core, path.Join(includesDir, name))
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("include %q: not in the binding or under core/includes", name)
+	}
+	if err != nil {
+		return "", fmt.Errorf("include %q: %w", name, err)
+	}
+	return strings.TrimSuffix(string(data), "\n"), nil
+}
+
 func (r *renderer) execute(name, text string) ([]byte, error) {
-	funcs := template.FuncMap{"include": r.binding.Include}
+	funcs := template.FuncMap{"include": r.include}
 	tmpl, err := template.New(name).Funcs(funcs).Parse(text)
 	if err != nil {
 		return nil, fmt.Errorf("template %s: %w", name, err)
