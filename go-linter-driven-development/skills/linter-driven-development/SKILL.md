@@ -17,7 +17,7 @@ allowed-tools:
 Top-level protocol for Go implementation work: five phases plus the autonomous
 PREPARE sub-phase (1.5), where Phase 2 is a per-behavior TDD loop. Rule knowledge lives once in `../../rules/` — this skill never
 restates it; it sequences the thin skills (which dispatch into the rules) and the
-lint-fixer agent, at the cadence each check's economics demand.
+`go-linter-driven-development:lint-fixer` agent, at the cadence each check's economics demand.
 </objective>
 
 <triggers>
@@ -40,7 +40,7 @@ never read its file directly.
 | @pre-commit-review | `Skill(go-linter-driven-development:pre-commit-review)` |
 | @documentation | `Skill(go-linter-driven-development:documentation)` |
 
-The lint-fixer agent is spawned with the **Agent tool**:
+The `go-linter-driven-development:lint-fixer` agent is spawned with the **Agent tool**:
 `subagent_type: "go-linter-driven-development:lint-fixer"`.
 </skill_invocation>
 
@@ -55,7 +55,7 @@ The lint-fixer agent is spawned with the **Agent tool**:
      │   GREEN    minimum code to pass — no design work
      │   REFACTOR pkg-scoped lint + rule greps; hits → (@refactoring)
      └── next behavior until all done
-3 FULL LINT   ONE run via lint-fixer agent (Agent tool)
+3 FULL LINT   ONE run via `go-linter-driven-development:lint-fixer` agent (Agent tool)
      mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
 4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
 5 SHIP     @documentation → commit (tests and lint green, tree dirty) → ship summary
@@ -107,7 +107,7 @@ and can still be hostile to the plan.
    primitive, R1; a new step in an at-limit function, R3; new code testable only by
    mutating a global, R8)? No → not preparation; leave it for Phase 4's advisory
    report.
-2. **SAFE** — are the paths to reshape covered (`go test -cover` on the touched
+2. **SAFE** — are the paths to reshape covered (the coverage report for the touched
    packages)? Uncovered → write characterization tests through the public API first
    (@testing); they are the move's safety net and keep their value after. When the
    missing test seam IS the finding (globals block testing), the prep move creates
@@ -116,11 +116,11 @@ and can still be hostile to the plan.
    as `PREP-DEFERRED`, UNLESS gate 2 showed the feature cannot be tested at all
    without it — then it is not preparation but a design-plan gap: return to Phase 1.
 4. **SKEPTICIZED** — any prep move that creates a type/interface/package is judged by
-   the `overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
+   the `go-linter-driven-development:overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
    one sharpening in the spawn prompt: the justification is the approved plan in
    hand, not an imagined future — score the extraction as if the feature already
    existed. REFUTED → apply the cheaper alternative or defer. R2's construction
-   mechanics — a validating constructor, unexported fields, an `Option` type and its
+   mechanics — a validating constructor, unexported fields, an options type and its
    `With*` functions, a named Null Object default — are not extractions and skip this
    gate: apply R2 as written.
 
@@ -179,7 +179,7 @@ Loop to the next behavior until all behaviors are done.
 </phase_2_implement>
 
 <phase_3_full_lint>
-Delegate ONE lint run to the lint-fixer agent (Agent tool, isolated context — the
+Delegate ONE lint run to the `go-linter-driven-development:lint-fixer` agent (Agent tool, isolated context — the
 fix loop's token noise stays out of this conversation). Its scope is the workflow's:
 the whole repository for a feature slice, where the full run catches what
 package-scoped runs cannot (cross-package issues, whole-file and whole-package rules

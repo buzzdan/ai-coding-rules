@@ -3,7 +3,7 @@
 ## Principle
 
 Group code by feature and role, not by technical layer: bad — `domain/rotator`,
-`services/rotator`; good — `rotator/parser.go`, `rotator/handler.go`. All code for a
+`services/rotator`; good — `rotator/parser{{.SrcExt}}`, `rotator/handler{{.SrcExt}}`. All code for a
 feature lives in one package, internally separated by role within it. Package names
 are flatcase domain vocabulary — never a layer or role name.
 
@@ -15,8 +15,8 @@ every feature couples to every other through the shared layer packages. Layer
 packages also accrete: `services/` grows a file per feature until nobody owns its
 API. A vertical slice colocates the whole behavior: it can be read top to bottom,
 extracted or deleted as a unit, and worked on in parallel without cross-team merge
-conflicts. The slice's internal files are named by role (`parser.go`, `handler.go`,
-`repository.go`), so the layer separation survives — inside the feature boundary
+conflicts. The slice's internal files are named by role (`parser{{.SrcExt}}`, `handler{{.SrcExt}}`,
+`repository{{.SrcExt}}`), so the layer separation survives — inside the feature boundary
 instead of above it.
 
 ## Canonical example
@@ -41,8 +41,8 @@ instead of above it.
 
 ### Inside the slice
 
-Separate by role and responsibility within the feature package: `parser.go`,
-`handler.go`, `repository.go`. Types with logic get their own file named after the
+Separate by role and responsibility within the feature package: `parser{{.SrcExt}}`,
+`handler{{.SrcExt}}`, `repository{{.SrcExt}}`. Types with logic get their own file named after the
 type. When a slice grows a juicy sub-concern, it becomes a feature sub-package
 (rung 2 of `R4-helper-placement.md`); when a concern turns out to be domain-generic,
 it promotes to a shared domain package (rung 3) — placement is R4's decision.
@@ -62,9 +62,9 @@ shapes. Track the migration in `docs/architecture/vertical-slice-migration.md`:
 ```
 
 Per feature: create `internal/<feature>/`, move the feature's files from each layer
-directory into it (renamed by role: `rotator_service.go` → `service.go`), fix
-imports, delete the emptied layer files. **Never mix**: `rotator/service.go` and
-`services/rotator_service.go` must not coexist for the same feature.
+directory into it (renamed by role: `rotator_service{{.SrcExt}}` → `service{{.SrcExt}}`), fix
+imports, delete the emptied layer files. **Never mix**: `rotator/service{{.SrcExt}}` and
+`services/rotator_service{{.SrcExt}}` must not coexist for the same feature.
 
 ### Advisory posture
 
@@ -77,8 +77,8 @@ are never acceptable (`R4-helper-placement.md`).
 
 - **Slice out a feature**: apply the migration template above — one feature per
   iteration, each iteration a working, deployable state.
-- **Rename layer files by role during the move**: `<feature>_service.go` →
-  `service.go`; the package name now carries the feature.
+- **Rename layer files by role during the move**: `<feature>_service{{.SrcExt}}` →
+  `service{{.SrcExt}}`; the package name now carries the feature.
 - **Split a generic package by owner**: for each symbol in a `util`/`common`
   package, find its real feature or domain vocabulary and move it there
   (`R4-helper-placement.md` decides which rung).

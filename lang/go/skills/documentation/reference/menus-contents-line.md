@@ -1,0 +1,1 @@
+- [Godoc Menus](#godoc-menus) — package, type, function menus; testable examples

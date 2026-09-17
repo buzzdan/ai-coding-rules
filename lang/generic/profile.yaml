@@ -1,0 +1,32 @@
+# The generic binding: the plugin for repositories without a language binding.
+# It detects the language at run time, so the language-shaped scalars are
+# short phrases the model reads as instructions, not values it looks up. Each
+# phrase is chosen to read in every core sentence that substitutes it: a path
+# like `user/service{{.SrcExt}}:14` renders as `user/service.<ext>:14`, and
+# `removing a {{.Nolint}} directive` as `removing a lint-suppression directive`.
+# Field names are the yaml keys of Vars in tools/ldd-gen.
+plugin: linter-driven-development
+lang: any-language
+cmd_prefix: ldd
+src_glob: detected-language source
+test_glob: "<test-file suffix>"
+project_marker: the language's project manifest
+nolint: lint-suppression
+comment_prefix: "<comment-marker>"
+default_test: the repository's test command
+default_lint: the repository's lint command
+default_lint_fix: the repository's lint command with its fix flag
+# Single words core prose uses as common nouns: the missing value, a unit of
+# concurrent work, the documentation comment form, the source-file suffix and
+# the visibility of a non-public symbol.
+nil: "null"
+task: concurrent task
+doc_form: doc comment
+doc_comment: doc comment
+src_ext: ".<ext>"
+unexported: unexported
+# Paths in the plugin directory the generator does not own. An eval run copies
+# its cases under evals/ at run time.
+ignore:
+  - evals/*
+  - .DS_Store

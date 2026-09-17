@@ -33,6 +33,14 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
 - **The trigger is duplication, not existence.** Count the sites that inspect the same
   discriminator. One site — keep the switch (make it exhaustive). Two or more —
   the variants are a type family; dispatch.
+- **A duplicated two-way decision that produces a value is R1's, not this rule's.**
+  When the repeated conditional does not *dispatch behavior* but *picks one of a fixed
+  set of literals* — `scheme := "http"; if tls { scheme = "https" }` in two functions —
+  the finding is R1 Q3 and the fix is Name enum strings (`type Scheme` with its
+  constants and one constructor from the flag), never a helper that returns the same
+  bare string. Route it to R1 and cite that move; this rule's Interface Dispatch and
+  Strategy Map are for variants that behave differently, not values that spell
+  differently.
 - **Decide once, at the edge.** The one legitimate inspection of the raw discriminator
   is the constructor/parser that picks the implementation
   (`R2-self-validating-types.md` for the constructor discipline). Downstream code
@@ -42,7 +50,7 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
   asking to live on the interface (`../examples/switch-to-polymorphism.md`).
 - **Dispatch requires owning the output.** An interface method can only be written
   in the package that declares the interface, and it cannot reference another
-  package's unexported types. When the switch's output format belongs to a consumer
+  package's {{.Unexported}} types. When the switch's output format belongs to a consumer
   (a private wire request in a client package) and the variants live in a shared API
   package, the move is unavailable — and forcing it (exporting the wire type,
   per-consumer `fill<X>Request` methods on domain types) inverts the dependency.
@@ -55,29 +63,28 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
   (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
   comma-ok check is a dispatch, not a conditional. Either way the decision has one
   owner.
-- **Null object over nil-checks.** A scattered `if x != nil { x.Log(...) }` is the
-  same disease with two variants. Construct a do-nothing value once; delete every
-  guard. The Go shape follows the collaborator's type: when an interface already
-  exists, a no-op implementation (`type NopLogger struct{}`); when the collaborator
-  is a concrete type, a value of that type doing nothing — a `Sink` over
-  `io.Discard`, a clock that is `time.Now` — and **no new interface** for the sake
-  of the no-op (`R6-test-only-interfaces.md`). `io.Discard` itself is the pattern:
-  a real `io.Writer` whose `Write` returns `len(p), nil`, honoring the contract, so
-  `log.New(io.Discard, "", 0)` needs no guard anywhere. Fits *optional*
-  collaborators only; a required one is rejected in the constructor
+- **Null object over {{.Nil}}-checks.** A scattered "if the logger is set, log" is
+  the same disease with two variants. Construct a do-nothing value once; delete every
+  guard. The shape follows the collaborator's type: when an interface already exists,
+  a no-op implementation; when the collaborator is a concrete type, a value of that
+  type doing nothing — a sink over the standard no-op writer, a clock that is the
+  real clock — and **no new interface** for the sake of the no-op
+  (`R6-test-only-interfaces.md`). The standard library's no-op writer is the pattern:
+  a real writer that honors the contract by reporting every byte written, so a logger
+  built over it needs no guard anywhere. Fits *optional* collaborators only; a required one is rejected in the constructor
   (`R2-self-validating-types.md`, "absence is a value too").
-- **Flag arguments are two functions.** `func Render(a Alert, short bool)` forces
-  every caller through a conditional the callee then unpicks. Split into `Render` and
+- **Flag arguments are two functions.** A boolean flag parameter — `Render(alert,
+  short)` — forces every caller through a conditional the callee then unpicks. Split into `Render` and
   `RenderShort`, or make the variant a type.
 - **A kept switch must be exhaustive.** When one switch over a closed enum stays
   (single site, trivial variance), name the enum (`R1-primitive-obsession.md`,
-  "Name enum strings"), drop the `default`, and let the `exhaustive` linter prove
-  completeness — the linter then does what the if-chain never could: fail the build
+  "Name enum strings"), drop the `default`, and let the linter's exhaustiveness
+  check prove completeness — the linter then does what the if-chain never could: fail the build
   when a variant is added but not handled.
 - **The over-abstraction trap, dispatch edition.** An interface with one production
   implementation is R6's territory; two trivial implementations behind one switch at
   one site score LOW on R1's juiciness scorecard — keep the conditional. Conditionals
-  on *state/values* (`if n > threshold`, `if err != nil`, guard clauses per
+  on *state/values* (`if n > threshold`, an error check, guard clauses per
   `R3-storifying.md`) are healthy control flow, not dispatch — this rule never
   touches them.
 
@@ -86,7 +93,7 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
 - **Replace Duplicated Switch with Interface Dispatch**: define the interface from the
   union of what all copies of the switch do (one method per switching site is a
   starting point, then collapse); one type per variant; move each `case` body into
-  its variant; introduce `ParseX(raw) (X, error)` as the single decision point and
+  its variant; introduce `ParseX(raw)` as the single decision point and
   migrate call sites to method calls. When the dispatch produces an output that
   carries fields the variants don't own (shared name/TLS on a wire request), give
   the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
@@ -94,16 +101,16 @@ zero edits to existing code. This idea comes from the Anti-IF movement (Cirillo,
   (`../examples/switch-to-polymorphism.md`).
 - **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
   `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
-- **Introduce Null Object**: absent-collaborator nil-checks → a do-nothing value
+- **Introduce Null Object**: absent-collaborator {{.Nil}}-checks → a do-nothing value
   substituted by the constructor when none is given; delete the guards. A no-op
   implementation when an interface already exists, otherwise a value of the concrete
-  type (`DiscardSink()` composing `io.Discard`) — never a new interface with one
+  type composing the standard no-op — never a new interface with one
   real implementation (R6). Optional collaborators only; required ones are rejected
   in the constructor (R2).
 - **Split Flag Argument**: boolean/enum parameter that selects behavior → two named
   functions, or a variant type chosen by the caller's constructor.
 - **Keep the Single Exhaustive Switch**: one site, closed enum → named enum type (R1),
-  no `default`, `exhaustive` linter enforcing completeness. This is the rule's
+  no `default`, the linter's exhaustiveness check enforcing completeness. This is the rule's
   sanctioned form — record it as the decision, not a TODO.
 - New types this creates must pass R1's juiciness scorecard, land per
   `R4-helper-placement.md`, and never become test-only interfaces

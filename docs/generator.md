@@ -1,31 +1,41 @@
 ---
 type: guide
-description: how the Go plugin directory is generated from core/ and lang/go/, and the checks that keep it honest
+description: how the plugin directories are generated from core/ and one binding under lang/, and the checks that keep them honest
 ---
 # Plugin Generator
 
-The directory the marketplace serves, `go-linter-driven-development/`, is not edited
-by hand. `tools/ldd-gen` renders it from two sources: `core/`, the language-neutral
-text of the rules, skills, agents, commands and the repo-brain gate, and `lang/go/`,
-the Go binding. The templating contract (the scalars, the include construct, overrides,
-file-name templating) and the residue backlog live in [core/README.md](../core/README.md).
+The directories the marketplace serves, `go-linter-driven-development/` and
+`linter-driven-development/`, are not edited by hand. `tools/ldd-gen` renders each
+from two sources: `core/`, the language-neutral text of the rules, skills, agents,
+commands and the repo-brain gate, and one binding under `lang/` — `lang/go/` for the
+Go plugin, `lang/generic/` for the plugin that detects the language at run time. The
+templating contract (the scalars, the include construct and its `core/includes/`
+defaults, overrides, file-name templating) and the residue backlog live in
+[core/README.md](../core/README.md); how a Go idiom in core prose is rendered for a
+second language is decided in [language-residue.md](language-residue.md).
 
-## Working on the plugin
+## Working on the plugins
 
-1. Edit a file under `core/` or `lang/go/`. Text that is the same for every language
-   belongs in `core/`; text that names Go tools, globs or idioms belongs in the binding
-   as a `profile.yaml` scalar or an include file.
-2. Run `task generate`. It renders the binding over the plugin directory: every file
-   the generator owns is rewritten, and files it no longer produces are removed.
-3. Commit the sources and the generated directory together.
+1. Edit a file under `core/` or `lang/<binding>/`. Text that is the same for every
+   language belongs in `core/`; text that names one language's tools, globs or
+   idioms belongs in that binding as a `profile.yaml` scalar or an include file; the
+   language-neutral default for an include slot belongs in `core/includes/`, where a
+   binding without its own file picks it up.
+2. Run `task generate` for the Go plugin and `task generate BINDING=generic` for the
+   generic one. Each renders its binding over its plugin directory: every file the
+   generator owns is rewritten, and files it no longer produces are removed.
+3. Commit the sources and the generated directories together. A binding without its
+   rendered directory turns CI red for everyone, because `task check` renders every
+   directory under `lang/`.
 
 `task check` renders every binding to memory and compares it with the plugin
 directory on disk; any missing, extra or changed file, or a changed executable bit,
 fails, and changed files print a unified diff. CI runs it on every pull request,
 together with `task lint-core` (no hard residue in `core/`, and the Residue section of
-its README is current), `task docs:check`, `task test-gate` (the generated gate passes
-its own fixture matrix), and the generator's unit tests and linter. The fixture matrix
-uses GNU `sed`, so on macOS two of its cases fail while the same run passes on Linux.
+its README is current), `task docs:check`, `task test-gate` (each generated gate passes
+its own fixture matrix — the generic gate runs the matrix once per language its
+adapter detects), and the generator's unit tests and linter. The fixture matrix uses
+GNU `sed`, so on macOS two of its cases fail while the same run passes on Linux.
 Paths listed under `ignore` in the profile, such as eval cases copied under the
 plugin's `evals/` directory at run time, are left alone by both `check` and
 `generate`; a file the generator produces inside such a directory is still checked.

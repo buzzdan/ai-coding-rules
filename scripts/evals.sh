@@ -3,8 +3,10 @@
 #
 # The evals live in buzzdan/ldd-evals. This script shallow-clones that
 # repository into .evals/ (ignored) or pulls it, then hands off to its
-# Taskfile with PLUGIN set to this checkout's plugin directory. Every run
-# spends real money; the Taskfile pins the model and sets a cost cap.
+# Taskfile with PLUGIN set to this checkout's plugin directory — as an
+# environment variable, which every task in the suite sees, unlike a
+# command-line var that an include can shadow. Every run spends real money;
+# the Taskfile pins the model and sets a cost cap.
 #
 # Usage: bash scripts/evals.sh [TIER=cheap] [CAP=1] [CASE='trigger-*'] [MODEL=...] [OUT=...]
 #   e.g. bash scripts/evals.sh TIER=cheap CAP=1 CASE='trigger-*'     # smoke, cents
@@ -16,4 +18,4 @@ if [[ -d "$root/.evals/.git" ]]; then
 else
   git clone -q --depth 1 "$repo" "$root/.evals"
 fi
-exec task -d "$root/.evals" go:run PLUGIN="$root/go-linter-driven-development" "$@"
+PLUGIN="$root/go-linter-driven-development" exec task -d "$root/.evals" go:run "$@"

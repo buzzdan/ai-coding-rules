@@ -10,8 +10,8 @@ self-validating, whatever its fields look like.
 ## Why
 
 Constructor validation makes invalid values unrepresentable. Without it, every method
-must defend against bad state, forgetting one check is a latent panic, and the
-defensive noise buries the actual logic. With it, nil-checks, emptiness checks, and
+must defend against bad state, forgetting one check is a latent crash, and the
+defensive noise buries the actual logic. With it, {{.Nil}}-checks, emptiness checks, and
 range checks vanish from the entire downstream call graph — the payoff compounds with
 every method and every caller. Errors also surface at the boundary where the bad data
 entered, carrying context, instead of deep in an unrelated call stack.
@@ -22,11 +22,11 @@ entered, carrying context, instead of deep in an unrelated call stack.
 
 ## Design guidance
 
-- **Constructors are the only entry.** `ParseX(raw) (X, error)` for values built from
-  unstructured input, `NewX(deps) (X, error)` for composed objects (constructors may
-  carry other names — any public function returning the type qualifies). Fields stay
-  private: a struct-literal or zero-value path around the constructor is a hole in
-  the type.
+- **Constructors are the only entry.** `ParseX(raw)` for values built from
+  unstructured input, `NewX(deps)` for composed objects, each returning the value or an
+  error (constructors may carry other names — any public function returning the type
+  qualifies). Fields stay {{.Unexported}}: building the value directly, bypassing the
+  constructor, is a hole in the type.
 
 - **Validation ownership.** A type never relies on upstream validation. "The handler
   already checked it" is not an invariant — handlers change, new call sites appear,
@@ -34,121 +34,67 @@ entered, carrying context, instead of deep in an unrelated call stack.
   signature of a type that does not own itself: move that sentence into the
   constructor as code.
 
-  ```go
-  // ❌ relies on callers to validate
-  type Config struct {
-      Host string // every caller must remember: if host == "" ...
-      Port int
-  }
-
-  // ✅ owns its own validation
-  func NewConfig(host string, port int) (Config, error) {
-      if host == "" { return Config{}, errors.New("host required") }
-      if port <= 0 || port > 65535 { return Config{}, errors.New("invalid port") }
-      return Config{host: host, port: port}, nil
-  }
-  ```
+{{include "rules/R2/validation-ownership-example.md"}}
 
 - **Trust composed values.** Once you hold a `Port`, it is valid — never re-check it
   downstream, and never re-validate it in a composing constructor. Each type owns
   exactly its own invariants:
 
-  ```go
-  // ❌ re-validates what Host already guarantees
-  func NewAddress(host Host, port Port) (Address, error) {
-      if host == "" { return Address{}, errors.New("host required") } // Host owns this
-      return Address{host: host, port: port}, nil
-  }
+{{include "rules/R2/trust-composed-example.md"}}
 
-  // ✅ trusts composed self-validating types — nothing left to check, no error to return
-  func NewAddress(host Host, port Port) Address {
-      return Address{host: host, port: port}
-  }
-  ```
-
-- **Nil is not a value.** Never return nil for non-error values — return an error
-  instead. Error positions are exempt: `nil, err` and `val, nil` are fine because the
-  real value is the other one. Never pass nil into a function; then functions do not
-  check parameters for nil.
+- **{{.Nil}} is not a value.** Never return {{.Nil}} where a real value is expected —
+  return an error instead. A failure result carries the error, not a value, so that
+  position is exempt. Never pass {{.Nil}} into a function; then functions do not
+  check parameters for {{.Nil}}.
 
 - **Absence is a value too.** An *optional* collaborator — a logger, a metrics sink,
-  an event writer, a clock — is not a nil-able field with a guard in every method.
-  The default is a named do-nothing value the constructor supplies, the field is
-  never nil, and every `if x.sink != nil` disappears. This is the Null Object of
-  `R11-conditional-dispatch.md`; `io.Discard` is the standard library's: a real
-  `io.Writer` whose `Write` reports every byte written, so `log.New(io.Discard, ...)`
-  never branches on a missing destination. No parameter accepts nil to mean
-  "default": `if sink == nil { sink = DiscardSink() }` inside the constructor keeps
-  `NewReporter(nil)` legal and merely moves the nil-check — the default lives in an
-  option or the caller passes the Null Object by name. Only a *required*
+  an event writer, a clock — is not a field that may be {{.Nil}} with a guard in every
+  method. The default is a named do-nothing value the constructor supplies, the field
+  is never {{.Nil}}, and every "if the sink is set" guard disappears. This is the Null
+  Object of `R11-conditional-dispatch.md`: a real implementation that honors the
+  contract by doing nothing, so no caller ever branches on a missing destination. No
+  parameter accepts {{.Nil}} to mean "default": substituting the default inside the
+  constructor keeps passing {{.Nil}} legal and merely moves the check — the default
+  lives in an option or the caller passes the Null Object by name. Only a *required*
   collaborator (a store, a client the type cannot work without) is rejected in the
   constructor — doing nothing silently there would hide a bug. Promoting an optional
-  collaborator to a required positional parameter with a comment saying "pass
-  `DiscardSink()` instead of nil" changes nothing: the parameter still accepts nil,
-  the constructor neither defaults nor rejects it, and the first `Record` panics. A
-  collaborator with a sensible do-nothing default is optional; it stays an option
-  with the default in the constructor.
+  collaborator to a required positional parameter with a comment saying "pass the
+  do-nothing value instead of {{.Nil}}" changes nothing: the parameter still accepts
+  {{.Nil}}, the constructor neither defaults nor rejects it, and the first use crashes.
+  A collaborator with a sensible do-nothing default is optional; it stays an option
+  with the default in the constructor. An option handed {{.Nil}} must not become a
+  value that works: it records the failure on the value under construction, and the
+  constructor fails with a message naming the option; the field never holds {{.Nil}};
+  no method ever asks.
 
-  An option keeps the `Option` signature — no error return, or every call site
-  becomes a chore — so `WithSink(nil)` is a call that compiles. It must not become a
-  value that works: the option validates its argument and records the failure on the
-  value under construction, and the constructor returns `errors.Join` of everything
-  recorded after applying the options. Construction fails with a message naming the
-  option; the field never holds nil; no method ever asks.
-
-  ```go
-  // ❌ optional sink kept nil-able; every method re-asks the question
-  func (r *Reporter) Record(e Event) {
-      if r.sink != nil { r.sink.Write(e) }
-  }
-
-  // ✅ absence is a named value; no argument is ever nil
-  func DiscardSink() *Sink { return NewSink(io.Discard) }
-
-  func WithSink(s *Sink) Option {
-      return func(r *Reporter) {
-          if s == nil {
-              r.errs = append(r.errs, errors.New("reporter: WithSink(nil)"))
-              return
-          }
-          r.sink = s
-      }
-  }
-
-  func NewReporter(opts ...Option) (*Reporter, error) {
-      r := &Reporter{sink: DiscardSink(), clock: time.Now}
-      for _, o := range opts { o(r) }
-      if err := errors.Join(r.errs...); err != nil { return nil, err }
-      return r, nil
-  }
-  // production: NewReporter(WithSink(sink)); tests: NewReporter(WithClock(fixed))
-  ```
+{{include "rules/R2/absence-mechanics.md"}}
 
 - **No defensive coding.** Check arguments in the constructor so that methods contain
-  zero nil/emptiness checks on their own fields. A method validating its receiver is
+  zero {{.Nil}}/emptiness checks on their own fields. A method validating its receiver is
   validation in the wrong place.
 
 ## Fix pattern
 
-- **Add validating constructor**: make fields private, add `NewX`/`ParseX` returning
-  `(X, error)`, migrate every literal-construction site through it.
+- **Add validating constructor**: make fields {{.Unexported}}, add `NewX`/`ParseX`
+  returning the value or an error, migrate every literal-construction site through it.
 - **Hoist method checks into the constructor**: collect the field checks scattered
   across methods, run them once at construction, delete them from the methods. For a
-  *required* collaborator the hoisted check rejects nil; for an *optional* one it is
+  *required* collaborator the hoisted check rejects {{.Nil}}; for an *optional* one it is
   the wrong move — use the next one.
 - **Introduce Null Object** (`R11-conditional-dispatch.md`): an optional collaborator
-  gets a *named* do-nothing value (`DiscardSink()`, a clock defaulting to `time.Now`)
-  that the constructor supplies through an option or the caller passes explicitly;
-  the field is non-nil by construction, an option handed nil records the error for
-  the constructor's `errors.Join` instead of substituting the default, and every
-  guard in the methods is deleted. When the collaborator is a concrete type over an
-  `io.Writer`, compose `io.Discard` into it; do not introduce an interface for the
-  sake of the no-op (`R6-test-only-interfaces.md`).
+  gets a *named* do-nothing value that the constructor supplies through an option or
+  the caller passes explicitly; the field is never {{.Nil}} by construction, an option
+  handed {{.Nil}} records the error for the constructor to return instead of
+  substituting the default, and every guard in the methods is deleted. When the
+  collaborator wraps a standard writer or clock, compose the standard no-op into it;
+  do not introduce an interface for the sake of the no-op
+  (`R6-test-only-interfaces.md`).
 - **Delete re-validation of composed types**: if every parameter is itself
-  self-validating and there is nothing left to check, the constructor loses its
-  `error` return entirely.
-- **Replace nil returns**: `(X, error)` for failures, `(X, bool)` for absence — see
-  the sentinel move in `R1-primitive-obsession.md`.
+  self-validating and there is nothing left to check, the constructor no longer needs
+  to fail.
+- **Separate Failure from Absence**: an error for failure, an explicit absence result
+  for a missing value — never {{.Nil}} standing in for either; see the sentinel move in
+  `R1-primitive-obsession.md`.
 - Forward design of new types: @code-designing. The primitive extraction that usually
   precedes this rule: `R1-primitive-obsession.md`.
 

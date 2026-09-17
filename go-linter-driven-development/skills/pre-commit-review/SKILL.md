@@ -14,8 +14,8 @@ allowed-tools:
 
 <objective>
 Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
-parallel single-obsession `rule-hunter` agents, one `overabstraction-skeptic`, and one
-`comment-critic`.
+parallel single-obsession `go-linter-driven-development:rule-hunter` agents, one `go-linter-driven-development:overabstraction-skeptic`, and one
+`go-linter-driven-development:comment-critic`.
 Pure orchestration and reporting: this skill may spawn agents but never edits code, never
 fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
 agents receive it as spawn-time payload — they do not invoke skills.
@@ -50,13 +50,13 @@ A rule with zero hits is skipped — no hunter spawned for it.
 | Rule | File | Hunt focus |
 |------|------|------------|
 | R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
-| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; nil as a value |
+| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
 | R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
 | R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
 | R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
 | R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
-| R7 | `../../rules/R7-test-placement.md` | internal test packages; wantErr conditionals; wrong-rung tests; sleeps |
-| R8 | `../../rules/R8-no-globals.md` | package-level state; `context.Background()` in library code |
+| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R8 | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
 | R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
 | R10 | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
 | R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
@@ -78,7 +78,7 @@ to the repo owner. The fix is a discussion or a separate PR, never silent inclus
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
-For every rule with pre-filter hits, spawn one `rule-hunter` agent, as **foreground**
+For every rule with pre-filter hits, spawn one `go-linter-driven-development:rule-hunter` agent, as **foreground**
 `Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
 run in parallel and every result comes back in that same message. A foreground call
 blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
@@ -104,13 +104,16 @@ reviewed project's cwd and cannot resolve plugin-relative paths on its own.
 
 Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
-plus a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
+plus one receipt line per falsifying question (`Q<n>: <hits> hit(s) → <findings>
+finding(s)`) and a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
+The receipts are how a whole-repository hunt is read: a question with no receipt was
+not run over the scope, and the leads were never the scope.
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
 Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
 proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
-"Strategy Map" proposals — and spawn one `overabstraction-skeptic`, as a **foreground**
+"Strategy Map" proposals — and spawn one `go-linter-driven-development:overabstraction-skeptic`, as a **foreground**
 `Agent` call (`run_in_background: false`) in a message with no hunters in it, after
 every hunter result is in hand; the comment critic (step 3b), when it runs, is spawned
 in that same message so the two run in parallel. Its spawn prompt MUST contain:
@@ -136,8 +139,8 @@ pure dispatch). Only findings the skeptic cannot kill ship as extraction
 findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
 no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
 broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
-construction mechanics — a validating constructor, unexported fields, an `Option` type
-with its `With*` functions, a named Null Object default — are not extractions either
+construction mechanics — a validating constructor, unexported fields, an options
+type with its `With*` functions, a named Null Object default — are not extractions either
 and never go to the skeptic: they close the holes of a type that already exists, and a
 skeptic verdict on them would be scoring a guard, not a type.
 </step_3_skeptic_pass>
@@ -145,7 +148,7 @@ skeptic verdict on them would be scoring a guard, not a type.
 <step_3b_comment_critic>
 When the diff contains comment lines — prefilter:
 `git diff --cached -- '*.go' | grep -E '^\+.*//' | grep -vE '//(go:|nolint| Output:)'`
-(any hit qualifies; directives don't count) — spawn one `comment-critic` in the same
+(any hit qualifies; directives don't count) — spawn one `go-linter-driven-development:comment-critic` in the same
 hunter-free message as the skeptic (when no skeptic runs, the critic has that message
 alone), also in the **foreground** (`run_in_background: false`): its full-repository
 comment sweep is the longest pass of the review, and waiting for it is done by the
@@ -177,10 +180,19 @@ go to @refactoring.
 Merge surviving findings into one report.
 
 **Cluster pass (before categorizing):** group *every* hunter finding — kept, refuted
-by the skeptic, or never sent to it — by shared anchor: the same type,
-field/discriminator, or function named in ≥2 findings from *different* rules. The
-skeptic's verdict removes a proposed type from the fix column; it never removes the
-convergence, which is the evidence. Each hunter is single-obsession and blind to the others, so independent
+by the skeptic, or never sent to it — by shared anchor. An anchor is the named thing a
+finding is about, never its line: a type (a finding on one of its fields and a finding
+on one of its methods share the type), a function, a discriminator, or a package (two
+findings on files of one package share the package, and findings that name the same
+two packages together share both as one anchor). List the anchors first, then count.
+An anchor converges when ≥2 findings from *different* rules land on it, or ≥2
+findings answering *different* falsifying questions of one rule — exported nilable
+fields, a method that re-checks them and a nil handed to the constructor are three
+questions of R2 answered on one type, and one missing constructor, not three lines.
+Two findings of the same question on one anchor are a shared-shape line below, not a
+cluster. The skeptic's verdict removes a proposed type from the fix column; it never
+removes the convergence, which is the evidence. Each hunter is single-obsession and
+blind to the others, and each falsifying question is blind to the next, so independent
 convergence on one anchor is evidence that a domain concept is missing there — the
 cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
 primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
@@ -198,9 +210,10 @@ jurisdictions). Render each cluster as a first-class entry above the categories:
 
 Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
 anchor: two findings or twenty, the largest and the smallest alike. The title is the
-anchor itself — the type, field or function name the findings share
-(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`), never a description of
-the problem; the description is the Hypothesis line beneath it. When the skeptic
+anchor itself — the type, field, function or package name the findings share
+(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`,
+`🔗 CLUSTER: internal/common, internal/utils`), never a description of the problem;
+the description is the Hypothesis line beneath it. When the skeptic
 reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
 type routes design-first as above; a REFUTED one keeps the cluster (the convergence
 is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no
@@ -214,7 +227,7 @@ under their categories below, tagged `[cluster: <anchor>]`. Clustering is *repor
 Category mapping:
 
 - 🐛 **Bugs** — will fail at runtime regardless of rule (nil returned as a value,
-  cancellation swallowed by `context.Background()`, R10 goroutine leaks and
+  cancellation severed by a manufactured root context, R10 goroutine leaks and
   unguarded concurrent writes): fix immediately.
 - 🟠 **New Practice (when in Rome)** — the when-in-Rome check's findings: a
   mechanism, dependency, framework, or convention the host repo does not already
@@ -338,8 +351,8 @@ This skill MUST NOT:
 - Block commits — every finding is advisory; the caller decides what to fix
 - Restate rule content — rules live once in `../../rules/`; paste them as spawn payload
   and cite them in findings
-- Spawn anything other than `rule-hunter`, `overabstraction-skeptic`, and
-  `comment-critic`
+- Spawn anything other than `go-linter-driven-development:rule-hunter`, `go-linter-driven-development:overabstraction-skeptic`, and
+  `go-linter-driven-development:comment-critic`
 - Wait for any agent by polling notifications, arming a monitor or scheduling a
   wake-up, or spawn an agent a second time because its call was answered "Async agent
   launched"; a foreground call returns its result in the same message, and a call a

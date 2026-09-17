@@ -6,7 +6,8 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 
 | | Plugin | Version | For |
 |---|--------|---------|-----|
-| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.11.0 | Go |
+| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.13.0 | Go |
+| 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.1.0 | Any language without a binding — detects the language at run time |
 | ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.2.0 | TypeScript + React |
 
 Plus the standalone rule documents the plugins grew out of:
@@ -26,6 +27,10 @@ The organising idea: **the rule is the unit, not the phase.** Each design princi
 
 Full architecture, workflow, and usage: [plugin README](go-linter-driven-development/README.md) · what changed between versions: [CHANGELOG](go-linter-driven-development/CHANGELOG.md).
 
+### Generic plugin
+
+The same core rendered for repositories without a language binding. It detects the language from the repository's marker file, runs the linter the repository already configures, and routes findings by what they are about; the rules, review and refactoring moves run in full. Details and what it does not know: [plugin README](linter-driven-development/README.md).
+
 ### TS/React plugin
 
 Six skills mirroring the same philosophy for TypeScript + React: component design, testing (React Testing Library), ESLint/SonarJS-driven refactoring, advisory pre-commit review, and documentation. Details: [plugin README](ts-react-linter-driven-development/README.md).
@@ -40,6 +45,7 @@ Six skills mirroring the same philosophy for TypeScript + React: component desig
 **Step 2: Install a plugin**
 ```
 /plugin install go-linter-driven-development@ai-coding-rules
+/plugin install linter-driven-development@ai-coding-rules
 /plugin install ts-react-linter-driven-development@ai-coding-rules
 ```
 
@@ -66,14 +72,14 @@ Team members then install with the same `/plugin install` commands above.
 
 ## Developing the Plugins
 
-1. Clone the repo. The Go plugin directory is generated: edit the sources under `core/` (language-neutral text) and `lang/go/` (the Go binding), then run `task generate` and commit both. `task check` fails when the plugin directory drifts from its sources. How the pieces fit: [core/README.md](core/README.md) and [docs/generator.md](docs/generator.md).
+1. Clone the repo. The Go and generic plugin directories are generated: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/` or `lang/generic/` (the bindings), then run `task generate` and `task generate BINDING=generic` and commit both. `task check` fails when a plugin directory drifts from its sources. How the pieces fit: [core/README.md](core/README.md) and [docs/generator.md](docs/generator.md).
 2. Test locally by adding the checkout as a marketplace:
    ```
    /plugin marketplace add ./ai-coding-rules
    /plugin install go-linter-driven-development@ai-coding-rules
    ```
    After changes, uninstall/reinstall the plugin to pick them up.
-3. For the Go plugin, follow its architecture contract — each fact lives once: rule content goes in `core/rules/`, worked case studies in `lang/go/passthrough/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
+3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, worked case studies in `lang/go/passthrough/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
 4. Behavior changes to the Go plugin are measured, not eyeballed: behavioral evals run it on a deliberately bad fixture project and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals); `scripts/evals.sh` runs them against this checkout.
 5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0)).
 

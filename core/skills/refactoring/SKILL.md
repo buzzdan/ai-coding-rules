@@ -48,29 +48,30 @@ from there, never from memory:
 |------|-------|
 | Extract Function (named after the comment), Early Returns, Honest Rename, Extract Leaf Type | `../../rules/R3-storifying.md` |
 | Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with comma-ok, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
-| Add validating constructor, Hoist method checks, Delete re-validation, Replace nil returns, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
+| Add validating constructor, Hoist method checks, Delete re-validation, Separate Failure from Absence, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
 | Demote helper (rung 1), Promote to feature/domain package (rungs 2–3), Split policy from vocabulary | `../../rules/R4-helper-placement.md` |
 | Slice out a feature, Rename layer files by role, Split a generic package by owner | `../../rules/R5-vertical-slice.md` |
-| Inline the interface, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
-| Move test down a rung, Split `wantErr` tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
-| Extract Clean Island, Push Global Up One Level, Replace `init()` with constructor, Thread `ctx` | `../../rules/R8-no-globals.md` |
-| Inject the Exit Path, Make the Goroutine Joinable, Extract Synchronized Owner, Replace Sleep with Timer Select, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
+| Delete the Test Seam, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
+| Move test down a rung, Split Success and Error Tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
+| Extract Clean Island, Push Global Up One Level, Replace Import-Time Initialization with a Constructor, Pass Cancellation Down | `../../rules/R8-no-globals.md` |
+| Inject the Exit Path, Make Concurrent Work Joinable, Extract Synchronized Owner, Replace Sleep with Cancellable Wait, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
 | Replace Duplicated Switch with Interface Dispatch, Replace If-Chain with Strategy Map, Introduce Null Object, Split Flag Argument, Keep the Single Exhaustive Switch | `../../rules/R11-conditional-dispatch.md` |
 | Copy on the Way In, Copy on the Way Out / Encapsulate Collection, Separate Query from Modifier, Remove Setting Method, Split Variable | `../../rules/R12-mutation-discipline.md` |
 
-**Introduce Null Object, the Go shape.** The null object is a *named* value of the
-collaborator's existing concrete type — `DiscardSink()` composing `io.Discard`, a clock
-that is `time.Now` — supplied as the constructor's default through an option or passed by
-the caller by name. Never a new interface with one no-op implementation (R6), never a
-nil parameter that means "default" (R2): `NewReporter(nil)` must not compile or must not
-exist. An option keeps its `Option` signature, so `WithSink(nil)` compiles; it records
-the error on the value under construction and the constructor returns `errors.Join` of
-what the options recorded (R2's example) — the option never substitutes the default
-and never stores the nil.
+**Introduce Null Object, the shape.** The null object is a *named* value of the
+collaborator's existing concrete type — a sink composing the standard no-op writer, a
+clock that is the real clock — supplied as the constructor's default through an option
+or passed by the caller by name. Never a new interface with one no-op implementation
+(R6), never a {{.Nil}} parameter that means "default" (R2). An option handed {{.Nil}}
+records the error on the value under construction and the constructor fails with it
+(R2's example) — the option never substitutes the default and never stores the
+{{.Nil}}.
+
+{{include "skills/refactoring/null-object-mechanics.md"}}
 
 **Extract Function prefers the function that exists.** Before writing a helper for a
 step — parse, decode, normalize, validate — grep the package for one that already does
-it (`grep -rn 'func .*Parse' --include='{{.SrcGlob}}'` on the step's noun) and prefer
+it (grep the package for a function named after the step's noun) and prefer
 the one with a test. A sibling written beside a tested function is a second owner of
 the same rule (R1 Q2), not an extraction; when the existing function has the wrong
 shape, change it and its test rather than copy it, and never leave two. A behavioral
@@ -153,7 +154,7 @@ Differences from failure-driven operation:
 
 <stopping_criteria>
 Linter green is where stopping begins, not where it ends. The exit is six actions over
-the files this session touched, run in order; each action ends by writing its line of
+the code this session touched, run in order; each action ends by writing its line of
 the `Stop check` block (`<output_format>`). The line is the receipt: an action with no
 line has not run, and the line is written when the action finishes, never from memory
 at the end.
@@ -161,22 +162,42 @@ at the end.
 1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
    packages. Line `1 gates`: the four measurements.
 2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
-   questions) of every rule routed in this session over the touched files. A remaining
-   hit of a routed rule means not done — route it again. The second global beside the
-   one just removed, the `init()` under it, a `context.Background()` two functions
-   down, the flag pair in the next loop: this step exists to catch them. "Pre-existing"
-   and "unrelated" are not verdicts — a routed rule's hit in a touched file is this
-   session's, and a suppression directive in a touched file is a hit of the rule it
-   suppresses (`<nolint_prohibition>`). The user never asked for the neighbours to be
-   left alone; the request that named one global meant the linter, not that line.
-   Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits` or
-   the anchor still standing and where it was routed again.
+   questions) of every rule routed in this session over the touched files — and for
+   R8 over the touched packages, because a package-level variable, an import-time
+   initializer or a singleton has no function to sit in: the sibling file of the one just edited is in
+   R8's scope, and in no other rule's. The rules routed this session are the outer
+   bound: a rule no failure routed here has no re-run and no fix in this session,
+   whatever a suppression in the touched code names. Inside that bound, every
+   remaining hit is measured by what this session touched, never the file it landed
+   in:
+   - **Fixed** when the hit sits in a function or type this session changed, or is an
+     R8 package-level declaration in a touched package: the second global beside the
+     one just removed, the import-time initializer under it, the manufactured root
+     context in the function just reshaped, the flag pair in the loop just storified. Route it again;
+     a hit here means not done. "Pre-existing" and "unrelated" are not verdicts for
+     these — the request that named one global meant the linter, not that line — and
+     a suppression directive on a touched function or type is a hit of the rule it
+     suppresses (`<nolint_prohibition>`) when that rule was routed this session.
+   - **Reported** when it sits anywhere else in a touched file — a function this
+     session never opened, a type it only called — or when it is a hit of a rule this
+     session never routed, wherever it sits: one `BROADER CONTEXT` line per hit under
+     the block (`<output_format>`), `file:line — rule and question — what stands`.
+     Reported, not fixed, not silent. Replacing one global read inside a brownfield
+     function does not make that function's eight-linter `{{.Nolint}}` this session's
+     work: the complexity rules it names were never routed by a globals request, so
+     the directive is a line in the report, never a storifying detour. The reverse
+     bound holds too: a hit in code this session wrote or moved is never a BROADER
+     CONTEXT line — the sibling parser this session extracted beside the tested one
+     (R1 Q2) is fixed, and "pre-existing" is not a word for it.
+   Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits`, the
+   anchor still standing and where it was routed again, or `n reported` for the hits
+   on BROADER CONTEXT lines.
 3. **The noun check.** For each concept the touched code handles, ask once: does it
    have a named box? A slice walked with flags is a collection type *over that slice*
    — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
    query methods on it — not an accumulator that stands beside the loop (that is the
    flags renamed); an optional collaborator that may be absent is a Null Object
-   default, never a nil-able field, and an option handed nil records the error for
+   default, never an optional field that may be absent, and an option handed {{.Nil}} records the error for
    the constructor to return rather than storing it or substituting the default; a
    value parsed in two places has one constructor; a repeated predicate is a method.
    Score each candidate with R1's scorecard: ≥4 → apply the
@@ -184,10 +205,10 @@ at the end.
    it. A candidate is never skipped because the linter is already quiet. Line
    `3 nouns`: each candidate with its score and verdict — `none scored ≥2` when
    nothing qualified, never a blank.
-4. **The comment critic.** Spawn one `comment-critic` (Agent tool, foreground) over
+4. **The comment critic.** Spawn one `{{.Plugin}}:comment-critic` (Agent tool, foreground) over
    the touched files with the payload @pre-commit-review step 3b names, and state the
    scope in the spawn prompt as *every comment in each touched file*, not the changed
-   lines — the `// Sink is where events are written.` godoc beside the code just
+   lines — the `Sink is where events are written.` {{.DocForm}} beside the code just
    reshaped restates its name whether or not this session wrote it. Apply its
    TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
    `DELETE → route R3` verdicts back to step 3. Line `4 critic`: the verdict counts
@@ -210,7 +231,9 @@ at the end.
 The six lines are the block, and the block goes where the user reads: the message
 that ends the turn, whichever path invoked this skill — a standalone invocation's
 report, the workflow's Phase 5 ship summary, quickfix's ship summary. A caller that
-summarises this skill's work carries the block verbatim above its own summary. Prose
+summarises this skill's work carries the block verbatim above its own summary, and
+the BROADER CONTEXT lines under it travel with the block: what step 2 reported instead
+of fixing is the caller's to hear, not this session's to bury. Prose
 that narrates the steps ("re-ran detection, spawned the critic, committed") in place
 of the six lines is the block missing, and a missing block means the refactoring did
 not finish.
@@ -231,11 +254,14 @@ Files Modified: [file] (+X, -Y)
 
 Stop check:
 1 gates      lint 0 · tests green · max LOC [n] · max nesting [n]
-2 re-run     [R3, R1, R8]: [0 hits / file.go:NN still — routed again]
+2 re-run     [R3, R1, R8]: [0 hits / file{{.SrcExt}}:NN still — routed again]
 3 nouns      [Region (score 5) → Replace Primitive with Domain Type applied; Tags (score 2) → recorded]
 4 critic     [n] verdicts applied · [n] DELETE → routed R3
 5 STOP       [none of the over-engineering signs / undone: <move>]
 6 commit     [abc1234 "<message>" / Phase 5 commits the slice / tree clean, nothing to commit]
+
+BROADER CONTEXT
+  [file{{.SrcExt}}:NN — R3 Q1 — {{.Nolint}} on an eight-linter function this session never opened / none]
 
 STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
@@ -243,8 +269,11 @@ Every line of `Stop check` renders, in this order, with a result — never a bar
 checkmark; a missing line means the step did not run and the STATUS is not final.
 Each line opens with its step number and keyword exactly as shown — `1 gates`,
 `2 re-run`, `3 nouns`, `4 critic`, `5 STOP`, `6 commit` — so the six receipts can be
-found without reading the prose, and the result follows on the same line. The block
-is copied verbatim into whatever message ends the turn (`<stopping_criteria>`).
+found without reading the prose, and the result follows on the same line. Under the
+block, `BROADER CONTEXT` lists every hit step 2 reported rather than fixed, one line
+each with its `file:line`, rule and question, or `none`. The block and its BROADER
+CONTEXT lines are copied verbatim into whatever message ends the turn
+(`<stopping_criteria>`).
 </output_format>
 
 <integration>

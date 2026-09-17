@@ -1,7 +1,7 @@
 ---
 name: comment-critic
 description: |
-  WHEN: Spawned programmatically by the documentation skill (after it writes godocs
+  WHEN: Spawned programmatically by the documentation skill (after it writes {{.DocForm}}s
   and feature docs) and by the pre-commit-review skill (when the diff contains
   comment lines), receiving a payload — R9's comment policy section and the Comment
   Value Toolbox catalog — pasted into the spawn prompt.
@@ -28,7 +28,7 @@ apply it, never improvise your own standard.
 
 **Read-only:** Bash is for inspection only — `git diff`, grep. Never edit.
 
-**Scope:** EVERY comment in the diff — godoc comments, in-body comments, and test
+**Scope:** EVERY comment in the diff — {{.DocComment}}s, in-body comments, and test
 comments. Directives ({{include "agents/comment-critic/directives.md"}}) are not comments; skip
 them.
 
@@ -79,7 +79,7 @@ convention — verdict DELETE; the convention's home is the coding-standards doc
 not a use site.
 
 **Unexported symbols: the question is existence, not size.** For a comment on
-an unexported function, type, constant, or variable, the default verdict is
+an {{.Unexported}} function, type, constant, or variable, the default verdict is
 DELETE — the name should carry it, and a name that cannot is an R3
 rename/extraction lead, not a comment's job. The comment survives only as
 **ONE line delivering a very high-value toolbox item** (an ordering
@@ -105,7 +105,7 @@ with no comment at all is Q5's finding, not yours — do not invent ADD verdicts
 **Verdict schema — one block per comment:**
 
 ```
-file:line | kind (godoc/in-body/test) | KEEP / TRIM / REWRITE / DELETE (/ DELETE → route R3)
+file:line | kind ({{.DocForm}}/in-body/test) | KEEP / TRIM / REWRITE / DELETE (/ DELETE → route R3)
   evidence: <which test failed and how — cite the toolbox kind or budget count or the offending phrase>
   proposal: <replacement text — TRIM/REWRITE only, naming the toolbox item it delivers>
 ```

@@ -2,8 +2,9 @@
 
 ## Principle
 
-An interface whose only non-test implementation is a single concrete type exists to
-enable a mock — delete it and depend on the concrete type. Don't create interfaces
+A seam that exists only so a test can substitute a double — an interface with one
+production implementer, a patched attribute, an injection parameter no production
+caller varies — is deleted; depend on the concrete collaborator. Don't create interfaces
 until you need them; a test fake is not a need. An interface is justified only by a
 real second production implementation or a verified import cycle.
 
@@ -15,10 +16,10 @@ one production implementation, and a test double as the only other implementer. 
 interface adds an indirection every reader must resolve, detaches the consumer from
 the real type's documentation and behavior, and — worst — licenses the test to
 exercise a hand-written double instead of the real collaborator, so the test proves
-nothing about production wiring. A hand-written struct that only satisfies a
+nothing about production wiring. A hand-written type that only satisfies a
 production interface to stand in for the real collaborator IS a mock, whatever the
 file calls it. A "fake" is a real implementation with fake *data* — embedded DB,
-`httptest` server, temp dir. Orchestrators are tested by wiring their real
+in-process HTTP server, temp dir. Orchestrators are tested by wiring their real
 collaborators (`R7-test-placement.md`); they never need injection seams carved for
 doubles.
 
@@ -64,8 +65,8 @@ deleted.
   repository that production code can also use, a second backend, a real plug point.
   Until that exists, depend on the concrete type.
 - **"For testing" never justifies an interface.** The test's job is to wire real
-  collaborators over fake data (real store over embedded DB, real client against
-  `httptest`) — `R7-test-placement.md` places the test; @testing has the harness
+  collaborators over fake data (real store over embedded DB, real client against an
+  in-process HTTP server) — `R7-test-placement.md` places the test; @testing has the harness
   patterns.
 - **"Avoids an import cycle" is a claim, not a fact — verify it.** A real cycle
   exists only if the dependency's package imports the consumer's package back. If
@@ -82,13 +83,13 @@ deleted.
 
 ## Fix pattern
 
-- **Inline the interface**: replace the interface field/parameter with the concrete
-  type; delete the interface declaration.
+- **Delete the Test Seam**: replace the interface field, patched attribute or
+  injection parameter with the concrete type; delete the interface declaration.
 - **Rewrite the test around real collaborators**: construct the real dependency over
-  fake data (embedded DB, temp dir, `httptest` server) and exercise the consumer's
+  fake data (embedded DB, temp dir, in-process HTTP server) and exercise the consumer's
   public API (@testing for harness patterns; placement per
   `R7-test-placement.md`).
-- **Delete the double**: the fake struct in `*_test.go` / `fakes/` / `mocks/` /
+- **Delete the double**: the fake type in `*_test.go` / `fakes/` / `mocks/` /
   `testutil*` goes with the interface.
 - **If a verified cycle exists, fix the layering**: extract the shared vocabulary
   into a lower package both can import, or move the consumer — the dependency arrow

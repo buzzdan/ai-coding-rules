@@ -5,8 +5,84 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-09-17
+
 ### Changed
 
+- **Rules and skills state each idea in language-neutral words.** A Go spelling of
+  a universal idea — `pkg_test` for "imported as a consumer would",
+  `context.Background()` for "a library that manufactures its own root cancellation",
+  `(X, error)` for "the value or an error", `wantErr` for a success-or-error flag —
+  is now written as the idea; the Go mechanics live in each rule's canonical example
+  and in short "mechanics in Go" blocks under R2, R7 and R10.
+- **Refactoring moves carry catalogue names.** "Split `wantErr` tables" is
+  "Split Success and Error Tables"; "Thread `ctx`" is "Pass Cancellation Down";
+  "Replace `init()` with a constructor" is "Replace Import-Time Initialization with a
+  Constructor"; "Make the Goroutine Joinable" is "Make Concurrent Work Joinable"; "Replace Sleep with
+  Timer Select" is "Replace Sleep with Cancellable Wait"; "Replace nil returns" is
+  "Separate Failure from Absence"; "Inline the interface" is "Delete the Test Seam".
+  The refactoring pattern index and every review table cite the new names.
+- **R6 opens with the smell, not the mechanism.** A seam that exists only so a test
+  can substitute a double — an interface with one production implementer, a patched
+  attribute, an injection parameter no production caller varies — is deleted.
+- **Agents are spawned by their plugin-qualified name**
+  (`go-linter-driven-development:rule-hunter`, `:lint-fixer`, `:comment-critic`,
+  `:overabstraction-skeptic`), so two plugins built from the same core can be
+  installed side by side without the model guessing which agent to run.
+
+## [2.12.0] - 2026-09-17
+
+### Changed
+
+- **A duplicated two-way decision that picks a value is R1's enum, not R11's
+  dispatch.** R1's Name enum strings now owns a string *assigned* from a fixed set of
+  literals — `scheme := "http"; if tls { scheme = "https" }` in two functions is a
+  two-value enum with no name, fixed by `type Scheme`, its constants and one
+  constructor from the flag, never a private helper returning the bare string. R11's
+  design guidance draws the same boundary from its side and routes the case to R1, and
+  R1's Go detection for Q3 greps for a literal assigned to a variable beside the
+  enum-comparison grep. Motivated by the go-2.11.0-c78b55f baseline: both case B
+  reviews found the byte-identical scheme block in `Get` and `healthURL`, routed it to
+  R11 as a duplicated switch and proposed a private `scheme()` helper; the
+  `fix-name-enum` grader has missed in every run.
+- **Clusters group by anchor, not by line, and a hunter accounts for every question.**
+  The pre-commit review's cluster pass names an anchor as the thing a finding is about —
+  a type with its fields and methods, a function, a discriminator, or a package (two
+  packages named together are one anchor) — and an anchor converges when findings from
+  different rules land on it, or findings answering different falsifying questions of
+  one rule: three R2 questions answered on one type are one missing constructor, R4 and
+  R5 on `internal/common` and `internal/utils` are one cluster titled with both
+  packages. Each rule hunter now ends with one receipt line per falsifying question
+  (`Q<n>: <hits> hit(s) → <findings> finding(s)`) over the full scope, so a
+  whole-repository hunt that stopped at its leads is visible, and a hit folded into
+  another finding's evidence keeps its `file:line` (a test that mutates a global is
+  named beside the global). R1's Go detection for Q1
+  reads the whole `if` line (the check often sits after `err != nil ||`) and for Q4
+  includes `return nil` and survives a trailing comment. Motivated by the
+  go-2.11.0-c78b55f whole-repository review: four cluster graders failed in every run —
+  `Reporter` (three R2 findings rendered as singletons), the role-named packages (R4 on
+  each package, no package anchor), `Catalog.Find` and retention (the R1 hunter received
+  no lead for `internal/snapshot`, whose `days <= 0 || days > 365` sits after
+  `err != nil ||` and whose `return 0 // sentinel` carries a comment, and never ran the
+  commands itself there) — while the same plants cluster in every scoped review.
+- **The detection re-run is bounded by what the session touched, and R8 reads the
+  package.** The refactoring skill's stopping-criteria step 2 now sends each remaining
+  hit one of two ways, inside the outer bound of the rules routed this session: fixed
+  when it sits in a function or type this session changed, or is a package-level
+  variable, `init()` or singleton in a package this session touched (R8's re-run unit
+  is the touched package, because a global has no function to sit in); reported when
+  it sits anywhere else in a touched file, or is a hit of a rule this session never
+  routed, as one `BROADER CONTEXT` line under the `Stop check` block — `file:line`,
+  rule and question, what stands — and not fixed in that session. The nolint
+  prohibition says the same of a `//nolint` that was already in a touched file: a
+  directive naming a linter of an unrouted rule is reported, even on a touched
+  function. Motivated by the first stop-check
+  measurement (#40): one globals run changed a single line of a brownfield file for a
+  constructor parameter, took on that file's eight-linter suppression under "a
+  suppression in a touched file is a hit", storified it inside the globals request and
+  died at the turn cap seven green commits in; the other run reported `R8: 0 hits` over
+  the touched files while the sibling file of the one it edited kept two package-level
+  variables and an `init()`.
 - **The `Stop check` block is the refactoring's exit, and it is in the message that
   ends the turn.** The refactoring skill's iteration loop no longer ends at a green
   linter: green is the exit condition, and the exit is the six stopping-criteria

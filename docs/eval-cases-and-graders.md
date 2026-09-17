@@ -28,11 +28,15 @@ append_system_prompt: |
   when you spawn agents, run them in the foreground and wait for every result.
   Do not schedule wakeups; finish the task and print your final report.
 ---
-/go-ldd-review internal/snapshot/policy.go internal/snapshot/config.go
+/{{cmd_prefix}}-review internal/snapshot/policy.go internal/snapshot/config.go
 ```
 
 Keys: `name`, `tags` (the first tag is the tier), `runs`, `max_turns`,
 `timeout_seconds`, `allowed_tools`, optional `model`, `append_system_prompt`. The
+body names slash commands and the workflow's announcement line through the token
+`{{cmd_prefix}}`, in graders and postchecks too; the run task writes the plugin's
+real prefix (`go-ldd`, `ldd`) into the copy below the plugin, so one suite measures
+every plugin built from the same core. The
 non-interactive paragraph is in every case for a reason: without it, the first
 baseline run ended its turn while background subagents were still working.
 Read-only cases omit the editing tools from `allowed_tools`, and a grader confirms
@@ -91,7 +95,8 @@ Two shapes learned the hard way:
   evidence names the rule and falsifying question by number, that the move is named
   as the rule's Fix pattern spells it, that findings are never rolled up into a
   count; and one
-  `🔗 CLUSTER: <anchor>` entry per anchor that two rules converged on. That is what
+  `🔗 CLUSTER: <anchor>` entry per anchor — a type, function, discriminator or package —
+  that two rules, or two falsifying questions of one rule, converged on. That is what
   the recall graders (a plant's file basename anywhere), the question-id graders (the
   anchor, then `Q<n>` within 500 characters), the fix graders (the move's name) and
   the cluster graders (the word cluster and the anchor on one line, or a bullet under
@@ -99,8 +104,9 @@ Two shapes learned the hard way:
   count, a verdict's punctuation — is wording, and a grader on it will flip.
   The refactoring skill promises the same of its `Stop check` block: six lines
   opening `1 gates` … `6 commit`, in the message that ends the turn, whichever path
-  invoked the skill (standalone, the workflow's ship summary, quickfix's). The
-  `stop-check` grader in every refactor case reads those six openings.
+  invoked the skill (standalone, the workflow's ship summary, quickfix's), and under
+  them one `BROADER CONTEXT` line per hit the detection re-run reported rather than
+  fixed. The `stop-check` grader in every refactor case reads those six openings.
 
 ## Postcheck
 Graders read the transcript and the tree; they do not run commands. A medium case
@@ -112,8 +118,10 @@ Go one runs gocognit and gocyclo, ruff and mypy where it runs golangci-lint, and
 counts `assert` lines where it counts `t.Fatal` and `t.Error`): `task test` and
 `task lint`, byte identity of the lint config, per-file test assertion counts with a
 tree-total fallback when a test file was legitimately moved, complexity thresholds
-on a named function, git-log ratchets (Case F requires at least three commits and a
-non-increasing count of global reads; every refactor case requires at least one commit
+on a named function, git-log ratchets (Case F requires at least three commits, a
+non-increasing count of global reads, and no commit whose code changes reach beyond an
+island and its caller — two packages — where a commit that changes only comments or
+blank lines is not counted; every refactor case requires at least one commit
 after the scaffold base and a clean tree at the end, because a green refactoring the
 plugin leaves uncommitted has not shipped — and every refactor prompt asks for the
 commit, because the harness commits only when the user asks), and the hidden black-box suite for the

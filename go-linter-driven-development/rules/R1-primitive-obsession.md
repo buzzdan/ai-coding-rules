@@ -216,7 +216,7 @@ restate it.
 - Parsing unstructured data into fields: +3
 - Grouping related data that travels together: +2
 - Making implicit structure explicit: +2
-- Replacing `map[string]interface{}`: +2
+- Replacing an untyped map: +2
 
 **Usage (simplifies code):**
 - Used in 5+ places: +2
@@ -229,10 +229,10 @@ restate it.
   whole lifetime, so a sentinel, a defensive re-check or a second validating copy
   downstream is deleted. Earned only when the whole lifetime holds: the construction
   path (`R2-self-validating-types.md`: unexported fields behind a validating
-  constructor, the zero value either valid or never escaping, no in-package literal
+  constructor, the default-constructed value either valid or never escaping, no in-package literal
   around the constructor) and the paths after it (`R12-mutation-discipline.md`: no
   setter without the constructor's checks, no internal slice or map escaping by
-  reference). A bare alias of the primitive admits every literal and its zero value
+  reference). A bare alias of the primitive admits every literal and its default value
   and earns nothing: +2
 - Gives the story a noun it needs — a loop, a flag pair or a repeated predicate at
   the call sites is really an operation on this concept and becomes a named method: +2
@@ -263,15 +263,20 @@ Stage 2 shows it applied.
 
 ## Fix pattern
 
-- **Replace Primitive with Domain Type**: introduce `ParseX(raw) (X, error)`
-  (`R2-self-validating-types.md`); migrate call sites so raw values cross into `X`
+- **Replace Primitive with Domain Type**: introduce `ParseX(raw)`, returning the value
+  or an error (`R2-self-validating-types.md`); migrate call sites so raw values cross into `X`
   exactly once, at the boundary.
 - **Extract Collection Type**: when logic loops over `[]primitive` or `[]DTO`, wrap
   the slice (`type Ports []Port`) and move the loop into a named query method.
 - **Replace Sentinel with comma-ok**: `return 0` / `return ""` meaning
-  absence/invalidity → `(X, bool)` or `(X, error)`.
+  absence/invalidity → an explicit absence result, or an error.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
-  `const StatusReady Status = "READY"`.
+  `const StatusReady Status = "READY"`. The same move owns a string *assigned* from a
+  fixed set of literals: `scheme := "http"; if tls { scheme = "https" }` written in two
+  functions is a two-value enum with no name, and the fix is `type Scheme string`, its
+  two constants, and one constructor from the flag (`SchemeFor(tls bool) Scheme`) —
+  never a private helper that returns the same bare string, which dedupes the
+  decision and keeps the primitive.
 - **Introduce Parameter Object** (Fowler): the same group of parameters traveling
   through multiple signatures (`host string, port int, useTLS bool`) becomes one
   type — that is the scorecard's "grouping related data that travels together" made
@@ -288,7 +293,9 @@ Stage 2 shows it applied.
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Does the diff validate a primitive inline instead of constructing a type?**
-   Detection: `grep -nE 'if [a-zA-Z_.]+ (==|!=) ""|if [a-zA-Z_.]+ (<=?|>=?) [0-9]' $(git diff --name-only -- '*.go')`
+   Detection: `grep -nE '^\s*(} else )?if .*\b[a-zA-Z_.]+ (==|!=) ""|^\s*(} else )?if .*\b[a-zA-Z_.]+ (<=?|>=?) [0-9]' $(git diff --name-only -- '*.go')`
+   — the check often sits second in a compound condition (`if err != nil || days <= 0
+   || days > 365`), so the pattern reads the whole `if` line, not its first clause.
    Violation: an emptiness/range/format check on a parameter or DTO field that names
    a domain concept (port, id, email, path, addr), outside a `ParseX`/`NewX`
    constructor.
@@ -299,15 +306,23 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Violation: ≥2 hits — the rule has no single owner; a type is missing.
 
 3. **Does named behavior run on a bare primitive?** Loops/switches over `[]string`,
-   string-literal status comparisons, format logic on a `string` field.
+   string-literal status comparisons, format logic on a `string` field, a variable
+   assigned one of a fixed set of literals under a flag.
    Detection: `grep -rnE '== "[A-Z_]+"' --include='*.go' .` for enum-shaped
-   comparisons; inspect diff for loops whose body interprets a primitive.
+   comparisons; `grep -rnE '^\s*[a-z]\w* :?= "[a-z]+"$' --include='*.go' .` for a
+   literal assigned to a variable, then read whether the same variable takes a second
+   literal under a condition (`scheme := "http"; if tls { scheme = "https" }`) and
+   whether that pair appears in more than one function; inspect diff for loops whose
+   body interprets a primitive.
    Violation: behavior attached to a bare primitive where a named method on a type
    would carry it.
 
 4. **Does any function return a sentinel to mean "not found / invalid"?**
-   Detection: grep the diff for `return 0`, `return ""`, `return -1` in functions
-   whose signature has no `bool` or `error` result.
+   Detection: `grep -nE 'return (0|""|-1|nil)\s*(//.*)?$' $(git diff --name-only -- '*.go')`,
+   then read each hit's function signature: the hit is a sentinel when the signature
+   has no `bool` or `error` result (`return nil` from a `*Device` result is one; from
+   an `error` result it is not). A trailing comment (`return 0 // sentinel`) does not
+   hide the hit.
    Violation: validity encoded in-band — requires comma-ok or `(X, error)`.
 
 5. **Do the same parameters travel together across signatures?**

@@ -259,8 +259,8 @@ comment-critic agent enforces them adversarially after writing:
 - the `See docs/<feature>.md` network-edge line — free ONLY as its own trailing
   line; a doc reference woven into a prose sentence is not an edge, it is clutter
   in that sentence's line count
-- short inline example lines, bounded at 2–4 lines — anything bigger belongs in an
-  `Example_*` testable example
+- short inline example lines, bounded at 2–4 lines — anything bigger belongs in a
+  testable example
 
 **Role-based tiers** — judge the tier from the symbol's role in the code:
 
@@ -285,9 +285,9 @@ four survive as one-liners, five get nothing.
 
 **Two bounded escape hatches:**
 
-- **Package docs in `doc.go`**: a package that genuinely earns more (data-flow
+- **Package docs in a dedicated file**: a package that genuinely earns more (data-flow
   sketch, core-types list, design decisions all pulling their weight) moves its
-  package godoc to a dedicated `doc.go`, bounded at ~20–30 lines. A package comment
+  package godoc to the language's dedicated package-doc file, bounded at ~20–30 lines. A package comment
   inline in a regular file stays within the standard budget.
 - **Crossroads expand recommendation**: the writer never self-exceeds the 5-line
   cap. When a critical crossroads would benefit from richer inline godoc beyond the

@@ -5,7 +5,7 @@
 Every extraction raises a second question: where does the helper live? The answer is
 decided by two axes — juiciness (the scorecard in `R1-primitive-obsession.md`; cite
 it, never re-derive it) and scope (feature-specific versus domain-generic). Three
-rungs: unexported in place, feature sub-package, shared domain package. Never test
+rungs: {{.Unexported}} in place, feature sub-package, shared domain package. Never test
 privates, and never export a helper into its parent package just so a test can reach
 it.
 
@@ -13,7 +13,7 @@ it.
 
 Wrong placement rots in both directions. Helpers exported into the parent package for
 testability pollute its API — callers see symbols that exist only for tests, and the
-package's real surface becomes unreadable. Juicy helpers buried as unexported code
+package's real surface becomes unreadable. Juicy helpers buried as {{.Unexported}} code
 either go untested or push the team into testing privates, breaking the
 public-API-only discipline (`R7-test-placement.md`). And role-named dumping grounds
 (`util`, `helpers`, `common`) accrete unrelated code that nobody can find, name, or
@@ -28,7 +28,7 @@ unit tests against a legitimate public API.
 
 ### The placement ladder
 
-1. **Trivial helper** → unexported, same package, tested only through the parent's
+1. **Trivial helper** → {{.Unexported}}, same package, tested only through the parent's
    public API.
 2. **Juicy + feature-scoped** → vertical-slice feature sub-package (e.g. `kubefwd/`)
    *if the feature has enough substance to be a package*; types exported there. See
@@ -98,10 +98,9 @@ vocabulary of one — fold it into the vocabulary it belongs to. A role name (`u
   is a worse copy of its field's API — delete the forwards and hand callers the part
   (`o.Customer()`), keeping only delegations that carry a rule (`ShippingAddress()`
   choosing gift recipient over buyer earns its place; `CustomerEmail()` does not).
-  The Go accelerant: embedding a domain type (`type Order struct{ Customer }`)
-  manufactures this smell in one line by promoting the entire foreign API onto the
-  outer type — embed for genuine is-a (interface embedding, `sync` primitives per
-  `R10-concurrency-safety.md`), never to save typing `o.customer.`.
+  The accelerant: embedding or inheriting a domain type manufactures this smell in
+  one line by promoting the entire foreign API onto the outer type — embed or inherit
+  for genuine is-a, never to save typing `o.customer.`.
 - Multi-rule extraction sequencing: `../skills/refactoring/reference.md`. Forward
   design of the promoted package: @code-designing.
 

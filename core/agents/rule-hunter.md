@@ -25,8 +25,13 @@ detection commands. Never edit files, never run tests or fixers.
 
 **Method:**
 1. Interrogate each pre-filter lead with the rule's falsifying questions.
-2. Hunt beyond the leads: run the rule's detection commands yourself across the full
-   diff scope — the pre-filter is a lead generator, not a limit.
+2. Hunt beyond the leads: run every falsifying question's detection command yourself
+   across the full diff scope — the pre-filter is a lead generator, not a limit, and
+   on a whole repository it is a sample. Count each command's hits and account for
+   every one as a finding or as cleared; the plant two directories from the nearest
+   lead is found by the command, never by the lead list. A hit that belongs in another
+   finding's evidence keeps its own `file:line` there — folding a hit never drops its
+   anchor, and a test that mutates the global is named beside the global.
 3. When uncertain whether a lead meets the violation criterion, Read a case file the
    rule cites (the spawn prompt resolves cited case files to absolute paths) and compare
    against it.
@@ -40,19 +45,10 @@ convict.
 
 **Output — one block per finding:**
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern (named from the rule's Fix pattern section) | effort (S/M/L)`
-Final line always: `R<N>: <M> finding(s)`, or when clean:
+Then one receipt line per falsifying question, in the rule's order:
+`Q<n>: <hits> hit(s) → <findings> finding(s)` — the detection command's hit count over
+the full scope and how many became findings; the rest were cleared. A question with no
+receipt was not run. Final line always: `R<N>: <M> finding(s)`, or when clean:
 `R<N>: hunted clean — <K> leads checked, detection commands run across full scope`.
 
-**Worked example (analysis style only — your pasted rule governs the substance):**
-```
-Lead (pre-filter): user/service.go:14 matched inline check on a domain primitive.
-Q1 (rule): validated inline instead of via a constructor?
-  Read user/service.go:10-16 → `if !strings.Contains(email, "@") { return errors.New(...) }`
-  → YES: domain concept checked in a service method, no ParseX/NewX owns it.
-Q2 (rule): same predicate enforced elsewhere?
-  Grep: `strings.Contains(email, "@")` --include='{{.SrcGlob}}'
-  → user/repository.go:45 — second copy. Two owners of one rule.
-Finding:
-R<N> | user/service.go:14 | inline domain validation; duplicate predicate at
-user/repository.go:45 (Q1: yes, Q2: 2 hits) | Replace Primitive with Domain Type | M
-```
+{{include "agents/rule-hunter/worked-example.md"}}

@@ -80,10 +80,10 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    (catalog in reference.md) for the symbol's tier: 1–5 prose lines, helper /
    contract / crossroads; overflow moves to the feature doc. Keep the
    `See docs/<feature>.md` edge wherever a feature doc exists. A package that
-   earns more moves its godoc to `doc.go` (R9's ~20–30 line bound). A crossroads
-   that deserves richer inline godoc stays within budget and gets an expand
-   recommendation in the report — never extra lines. Add testable examples
-   (`Example_*`) for complex/core types.
+   earns more moves its godoc to the language's dedicated package-doc file
+   (R9's ~20–30 line bound). A crossroads that deserves richer inline godoc
+   stays within budget and gets an expand recommendation in the report — never extra
+   lines. Add testable examples for complex/core types.
 4. **Rung 2 — feature doc**: create/update `<docroot>/<feature>.md` from the
    reference.md template, with OKF frontmatter (required keys — R9's bundle
    policy); lateral doc links inline, each in a sentence stating the
@@ -100,7 +100,7 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    in one pass when installed), Q4–Q6 over the diff (WHAT-comments, naked exported
    API, silently-changed doc). The detection commands live in R9; never restate
    them. Fix every hit before reporting.
-7. **Comment critique**: spawn the `comment-critic` agent (Agent tool) on the full diff —
+7. **Comment critique**: spawn the `go-linter-driven-development:comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
    are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
    section pasted verbatim (toolbox kinds, three-test standard, tiers, budget
@@ -166,7 +166,7 @@ Feature: <name>
 Artifacts:
 - <docroot>/<feature>.md (created/updated)
 - godoc: <symbols touched, grouped by package>
-- testable examples: <Example_* functions>
+- testable examples: <functions>
 - index.md: <line added/refreshed>
 
 Network edges added:
@@ -232,7 +232,7 @@ This skill MUST NOT:
   (conventions.md and the copied check script are the two sanctioned artifacts).
 - Fill templates for their own sake — reference.md's templates are menus; R9's
   comment policy decides what earns its place.
-- Spawn anything other than `comment-critic`, loop the critique more than one
+- Spawn anything other than `go-linter-driven-development:comment-critic`, loop the critique more than one
   fix-and-recheck round, or fix `DELETE → route R3` verdicts itself (extraction
   belongs to @refactoring).
 </constraints>
