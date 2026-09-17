@@ -30,8 +30,10 @@ in the module's own README; this page is the mechanism.
     # from this repository: clones the evals repository into .evals/ and runs the same task
     bash scripts/evals.sh TIER=cheap CAP=1 CASE='trigger-*'
 
-The task builds the runner, copies the suite below the plugin, pins the model
-(`MODEL`, default `claude-sonnet-5`) and sets the cost cap (`CAP`). Output lands in
+The task builds the runner, copies the suite below the plugin with the plugin's
+command prefix written into the cases (`CMD_PREFIX`, read from the plugin's
+`commands/` directory unless given), pins the model (`MODEL`, default
+`claude-sonnet-5`) and sets the cost cap (`CAP`). Output lands in
 `results/go-<timestamp>/<tier>/`, or under `OUT` when given. Always pin the model,
 always set a cap, and smoke-test a new case with the trigger cases first: they cost
 cents.
