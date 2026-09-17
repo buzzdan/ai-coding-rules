@@ -42,7 +42,7 @@ authoritative; this command adds nothing to it. One pass delivers the whole chai
 - Decide the fate of stale docs — refresh / remove / keep-as-roadmap is your call
 - Add CI workflows — the report only suggests `bash scripts/check-repo-brain.sh`
 - Touch anything beyond doc files, `index.md`, `conventions.md`,
-  CLAUDE.md/AGENTS.md, the copied check script, and one-line godoc edge additions
+  CLAUDE.md/AGENTS.md, the copied check script, and one-line {{.DocForm}} edge additions
   {{include "commands/wire-repo-brain/edge-verify.md"}}
 
 {{include "commands/wire-repo-brain/language-scope.md"}}

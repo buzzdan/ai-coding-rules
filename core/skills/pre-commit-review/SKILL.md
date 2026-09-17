@@ -14,8 +14,8 @@ allowed-tools:
 
 <objective>
 Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
-parallel single-obsession `rule-hunter` agents, one `overabstraction-skeptic`, and one
-`comment-critic`.
+parallel single-obsession `{{.Plugin}}:rule-hunter` agents, one `{{.Plugin}}:overabstraction-skeptic`, and one
+`{{.Plugin}}:comment-critic`.
 Pure orchestration and reporting: this skill may spawn agents but never edits code, never
 fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
 agents receive it as spawn-time payload — they do not invoke skills.
@@ -50,15 +50,15 @@ A rule with zero hits is skipped — no hunter spawned for it.
 | Rule | File | Hunt focus |
 |------|------|------------|
 | R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
-| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; nil as a value |
+| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
 | R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
 | R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
 | R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
 | R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
-| R7 | `../../rules/R7-test-placement.md` | internal test packages; wantErr conditionals; wrong-rung tests; sleeps |
-| R8 | `../../rules/R8-no-globals.md` | package-level state; `context.Background()` in library code |
+| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R8 | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
 | R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
-| R10 | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R10 | `../../rules/R10-concurrency-safety.md` | {{.Task}}s without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
 | R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
 | R12 | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
 
@@ -76,7 +76,7 @@ to the repo owner. The fix is a discussion or a separate PR, never silent inclus
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
-For every rule with pre-filter hits, spawn one `rule-hunter` agent, as **foreground**
+For every rule with pre-filter hits, spawn one `{{.Plugin}}:rule-hunter` agent, as **foreground**
 `Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
 run in parallel and every result comes back in that same message. A foreground call
 blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
@@ -111,7 +111,7 @@ not run over the scope, and the leads were never the scope.
 <step_3_skeptic_pass>
 Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
 proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
-"Strategy Map" proposals — and spawn one `overabstraction-skeptic`, as a **foreground**
+"Strategy Map" proposals — and spawn one `{{.Plugin}}:overabstraction-skeptic`, as a **foreground**
 `Agent` call (`run_in_background: false`) in a message with no hunters in it, after
 every hunter result is in hand; the comment critic (step 3b), when it runs, is spawned
 in that same message so the two run in parallel. Its spawn prompt MUST contain:
@@ -137,8 +137,8 @@ pure dispatch). Only findings the skeptic cannot kill ship as extraction
 findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
 no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
 broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
-construction mechanics — a validating constructor, unexported fields, an `Option` type
-with its `With*` functions, a named Null Object default — are not extractions either
+construction mechanics — a validating constructor, {{.Unexported}} fields, an options
+type with its `With*` functions, a named Null Object default — are not extractions either
 and never go to the skeptic: they close the holes of a type that already exists, and a
 skeptic verdict on them would be scoring a guard, not a type.
 </step_3_skeptic_pass>
@@ -146,7 +146,7 @@ skeptic verdict on them would be scoring a guard, not a type.
 <step_3b_comment_critic>
 When the diff contains comment lines — prefilter:
 {{include "skills/pre-commit-review/critic-prefilter.md"}}
-(any hit qualifies; directives don't count) — spawn one `comment-critic` in the same
+(any hit qualifies; directives don't count) — spawn one `{{.Plugin}}:comment-critic` in the same
 hunter-free message as the skeptic (when no skeptic runs, the critic has that message
 alone), also in the **foreground** (`run_in_background: false`): its full-repository
 comment sweep is the longest pass of the review, and waiting for it is done by the
@@ -161,10 +161,10 @@ a notification poll. Its spawn prompt MUST contain:
 2. Payload: the **Comment Value Toolbox** catalog section of
    `../documentation/reference.md` (resolve to an absolute path) pasted verbatim.
 3. The absolute path to `../../examples/private-comment-noise.md` — the critic
-   reads it when judging comments on unexported symbols.
+   reads it when judging comments on {{.Unexported}} symbols.
 4. The diff scope.
 
-It judges every comment in the diff (godoc, in-body, test) against the three-test
+It judges every comment in the diff ({{.DocForm}}, in-body, test) against the three-test
 standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
 `DELETE → route R3` for in-body extraction candidates) with evidence and proposed
 replacement text. Non-KEEP verdicts land in the report as 🟡 Readability Debt;
@@ -185,7 +185,7 @@ findings on files of one package share the package, and findings that name the s
 two packages together share both as one anchor). List the anchors first, then count.
 An anchor converges when ≥2 findings from *different* rules land on it, or ≥2
 findings answering *different* falsifying questions of one rule — exported nilable
-fields, a method that re-checks them and a nil handed to the constructor are three
+fields, a method that re-checks them and a {{.Nil}} handed to the constructor are three
 questions of R2 answered on one type, and one missing constructor, not three lines.
 Two findings of the same question on one anchor are a shared-shape line below, not a
 cluster. The skeptic's verdict removes a proposed type from the fix column; it never
@@ -201,7 +201,7 @@ jurisdictions). Render each cluster as a first-class entry above the categories:
    Convergence: 4 findings — R1, R11, R2, R7
    Hypothesis: missing domain concept — a Channel type wants to exist
    Skeptic: CONFIRMED (score 6: switched in 3 files, +2 unrepresentable — the
-   unknown-channel default at notify.go:71 goes; +2 noun — Send/Deliver)
+   unknown-channel default at notify{{.SrcExt}}:71 goes; +2 noun — Send/Deliver)
    Routing: design-first — @code-designing (cluster-scoped), then @refactoring
    implements; do NOT fix members independently (partial fixes undo each other)
 ```
@@ -224,8 +224,8 @@ under their categories below, tagged `[cluster: <anchor>]`. Clustering is *repor
 
 Category mapping:
 
-- 🐛 **Bugs** — will fail at runtime regardless of rule (nil returned as a value,
-  cancellation swallowed by `context.Background()`, R10 goroutine leaks and
+- 🐛 **Bugs** — will fail at runtime regardless of rule ({{.Nil}} returned as a value,
+  cancellation severed by a manufactured root context, R10 {{.Task}} leaks and
   unguarded concurrent writes): fix immediately.
 - 🟠 **New Practice (when in Rome)** — the when-in-Rome check's findings: a
   mechanism, dependency, framework, or convention the host repo does not already
@@ -306,35 +306,35 @@ fixes). Use after @refactoring applies fixes or whenever the caller iterates.
 <report_example>
 ```
 📊 CODE REVIEW REPORT
-Scope: user/service.go, user/auth.go (+ tests) · Mode: FULL
+Scope: user/service{{.SrcExt}}, user/auth{{.SrcExt}} (+ tests) · Mode: FULL
 Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skipped
 Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
 Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
 🔴 DESIGN DEBT                       (one finding per line; wrapped here for width)
-user/service.go:67 | R1 Q1: the session token is validated inline as a raw string,
-  no ParseX owns it; Q2: the same emptiness predicate at user/auth.go:41 — two
+user/service{{.SrcExt}}:67 | R1 Q1: the session token is validated inline as a raw string,
+  no ParseX owns it; Q2: the same emptiness predicate at user/auth{{.SrcExt}}:41 — two
   owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED
   (score 5) | M
-user/auth.go:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an
-  invalid Authenticator; Q2: Verify re-checks the range at auth.go:52 | Add
+user/auth{{.SrcExt}}:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an
+  invalid Authenticator; Q2: Verify re-checks the range at auth{{.SrcExt}}:52 | Add
   validating constructor: NewAuthenticator | S
 
 🟡 READABILITY DEBT
-user/auth.go:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling
-  in one body; Q3: the block comment `// compare password` names the section |
+user/auth{{.SrcExt}}:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling
+  in one body; Q3: the block comment `{{.CommentPrefix}} compare password` names the section |
   Extract Function named after the comment: comparePassword | S
-user/service.go:15 | critic: the godoc restates the name ("UserService provides
+user/service{{.SrcExt}}:15 | critic: the {{.DocForm}} restates the name ("UserService provides
   user services") — toolbox-value floor, no toolbox item delivered | REWRITE →
   wider context: "Every user mutation flows through this service — auth, quota,
   and audit hooks attach here." | S
 
 🟢 POLISH
-user/auth.go:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
+user/auth{{.SrcExt}}:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
   alternative to REFUTED PasswordHash wrapper (score 1: only method unwraps) | S
 
 📝 BROADER CONTEXT
-user/service.go:23 — email still a raw string (outside diff scope; same R1 pattern).
+user/service{{.SrcExt}}:23 — email still a raw string (outside diff scope; same R1 pattern).
 
 Caller decides: commit as-is · fix 🔴 first · fix all. Findings are advisory.
 ```
@@ -349,8 +349,8 @@ This skill MUST NOT:
 - Block commits — every finding is advisory; the caller decides what to fix
 - Restate rule content — rules live once in `../../rules/`; paste them as spawn payload
   and cite them in findings
-- Spawn anything other than `rule-hunter`, `overabstraction-skeptic`, and
-  `comment-critic`
+- Spawn anything other than `{{.Plugin}}:rule-hunter`, `{{.Plugin}}:overabstraction-skeptic`, and
+  `{{.Plugin}}:comment-critic`
 - Wait for any agent by polling notifications, arming a monitor or scheduling a
   wake-up, or spawn an agent a second time because its call was answered "Async agent
   launched"; a foreground call returns its result in the same message, and a call a

@@ -1,8 +1,7 @@
 ---
 name: linter-driven-development
 description: |
-  META ORCHESTRATOR for any {{.Lang}} code change that should end in a commit (features, bug fixes, refactors).
-  WHEN: User requests {{.Lang}} code work (implement, fix, add, refactor), mentions "@ldd"/"ldd", or runs a /{{.CmdPrefix}}-* command in a {{.Lang}} project.
+  {{include "skills/linter-driven-development/description-scope.md"}}
   Runs the five-phase workflow (PREPARE is an autonomous sub-phase, 1.5): DESIGN → PREPARE → IMPLEMENT (per-behavior TDD loop) → FULL LINT (lint-fixer agent) → REVIEW (per slice) → SHIP.
 allowed-tools:
   - Skill({{.Plugin}}:code-designing)
@@ -17,12 +16,12 @@ allowed-tools:
 Top-level protocol for {{.Lang}} implementation work: five phases plus the autonomous
 PREPARE sub-phase (1.5), where Phase 2 is a per-behavior TDD loop. Rule knowledge lives once in `../../rules/` — this skill never
 restates it; it sequences the thin skills (which dispatch into the rules) and the
-lint-fixer agent, at the cadence each check's economics demand.
+`{{.Plugin}}:lint-fixer` agent, at the cadence each check's economics demand.
 </objective>
 
 <triggers>
 - User requests {{.Lang}} code work (implement, fix, add, refactor, update, change) and the
-  project is {{.Lang}} (`{{.ProjectMarker}}` or `.go` files present)
+  project is {{.Lang}} (`{{.ProjectMarker}}` or `{{.SrcExt}}` files present)
 - User mentions "ldd" or "@ldd"
 - A `/{{.CmdPrefix}}-*` command invokes this skill
 On trigger, announce: **"Using {{.CmdPrefix}} workflow for this {{.Lang}} code work"** and run pre-flight.
@@ -40,7 +39,7 @@ never read its file directly.
 | @pre-commit-review | `Skill({{.Plugin}}:pre-commit-review)` |
 | @documentation | `Skill({{.Plugin}}:documentation)` |
 
-The lint-fixer agent is spawned with the **Agent tool**:
+The `{{.Plugin}}:lint-fixer` agent is spawned with the **Agent tool**:
 `subagent_type: "{{.Plugin}}:lint-fixer"`.
 </skill_invocation>
 
@@ -55,7 +54,7 @@ The lint-fixer agent is spawned with the **Agent tool**:
      │   GREEN    minimum code to pass — no design work
      │   REFACTOR pkg-scoped lint + rule greps; hits → (@refactoring)
      └── next behavior until all done
-3 FULL LINT   ONE run via lint-fixer agent (Agent tool)
+3 FULL LINT   ONE run via `{{.Plugin}}:lint-fixer` agent (Agent tool)
      mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
 4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
 5 SHIP     @documentation → commit (tests and lint green, tree dirty) → ship summary
@@ -105,7 +104,7 @@ and can still be hostile to the plan.
    primitive, R1; a new step in an at-limit function, R3; new code testable only by
    mutating a global, R8)? No → not preparation; leave it for Phase 4's advisory
    report.
-2. **SAFE** — are the paths to reshape covered (`go test -cover` on the touched
+2. **SAFE** — are the paths to reshape covered (the coverage report for the touched
    packages)? Uncovered → write characterization tests through the public API first
    (@testing); they are the move's safety net and keep their value after. When the
    missing test seam IS the finding (globals block testing), the prep move creates
@@ -114,11 +113,11 @@ and can still be hostile to the plan.
    as `PREP-DEFERRED`, UNLESS gate 2 showed the feature cannot be tested at all
    without it — then it is not preparation but a design-plan gap: return to Phase 1.
 4. **SKEPTICIZED** — any prep move that creates a type/interface/package is judged by
-   the `overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
+   the `{{.Plugin}}:overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
    one sharpening in the spawn prompt: the justification is the approved plan in
    hand, not an imagined future — score the extraction as if the feature already
    existed. REFUTED → apply the cheaper alternative or defer. R2's construction
-   mechanics — a validating constructor, unexported fields, an `Option` type and its
+   mechanics — a validating constructor, {{.Unexported}} fields, an options type and its
    `With*` functions, a named Null Object default — are not extractions and skip this
    gate: apply R2 as written.
 
@@ -177,7 +176,7 @@ Loop to the next behavior until all behaviors are done.
 </phase_2_implement>
 
 <phase_3_full_lint>
-Delegate ONE lint run to the lint-fixer agent (Agent tool, isolated context — the
+Delegate ONE lint run to the `{{.Plugin}}:lint-fixer` agent (Agent tool, isolated context — the
 fix loop's token noise stays out of this conversation). Its scope is the workflow's:
 the whole repository for a feature slice, where the full run catches what
 package-scoped runs cannot (cross-package issues, whole-file and whole-package rules
@@ -220,7 +219,7 @@ before.
 </phase_4_review>
 
 <phase_5_ship>
-1. Invoke @documentation (FEATURE mode): godoc + feature docs, wired into the
+1. Invoke @documentation (FEATURE mode): {{.DocForm}} + feature docs, wired into the
    documentation network (index line, edges both directions, root import), plus its
    R9 self-check over the diff and its comment-critic critique loop (the critic
    reviews every comment in the diff against R9's three-test standard;

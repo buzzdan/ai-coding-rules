@@ -36,7 +36,7 @@ actor that applies it. Templates live in `reference.md` — they are menus, neve
 **The 5-Year Reader Test**: someone reading this in 5 years doesn't care that "we
 fixed a bug where X happened" — they want to know how X works NOW. This holds for
 comments as much as docs: a PR number, review item, or "the previous behavior"
-narration in a godoc is provenance, not behavior (R9's floor names it a failure
+narration in a {{.DocForm}} is provenance, not behavior (R9's floor names it a failure
 mode).
 
 **Behavior over history**: document what the product DOES, not what changed. A bug fix
@@ -49,7 +49,7 @@ doc that gets skipped.
 **Plain words over clever words**: everyday English, short sentences, one idea per
 sentence. Write for a fresh graduate whose first language may not be English — a
 doc that needs a dictionary fails even when it is true (R9's plain-English/empathy
-test; applies to godocs and feature docs alike).
+test; applies to {{.DocForm}}s and feature docs alike).
 
 **Comments stand alone**: a reader must understand the comment BEFORE reading the
 code. If reading the code is required to understand the comment, the comment adds
@@ -71,8 +71,8 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 2. **Place each fact on the documentation ladder**: apply R9's rung table and
    placement rule (`../../rules/R9-repo-brain.md`, Design guidance). Before writing
    any comment, first check whether a rename or extraction makes it unnecessary.
-3. **Rung 1 — godoc**: write/refresh doc comments per R9's comment policy —
-   **exported symbols only by default**: an unexported symbol gets NO comment
+3. **Rung 1 — {{.DocForm}}**: write/refresh doc comments per R9's comment policy —
+   **exported symbols only by default**: an {{.Unexported}} symbol gets NO comment
    (R9's visibility default) unless one line carries a very high-value toolbox
    item the code cannot show; never more than that one line. Every comment
    must pass R9's three-test standard BEFORE it is written (toolbox-value,
@@ -80,10 +80,10 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    (catalog in reference.md) for the symbol's tier: 1–5 prose lines, helper /
    contract / crossroads; overflow moves to the feature doc. Keep the
    `See docs/<feature>.md` edge wherever a feature doc exists. A package that
-   earns more moves its godoc to `doc.go` (R9's ~20–30 line bound). A crossroads
-   that deserves richer inline godoc stays within budget and gets an expand
-   recommendation in the report — never extra lines. Add testable examples
-   (`Example_*`) for complex/core types.
+   earns more moves its {{.DocForm}} to the language's dedicated package-doc file
+   (R9's ~20–30 line bound). A crossroads that deserves richer inline {{.DocForm}}
+   stays within budget and gets an expand recommendation in the report — never extra
+   lines. Add testable examples for complex/core types.
 4. **Rung 2 — feature doc**: create/update `<docroot>/<feature>.md` from the
    reference.md template, with OKF frontmatter (required keys — R9's bundle
    policy); lateral doc links inline, each in a sentence stating the
@@ -100,7 +100,7 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    in one pass when installed), Q4–Q6 over the diff (WHAT-comments, naked exported
    API, silently-changed doc). The detection commands live in R9; never restate
    them. Fix every hit before reporting.
-7. **Comment critique**: spawn the `comment-critic` agent (Agent tool) on the full diff —
+7. **Comment critique**: spawn the `{{.Plugin}}:comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
    are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
    section pasted verbatim (toolbox kinds, three-test standard, tiers, budget
@@ -162,8 +162,8 @@ Feature: <name>
 
 Artifacts:
 - <docroot>/<feature>.md (created/updated)
-- godoc: <symbols touched, grouped by package>
-- testable examples: <Example_* functions>
+- {{.DocForm}}: <symbols touched, grouped by package>
+- testable examples: <functions>
 - index.md: <line added/refreshed>
 
 Network edges added:
@@ -179,7 +179,7 @@ Comment critic: <N> reviewed — <D> deleted · <T> trimmed · <R> rewritten ·
   R3 leads (in-body extraction candidates, for the caller): <file:line, ...> (omit when none)
 
 Expand recommendations (optional — omit the section when none):
-- <Symbol> — consider expanding its godoc inline beyond the doc reference:
+- <Symbol> — consider expanding its {{.DocForm}} inline beyond the doc reference:
   <one-line rationale>
 ```
 
@@ -229,7 +229,7 @@ This skill MUST NOT:
   (conventions.md and the copied check script are the two sanctioned artifacts).
 - Fill templates for their own sake — reference.md's templates are menus; R9's
   comment policy decides what earns its place.
-- Spawn anything other than `comment-critic`, loop the critique more than one
+- Spawn anything other than `{{.Plugin}}:comment-critic`, loop the critique more than one
   fix-and-recheck round, or fix `DELETE → route R3` verdicts itself (extraction
   belongs to @refactoring).
 </constraints>

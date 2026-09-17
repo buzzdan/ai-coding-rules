@@ -5,6 +5,31 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-09-17
+
+### Changed
+
+- **Rules and skills state each idea in language-neutral words.** A Go spelling of
+  a universal idea — `pkg_test` for "imported as a consumer would",
+  `context.Background()` for "a library that manufactures its own root cancellation",
+  `(X, error)` for "the value or an error", `wantErr` for a success-or-error flag —
+  is now written as the idea; the Go mechanics live in each rule's canonical example
+  and in short "mechanics in Go" blocks under R2, R7 and R10.
+- **Refactoring moves carry catalogue names.** "Split `wantErr` tables" is
+  "Split Success and Error Tables"; "Thread `ctx`" is "Pass Cancellation Down";
+  "Replace `init()` with a constructor" is "Replace Import-Time Initialization with a
+  Constructor"; "Make the Goroutine Joinable" is "Make Concurrent Work Joinable"; "Replace Sleep with
+  Timer Select" is "Replace Sleep with Cancellable Wait"; "Replace nil returns" is
+  "Separate Failure from Absence"; "Inline the interface" is "Delete the Test Seam".
+  The refactoring pattern index and every review table cite the new names.
+- **R6 opens with the smell, not the mechanism.** A seam that exists only so a test
+  can substitute a double — an interface with one production implementer, a patched
+  attribute, an injection parameter no production caller varies — is deleted.
+- **Agents are spawned by their plugin-qualified name**
+  (`go-linter-driven-development:rule-hunter`, `:lint-fixer`, `:comment-critic`,
+  `:overabstraction-skeptic`), so two plugins built from the same core can be
+  installed side by side without the model guessing which agent to run.
+
 ## [2.12.0] - 2026-09-17
 
 ### Changed

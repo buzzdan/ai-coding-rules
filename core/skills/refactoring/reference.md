@@ -20,7 +20,7 @@ Spans R3 × R1 × R2 × R4. Apply least-invasive first; re-run the linter after 
    accumulated state) or named behavior runs on a primitive. Score the candidate with
    R1's scorecard *before* creating it; the new type gets a validating constructor
    per R2. Worked pair of moves 1+4: `../../examples/storify-leaf-type.md`.
-5. **Place it** (R4) — the ladder decides where the extraction lands: unexported
+5. **Place it** (R4) — the ladder decides where the extraction lands: {{.Unexported}}
    helper, feature sub-package, or shared domain package.
 
 **When to stop**: the six ordered steps of SKILL.md's `<stopping_criteria>` — linter
@@ -50,7 +50,7 @@ composition: @code-designing.
 
 ## Package decomposition
 
-Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `.go`
+Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `{{.SrcExt}}`
 files at one directory level) or yellow zone (8–12) — detection command and zone
 table in SKILL.md `<package_decomposition>`.
 
@@ -79,8 +79,8 @@ Look *inside* the package before looking at the file list:
   the behavior attached.
 - **Big structs with disjoint method sets**: methods `A() B()` use fields `x y` while
   `D() E()` use `z w` — two types fused together; split them.
-- **Top-level functions that belong on a type**: `func normalizeFoo(s string) string`
-  wants to be `(f Foo) Normalize()`.
+- **Top-level functions that belong on a type**: a top-level `normalizeFoo(s)`
+  wants to be `Foo.Normalize()`.
 
 Extracting types often shrinks the package below threshold with no sub-package split.
 Invoke @code-designing to validate the extractions.
@@ -92,7 +92,7 @@ Invoke @code-designing to validate the extractions.
   sub-package for pure domain types.
 - Often: both.
 
-**Persistence naming**: `Store`, not `Repository` (Go-idiomatic, concrete). Each
+**Persistence naming**: `Store`, not `Repository` (concrete, not a pattern name). Each
 sub-package gets its own Store with focused queries; constructor everywhere:
 `NewStore(db *sql.DB, opts ...StoreOption)`.
 

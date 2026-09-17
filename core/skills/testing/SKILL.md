@@ -30,7 +30,7 @@ Writes tests autonomously based on code structure and type design, and serves as
 <manual_invocation>
 - User explicitly requests tests to be written
 - User asks for testing advice, recommendations, or "what to do"
-- When testing strategy is unclear (table-driven vs testify suites)
+- When testing strategy is unclear (table-driven vs suites)
 - When choosing between dependency levels (in-memory vs binary vs test-containers)
 - When adding tests to existing untested code
 - When user needs testing expert guidance or consultation
@@ -39,15 +39,15 @@ Writes tests autonomously based on code structure and type design, and serves as
 
 <philosophy>
 **Test only the public API**
-- Use `pkg_test` package name
+- Import the package as a consumer would, so privates are unreachable
 - Test types through their constructors
-- No testing private methods/functions — the urge to unit-test an unexported helper directly is a promotion signal: give the helper its own package (`../../rules/R4-helper-placement.md`), never test privates.
+- No testing private methods/functions — the urge to unit-test an {{.Unexported}} helper directly is a promotion signal: give the helper its own package (`../../rules/R4-helper-placement.md`), never test privates.
 
-**No mocks — and a struct that only satisfies a production interface in a test IS a mock**
-- A "fake" is a *real implementation with fake data* (embedded DB, `httptest` server, fake binary, temp dir) — NOT a struct written to satisfy a dependency interface.
-- Terminology: the banned "mock" is an interface-injected struct double. The "in-memory mock servers" elsewhere in this skill (testutils DSL, `httptest` wrappers) are fakes in this sense — real servers speaking the real protocol with configurable fake data — and remain the recommended stand-in for external APIs you don't control (wired via URL/config, never via a production interface).
-- Use in-memory implementations (fastest, no external deps), HTTP test servers (httptest), temp files/directories, or the real dependency.
-- **Orchestrators are tested by wiring their real collaborators** (real Store/Evaluator over embedded DB + `httptest` external services), never by injecting doubles.
+**No mocks — and a type that only satisfies a production interface in a test IS a mock**
+- A "fake" is a *real implementation with fake data* (embedded DB, in-process HTTP server, fake binary, temp dir) — NOT a type written to satisfy a dependency interface, and NOT a patched-in stand-in.
+- Terminology: the banned "mock" is an interface-injected or patched-in double. The "in-memory mock servers" elsewhere in this skill are fakes in this sense — real servers speaking the real protocol with configurable fake data — and remain the recommended stand-in for external APIs you don't control (wired via URL/config, never via a production interface).
+- Use in-memory implementations (fastest, no external deps), in-process HTTP test servers, temp files/directories, or the real dependency.
+- **Orchestrators are tested by wiring their real collaborators** (real Store/Evaluator over embedded DB + in-process external services), never by injecting doubles.
 - If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and `../../rules/R6-test-only-interfaces.md`).
 
 **Coverage targets**
@@ -55,20 +55,19 @@ Writes tests autonomously based on code structure and type design, and serves as
 - Higher rungs (orchestrating types): cover the delta each rung adds — its seams and emergent behaviors
 - Critical workflows: top-rung (system) tests
 
-**Assertions**: testify is the default, but project convention wins (e.g. goweka uses stdlib assertions) — match the codebase you're in.
+{{include "skills/testing/assertions.md"}}
 </philosophy>
 
 <composition_ladder>
 Tests sit on a ladder of real composition, not a pyramid of layer percentages.
 
-**Rung 0 — pure leaf types.** No I/O, no goroutines, no production dependencies.
+**Rung 0 — pure leaf types.** No I/O, no {{.Task}}s, no production dependencies.
 Tests are plain constructions plus assertions: slice literals, value tables.
 100% coverage is expected here — leaf types own most of the logic.
 
 **Each rung above adds exactly one real production layer** — the real
 implementation, never a mock. In-memory/in-process infrastructure counts as the
-real layer: httptest server, bufconn gRPC, in-memory NATS, temp files, embedded
-VictoriaMetrics.
+real layer: {{include "skills/testing/real-layer-examples.md"}}.
 
 **Fake only the true external boundary** — the thing you genuinely cannot run
 in-process (a third-party SaaS API, a hardware device). Everything inside the

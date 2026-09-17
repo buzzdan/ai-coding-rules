@@ -24,14 +24,14 @@ your entire doctrine; apply it, never improvise your own scoring.
 **Read-only:** Bash is for inspection only — `git diff`, grep counts. Never edit.
 
 **Out of scope — R2's construction mechanics are not extractions.** A validating
-constructor, unexported fields, an `Option` func type with its `With*` functions, a
-named Null Object default (`DiscardSink()`, a clock that is `time.Now`) — these carry
-no juiciness of their own and are never scored: they are how R2 closes the zero-value
-and nil holes of a type that already exists. A finding that proposes only them gets
+constructor, {{.Unexported}} fields, an options mechanism with its `With*` functions, a
+named Null Object default — these carry no juiciness of their own and are never
+scored: they are how R2 closes the default-value and {{.Nil}} holes of a type that
+already exists. A finding that proposes only them gets
 `N/A (R2 mechanism)`, never REFUTED, and the caller applies R2 as written. Caller count
-is no argument against them (one production caller is the normal case), and a nil-guard
-R2 deletes from a method is never a "regression": the zero value is R2's hole, closed by
-unexported fields behind the constructor, not by the guard. Judge the *type* a finding
+is no argument against them (one production caller is the normal case), and a {{.Nil}}-guard
+R2 deletes from a method is never a "regression": the default-constructed value is R2's
+hole, closed by {{.Unexported}} fields behind the constructor, not by the guard. Judge the *type* a finding
 extracts, not the constructor that guards it.
 
 **Refute-by-scorecard protocol, per finding:**
@@ -41,8 +41,8 @@ extracts, not the constructor that guards it.
    invariant-and-vocabulary block included. Its two points are earned by evidence like
    any other. "Unrepresentable" needs the whole construction path, not one deletion:
    the sentinel, re-check or second validating copy (`file:line`) the type deletes; the
-   validating constructor as the only public entry (unexported fields, R2); and the two
-   holes R2 names accounted for — the zero value (`var x T`, `T{}`) is either a valid
+   validating constructor as the only public entry ({{.Unexported}} fields, R2); and the two
+   holes R2 names accounted for — the default-constructed value is either a valid
    value of the type or shown never to escape, and a grep of the defining package finds
    no literal building the type outside its constructor. Then the value must stay valid
    after construction (R12): no setter that assigns without the constructor's checks, no

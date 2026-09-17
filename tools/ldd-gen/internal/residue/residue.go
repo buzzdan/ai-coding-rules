@@ -37,55 +37,57 @@ func token(name, pattern string) Token {
 }
 
 // HardTokens are the spellings that a plugin loader or a second language would
-// choke on and that a profile scalar or an include always replaces: the plugin
-// name, the command prefix, the linter name, source globs and the nolint
-// directive. A hit is a missed substitution and fails lint-core. Other scalars
-// (the project marker, the test command) also appear as plain prose in Go
-// idioms, so they stay soft.
+// choke on and that a profile scalar, an include or a neutral rewording always
+// replaces: the plugin name, the command prefix, the linter name, source globs,
+// the nolint directive, the words with scalars (nil, goroutine, godoc, the .go
+// suffix, unexported) and the Go idioms core prose no longer spells (ctx,
+// context.Background, init(), wantErr, pkg_test, httptest, error tuples,
+// t.Run, Example_, zero value, panic). A hit is a missed substitution and
+// fails lint-core. Other scalars (the project marker, the test command) also
+// appear as plain prose, so they stay soft.
 func HardTokens() []Token {
 	return []Token{
 		token("plugin name literal", `go-linter-driven-development`),
 		token("command prefix literal", `\bgo-ldd\b`),
 		token("golangci", `golangci`),
-		token("*.go glob", `\*\.go\b`),
-		token("_test.go", `_test\.go`),
 		token("//nolint", `//nolint`),
-	}
-}
-
-// SoftTokens are reported, never fatal. Linter names count only inside
-// backticks, the way the rule text always writes them, so the English word
-// "exhaustive" is not a hit; `context.` needs a capital letter after the dot
-// so a sentence ending in "context." is not one either.
-func SoftTokens() []Token {
-	return []Token{
-		token("Go code fence", "```go"),
-		token("go.mod", `go\.mod`),
-		token(".go suffix", `\.go\b`),
-		token("go test / go vet", `\bgo (test|vet)\b`),
-		token("godoc", `godoc`),
-		token("Go (the word)", `\bGo\b`),
-		token("Go linter name", "`(errcheck|bodyclose|govet|exhaustive|gocognit|gocyclo|funlen|nestif|ireturn|dupl|gochecknoglobals|gochecknoinits|maintidx|cyclop|wrapcheck|goconst|varnamelen|misspell|revive)( [a-z]+)?`"),
-		token("Go library", `\b(testify|golang\.org/|errgroup)\b`),
 		token("nil", `\bnil\b`),
-		token("goroutine", `goroutine`),
+		token("godoc", `godoc`),
+		token("goroutine", `goroutines?\b`),
+		token(".go suffix", `\.go\b`),
+		token("unexported", `\bunexported\b`),
 		token("ctx", `\bctx\b`),
 		token("context.", `\bcontext\.[A-Z]`),
-		token("sync.", `\bsync\.`),
-		token("pkg_test", `pkg_test`),
-		token("func", `\bfunc `),
-		token("struct", `\bstruct\b`),
-		token("interface", `\binterface\b`),
 		token("init()", `\binit\(\)`),
 		token("wantErr", `wantErr`),
+		token("pkg_test", `pkg_test`),
 		token("httptest", `httptest`),
 		token("error tuple", `\([^()]*, (error|bool)\)`),
 		token("t.Run", `\bt\.Run\b`),
 		token("Example_", `\bExample_`),
-		token("Go stdlib", `\b(strings|errors|fmt|io|time|bytes|atomic|slog)\.[A-Z][A-Za-z0-9]*`),
-		token("panic", `\bpanics?\b`),
 		token("zero value", `\bzero[ -]values?\b`),
-		token("unexported", `\bunexported\b`),
+		token("panic", `\bpanics?\b`),
+	}
+}
+
+// SoftTokens are reported, never fatal: the Go vocabulary that is an aside in
+// core prose (interface, struct, the attributed proverbs in maxims.md) or that
+// no binding has needed to replace yet. Linter names count only inside
+// backticks, the way the rule text always writes them, so the English word
+// "exhaustive" is not a hit.
+func SoftTokens() []Token {
+	return []Token{
+		token("Go code fence", "```go"),
+		token("go.mod", `go\.mod`),
+		token("go test / go vet", `\bgo (test|vet)\b`),
+		token("Go (the word)", `\bGo\b`),
+		token("Go linter name", "`(errcheck|bodyclose|govet|exhaustive|gocognit|gocyclo|funlen|nestif|ireturn|dupl|gochecknoglobals|gochecknoinits|maintidx|cyclop|wrapcheck|goconst|varnamelen|misspell|revive)( [a-z]+)?`"),
+		token("Go library", `\b(testify|golang\.org/|errgroup)\b`),
+		token("sync.", `\bsync\.`),
+		token("func", `\bfunc `),
+		token("struct", `\bstruct\b`),
+		token("interface", `\binterface\b`),
+		token("Go stdlib", `\b(strings|errors|fmt|io|time|bytes|atomic|slog)\.[A-Z][A-Za-z0-9]*`),
 		token("race detector", `\brace detector\b`),
 	}
 }
@@ -105,8 +107,9 @@ type Report struct {
 }
 
 // Scan walks every file under core except its README and records each token
-// hit. Attributed quotes in maxims.md (lines starting with an em dash) are
-// exempt: a quoted Go proverb is portable text.
+// hit. maxims.md is exempt from hard tokens and its attributed quotes (lines
+// starting with an em dash) from soft ones too: the proverbs and the author's
+// illustrations of them are quoted text, portable as quotation.
 func Scan(core fs.FS) (Report, error) {
 	var r Report
 	err := fs.WalkDir(core, ".", func(path string, d fs.DirEntry, err error) error {
@@ -128,13 +131,15 @@ func Scan(core fs.FS) (Report, error) {
 }
 
 func (r *Report) scanFile(path, text string) {
-	exemptQuotes := path == "maxims.md"
+	maxims := path == "maxims.md"
 	hard, soft := HardTokens(), SoftTokens()
 	for i, line := range strings.Split(text, "\n") {
-		if exemptQuotes && strings.HasPrefix(line, "— ") {
+		if maxims && strings.HasPrefix(line, "— ") {
 			continue
 		}
-		r.Hard = append(r.Hard, hitsOn(hard, path, i+1, line)...)
+		if !maxims {
+			r.Hard = append(r.Hard, hitsOn(hard, path, i+1, line)...)
+		}
 		r.Soft = append(r.Soft, hitsOn(soft, path, i+1, line)...)
 	}
 }
@@ -187,7 +192,7 @@ func (r Report) Markdown() string {
 
 func writeHard(b *strings.Builder, hits []Hit) {
 	if len(hits) == 0 {
-		fmt.Fprint(b, "Hard residue: none. No plugin-name or command-prefix literal, golangci\nreference, source-file glob or nolint directive is left in core/.\n")
+		fmt.Fprint(b, "Hard residue: none. No plugin-name or command-prefix literal, golangci\nreference, source-file glob, nolint directive, scalar word or retired Go idiom is\nleft in core/.\n")
 		return
 	}
 	fmt.Fprintf(b, "Hard residue (%d) — each is a missed substitution:\n\n", len(hits))

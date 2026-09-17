@@ -134,8 +134,26 @@ func (r *renderer) checkOverrideHasCoreFile(_ fs.FS, path string) error {
 
 // include resolves an {{include}}: the binding's file when it has one, else
 // the language-neutral default under core/includes/. A binding therefore adds
-// a file only where its language truly differs from the shared text.
+// a file only where its language truly differs from the shared text. The body
+// is itself a template, so an include may name scalars; it may not include
+// further files.
 func (r *renderer) include(name string) (string, error) {
+	body, err := r.includeSource(name)
+	if err != nil {
+		return "", err
+	}
+	out, err := r.executeWith(name, body, template.FuncMap{"include": noNestedInclude})
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+func noNestedInclude(name string) (string, error) {
+	return "", fmt.Errorf("include %q: an include cannot include another file", name)
+}
+
+func (r *renderer) includeSource(name string) (string, error) {
 	body, err := r.binding.Include(name)
 	if err == nil {
 		return body, nil
@@ -154,7 +172,10 @@ func (r *renderer) include(name string) (string, error) {
 }
 
 func (r *renderer) execute(name, text string) ([]byte, error) {
-	funcs := template.FuncMap{"include": r.include}
+	return r.executeWith(name, text, template.FuncMap{"include": r.include})
+}
+
+func (r *renderer) executeWith(name, text string, funcs template.FuncMap) ([]byte, error) {
 	tmpl, err := template.New(name).Funcs(funcs).Parse(text)
 	if err != nil {
 		return nil, fmt.Errorf("template %s: %w", name, err)
