@@ -72,7 +72,7 @@ drifting apart.
 | `task` | `{{.Task}}` | goroutine | concurrent task | concurrent task | a unit of concurrent work: R10's Principle and Why, "R10 {{.Task}} leaks", "no {{.Task}}s" at rung 0. Python says "concurrent task" too, so a leaked thread is in scope, not only an asyncio task |
 | `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | the documentation form as a noun or adjective: "its {{.DocForm}}", "kind ({{.DocForm}}/in-body/test)" |
 | `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | the two-word noun in R9 and the comment critic; one scalar would render "docstring comments" |
-| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | the language's source suffix | `*.py` minus the star | the source-file suffix in worked-example paths and R5's role-named files |
+| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | `.<ext>` | `*.py` minus the star | the source-file suffix in worked-example paths and R5's role-named files. The generic value is a placeholder rather than a phrase because every use site glues it to a file name: `user/service.<ext>:14` reads, `user/servicethe language's source suffix:14` does not |
 | `unexported` | `{{.Unexported}}` | unexported | unexported | underscore-prefixed | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads |
 
 Plural forms append `s` to the scalar; every value above pluralizes that way. A
@@ -96,9 +96,12 @@ binding answers this differently for text the model reads and for the script it
 installs:
 
 - **Model-facing text is an instruction with examples, not a lookup.** The generic
-  scalars are short general phrases — "the language's source files", "the language's
-  suppression directive", "the repository's test command" — and the generic default
-  includes tell the model to adjust to what it sees: "Keep the doc comment on an
+  scalars are short phrases chosen to read in every core sentence that substitutes
+  them — `detected-language source` where a glob goes, `lint-suppression` before the
+  word "directive", `the repository's test command` inside backticks, `.<ext>` and
+  `<test-file suffix>` glued to file names, `<comment-marker>` before a `See` edge,
+  `any-language` as the adjective in "any-language code work" — and the generic
+  default includes tell the model to adjust to what it sees: "Keep the doc comment on an
   important function or type short and point to the repo-brain doc for the rest.
   Use the language's documentation form — `//` line comments in Go, Rust or
   TypeScript, `#` in shell or Ruby, a docstring in Python." The same shape covers
@@ -118,7 +121,18 @@ installs:
 Its includes are the core defaults wherever core has one. That is what keeps the
 generic binding a profile plus a handful of files rather than a second copy of core:
 neutral text is written once, under `core/includes/`, and Go and Python add a file
-only where their mechanism differs.
+only where their mechanism differs. The generic binding's own files are the ones
+that are about detection: the pre-flight and command-discovery steps, the
+`/wire-repo-brain` language-scope paragraph, the gate adapter that dispatches on the
+marker, and the fixture rows its gate matrix runs — one row per language the adapter
+detects, so the same cases prove the Go block and the Python block alike.
+
+The canonical examples in `core/includes/` are language-neutral pseudocode rather
+than the paired Go and Python snippets the roadmap allowed: a Go signature such as
+"the value or an error" is a hard residue token, so a Go snippet cannot live under
+`core/`, and a Python snippet would be a third language's idiom passed off as
+universal. The pseudocode shows the shape; each example ends by saying which spelling
+follows the repository's language.
 
 ## Claude Code names a second plugin must not collide on
 

@@ -1,0 +1,36 @@
+# Changelog
+
+All notable changes to the `linter-driven-development` plugin are documented here.
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-09-17
+
+### Added
+
+- **The generic plugin.** The same core as `go-linter-driven-development` — twelve
+  rules, the maxims, the design, TDD, refactoring, testing, review and documentation
+  skills, the hunter/skeptic/critic review and the repo-brain gate — rendered for
+  repositories without a language binding. The language is detected from the
+  repository's marker file at run time; canonical examples show each rule's shape in
+  language-neutral pseudocode; detection commands say what to search for over the
+  detected language's source files.
+- **Linter phase without a binding.** The workflow runs the linter the repository
+  already configures and routes its findings by what they are about (complexity,
+  length, nesting, duplication, unused, shadowing, unchecked errors); a finding it
+  cannot classify is escalated by its message and attributed to its linter, never
+  silenced. No linter configured is a 🟠 New Practice finding, and the review
+  continues on the rules alone.
+- **Repo-brain gate with a detected adapter.** `scripts/check-repo-brain.sh` picks
+  its language block from the marker file: `go.mod` selects Go, `pyproject.toml`
+  (or `setup.cfg`/`setup.py`) selects Python; with neither, the structure checks
+  run and the first output line says the code↔docs edges are unverified. The
+  fixture matrix runs once per supported language.
+- Commands `/ldd-autopilot`, `/ldd-quickfix`, `/ldd-prepare`, `/ldd-analyze`,
+  `/ldd-review`, `/ldd-status` and `/wire-repo-brain`.
+
+### Not included
+
+- No worked case files (`examples/`), no test-harness catalogue, no hooks: those are
+  written in Go and ship with the Go plugin.

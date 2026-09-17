@@ -1,0 +1,27 @@
+**NEVER add a {{.Nolint}} directive to avoid refactoring.** Handle the error, validate
+at the boundary, or reduce the complexity. Before finishing, scan all uncommitted
+files for the language's suppression directive — `# noqa`, `# type: ignore`,
+`eslint-disable`, `#[allow(...)]`, `@SuppressWarnings`, or whatever the repository's
+linter documents:
+
+```bash
+changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
+[ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep -nE '<the suppression directive>' 2>/dev/null
+```
+
+Any hit → remove the directive and fix properly. Genuine false positives belong in
+the linter's configuration file — with user approval, never unilaterally.
+
+A {{.Nolint}} directive that was already in a touched file is the same hit when it
+names a linter of a rule routed this session and sits on a function or type this
+session changed, or on a package-level declaration in a touched package (a
+globals check → R8, an import-time-initializer check → R8 in a globals request): it
+suppresses the rule it names, so route it as a finding of that rule and delete it with
+the fix. "Pre-existing" and "unrelated" are not verdicts for those — a request to make
+the linter pass without suppressions is met when the touched functions and the
+touched packages' declarations carry none of the routed rules' directives, not when
+the one directive the request named is gone and its neighbours keep their `TODO`. A
+directive elsewhere in a touched file, or one naming a linter of a rule this session
+never routed — a complexity suppression → R3 on the function whose one global read
+was just replaced — is a BROADER CONTEXT line under the `Stop check` block: reported
+with its rule, not fixed in this session, not silent.
