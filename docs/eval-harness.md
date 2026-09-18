@@ -14,7 +14,8 @@ has to be a measurement of what it does today.
 **Solution**: the [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)
 repository holds behavioral test cases in the `claude plugin eval` file format, one
 suite per language under `<lang>/`. Each case gives a fresh copy of a deliberately
-bad Go service to an agent that has the plugin installed, records everything the
+bad service (go-mini in Go, py-mini in Python: the same service, the same planted
+violations) to an agent that has the plugin installed, records everything the
 agent does, and grades the transcript and the resulting tree. A baseline recorded
 against a named plugin commit is the reference every later change is compared
 against.
@@ -30,7 +31,7 @@ a trace.
 
     case dir                scaffold                 agent under test               graders
     prompt.md          ──▶  default.sh copies   ──▶  claude -p --plugin-dir p  ──▶  regex on the report
-    case.yaml               fixture/go-mini          prompt = the case text         regex on the files
+    case.yaml               fixture/<lang>-mini      prompt = the case text         regex on the files
     graders/*.md            into a fresh git         writes trace.jsonl:            tool_used / tool_order
                             repo, one commit         every tool call, text,         postcheck.sh in the tree
                                                      final message                  llm judge (Haiku)
@@ -49,18 +50,19 @@ baselines is in [eval-baseline.md](eval-baseline.md).
 | Path (in `ldd-evals`) | What |
 |---|---|
 | `runner/` | `ldd-eval`, the stop-gap runner, language-neutral; deleted the day the gate opens |
-| `go/fixture/go-mini/` | the fixture: a device-fleet service planted with every rule's violations and a control per rule; no hints in the tree |
-| `go/violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it |
-| `go/check-manifest.sh` | keeps the manifest honest: anchors match, no hint words, every rule has plants and controls |
-| `go/gen-review-graders.sh` | generates the whole-repo review's recall, cluster and precision graders from the manifest |
-| `go/scaffold/` | `default.sh` copies the fixture into a fresh git repo; `red-lint.sh` also strips every `//nolint` |
-| `go/cases/<case>/` | `prompt.md`, `graders/*.md`, `case.yaml`, optional `postcheck.sh` |
-| `go/postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite |
+| `<lang>/fixture/<lang>-mini/` | the fixture (`go/fixture/go-mini/`, `py/fixture/py-mini/`): a device-fleet service planted with every rule's violations and a control per rule; no hints in the tree |
+| `<lang>/violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it; the same 149 ids in both suites |
+| `<lang>/check-manifest.sh` | keeps the manifest honest: anchors match, no hint words, every rule has plants and controls |
+| `go/gen-review-graders.sh` | generates the whole-repo review's recall, cluster and precision graders from either manifest |
+| `<lang>/scaffold/` | `default.sh` copies the fixture into a fresh git repo; `red-lint.sh` also strips every suppression (`//nolint`, or `# noqa` and `# type: ignore`) |
+| `<lang>/cases/<case>/` | `prompt.md`, `graders/*.md`, `case.yaml`, optional `postcheck.sh`; `py/cases/suite.yaml` names the Python source and test globs |
+| `<lang>/postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite (a Go test for go-mini, pytest for py-mini, one shared recording) |
 | `baselines/<lang>-<plugin version>-<plugin sha>/` | committed reference runs: verdicts, one `traces.tar.zst`, the plugin pin, the write-up |
 | `results/` | run output, ignored; a run is promoted to `baselines/` by hand |
 
-At run time the `go:cases` task copies the cases, scaffold, postcheck helpers and
-fixture side by side into this repository's `go-linter-driven-development/evals/`,
+At run time the `go:cases` or `py:cases` task copies the cases, scaffold, postcheck
+helpers and fixture side by side into the plugin directory's `evals/`
+(`go-linter-driven-development/evals/`, `python-linter-driven-development/evals/`),
 which is ignored here except for its README, because the gated `claude plugin eval`
 expects cases below the plugin directory.
 
@@ -69,7 +71,7 @@ Tiers are tags in each case's frontmatter, selected with `--tag`.
 
 | Tier | Agent may | Cases | Runs | Cost per run |
 |---|---|---|---|---|
-| cheap | read only, write a report | two trigger cases, the whole-repo review, six scoped reviews (Cases A–F), the centerpiece review, two clean-tree controls (review and quickfix say "nothing in scope" and touch nothing) | 2–3 | $0.06 (trigger) to $15 (whole-repo review) |
+| cheap | read only, write a report | two trigger cases (the workflow fires on the suite's language and stays quiet on the other), the whole-repo review, six scoped reviews (Cases A–F), the centerpiece review, two clean-tree controls (review and quickfix say "nothing in scope" and touch nothing) | 2–3 | $0.06 (trigger) to $15 (whole-repo review) |
 | medium | edit code | quickfix over two packages of the red-lint scaffold, prepare, wire-repo-brain, six refactors (A–F), the centerpiece refactor | 1 | $1–8 |
 | expensive | run the whole workflow unattended | autopilot on an SMS-channel spec | 1 | $30 or more; runs only on explicit approval |
 
@@ -93,12 +95,12 @@ reads the resulting package the way a reviewer glances at it.
 | F | a global config read from every layer | the value pushed up to the composition root one deployable commit at a time |
 
 The centerpiece is the fixture's heartbeat handler: one working, fully specified function at
-cognitive complexity 76 that plants seven rules at once; a hidden black-box suite
-replays recorded heartbeats against the rebuilt binary so any refactor is judged on
-preservation.
+cognitive complexity 76 (in both languages, by gocognit and by complexipy) that
+plants seven rules at once; a hidden black-box suite replays recorded heartbeats
+against the rebuilt service so any refactor is judged on preservation.
 
 ## Results so far
-The current baseline measures plugin 2.11.0 at c78b55f, the close of Phase 2, and lives
+The Go suite's current baseline measures plugin 2.11.0 at c78b55f, the close of Phase 2, and lives
 in the evals repository under
 [`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f)
 with a write-up: cheap 22 of 29 runs pass, medium 5 of 10 (one pass; the noise floor
@@ -109,4 +111,9 @@ that delivered a report. It compares every case with the previous reference,
 (plugin 2.10.0, before Phase 2), and no case regressed. Both were recorded from a Claude
 Code on the web container so that every baseline shares one environment; the new one's
 findings drive the plugin's next changes, and the comparison procedure is in
-[eval-baseline.md](eval-baseline.md).
+[eval-baseline.md](eval-baseline.md). The generic plugin's floor on go-mini,
+[`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
+passes 21 of 29 cheap runs against the Go plugin's 22 with every scoped-review
+difference inside the noise floor. The Python suite has no baseline yet: its first
+run is the generic plugin over py-mini, and its README will carry the parity report,
+per rule, of recall on py-mini against recall on go-mini.

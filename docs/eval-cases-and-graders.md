@@ -4,9 +4,13 @@ description: how to write an eval case: prompt frontmatter, case.yaml, the five 
 ---
 # Writing Cases and Graders
 
-A case is a directory under `go/cases/` in the evals repository with three parts.
-The file format is `claude plugin eval`'s, so a case needs no change when that
-command becomes available; only `case.yaml` is ours.
+A case is a directory under `<lang>/cases/` in the evals repository (`go/cases/`,
+`py/cases/`) with three parts. The file format is `claude plugin eval`'s, so a case
+needs no change when that command becomes available; only `case.yaml` and the
+suite-level `suite.yaml` are ours. The Python suite is the Go suite's 23 cases
+translated one for one: prompts invoke `/{{cmd_prefix}}-*` exactly as the Go ones
+do, so either suite runs under its own plugin or under the generic one, file graders
+match Python shapes, and every grader that reads the report contract is unchanged.
 
 ## prompt.md
 YAML frontmatter, then the prompt the agent receives.
@@ -37,7 +41,8 @@ every plugin built from the same core. The
 non-interactive paragraph is in every case for a reason: without it, the first
 baseline run ended its turn while background subagents were still working.
 Read-only cases omit the editing tools from `allowed_tools`, and a grader confirms
-they were never called.
+they were never called. Every refactor prompt ends with "Commit the result.",
+because the harness commits only when the user asks.
 
 ## case.yaml
 Ours, not the gate's. It names the scaffold, an optional postcheck, and the tier.
@@ -55,6 +60,12 @@ notes: |
   free text for the reader; never shown to the agent
 ```
 
+A suite may add `suite.yaml` beside its cases with `src_glob` and `test_glob`,
+`path.Match` patterns over a file's base name that tell an llm grader's directory
+focus which files are source and which are tests (`*.py` and `test_*.py` for the
+Python suite); a case's `case.yaml` may override either, and a suite that names
+nothing keeps the runner's Go default.
+
 ## Graders
 One small markdown file per assertion under `graders/`. Frontmatter carries the
 type and its fields; the body is a rubric for llm graders and a comment otherwise.
@@ -65,7 +76,7 @@ type and its fields; the body is a rubric for llm graders and a comment otherwis
 | `tool_used` | `tool`, optional `input_match` (regex over the tool's JSON input), `min`, `max` | counts calls of a tool; `min: 0` and `max: 0` means "must never call" |
 | `tool_order` | `before: {tool, input_match}`, `after: {tool, input_match}` | the first `before` call precedes the first `after` call, and both occur |
 | `file_exists` | `path` | a path exists in the scaffold after the run |
-| `llm` | `criteria`, `focus` | a Haiku judge reads the focus and the body's rubric and answers PASS or FAIL; `focus` is `last_message`, `{source: file, path: …}`, or `{source: files, paths: […]}` where a path may be a directory standing for its non-test Go files |
+| `llm` | `criteria`, `focus` | a Haiku judge reads the focus and the body's rubric and answers PASS or FAIL; `focus` is `last_message`, `{source: file, path: …}`, or `{source: files, paths: […]}` where a path may be a directory standing for its non-test source files under the suite's globs |
 
 Two shapes learned the hard way:
 
@@ -102,7 +113,10 @@ Two shapes learned the hard way:
 Graders read the transcript and the tree; they do not run commands. A medium case
 adds `postcheck.sh`, run in the kept scaffold after the agent finishes with the
 directory in an environment variable, and it counts as one grader named
-`postcheck`. `go/postcheck/lib.sh` provides the assertions: `task test` and
+`postcheck`. `<lang>/postcheck/lib.sh` provides the assertions under the same
+helper names in both suites (the Python one runs complexipy and radon where the
+Go one runs gocognit and gocyclo, ruff and mypy where it runs golangci-lint, and
+counts `assert` lines where it counts `t.Fatal` and `t.Error`): `task test` and
 `task lint`, byte identity of the lint config, per-file test assertion counts with a
 tree-total fallback when a test file was legitimately moved, complexity thresholds
 on a named function, git-log ratchets (Case F requires at least three commits, a
@@ -128,7 +142,8 @@ see that). The rubric asks four things and demands a quoted line for each: one n
 box per concept; method names in domain words, not mechanics; one abstraction level
 per function; comments gone where the name now speaks. The control case's judge
 inverts the question: it passes only when nothing was added. Every judge was
-dry-checked against the untouched fixture before use: six fail, the control passes.
+dry-checked against the untouched fixture before use, in both suites: six fail,
+the control passes.
 
 ## Calibrating
 Never re-run agents to fix a grader. Record traces once, edit the grader, and run

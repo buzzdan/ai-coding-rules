@@ -27,19 +27,22 @@ in the module's own README; this page is the mechanism.
 
     # in the evals repository
     task go:run TIER=cheap CAP=60 PLUGIN=/path/to/go-linter-driven-development
-    # from this repository: clones the evals repository into .evals/ and runs the same task
+    task py:run TIER=cheap CAP=60 PLUGIN=/path/to/python-linter-driven-development
+    # from this repository: clones the evals repository into .evals/ and runs the Go task
     bash scripts/evals.sh TIER=cheap CAP=1 CASE='trigger-*'
 
 The task builds the runner, copies the suite below the plugin with the plugin's
 command prefix written into the cases (`CMD_PREFIX`, read from the plugin's
 `commands/` directory unless given), pins the model (`MODEL`, default
 `claude-sonnet-5`) and sets the cost cap (`CAP`). Output lands in
-`results/go-<timestamp>/<tier>/`, or under `OUT` when given. Always pin the model,
+`results/<lang>-<timestamp>/<tier>/`, or under `OUT` when given. The runner is
+language-neutral: the one thing it reads per suite is `suite.yaml`, the source and
+test globs an llm grader's directory focus filters with, defaulting to Go's. Always pin the model,
 always set a cap, and smoke-test a new case with the trigger cases first: they cost
 cents.
 
 ## Regrade
-`task go:regrade OUT=<previous run> TIER=<tier>` re-applies the cases' current
+`task <lang>:regrade OUT=<previous run> TIER=<tier>` re-applies the cases' current
 graders to the traces already recorded under `<previous run>/<tier>` and rewrites
 each `result.json`. Agent cost, turns and
 duration are re-read from the trace; only the llm judges spend anything. This is how
@@ -51,7 +54,7 @@ its synthetic execution failure.
 
 ## Resume
 The container running headless evals is reclaimed when the session goes idle, and a
-detached run dies with it. `task go:run RESUME=1 OUT=<dir>` reuses every run
+detached run dies with it. `task <lang>:run RESUME=1 OUT=<dir>` reuses every run
 under the output directory that already has a `result.json`, counts its cost toward
 the cap, and executes only the rest. The evals repository's manual CI workflow
 uploads the results directory even when a run fails, for the same reason. Select the whole tier in one invocation when the
