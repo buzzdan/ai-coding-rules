@@ -27,3 +27,6 @@ go-linter-driven-development/evals/*
 !go-linter-driven-development/evals/README.md
 .evals/
 .task/
+
+# The generic plugin gets the same run-time copy; it ships no pointer README there.
+linter-driven-development/evals/
