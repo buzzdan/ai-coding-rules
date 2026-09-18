@@ -111,6 +111,9 @@ that delivered a report. It compares every case with the previous reference,
 (plugin 2.10.0, before Phase 2), and no case regressed. Both were recorded from a Claude
 Code on the web container so that every baseline shares one environment; the new one's
 findings drive the plugin's next changes, and the comparison procedure is in
-[eval-baseline.md](eval-baseline.md). The Python suite has no baseline yet: its
-first run waits on the Python plugin, and its README will carry the parity report,
+[eval-baseline.md](eval-baseline.md). The generic plugin's floor on go-mini,
+[`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
+passes 21 of 29 cheap runs against the Go plugin's 22 with every scoped-review
+difference inside the noise floor. The Python suite has no baseline yet: its first
+run is the generic plugin over py-mini, and its README will carry the parity report,
 per rule, of recall on py-mini against recall on go-mini.

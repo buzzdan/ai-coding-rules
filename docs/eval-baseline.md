@@ -10,8 +10,9 @@ model pinned and one `OUT` directory for both tiers (`task <lang>:run` keeps sca
 and writes each tier to `OUT/<tier>`). Regrade once after calibration so every
 `result.json` carries the current graders' verdict. Then promote the run:
 `task <lang>:baseline OUT=<run dir> PLUGIN=<plugin dir>` creates
-`baselines/go-<plugin version>-<plugin sha>/` (or `baselines/python-…/` for the
-Python suite) in the evals repository with the
+`baselines/<lang>-<plugin version>-<plugin sha>/` in the evals repository (`NAME=`
+overrides the directory when the plugin and the fixture differ in language:
+`generic-gomini-…`, `generic-pymini-…`) with the
 verdicts, every trace in one `traces.tar.zst`, the plugin pin in `plugin.json`, and
 a README stub with the per-case table pre-filled. Finish the README with the
 findings, the noise floor and every grader change made after the run, and commit.
@@ -26,10 +27,14 @@ its README compares it case by case with the earlier
 which is the worked example of the procedure below, and names the reading guide for
 the next comparison: one grader on a scoped review is noise, up to three on the
 refactor cases C, F and the centerpiece is inside their observed swing and needs a
-second run, any change on a case that has never flipped is a signal. The first
-Python baseline, once the Python plugin exists, adds the parity report to its
-README: per rule, recall on py-mini against recall on go-mini under the Go plugin,
-so the rules with a large gap are where the Python binding spends next.
+second run, any change on a case that has never flipped is a signal. The generic
+plugin's floor on the same fixture is
+[`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
+compared with it grader by grader. The Python suite's first baseline is that same
+generic plugin over py-mini, and its README adds the parity report: per rule, recall
+on py-mini against recall on go-mini under one plugin, so the rules with a large gap
+are where the Python binding spends next; the binding's own first baseline is then
+read against that floor.
 
 ## The noise floor
 Graders that flip between runs of the same case, on the same plugin, are the noise
