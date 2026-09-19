@@ -2,10 +2,6 @@
 
 Demonstrates: R11, R6 (edges into R3)
 
-> The code in this case study is Go, for demonstration only. The move it shows and the
-> reasoning that accepts or rejects it hold in any language: read the Go as the shape,
-> and spell it in the repository's language.
-
 Adapted from production code. `../examples/anti-if-dispatch.md` works R11's canonical
 disease — a *raw* discriminator (a kind string) inspected at three sites. This case
 is the type-switch sibling: a value that is **already polymorphic** (an interface,
@@ -22,86 +18,69 @@ honest answer.
 
 ## Before — the hump that grows forever
 
-`Patch` is an interface with one method (`Type()`) and four concrete
+`Patch` is a `Protocol` with one method (`type()`) and four concrete
 implementations, one per export destination. The converter interrogates each
-concrete type and shovels its fields into a flat wire request:
+concrete class and shovels its fields into a flat wire request:
 
-```go
-func fromUpdateArg(arg UpdateArg) updateExportRequest {
-    req := updateExportRequest{Name: arg.Name}
-    req.Type = arg.Patch.Type().String()
+```python
+def from_update_arg(arg: UpdateArg) -> UpdateExportRequest:
+    req = UpdateExportRequest(name=arg.name, type=str(arg.patch.type()))
 
-    switch p := arg.Patch.(type) {
-    case SplunkPatch:
-        if p.Token != nil {
-            s := string(*p.Token)
-            req.Token = &s
-        }
-    case S3Patch:
-        req.S3Bucket = p.Bucket
-        req.S3Key = p.Key
-        req.S3Region = p.Region
-        if p.Secret != nil {
-            s := string(*p.Secret)
-            req.S3Secret = &s
-        }
-    case KafkaPatch:
-        req.KafkaTopic = p.Topic
-        req.KafkaUseSASL = p.UseSASL
-        req.KafkaSASLUsername = p.Username
-        req.KafkaKeyField = p.KeyField
-        if p.Mechanism != nil {
-            m := p.Mechanism.String()
-            req.KafkaSASLMechanism = &m
-        }
-        if p.Password != nil {
-            s := string(*p.Password)
-            req.KafkaSASLPassword = &s
-        }
-    case SyslogPatch:
-        if p.Mode != nil {
-            m := p.Mode.String()
-            req.SyslogMode = &m
-        }
-        if p.RFC != nil {
-            r := p.RFC.String()
-            req.SyslogRFC = &r
-        }
-        if p.Facility != nil {
-            f := p.Facility.String()
-            req.SyslogFacility = &f
-        }
-    }
+    match arg.patch:
+        case SplunkPatch() as p:
+            if p.token is not None:
+                req.token = str(p.token)
+        case S3Patch() as p:
+            req.s3_bucket = p.bucket
+            req.s3_key = p.key
+            req.s3_region = p.region
+            if p.secret is not None:
+                req.s3_secret = str(p.secret)
+        case KafkaPatch() as p:
+            req.kafka_topic = p.topic
+            req.kafka_use_sasl = p.use_sasl
+            req.kafka_sasl_username = p.username
+            req.kafka_key_field = p.key_field
+            if p.mechanism is not None:
+                req.kafka_sasl_mechanism = str(p.mechanism)
+            if p.password is not None:
+                req.kafka_sasl_password = str(p.password)
+        case SyslogPatch() as p:
+            if p.mode is not None:
+                req.syslog_mode = str(p.mode)
+            if p.rfc is not None:
+                req.syslog_rfc = str(p.rfc)
+            if p.facility is not None:
+                req.syslog_facility = str(p.facility)
 
-    req.setTLS(arg.TLS.Expand())
+    req.set_tls(arg.tls.expand())
     return req
-}
 ```
 
 Three defects, and only one of them is size:
 
 - **The decision is asked twice (R11).** Whoever constructed `UpdateArg` already
-  chose `KafkaPatch` — the value is an interface *because* that decision was made.
-  The type switch re-asks it. A type switch over an interface the same package owns
-  is always a second ask; "decide once at the edge" was violated the moment the
-  cases appeared.
+  chose `KafkaPatch` — the value is typed as the protocol *because* that decision
+  was made. The class-pattern `match` re-asks it. A type switch over a protocol the
+  same package owns is always a second ask; "decide once at the edge" was violated
+  the moment the cases appeared.
 - **Ask-and-unpack.** The knowledge of *how a Splunk patch serializes* lives in the
   consumer, not on `SplunkPatch`. Each variant's wire mapping has no owner.
-- **Silent growth failure.** Adding a `PubSubPatch` and forgetting this switch
-  compiles clean and ships a request carrying only `Name` and `Type` — a runtime
-  no-op with no compiler, linter, or test to catch it unless someone remembers to
+- **Silent growth failure.** Adding a `PubSubPatch` and forgetting this `match`
+  passes ruff and mypy and ships a request carrying only `name` and `type` — a
+  runtime no-op with no checker or test to catch it unless someone remembers to
   write one. (Mixed in, an R3 note: the business flow — identity → payload → TLS —
-  is buried under nil-deref-convert plumbing repeated nine times.)
+  is buried under `is not None` plumbing repeated nine times.)
 
 ## The tempting wrong fix — extract each case body
 
 The reflexive move is Extract Function per case:
 
-```go
-case KafkaPatch:
-    fillKafka(&req, p)
-case SyslogPatch:
-    fillSyslog(&req, p)
+```python
+        case KafkaPatch() as p:
+            _fill_kafka(req, p)
+        case SyslogPatch() as p:
+            _fill_syslog(req, p)
 ```
 
 The function gets shorter and each case reads better — and nothing real changed.
@@ -118,113 +97,123 @@ cased types already share an interface — the switch is a hand-rolled vtable.
 
 Add the fill behavior to the interface the concrete types already implement:
 
-```go
-// Patch is implemented by each export-destination patch type.
-// fillUpdate writes the destination-specific fields onto the wire request;
-// shared fields (Name, Type, TLS) belong to the caller.
-type Patch interface {
-    Type() ExportType
-    fillUpdate(req *updateExportRequest)
-}
+```python
+class Patch(Protocol):
+    """Implemented by each export-destination patch class.
+
+    fill_update writes the destination-specific fields onto the wire request;
+    shared fields (name, type, TLS) belong to the caller.
+    """
+
+    def type(self) -> ExportType: ...
+    def fill_update(self, req: UpdateExportRequest) -> None: ...
 ```
 
 The orchestrator collapses to a three-beat story (R3): identity, payload, TLS.
 
-```go
-func fromUpdateArg(arg UpdateArg) updateExportRequest {
-    req := updateExportRequest{
-        Name: arg.Name,
-        Type: arg.Patch.Type().String(),
-    }
-    arg.Patch.fillUpdate(&req)
-    req.setTLS(arg.TLS.Expand())
+```python
+def from_update_arg(arg: UpdateArg) -> UpdateExportRequest:
+    req = UpdateExportRequest(name=arg.name, type=str(arg.patch.type()))
+    arg.patch.fill_update(req)
+    req.set_tls(arg.tls.expand())
     return req
-}
 ```
 
-Each destination owns its own mapping, in its own file (`splunk.go`, `s3.go`,
-`kafka.go`, `syslog.go`):
+Each destination owns its own mapping, in its own module (`splunk.py`, `s3.py`,
+`kafka.py`, `syslog.py`):
 
-```go
-func (p SplunkPatch) fillUpdate(req *updateExportRequest) {
-    req.Token = optSecret(p.Token)
-}
+```python
+@dataclass(frozen=True)
+class SplunkPatch:
+    token: Secret | None = None
 
-func (p S3Patch) fillUpdate(req *updateExportRequest) {
-    req.S3Bucket = p.Bucket
-    req.S3Key = p.Key
-    req.S3Region = p.Region
-    req.S3Secret = optSecret(p.Secret)
-}
+    def fill_update(self, req: UpdateExportRequest) -> None:
+        req.token = opt_str(self.token)
 
-func (p KafkaPatch) fillUpdate(req *updateExportRequest) {
-    req.KafkaTopic = p.Topic
-    req.KafkaUseSASL = p.UseSASL
-    req.KafkaSASLUsername = p.Username
-    req.KafkaKeyField = p.KeyField
-    req.KafkaSASLMechanism = optStringer(p.Mechanism)
-    req.KafkaSASLPassword = optSecret(p.Password)
-}
 
-func (p SyslogPatch) fillUpdate(req *updateExportRequest) {
-    req.SyslogMode = optStringer(p.Mode)
-    req.SyslogRFC = optStringer(p.RFC)
-    req.SyslogFacility = optStringer(p.Facility)
-}
+@dataclass(frozen=True)
+class S3Patch:
+    bucket: str
+    key: str
+    region: str
+    secret: Secret | None = None
+
+    def fill_update(self, req: UpdateExportRequest) -> None:
+        req.s3_bucket = self.bucket
+        req.s3_key = self.key
+        req.s3_region = self.region
+        req.s3_secret = opt_str(self.secret)
+
+
+@dataclass(frozen=True)
+class KafkaPatch:
+    topic: str
+    use_sasl: bool
+    username: str
+    key_field: str
+    mechanism: SASLMechanism | None = None
+    password: Secret | None = None
+
+    def fill_update(self, req: UpdateExportRequest) -> None:
+        req.kafka_topic = self.topic
+        req.kafka_use_sasl = self.use_sasl
+        req.kafka_sasl_username = self.username
+        req.kafka_key_field = self.key_field
+        req.kafka_sasl_mechanism = opt_str(self.mechanism)
+        req.kafka_sasl_password = opt_str(self.password)
+
+
+@dataclass(frozen=True)
+class SyslogPatch:
+    mode: SyslogMode | None = None
+    rfc: SyslogRFC | None = None
+    facility: SyslogFacility | None = None
+
+    def fill_update(self, req: UpdateExportRequest) -> None:
+        req.syslog_mode = opt_str(self.mode)
+        req.syslog_rfc = opt_str(self.rfc)
+        req.syslog_facility = opt_str(self.facility)
 ```
 
-Two tiny helpers kill the repeated nil-deref-convert dance that padded every case:
+One tiny helper kills the repeated `is not None` dance that padded every case:
 
-```go
-// optStringer converts an optional enum to its optional wire-string form.
-func optStringer[T fmt.Stringer](v *T) *string {
-    if v == nil {
-        return nil
-    }
-    s := (*v).String()
-    return &s
-}
-
-// optSecret unwraps an optional Secret for the wire request.
-func optSecret(s *Secret) *string {
-    if s == nil {
-        return nil
-    }
-    v := string(*s)
-    return &v
-}
+```python
+def opt_str(v: object | None) -> str | None:
+    """Convert an optional enum or secret to its optional wire-string form."""
+    return None if v is None else str(v)
 ```
 
-An insert path is the same move: `fillInsert(req *insertExportRequest)` on the same
-interface, and `fromInsertArg` becomes the same three-beat story.
+An insert path is the same move: `fill_insert(self, req: InsertExportRequest)` on
+the same protocol, and `from_insert_arg` becomes the same three-beat story.
 
 ## The payoffs
 
-1. **Compile-time enforcement replaces a silent no-op.** A new `PubSubPatch`
-   without `fillUpdate` no longer builds. The growth failure mode moved from
-   "runtime request missing its payload" to "compiler error at the moment of
-   authorship" — the strongest possible catch point. (This is R11's exhaustiveness
-   payoff without the `exhaustive` linter: interface satisfaction *is* the
-   completeness proof.)
-2. **Adding a destination is a new file, not an edit.** `fromUpdateArg` is frozen
-   at three beats; the switch version grows a hump per destination forever.
+1. **A type check replaces a silent no-op.** A new `PubSubPatch` without
+   `fill_update` no longer satisfies `Patch`, so `UpdateArg(patch=PubSubPatch(...))`
+   fails mypy at the moment of authorship — the strongest catch point Python has.
+   (This is R11's exhaustiveness payoff without an `assert_never` arm: protocol
+   satisfaction *is* the completeness proof.)
+2. **Adding a destination is a new module, not an edit.** `from_update_arg` is frozen
+   at three beats; the `match` version grows a hump per destination forever.
 3. **The story survives (R3).** The orchestrator states *what* happens; each
-   destination's *how* lives one level down, on the type that owns the data.
-4. **The interface is earned, and sealed.** Four production implementations — this
-   passes R6's earned-interface test (contrast: an interface whose only second
-   implementer is a test double). The unexported method is a bonus: no code outside
-   the package can implement `Patch`, so the implementation set is closed and the
-   compiler-enforcement guarantee in payoff 1 cannot be bypassed.
+   destination's *how* lives one level down, on the class that owns the data.
+4. **The protocol is earned, and its set is recorded.** Four production
+   implementations — this passes R6's earned-interface test (contrast: a protocol
+   whose only second implementer is a test double). Python cannot seal a protocol
+   the way a private method would elsewhere; the closed set is recorded instead,
+   as a `PATCH_TYPES: tuple[type[Patch], ...] = (SplunkPatch, S3Patch, KafkaPatch,
+   SyslogPatch)` that mypy checks member by member, and a one-line test that every
+   `ExportType` has a class in it.
 
 ## Fill, don't construct
 
-Note the method signature: `fillUpdate(req *updateExportRequest)`, not
-`ToUpdateRequest() updateExportRequest`. The request carries fields the patch does
-not own — `Name`, `Type`, TLS come from the surrounding argument. A constructor
-method would either return a partial request the caller must merge (field-by-field
-merging re-creates the original mess) or need the rest of the argument passed in
-(the patch learns about its container). Filling keeps ownership honest: the caller
-owns the shared fields, each patch owns its own.
+Note the method signature: `fill_update(self, req: UpdateExportRequest) -> None`,
+not `to_update_request(self) -> UpdateExportRequest`. The request carries fields the
+patch does not own — `name`, `type`, TLS come from the surrounding argument. A
+constructor method would either return a partial request the caller must merge
+(field-by-field merging re-creates the original mess) or need the rest of the
+argument passed in (the patch learns about its container). Filling keeps ownership
+honest: the caller owns the shared fields, each patch owns its own.
 
 ## The boundary counter — when the switch must stay
 
@@ -236,19 +225,19 @@ concern), so the method is natural.
 When the patch types live in a shared API package and the wire request is one
 consumer's private detail, the move is unavailable and wrong:
 
-- Physically: an interface method cannot reference another package's unexported
-  type, and exporting the wire type just to enable the method inverts the
-  dependency.
+- Physically: a method on a domain class cannot take one consumer's private request
+  type without importing that consumer — an import cycle, or the domain package
+  depending on its client, which inverts the dependency.
 - Architecturally: with multiple consumers (CLI, gateway, store), per-consumer
-  `fill<X>Request` methods accrete every consumer's serialization onto the domain
-  types — interface pollution from the opposite direction.
+  `fill_<x>_request` methods accrete every consumer's serialization onto the domain
+  classes — protocol pollution from the opposite direction.
 
-In that situation the type switch at the consumer's boundary is idiomatic Go — the
-honest tax of keeping the domain package transport-ignorant, and precisely the
-boundary-adapter exemption in R11's falsifying questions. Then, and only then, the
-"tempting wrong fix" above becomes the right ceiling: shrink the switch to pure
-dispatch (one `fillKafka(&req, p)`-style converter per case, zero inline
-field-fiddling) and stop.
+In that situation the class-pattern `match` at the consumer's boundary is idiomatic
+Python — the honest tax of keeping the domain package transport-ignorant, and
+precisely the boundary-adapter exemption in R11's falsifying questions. Then, and
+only then, the "tempting wrong fix" above becomes the right ceiling: shrink the
+`match` to pure dispatch (one `_fill_kafka(req, p)`-style converter per case, zero
+inline field-fiddling), close it with `case _: assert_never(patch)`, and stop.
 
 Note this rejection is orthogonal to the juiciness rejection in
 `anti-if-dispatch.md` Move 3: there the extraction *could* be written but isn't

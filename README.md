@@ -7,7 +7,7 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 | | Plugin | Version | For |
 |---|--------|---------|-----|
 | 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.13.0 | Go |
-| 🐍 | [`python-linter-driven-development`](python-linter-driven-development/README.md) | 0.1.0 | Python |
+| 🐍 | [`python-linter-driven-development`](python-linter-driven-development/README.md) | 0.2.0 | Python |
 | 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.1.0 | Any language without a binding — detects the language at run time |
 | ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.2.0 | TypeScript + React |
 
@@ -85,7 +85,7 @@ Team members then install with the same `/plugin install` commands above.
    /plugin install go-linter-driven-development@ai-coding-rules
    ```
    After changes, uninstall/reinstall the plugin to pick them up.
-3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, worked case studies in `lang/go/passthrough/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
+3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, the case studies' doctrine in `core/examples/` and their code sections in `lang/<lang>/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
 4. Behavior changes to the Go and Python plugins are measured, not eyeballed: behavioral evals run them on a deliberately bad fixture project (go-mini, py-mini) and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals); `scripts/evals.sh` runs them against this checkout.
 5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0)).
 

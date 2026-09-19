@@ -5,6 +5,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-19
+
+### Changed
+
+- **The six case studies under `examples/` are Python.** The over-abstraction
+  rejection is a frozen dataclass against a `CIDRPresence` wrapper; the storify case
+  extracts an `IPConfig` dataclass from a flag-driven loop; the anti-if case dispatches
+  through a `Protocol`, a `StrEnum`-keyed dict and a `match` closed by `assert_never`;
+  the switch-to-polymorphism case moves `fill_update` onto the patch classes and
+  records the closed set mypy checks; dependency rejection replaces `env.CONFIG` with
+  constructor injection from an app factory; the comment-noise verdicts fall on
+  `_private` docstrings. The doctrine of each case (verdicts, decision questions, the
+  skeptic's operating rule) is shared with the Go plugin; the code and its narration
+  are this plugin's own.
+
 ## [0.1.0] - 2026-09-19
 
 ### Added
@@ -43,7 +58,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - Commands `/py-ldd-autopilot`, `/py-ldd-quickfix`, `/py-ldd-prepare`,
   `/py-ldd-analyze`, `/py-ldd-review`, `/py-ldd-status` and `/wire-repo-brain`.
 - **The worked case files** under `examples/`, shared with the Go plugin. Their code
-  is Go for demonstration only, and each says so at the top; the skeptic and the
+  was Go for demonstration only, and each said so at the top; the skeptic and the
   critic read them as their payload in this plugin exactly as in the Go one.
 
 ### Not included

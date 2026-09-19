@@ -44,9 +44,39 @@ type Vars struct {
 
 // Profile is a parsed profile.yaml. Plugin doubles as the output directory
 // name, so one binding always renders into exactly one plugin directory.
+// IncludeFallback, when set, names another binding directory under lang/
+// whose include files stand in for this binding's own — before the core
+// defaults are tried — for include names under one path prefix; the generic
+// binding reads the Go case studies under examples/ this way. Only includes
+// fall back, never overrides or passthrough files.
 type Profile struct {
-	Vars   `yaml:",inline"`
-	Ignore []string `yaml:"ignore"`
+	Vars            `yaml:",inline"`
+	Ignore          []string        `yaml:"ignore"`
+	IncludeFallback IncludeFallback `yaml:"include_fallback"`
+}
+
+// IncludeFallback is the profile's include_fallback block: From is the
+// binding directory to read from, Under the include-name prefix (a directory
+// with its trailing slash) the fallback is limited to.
+type IncludeFallback struct {
+	From  string `yaml:"from"`
+	Under string `yaml:"under"`
+}
+
+// Set reports whether the profile declares a fallback at all.
+func (f IncludeFallback) Set() bool { return f.From != "" || f.Under != "" }
+
+func (f IncludeFallback) validate() error {
+	if !f.Set() {
+		return nil
+	}
+	if !isPlainName(f.From) {
+		return fmt.Errorf("profile: include_fallback.from %q must be a plain directory name under lang/", f.From)
+	}
+	if f.Under == "" || !strings.HasSuffix(f.Under, "/") || path.Clean(f.Under) != strings.TrimSuffix(f.Under, "/") || strings.HasPrefix(f.Under, "/") || strings.HasPrefix(f.Under, ".") {
+		return fmt.Errorf("profile: include_fallback.under %q must be a clean relative directory prefix ending in /", f.Under)
+	}
+	return nil
 }
 
 // Parse decodes profile.yaml strictly: unknown keys, empty scalars, a plugin
@@ -76,6 +106,9 @@ func (p Profile) validate() error {
 	}
 	if !isSlug(p.CmdPrefix) {
 		return fmt.Errorf("profile: cmd_prefix %q must be lower-case letters, digits and dashes", p.CmdPrefix)
+	}
+	if err := p.IncludeFallback.validate(); err != nil {
+		return err
 	}
 	for _, pattern := range p.Ignore {
 		if _, err := path.Match(pattern, ""); err != nil {

@@ -21,7 +21,9 @@ second language is decided in [language-residue.md](language-residue.md).
    language belongs in `core/`; text that names one language's tools, globs or
    idioms belongs in that binding as a `profile.yaml` scalar or an include file; the
    language-neutral default for an include slot belongs in `core/includes/`, where a
-   binding without its own file picks it up.
+   binding without its own file picks it up. A binding may also declare
+   `include_fallback` in its profile to read another binding's includes under one
+   path prefix; the generic binding reads the Go case-study sections this way.
 2. Run `task generate` for the Go plugin, `task generate BINDING=python` for the
    Python one and `task generate BINDING=generic` for the generic one. Each renders
    its binding over its plugin directory: every file the generator owns is

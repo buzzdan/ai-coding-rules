@@ -43,6 +43,11 @@ Go `text/template` with the default delimiters. Core files use only two construc
 
 File-level rules the generator applies without template syntax:
 
+- `include_fallback: {from: <lang>, under: <prefix>/}` in a profile makes another
+  binding's include files stand in for the ones this binding lacks, for include
+  names under that prefix only, before the core default is tried. One step only: a
+  fallback binding may not itself fall back, and overrides and passthrough files
+  never fall back. The generic binding uses it to read the Go case-study sections.
 - `lang/<lang>/overrides/<core path>` replaces the core file of the same path (the
   path as written in `core/`, before file-name templating). The override is rendered as
   a template like the file it replaces and carries its own executable bit. An override
@@ -75,18 +80,25 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
   catalogue. The generic binding ships a short `skills/testing/reference.md` of its
   own that says so and points at the repository's test utilities; the Python binding
   ships a short pytest catalogue in the same shape.
-- `examples/`: worked case studies written as Go code. Core rules and skills cite
-  them by relative path, and the review skill pastes two of them into agent
-  payloads, so every binding must ship the directory. The generic binding carries
-  copies under `lang/generic/passthrough/examples/`, and the Python binding under
-  `lang/python/passthrough/examples/`, each opening with a note that the Go is for
-  demonstration only; a change to a case study is made in every copy until a
-  binding writes the study in its own language.
 - `README.md`, `CHANGELOG.md`, `.claude-plugin/plugin.json`, `hooks/`: describe or
   configure the Go plugin itself.
 
-Two files the generic binding needed have been promoted and carry a note here
-because the Go plugin renders them differently from the other bindings:
+Three promoted pieces carry a note here because the Go plugin renders them
+differently from the other bindings:
+
+- `examples/*.md`, the six case studies, are core templates. Each keeps its title,
+  section headings and doctrine — the verdicts, scorecards, decision questions and
+  the skeptic's operating rule — in core, and renders every code section (a fence
+  with the paragraphs that narrate its identifiers) from an include under
+  `examples/<case>/`. The Go binding's sections are cut from the original text; the
+  Python binding's are written in Python. The generic binding declares
+  `include_fallback: {from: go, under: examples/}` in its profile, so it reads the
+  Go sections, and adds the demonstration note through
+  `examples/language-note.md` — the one include that carries its own leading and
+  trailing blank lines, because its default (and the Go and Python rendering) is
+  empty and the template's line then becomes the paragraph break. These sections
+  have no neutral default under `core/includes/`: a binding writes them or names
+  a fallback, and the generator says so when it does neither.
 
 - `skills/documentation/reference.md` is a core template. The Comment Value Toolbox
   and the templates after it are core; the doc-comment menus, the decoder-ring and
@@ -119,20 +131,20 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (99 lines):
+Soft residue by token (111 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
-| interface | 69 | 20 |
+| interface | 80 | 23 |
 | Go code fence | 12 | 1 |
+| struct | 7 | 5 |
 | Go (the word) | 6 | 4 |
-| struct | 6 | 4 |
 | Go stdlib | 5 | 4 |
 | race detector | 2 | 2 |
 | func | 1 | 1 |
 | sync. | 1 | 1 |
 
-Soft residue by file (99 lines):
+Soft residue by file (111 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -141,6 +153,8 @@ Soft residue by file (99 lines):
 | `rules/R6-test-only-interfaces.md` | 13 | 1 |
 | `includes/rules/R6/falsifying-questions.md` | 8 | 1 |
 | `maxims.md` | 7 | 4 |
+| `examples/switch-to-polymorphism.md` | 6 | 2 |
+| `examples/anti-if-dispatch.md` | 5 | 1 |
 | `includes/rules/R11/falsifying-questions.md` | 5 | 1 |
 | `skills/code-designing/SKILL.md` | 5 | 1 |
 | `skills/refactoring/SKILL.md` | 4 | 2 |
@@ -148,6 +162,7 @@ Soft residue by file (99 lines):
 | `includes/skills/documentation/reference/doc-comment-menus.md` | 3 | 1 |
 | `includes/rules/R10/falsifying-questions.md` | 2 | 2 |
 | `agents/overabstraction-skeptic.md` | 1 | 1 |
+| `examples/storify-leaf-type.md` | 1 | 1 |
 | `includes/agents/lint-fixer/routing-table.md` | 1 | 1 |
 | `includes/rules/R1/canonical-example.md` | 1 | 1 |
 | `includes/rules/R10/canonical-example.md` | 1 | 1 |

@@ -49,6 +49,37 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "p", b.Profile().Plugin)
 }
 
+func TestInclude_Fallback(t *testing.T) {
+	t.Parallel()
+	own, err := binding.Load(langFS())
+	require.NoError(t, err)
+	other, err := binding.Load(fstest.MapFS{
+		"profile.yaml":           {Data: []byte(profileYAML)},
+		"rules/R1/example.md":    {Data: []byte("other example\n")},
+		"rules/R1/other-only.md": {Data: []byte("other only\n")},
+		"examples/case/code.md":  {Data: []byte("other code\n")},
+	})
+	require.NoError(t, err)
+	b := own.WithIncludeFallback(other, "examples/")
+
+	got, err := b.Include("rules/R1/example.md")
+	require.NoError(t, err)
+	assert.Equal(t, "body line 1\nbody line 2", got, "the binding's own file wins")
+
+	got, err = b.Include("examples/case/code.md")
+	require.NoError(t, err)
+	assert.Equal(t, "other code", got, "under the prefix the fallback fills what the binding lacks")
+
+	_, err = b.Include("rules/R1/other-only.md")
+	assert.ErrorIs(t, err, fs.ErrNotExist, "outside the prefix the fallback is not consulted")
+
+	_, err = b.Include("examples/case/missing.md")
+	assert.ErrorIs(t, err, fs.ErrNotExist, "neither has it: the caller tries the core default")
+
+	_, err = own.Include("examples/case/code.md")
+	assert.ErrorIs(t, err, fs.ErrNotExist, "without a fallback the binding stands alone")
+}
+
 func TestLoad_Errors(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

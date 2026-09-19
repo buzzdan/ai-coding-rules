@@ -115,7 +115,7 @@ python-linter-driven-development/
 ├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer
 ├── commands/     py-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
-│                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Go for demonstration)
+│                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Python)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with the Python adapter
 ```
 
@@ -131,9 +131,13 @@ python-linter-driven-development/
   gate. Its Python adapter resolves backticked symbols against classes, functions,
   methods and module-level assignments, and treats a `pyproject.toml` directory as a
   sub-project with its own doc root.
-- **[`examples/`](examples/)** — the worked case studies the rules cite. Their code
-  is Go, for demonstration only; each opens with that note. The move and the
-  reasoning hold in Python — read the Go as the shape.
+- **[`examples/`](examples/)** — the worked case studies the rules cite, in Python:
+  the frozen dataclass that beat a wrapper, the `IPConfig` leaf a flag-driven loop
+  became, the alert channels dispatched through a `Protocol` and a `match` closed by
+  `assert_never`, the export patches that fill their own request, `env.CONFIG`
+  pushed up to the app factory, and the nine `_private` docstrings judged one by
+  one. The verdicts and decision questions are the same as the Go plugin's; the code
+  is this plugin's.
 
 ## The Five-Phase Flow
 

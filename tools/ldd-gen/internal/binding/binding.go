@@ -23,8 +23,10 @@ const (
 // Binding reads a language directory. Every path it accepts is relative to
 // that directory, so the same binding works from a checkout or a test FS.
 type Binding struct {
-	fsys    fs.FS
-	profile profile.Profile
+	fsys          fs.FS
+	profile       profile.Profile
+	fallback      *Binding
+	fallbackUnder string
 }
 
 // Load parses profile.yaml at the root of fsys. The profile is required; a
@@ -44,11 +46,27 @@ func Load(fsys fs.FS) (Binding, error) {
 // Profile returns the parsed profile.yaml.
 func (b Binding) Profile() profile.Profile { return b.profile }
 
+// WithIncludeFallback returns the binding with another binding's include
+// files standing in for the ones it lacks under one include-name prefix. The
+// caller resolves the profile's include_fallback to a loaded binding; a
+// fallback that itself falls back is refused there, so the chain is always one
+// step.
+func (b Binding) WithIncludeFallback(fallback Binding, under string) Binding {
+	b.fallback = &fallback
+	b.fallbackUnder = under
+	return b
+}
+
 // Include returns the body of a snippet file with exactly one trailing newline
 // removed. The template around the include owns the surrounding blank lines,
-// which is what lets a rendered file match the original byte for byte.
+// which is what lets a rendered file match the original byte for byte. A
+// binding's own file wins; under the fallback prefix the fallback binding's
+// file is next; the caller tries the core default when neither exists.
 func (b Binding) Include(name string) (string, error) {
 	data, err := fs.ReadFile(b.fsys, name)
+	if errors.Is(err, fs.ErrNotExist) && b.fallback != nil && strings.HasPrefix(name, b.fallbackUnder) {
+		return b.fallback.Include(name)
+	}
 	if err != nil {
 		return "", fmt.Errorf("include %q: %w", name, err)
 	}

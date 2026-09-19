@@ -232,6 +232,33 @@ and are review-only rows, as the fixture's manifest records. The gate's adapter 
 the Python block of the generic adapter between Go-style marker comments, and the
 fixture include runs one row, `python`, with no detection cases.
 
+## The case studies
+
+The six files under `examples/` are case law: the rules cite them, and the review
+skill pastes two of them into agent payloads. Their prose is a story about specific
+code, so most sentences name identifiers from the fence beside them. The seam is
+therefore the section, not the fence: `core/examples/<case>.md` keeps the title,
+the headings and the doctrine — the why-it-is-a-defect bullets, the verdicts, the
+scorecards, the decision questions, the skeptic's operating rule, the dividing-line
+paragraphs — and each code section (the fence plus the paragraphs that narrate its
+identifiers) is one include under `examples/<case>/`. About a third of each file is
+core; the rest is the binding's.
+
+The Go sections are the original text, cut at section boundaries. The Python
+sections are written in Python and may argue differently where Python differs: mypy
+and `assert_never` where Go had the compiler and `exhaustive`, a recorded tuple of
+implementers where Go sealed an interface with an unexported method, a frozen
+dataclass where Go had private fields behind accessors, `_private` docstrings where
+Go had comments on unexported symbols. Core headings such as "private fields +
+accessors" stay, and the Python section says in one sentence which Python mechanism
+answers to the name.
+
+The generic binding reads the Go sections through `include_fallback` and adds the
+demonstration note above the "Demonstrates" line through `examples/language-note.md`.
+These sections have no neutral default: pseudocode case law would be a third
+language's idiom passed off as universal, and a binding either writes its sections
+or names a fallback.
+
 ## Claude Code names a second plugin must not collide on
 
 Two plugins from this core can be installed side by side — Go and generic in a

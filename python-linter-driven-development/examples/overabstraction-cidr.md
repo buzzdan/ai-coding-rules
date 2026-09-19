@@ -2,29 +2,22 @@
 
 Demonstrates: R1
 
-> The code in this case study is Go, for demonstration only. The move it shows and the
-> reasoning that accepts or rejects it hold in any language: read the Go as the shape,
-> and spell it in the repository's language.
-
 A real refactoring where an extraction was tried, rejected, and replaced with two
 cheaper alternatives. This is the case law for R1's over-abstraction trap: what a
 correct refutation of a proposed type looks like.
 
 ## The setting
 
-During the refactor of a K3s configuration function (`alignCIDRArgs`, originally 60
-lines mixing string parsing, boolean flag tracking, and triplicated switch cases),
-two booleans tracked related state:
+During the refactor of a K3s configuration function (`align_cidr_args`, originally 60
+lines mixing string parsing, boolean flag tracking, and triplicated `match` arms), two
+booleans tracked related state:
 
-```go
-var (
-    isClusterCIDRSet bool
-    isServerCIDRSet  bool
-)
-// ... a parsing loop sets them ...
-if isClusterCIDRSet && isServerCIDRSet {
-    return // both set, nothing to do
-}
+```python
+is_cluster_cidr_set = False
+is_server_cidr_set = False
+# ... a parsing loop sets them ...
+if is_cluster_cidr_set and is_server_cidr_set:
+    return  # both set, nothing to do
 ```
 
 Grouping them into a `CIDRConfig` domain type was a clear win (related data that
@@ -33,40 +26,40 @@ step further: the temptation to wrap each boolean in its own type.
 
 ## The extraction that was tried
 
-```go
-// CIDRPresence — a wrapper that adds NO value
-type CIDRPresence bool
+```python
+# CIDRPresence — a wrapper that adds NO value
+@dataclass(frozen=True)
+class CIDRPresence:
+    value: bool
 
-const (
-    cidrPresent CIDRPresence = true
-)
+    def is_set(self) -> bool:
+        return self.value  # just unwraps the bool!
 
-func (p CIDRPresence) IsSet() bool {
-    return bool(p) // just unwraps the bool!
-}
 
-type CIDRConfig struct {
-    ClusterCIDR CIDRPresence // wrapped bool
-    ServiceCIDR CIDRPresence // wrapped bool
-}
+CIDR_PRESENT = CIDRPresence(True)
 
-func (c CIDRConfig) AreBothSet() bool {
-    return c.ClusterCIDR.IsSet() && c.ServiceCIDR.IsSet()
-}
+
+@dataclass
+class CIDRConfig:
+    cluster_cidr: CIDRPresence  # wrapped bool
+    service_cidr: CIDRPresence  # wrapped bool
+
+    def are_both_set(self) -> bool:
+        return self.cluster_cidr.is_set() and self.service_cidr.is_set()
 ```
 
 ## Why it was rejected
 
 1. **8 lines of code** for a trivial wrapper.
-2. **One method** that just unwraps: `return bool(p)`.
+2. **One method** that just unwraps: `return self.value`.
 3. **No type safety gained** — still just a bool underneath; nothing invalid is made
-   unrepresentable.
-4. **Not more readable.** Compare `config.ClusterCIDR.IsSet()` (wrapper) with
-   `config.ClusterCIDRSet` (good naming). The honest question — is the method call
+   unrepresentable, and `CIDRPresence(True)` admits exactly what `True` admits.
+4. **Not more readable.** Compare `config.cluster_cidr.is_set()` (wrapper) with
+   `config.cluster_cidr_set` (good naming). The honest question — is the method call
    *significantly* clearer? — answers itself: no.
 5. **No validation, no logic, no invariants** — pure ceremony. On R1's scorecard this
    scores 0-1: LOW priority, do not create the type.
-6. **Increases cognitive load** — one more type to understand, for nothing.
+6. **Increases cognitive load** — one more class to understand, for nothing.
 
 The rejection also identified the *real* need hiding under the proposal: **controlled
 mutation**. Only the parsing code should be able to set these flags — and the wrapper
@@ -77,44 +70,48 @@ need is what makes the cheaper alternatives findable.
 
 When the need is only clarity, rename and stop:
 
-```go
-type CIDRConfig struct {
-    ClusterCIDRSet bool
-    ServiceCIDRSet bool
-}
+```python
+@dataclass
+class CIDRConfig:
+    cluster_cidr_set: bool
+    service_cidr_set: bool
 ```
 
-`config.ClusterCIDRSet` reads exactly as well as `config.ClusterCIDR.IsSet()`, at
+`config.cluster_cidr_set` reads exactly as well as `config.cluster_cidr.is_set()`, at
 zero ceremony. Acceptable when mutation discipline isn't a concern (small, disciplined
 surface; short-lived value).
 
 ## Cheaper alternative 2 — private fields + accessors (chosen)
 
-When the need is controlled mutation rather than validation or logic, private fields
-with read-only accessors deliver compiler-enforced safety without a wrapper:
+When the need is controlled mutation rather than validation or logic, Python's
+spelling of private fields with read-only accessors is a frozen dataclass: every
+field is readable, none is assignable after construction, and only the parser
+builds one:
 
-```go
-// CIDRConfig — which CIDR configurations are present.
-// Private fields: can only be set by ParseCIDRConfig.
-type CIDRConfig struct {
-    clusterCIDRSet bool
-    serviceCIDRSet bool
-}
+```python
+@dataclass(frozen=True)
+class CIDRConfig:
+    """Which CIDR configurations are present. Built only by parse_cidr_config."""
 
-func (c CIDRConfig) ClusterCIDRSet() bool { return c.clusterCIDRSet }
-func (c CIDRConfig) ServiceCIDRSet() bool { return c.serviceCIDRSet }
+    cluster_cidr_set: bool
+    service_cidr_set: bool
 
-func (c CIDRConfig) AreBothSet() bool {
-    return c.clusterCIDRSet && c.serviceCIDRSet
-}
+    def are_both_set(self) -> bool:
+        return self.cluster_cidr_set and self.service_cidr_set
+
+
+def parse_cidr_config(args: Sequence[str]) -> CIDRConfig:
+    ...  # the one place the flags are decided
 ```
 
 Why this beat the wrapper:
 
-- **Same safety** — the compiler enforces that only the parser (in the same package)
-  can set the values; external code gets read-only access.
-- **4 fewer lines** than the `CIDRPresence` approach.
-- **Same readability** — `ClusterCIDRSet()` is just as clear as `ClusterCIDR.IsSet()`.
+- **Same safety** — `frozen=True` makes `config.cluster_cidr_set = True` raise
+  `FrozenInstanceError` at run time and fail mypy before it; only the parser decides
+  the values.
+- **4 fewer lines** than the `CIDRPresence` approach, and one class instead of two.
+- **Same readability** — `config.cluster_cidr_set` is just as clear as
+  `config.cluster_cidr.is_set()`.
 - **No wrapper ceremony** — the fields are what they are: bools.
 
 ## The decision, tabulated
