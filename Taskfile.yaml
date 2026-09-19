@@ -1,13 +1,14 @@
 version: '3'
 
 # The plugin directories are generated: edit core/ and lang/<binding>/, then run
-# `task generate` (Go) and `task generate BINDING=generic` and commit both. CI runs
+# `task generate` (Go), `task generate BINDING=generic` and `task generate
+# BINDING=python`, and commit all three. CI runs
 # `task check`, `task lint-core`, `task docs:check` and `task test-gate`, plus the
 # generator's tests and linter.
 
 tasks:
   generate:
-    desc: Render core/ + lang/<BINDING>/ into its plugin directory (BINDING=go; generic renders linter-driven-development/)
+    desc: Render core/ + lang/<BINDING>/ into its plugin directory (BINDING=go; generic renders linter-driven-development/, python renders python-linter-driven-development/)
     dir: tools/ldd-gen
     vars:
       BINDING: '{{.BINDING | default "go"}}'
@@ -34,6 +35,7 @@ tasks:
     cmds:
       - bash go-linter-driven-development/scripts/check-repo-brain_test.sh
       - bash linter-driven-development/scripts/check-repo-brain_test.sh
+      - bash python-linter-driven-development/scripts/check-repo-brain_test.sh
 
   test-gen:
     desc: Unit tests and lint for the generator

@@ -1,0 +1,1 @@
+**Assertions**: the bare `assert` with pytest's rewriting is the default (`assert got == want`, `pytest.raises(ValueError, match="...")`), but project convention wins — match the codebase you're in; never add a second assertion library.

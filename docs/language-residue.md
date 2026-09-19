@@ -1,6 +1,6 @@
 ---
 type: architecture
-description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, and the Claude Code names a second plugin must not collide on
+description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's seven positions, and the Claude Code names a second plugin must not collide on
 ---
 # Language Residue Decisions
 
@@ -29,7 +29,7 @@ Every hit gets exactly one of these.
 
 ## Seam rules
 
-These decide which outcome a hit gets, and they are what keeps three bindings from
+These decide which outcome a hit gets, and they are what keeps the bindings from
 drifting apart.
 
 - **Includes sit at block boundaries, never inside a sentence.** A clause-level
@@ -133,6 +133,104 @@ than the paired Go and Python snippets the roadmap allowed: a Go signature such 
 `core/`, and a Python snippet would be a third language's idiom passed off as
 universal. The pseudocode shows the shape; each example ends by saying which spelling
 follows the repository's language.
+
+## The Python binding
+
+`python-linter-driven-development` is rendered from the same core with Python
+knowledge: a file under `lang/python/` wherever knowing Python beats detecting it,
+the core default everywhere else. Its scalars are values, not phrases. Three of them
+were choices rather than translations:
+
+- `test_glob` is `_test.py`, because core glues the scalar as a suffix
+  (`rotator{{.TestGlob}}`); pytest collects both `test_*.py` and `*_test.py`, and the
+  binding's own detection commands search both spellings.
+- `task` is `concurrent task`, not `thread`, so a leaked thread and a dropped asyncio
+  task are both in R10's scope; the binding's includes name each where the mechanics
+  differ.
+- `unexported` is `underscore-prefixed`, the leading-underscore convention. Every
+  value of that scalar must start with a vowel because core writes "an
+  {{.Unexported}} symbol"; `private` reads better in isolation and breaks six
+  sentences. The convention is a convention, not a wall — a test can import a
+  `_private` name — which is why R4 and R7 hunt for exactly that.
+
+Where a rule's Go text meets a Python idiom, the binding takes a position and the
+includes implement it. The seven positions:
+
+1. **Absence.** `None` is a declared absence, never an undeclared failure. A
+   `-> X | None` signature is fine when absence is normal and every caller narrows
+   it, checked by mypy — `dict.get` beside `dict[k]` is the model. The findings are
+   `None` returned where the signature promises `X` (R1 Q4, with
+   `# type: ignore[return-value]` as the silenced form), `None` standing in for a
+   failure (R2 Q5, Separate Failure from Absence — raise), and callers stacking
+   `is None` guards because the absence should have been an exception. Never a
+   `tuple[X, bool]`.
+2. **Optional collaborators.** The default is a stateless do-nothing object bound
+   once as a module-level constant — `NULL_SINK = NullSink()`, a name rather than a
+   call because ruff `B008` flags a call in a default — with the parameter
+   keyword-only and typed as the sink protocol, never as optional; `None` is rejected with a type error. A
+   `param: X | None = None` with substitution in `__init__` is allowed only for a
+   genuinely mutable or expensive default, and even then the attribute is typed
+   without `None` and no method guards it. The py-mini fixture's
+   `CASE-E.nil-parameters` plant is this position's anchor.
+3. **Self-validating types.** `@dataclass(frozen=True)` with `__post_init__`, or a
+   `parse` classmethod that normalises then constructs. Public read-only fields are
+   fine: literal construction is not a hole because `__post_init__` runs on every
+   literal. The finding is a mutable dataclass carrying invariants with no
+   `__post_init__`. Pydantic is the boundary form where the repository already uses
+   it; `model_construct` and `model_copy(update=)` are the bypasses the R2 hunter
+   looks for; the plugin never proposes adding pydantic. typing's NewType scores zero on
+   the invariant line.
+4. **Docstrings.** The PEP 257 summary line is exempt from the critic's restatement
+   verdict when it states the contract; the WHY budget applies to the body; the argument,
+   return and raises sections do not count against it. DELETE becomes REWRITE
+   wherever the repository's ruff `D` rules require a docstring; a `_private` name
+   carries no `D` obligation, so a WHAT-docstring on one is still deleted.
+5. **Dispatch.** The kept single switch is a `match` over an enum closed by
+   `case _: assert_never(x)`; that arm is the completeness proof, not an
+   unknown-kind default, and a `case _:` that raises or logs is R11 Q3's finding.
+   The dictionary of callables is presented first, a protocol hierarchy second,
+   `functools.singledispatch` third; a `.get(kind, fallback)` deep in logic is
+   "unknown kind away from the boundary". A positional boolean parameter is always
+   the finding and the lint-fixer makes it keyword-only (ruff `FBT001`/`FBT003`); a
+   keyword-only boolean is fine while the branches share their body, and Split Flag
+   Argument when they share little.
+6. **Concurrency.** `asyncio.sleep` is cancellable by construction and exempt from
+   R10 Q5; `time.sleep` on a thread with a stop condition is the finding, fixed
+   with `Event.wait(timeout)`. The object that starts a thread exposes `close()`
+   that sets the event and joins; a daemon thread is acceptable only in entry-point
+   wiring for work that owns no resource (the `queue` module's own example uses
+   one, which is where the nuance comes from). asyncio tasks live in an
+   `asyncio.TaskGroup` or under a kept handle; a dropped `create_task` handle is a
+   leak. No atomics, no concurrent dict, no race detector: a lock beside the
+   fields it guards, taken with `with`, or confinement to one thread;
+   `queue.Queue.shutdown()` on 3.13+ is the closed-channel twin.
+7. **Module state.** Silent everywhere: `logging.getLogger(__name__)`, constants,
+   enums, frozen instances as constants, exception classes, typing machinery. Silent
+   only in the entry point: `Config.from_environ()`, `logging.basicConfig`, the
+   framework `app`, a registry filled by hand, `asyncio.run`. Reported elsewhere:
+   `from env import CONFIG` or `os.environ` reads, a module-level container
+   functions write into, side effects in a module body, a lazily built instance
+   behind a getter, `asyncio.run` or `get_event_loop` in library code. R8 Q3's
+   "manufactured cancellation root" is those last two plus `basicConfig` in a
+   library module. A test that monkeypatches production configuration is evidence
+   against the production code.
+
+The binding also holds stances that are not Python community norms and says so
+under an "Opinionated" heading in its README: no `utils.py` or `common.py`, no
+testing of `_private` functions, no `mock.patch` of internal collaborators
+(patching the true external boundary is fine), no mutable module state; small
+pytest fixtures that build a literal are fine, a fixture that hides the input is
+R7 Q3.
+
+Two files every binding must supply because core has no default for them — the
+orchestrator's pre-flight and the analyze command's command discovery — name the
+Python tool chain: `pyproject.toml` as the marker, `pytest`, `ruff check` and
+`ruff format`, and `mypy` only where a `[tool.mypy]` table exists. The refactoring
+routing table and the lint-fixer's compact copy are keyed by ruff codes; duplicated
+code, file length, exhaustiveness and single-implementer protocols have no ruff rule
+and are review-only rows, as the fixture's manifest records. The gate's adapter is
+the Python block of the generic adapter between Go-style marker comments, and the
+fixture include runs one row, `python`, with no detection cases.
 
 ## Claude Code names a second plugin must not collide on
 

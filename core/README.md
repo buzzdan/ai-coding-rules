@@ -4,17 +4,19 @@
 rules, skills, agents, commands and the repo-brain gate, written once and rendered
 per language. `lang/<lang>/` holds one binding per language: a `profile.yaml` with
 the scalars the templates substitute, the snippet files they include, whole-file
-overrides, and `passthrough/` for files copied into the plugin unchanged. Two
-bindings exist: `lang/go/` renders `go-linter-driven-development/`, and
-`lang/generic/` renders `linter-driven-development/`, the plugin for repositories
-without a language binding — its profile holds phrases the model reads as
-instructions, and it adds a file only where detection differs from knowledge
-(`docs/language-residue.md`, "The generic binding").
+overrides, and `passthrough/` for files copied into the plugin unchanged. Three
+bindings exist: `lang/go/` renders `go-linter-driven-development/`; `lang/python/`
+renders `python-linter-driven-development/`, adding a file wherever Python knowledge
+beats detection and recording its positions in `docs/language-residue.md`, "The
+Python binding"; and `lang/generic/` renders `linter-driven-development/`, the plugin
+for repositories without a language binding — its profile holds phrases the model
+reads as instructions, and it adds a file only where detection differs from
+knowledge (`docs/language-residue.md`, "The generic binding").
 
 `tools/ldd-gen` renders `core/` plus a binding into the plugin directory the
 marketplace serves. Edit sources here or under `lang/`, run `task generate` (and
-`task generate BINDING=generic`), and commit both; `task check` fails when a plugin
-directory differs from its rendering.
+`task generate BINDING=python`, `task generate BINDING=generic`), and commit all of
+them; `task check` fails when a plugin directory differs from its rendering.
 
 ## Templating
 
@@ -71,13 +73,15 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
 
 - `skills/testing/reference.md` and `skills/testing/examples/`: a Go test-harness
   catalogue. The generic binding ships a short `skills/testing/reference.md` of its
-  own that says so and points at the repository's test utilities.
+  own that says so and points at the repository's test utilities; the Python binding
+  ships a short pytest catalogue in the same shape.
 - `examples/`: worked case studies written as Go code. Core rules and skills cite
   them by relative path, and the review skill pastes two of them into agent
   payloads, so every binding must ship the directory. The generic binding carries
-  copies under `lang/generic/passthrough/examples/`, each opening with a note that
-  the Go is for demonstration only; a change to a case study is made in both copies
-  until a binding writes the study in its own language.
+  copies under `lang/generic/passthrough/examples/`, and the Python binding under
+  `lang/python/passthrough/examples/`, each opening with a note that the Go is for
+  demonstration only; a change to a case study is made in every copy until a
+  binding writes the study in its own language.
 - `README.md`, `CHANGELOG.md`, `.claude-plugin/plugin.json`, `hooks/`: describe or
   configure the Go plugin itself.
 

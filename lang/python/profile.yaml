@@ -19,13 +19,14 @@ default_lint_fix: ruff check --fix . && ruff format .
 # Single words core prose uses as common nouns: the missing value, a unit of
 # concurrent work (a thread or an asyncio task; the includes name both), the
 # documentation comment form, the source-file suffix and the visibility of a
-# non-public symbol (the leading-underscore convention).
+# non-public symbol (the leading-underscore convention; the value starts with a
+# vowel so "an {{.Unexported}} symbol" reads).
 nil: None
 task: concurrent task
 doc_form: docstring
 doc_comment: docstring
 src_ext: .py
-unexported: private
+unexported: underscore-prefixed
 # Paths in the plugin directory the generator does not own. An eval run copies
 # its cases under evals/ at run time.
 ignore:
