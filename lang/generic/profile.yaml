@@ -30,3 +30,11 @@ unexported: unexported
 ignore:
   - evals/*
   - .DS_Store
+
+# The generic plugin reads the Go case studies through the Go binding's
+# include files under examples/, with the note lang/generic/examples/
+# language-note.md adds above each; every other include keeps the core
+# default. Only includes fall back, never overrides or passthrough files.
+include_fallback:
+  from: go
+  under: examples/

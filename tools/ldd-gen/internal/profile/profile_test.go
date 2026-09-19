@@ -46,6 +46,15 @@ func TestParse_Success(t *testing.T) {
 	assert.Equal(t, ".go", p.SrcExt)
 	assert.Equal(t, "unexported", p.Unexported)
 	assert.Equal(t, []string{"evals/*", ".DS_Store"}, p.Ignore)
+	assert.False(t, p.IncludeFallback.Set())
+}
+
+func TestParse_IncludeFallback(t *testing.T) {
+	t.Parallel()
+	p, err := profile.Parse([]byte(full + "include_fallback:\n  from: go\n  under: examples/\n"))
+	require.NoError(t, err)
+	assert.True(t, p.IncludeFallback.Set())
+	assert.Equal(t, profile.IncludeFallback{From: "go", Under: "examples/"}, p.IncludeFallback)
 }
 
 func TestParse_Errors(t *testing.T) {
@@ -77,6 +86,12 @@ func TestParse_Errors(t *testing.T) {
 		{name: "cmd_prefix escapes", input: withPrefix("../../evil"), want: "cmd_prefix"},
 		{name: "cmd_prefix with slash", input: withPrefix("go/ldd"), want: "cmd_prefix"},
 		{name: "cmd_prefix upper case", input: withPrefix("Go-LDD"), want: "cmd_prefix"},
+		{name: "include_fallback.from is a path", input: full + "include_fallback: {from: ../go, under: examples/}\n", want: "include_fallback.from"},
+		{name: "include_fallback.from is hidden", input: full + "include_fallback: {from: .go, under: examples/}\n", want: "include_fallback.from"},
+		{name: "include_fallback without under", input: full + "include_fallback: {from: go}\n", want: "include_fallback.under"},
+		{name: "include_fallback.under without slash", input: full + "include_fallback: {from: go, under: examples}\n", want: "include_fallback.under"},
+		{name: "include_fallback.under escapes", input: full + "include_fallback: {from: go, under: ../examples/}\n", want: "include_fallback.under"},
+		{name: "include_fallback.under absolute", input: full + "include_fallback: {from: go, under: /examples/}\n", want: "include_fallback.under"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -204,6 +205,58 @@ func TestGenerate_EmptyTargetIsFine(t *testing.T) {
 	repo, err := gen.Open(root)
 	require.NoError(t, err)
 	require.NoError(t, repo.Generate("p"))
+}
+
+func TestRender_IncludeFallback(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	write(t, root, "core/examples/case.md", "{{include \"examples/case/code.md\"}}\n")
+	write(t, root, "lang/p/examples/case/code.md", "p code\n")
+	write(t, root, "lang/q/profile.yaml", strings.Replace(profileYAML, "plugin: out-plugin", "plugin: q-plugin", 1)+"include_fallback: {from: p, under: examples/}\n")
+	write(t, root, "lang/q/passthrough/.claude-plugin/plugin.json", `{"name": "q-plugin"}`+"\n")
+	write(t, root, "core/includes/rules/R1/example.md", "core example\n")
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+
+	tree, _, err := repo.Render("q")
+	require.NoError(t, err)
+	assert.Equal(t, "p code\n", string(tree["examples/case.md"].Data), "q reads p's include under examples/")
+	assert.Equal(t, "core example in Lang\n", string(tree["rules/R1.md"].Data), "outside examples/ q reads the core default, not p")
+
+	_, exists := tree["passthrough/CHANGELOG.md"]
+	assert.False(t, exists)
+	_, exists = tree["CHANGELOG.md"]
+	assert.False(t, exists, "passthrough files never fall back")
+}
+
+func TestRender_IncludeFallbackErrors(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		fallback string
+		extra    func(root string)
+		want     string
+	}{
+		{name: "self", fallback: "q", want: "names the binding itself"},
+		{name: "missing binding", fallback: "nope", want: `include_fallback.from "nope"`},
+		{name: "chain", fallback: "p", extra: func(root string) {
+			write(t, root, "lang/p/profile.yaml", profileYAML+"include_fallback: {from: q, under: examples/}\n")
+		}, want: "fallback chain is not allowed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root := miniRepo(t)
+			write(t, root, "lang/q/profile.yaml", strings.Replace(profileYAML, "plugin: out-plugin", "plugin: q-plugin", 1)+"include_fallback: {from: "+tc.fallback+", under: examples/}\n")
+			if tc.extra != nil {
+				tc.extra(root)
+			}
+			repo, err := gen.Open(root)
+			require.NoError(t, err)
+			_, _, err = repo.Render("q")
+			require.ErrorContains(t, err, tc.want)
+		})
+	}
 }
 
 func TestRender_UnknownLang(t *testing.T) {

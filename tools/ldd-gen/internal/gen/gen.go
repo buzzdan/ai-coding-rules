@@ -78,15 +78,43 @@ func (r Repo) Langs() ([]string, error) {
 // the binding's profile, which names the output directory.
 func (r Repo) Render(lang string) (render.Tree, profile.Profile, error) {
 	dir := filepath.Join(langDir, lang)
-	b, err := binding.Load(os.DirFS(filepath.Join(r.root, dir)))
+	b, err := r.loadBinding(lang)
 	if err != nil {
-		return nil, profile.Profile{}, fmt.Errorf("%s: %w", dir, err)
+		return nil, profile.Profile{}, err
 	}
 	tree, err := render.Render(os.DirFS(filepath.Join(r.root, coreDir)), b)
 	if err != nil {
 		return nil, profile.Profile{}, fmt.Errorf("%s: %w", dir, err)
 	}
 	return tree, b.Profile(), nil
+}
+
+// loadBinding reads lang/<lang>/ and, when its profile names an
+// include_fallback, the binding that fallback points at. The fallback must be
+// another binding directory and must not itself fall back: one step keeps
+// "where does this include come from" answerable by reading two profiles.
+func (r Repo) loadBinding(lang string) (binding.Binding, error) {
+	dir := filepath.Join(langDir, lang)
+	b, err := binding.Load(os.DirFS(filepath.Join(r.root, dir)))
+	if err != nil {
+		return binding.Binding{}, fmt.Errorf("%s: %w", dir, err)
+	}
+	fallback := b.Profile().IncludeFallback
+	if !fallback.Set() {
+		return b, nil
+	}
+	if fallback.From == lang {
+		return binding.Binding{}, fmt.Errorf("%s: include_fallback.from %q names the binding itself", dir, fallback.From)
+	}
+	fbDir := filepath.Join(langDir, fallback.From)
+	fb, err := binding.Load(os.DirFS(filepath.Join(r.root, fbDir)))
+	if err != nil {
+		return binding.Binding{}, fmt.Errorf("%s: include_fallback.from %q: %w", dir, fallback.From, err)
+	}
+	if chained := fb.Profile().IncludeFallback; chained.Set() {
+		return binding.Binding{}, fmt.Errorf("%s: include_fallback.from %q itself falls back to %q; a fallback chain is not allowed", dir, fallback.From, chained.From)
+	}
+	return b.WithIncludeFallback(fb, fallback.Under), nil
 }
 
 // Generate renders one binding and writes it over its plugin directory.
