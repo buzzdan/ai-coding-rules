@@ -1,0 +1,1 @@
+- [Docstring Menus](#docstring-menus) — module, class, function menus; doctests

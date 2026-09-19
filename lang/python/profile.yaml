@@ -1,0 +1,34 @@
+# The Python binding: every scalar a core template substitutes as {{.Name}}, plus
+# the output paths the generator does not own. Field names are the yaml keys of
+# Vars in tools/ldd-gen. The seven positions this binding takes where the rules'
+# Go text meets Python idiom are recorded in docs/language-residue.md, "The
+# Python binding".
+plugin: python-linter-driven-development
+lang: Python
+cmd_prefix: py-ldd
+src_glob: "*.py"
+# Core uses the test glob as a suffix (`user/service{{.TestGlob}}`); pytest collects
+# both `test_*.py` and `*_test.py` by default, and the includes name both forms.
+test_glob: "_test.py"
+project_marker: pyproject.toml
+nolint: "# noqa"
+comment_prefix: "#"
+default_test: pytest
+default_lint: ruff check . && mypy
+default_lint_fix: ruff check --fix . && ruff format .
+# Single words core prose uses as common nouns: the missing value, a unit of
+# concurrent work (a thread or an asyncio task; the includes name both), the
+# documentation comment form, the source-file suffix and the visibility of a
+# non-public symbol (the leading-underscore convention; the value starts with a
+# vowel so "an {{.Unexported}} symbol" reads).
+nil: None
+task: concurrent task
+doc_form: docstring
+doc_comment: docstring
+src_ext: .py
+unexported: underscore-prefixed
+# Paths in the plugin directory the generator does not own. An eval run copies
+# its cases under evals/ at run time.
+ignore:
+  - evals/*
+  - .DS_Store

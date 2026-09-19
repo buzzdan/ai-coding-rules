@@ -30,3 +30,4 @@ go-linter-driven-development/evals/*
 
 # The generic plugin gets the same run-time copy; it ships no pointer README there.
 linter-driven-development/evals/
+python-linter-driven-development/evals/

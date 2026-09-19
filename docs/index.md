@@ -5,7 +5,7 @@ okf_version: "0.2"
 
 - [conventions.md](conventions.md) — how to maintain this doc root (read before editing docs)
 - [generator.md](generator.md) — how the plugin directories are generated from core/ and one binding under lang/, and the checks that keep them honest
-- [language-residue.md](language-residue.md) — how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, and the Claude Code names a second plugin must not collide on
+- [language-residue.md](language-residue.md) — how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's seven positions, and the Claude Code names a second plugin must not collide on
 
 **Behavioral evals of the plugins**
 - [eval-harness.md](eval-harness.md) — what the behavioral evals are and how a run flows from case to verdict; `ldd-eval`, tiers, results
