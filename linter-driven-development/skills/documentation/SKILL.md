@@ -72,7 +72,7 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    placement rule (`../../rules/R9-repo-brain.md`, Design guidance). Before writing
    any comment, first check whether a rename or extraction makes it unnecessary.
 3. **Rung 1 — doc comment**: write/refresh doc comments per R9's comment policy —
-   **exported symbols only by default**: an unexported symbol gets NO comment
+   **exported symbols only by default**: an internal symbol gets NO comment
    (R9's visibility default) unless one line carries a very high-value toolbox
    item the code cannot show; never more than that one line. Every comment
    must pass R9's three-test standard BEFORE it is written (toolbox-value,

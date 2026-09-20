@@ -252,8 +252,8 @@ comment-critic agent enforces them adversarially after writing:
 | **Contract** | parsing constructor (`ParsePolicy`, `ParsePort`), self-validating type, ordinary exported API | 2–3 prose lines | WHY + boundary contract; dos/don'ts example (free) |
 | **Crossroads** | entry point, orchestrator, state machine, feature front door | up to 5 prose lines | WHY, architectural context, use cases + See-edge |
 
-**Visibility default — unexported symbols get no comment.** The tier table
-prices exported API. An unexported function, type, constant, or variable
+**Visibility default — internal symbols get no comment.** The tier table
+prices exported API. An internal function, type, constant, or variable
 defaults to **zero** comment lines: the name is the documentation, and a name
 that needs a comment wants a rename or an extraction first
 (`R3-storifying.md`). The special case is **one line carrying a very

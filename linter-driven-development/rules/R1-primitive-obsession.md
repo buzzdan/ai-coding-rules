@@ -52,7 +52,7 @@ Four defects in twelve lines:
 ### Stage 1 — self-validating types with constructors
 
 ```text
-Port                         # fields are unexported; the constructor is the only way in
+Port                         # fields are internal; the constructor is the only way in
     name, number
 parsePort(name, number):     # the value, or a failure that names the port and the range
     if number <= 0 or number > 65535: fail "port <name>: <number> out of range 1-65535"
@@ -108,7 +108,7 @@ ReplicaCount                 # ❌ ceremony, not a type: no rule, no behavior �
 
 Score it against the scorecard below: no validation (+0), no meaningful methods (+0),
 one call site (+0) → Score 0. Keep the plain integer; if you want a name, a
-well-named variable or an unexported helper in the same package is the whole
+well-named variable or an internal helper in the same package is the whole
 answer (`R4-helper-placement.md`, rung 1).
 
 ## Design guidance
@@ -144,7 +144,7 @@ restate it.
 - Makes an invalid state unrepresentable — once a value exists it is valid for its
   whole lifetime, so a sentinel, a defensive re-check or a second validating copy
   downstream is deleted. Earned only when the whole lifetime holds: the construction
-  path (`R2-self-validating-types.md`: unexported fields behind a validating
+  path (`R2-self-validating-types.md`: internal fields behind a validating
   constructor, the default-constructed value either valid or never escaping, no in-package literal
   around the constructor) and the paths after it (`R12-mutation-discipline.md`: no
   setter without the constructor's checks, no internal slice or map escaping by

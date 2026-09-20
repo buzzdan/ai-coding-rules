@@ -15,8 +15,9 @@ Plus the coding rules as a single document, for a project that does not use the 
 
 - [`coding-rules/go.md`](coding-rules/go.md) — the Go coding rules: the twelve rules with Go examples, the shared house rules H1–H2 and the Go house rules G1–G6, a self-review checklist and the mechanics.
 - [`coding-rules/python.md`](coding-rules/python.md) — the same twelve rules with Python examples and the Python binding's positions, the shared house rules and the Python house rules P1–P5, a self-review checklist and the mechanics.
+- [`coding-rules/generic.md`](coding-rules/generic.md) — the same twelve rules for any other language: pseudocode examples, each with a note on how the language spells it, the shared house rules and the two any-language house rules A1–A2, a self-review checklist and the mechanics.
 
-Both are generated from the same sources as the plugins, so they never drift from them; import one from your `CLAUDE.md` or `AGENTS.md`, or read it before your first PR. How they are built: [docs/handbook.md](docs/handbook.md).
+All three are generated from the same sources as the plugins, so they never drift from them; import one from your `CLAUDE.md` or `AGENTS.md`, or read it before your first PR. How they are built: [docs/handbook.md](docs/handbook.md).
 
 And the hand-written rule documents the TS/React plugin grew out of:
 

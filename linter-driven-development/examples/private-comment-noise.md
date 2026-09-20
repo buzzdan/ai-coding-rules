@@ -9,12 +9,12 @@ Demonstrates: R9 (comment policy — the visibility default)
 A real 143-line file from a JSON-RPC-over-HTTP client (anonymized), written by an
 LLM flow before the visibility default existed. It detects which codec decoded a
 reply body: JSON, or the client's configured non-JSON codec (msgpack). Every one
-of its nine unexported symbols carries a comment; the file has more comment lines
+of its nine internal symbols carries a comment; the file has more comment lines
 than code lines. Each comment, judged alone, "delivers a toolbox value". The file
 as a whole is unreadable — a human reviewer of a sibling PR called the style
 "utterly lacking empathy for the reader".
 
-This is the case law for R9's visibility default: **unexported symbols get no
+This is the case law for R9's visibility default: **internal symbols get no
 comment; the special case is one line carrying a very high-value toolbox item.**
 
 ## The before — representative excerpts
@@ -96,7 +96,7 @@ func replyCodecAndMismatch(data []byte, nonJSON jsonrpc.Codec, headerContentType
 
 ## The verdicts
 
-All nine symbols are unexported, so the question is existence, not size:
+All nine symbols are internal, so the question is existence, not size:
 
 | Symbol | Before | Verdict | Why |
 |---|---|---|---|
@@ -208,7 +208,7 @@ The tier budget caps how big a comment can be; only the visibility default
 decides whether it should exist at all. Before this case, "Helper: 0–1 lines"
 read as permission, and a writer in fill-the-menu mode gave every private symbol
 its tier maximum — nine comments, each locally justified, jointly unreadable.
-The default for unexported symbols is **zero**: the name is the documentation,
+The default for internal symbols is **zero**: the name is the documentation,
 and a name that needs a comment wants a rename or an extraction first. The
 special case is **one line carrying a very high-value toolbox item** — an
 ordering constraint, an external library quirk, the WHY of a magic number, the

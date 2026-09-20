@@ -496,9 +496,8 @@ class Grants:
 
 ## 3. House rules
 
-Rules that are not one of the twelve but hold in every language, then the rules that
-exist because this is Python. Same shape as above, with their own numbers so a
-review can cite them.
+Rules that are not one of the twelve but hold in every language, then the Python
+house rules. Same shape as above, with their own numbers so a review can cite them.
 
 ### H1 — A suppression is a review finding, not a tool
 
