@@ -17,7 +17,8 @@
    marker at the start of an indented line, not the doc comment above a
    declaration).
    Violation: a comment naming what the next block does — each is a candidate
-   extraction point; the fix is a function named after the comment.
+   extraction point; the fix is a function named after the comment. Quote each
+   comment's text with its line: the comment is the evidence and the function's name.
 
 4. **Do boolean flags track state across a loop?**
    Detection: in the changed files, find variables initialized to `false`/`true`

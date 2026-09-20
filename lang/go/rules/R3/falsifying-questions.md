@@ -16,7 +16,8 @@
    Detection: `grep -n '^\s*//' <file>` within function bodies (not doc comments
    above declarations).
    Violation: a comment naming what the next block does — each is a candidate
-   extraction point; the fix is a function named after the comment.
+   extraction point; the fix is a function named after the comment. Quote each
+   comment's text with its line: the comment is the evidence and the function's name.
 
 4. **Do boolean flags track state across a loop?**
    Detection: `grep -nE 'var \(|:= false|:= true' <changed files>` near `for` loops;
