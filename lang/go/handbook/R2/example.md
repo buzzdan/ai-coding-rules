@@ -22,7 +22,7 @@ func ParseRetention(days int) (Retention, error) {
 func (r Retention) Cutoff(now time.Time) time.Time { return now.AddDate(0, 0, -r.days) }
 ```
 
-> **In Go:** an optional collaborator is a Null Object the caller passes by name, never
+> **In Go (opinionated):** an optional collaborator is a Null Object the caller passes by name, never
 > a `nil` the methods guard: `io.Discard` is the standard library's, and
 > `NewReporter(DiscardSink())` never branches on a missing destination. Never pass
 > `nil` into a function, so the function never checks for it.

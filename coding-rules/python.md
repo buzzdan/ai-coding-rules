@@ -576,8 +576,8 @@ package vocabulary: defined once per package, named for what went wrong.
 ## 4. Self-review
 
 Before you ask for review, answer each with a file and line, not a feeling. The
-plugin's reviewers ask every question with a detection command behind it; these
-are the ones that catch the most.
+plugin's reviewers ask every rule question with a detection command behind it; these
+are the ones that catch the most. The house-rule questions are review questions only.
 
 - **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"?
 - **R2** Can the type exist in an invalid state? · Does anything return or accept `None` as a value?
