@@ -19,9 +19,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ### Changed
 
 - **A non-public symbol is "internal", not "unexported".** "Unexported" is Go's
-  word; the handbook's residue gate flagged it in R4's Principle, and the plugin's
-  rules, skills and agents now say "internal" wherever they name the visibility of a
-  symbol outside the public surface.
+  word; the handbook's residue gate flagged it in R4's Principle. The plugin's
+  rules, skills and agents now say "internal" wherever they name the visibility of
+  a symbol outside the public surface, and the two sentences that opened with the
+  capitalized word, the comment critic's visibility verdict and the code-comments
+  checklist, say "symbols outside the public surface".
 - **The move "Replace Sentinel with comma-ok" is "Replace Sentinel with Declared
   Absence".** Move names are catalogue names shared by every language rendering,
   and comma-ok is a Go spelling; the Python handbook placed it beside the aside

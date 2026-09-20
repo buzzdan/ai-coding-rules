@@ -5,7 +5,12 @@ spawn:
         poll()
         sleep(interval)
 
-# ✅ the type that starts it stops it; the wait is cancellable; close waits for the exit
+# ✅ the type that starts it holds what stops it; the wait is cancellable; close joins
+startPoller(interval):
+    poller = Poller(interval)
+    poller.cancel = a cancellation signal
+    poller.task = spawn poller.run(poller.cancel)
+    return poller
 Poller.run(cancel):
     timer = every(self.interval)
     loop:
@@ -13,8 +18,8 @@ Poller.run(cancel):
         cancelled → return
         self.poll(cancel)
 Poller.close():
-    signal cancel
-    join the task                  # returns only when the loop has exited
+    signal self.cancel
+    join self.task                 # returns only when run has exited
 ```
 
 > **Spelling:** the spawn is a `go` statement, a thread or an async task; the

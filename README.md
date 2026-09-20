@@ -85,7 +85,7 @@ Team members then install with the same `/plugin install` commands above.
 
 ## Developing the Plugins
 
-1. Clone the repo. The Go, Python and generic plugin directories are generated, and so are `coding-rules/go.md` and `coding-rules/python.md`: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory or a handbook drifts from its sources. How the pieces fit: [core/README.md](core/README.md), [docs/generator.md](docs/generator.md) and [docs/handbook.md](docs/handbook.md).
+1. Clone the repo. The Go, Python and generic plugin directories are generated, and so are `coding-rules/go.md`, `coding-rules/python.md` and `coding-rules/generic.md`: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory or a handbook drifts from its sources. How the pieces fit: [core/README.md](core/README.md), [docs/generator.md](docs/generator.md) and [docs/handbook.md](docs/handbook.md).
 2. Test locally by adding the checkout as a marketplace:
    ```
    /plugin marketplace add ./ai-coding-rules

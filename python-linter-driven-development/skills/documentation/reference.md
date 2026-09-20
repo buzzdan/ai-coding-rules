@@ -699,7 +699,7 @@ vets after the edit.
       re-justified at a use site (documented once at rung 2)
 - [ ] No review-defense narration: design choices are not defended at the code
       line ("bounds-checked", "deliberately narrow — not a table")
-- [ ] Unexported symbols carry no comment — except the special case of ONE line
+- [ ] Symbols outside the public surface carry no comment — except the special case of ONE line
       with a very high-value toolbox item (R9's visibility default)
 - [ ] No decoder-ring references: no plan/decision/test-plan IDs, requirement
       tags, or spec section refs — facts as prose, the doc via one See-edge

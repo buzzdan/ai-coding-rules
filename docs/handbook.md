@@ -69,7 +69,7 @@ from a stray `task generate` and simply falls behind.
 Set `handbook: coding-rules/<lang>.md` in the binding's `profile.yaml` and write
 `handbook/R1/example.md` to `handbook/R12/example.md`, `handbook/house-rules.md` and
 `handbook/mechanics.md` under `lang/<lang>/`. The examples have a core default, the
-pseudocode under `core/includes/handbook/`, so a binding that leaves one out renders
+pseudocode under `core/includes/handbook/`, so a language binding that leaves one out renders
 pseudocode where its readers expect their language: write all twelve. The house rules
 and the mechanics rows have no core default, and a missing one fails the render with
 the include name. The shared house rules render from core defaults, and a binding

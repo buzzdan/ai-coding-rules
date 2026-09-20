@@ -238,21 +238,24 @@ testParsePort():
         if case.expectFailure: assert result failed
         else:                  assert result succeeded
 
-# ✅ success and error tables apart, every row named, complexity 1 per case
+# ✅ success and error tables apart, every row a named case, complexity 1 per case
 testParsePort_success():                                     # imported as a consumer would
     for each (name, number) in [("plain", 14000), ("edge", 65535)]:
-        assert networking.parsePort("x", number) succeeded
+        case name:
+            assert networking.parsePort("x", number) succeeded
 
 testParsePort_error():
     for each (name, number) in [("zero", 0), ("above range", 70000)]:
-        assert networking.parsePort("x", number) failed
+        case name:
+            assert networking.parsePort("x", number) failed
 ```
 
 > **Spelling:** the table is the language's parametrized-test form, a list of named
-> cases, a parametrize decorator, a data provider, and every row carries a name so a
-> failure names its case. No fixed pause: wait on an event, a channel, a future or a
-> timeout. Orchestrators are tested by wiring their real collaborators over a temp
-> directory, an in-process fake server or an embedded database.
+> cases, a parametrize decorator, a data provider, and every row is registered under
+> its name (a subtest, a parameter id) so a failure names its case. No fixed pause:
+> wait on an event, a channel, a future or a timeout. Orchestrators are tested by
+> wiring their real collaborators over a temp directory, an in-process fake server or
+> an embedded database.
 
 **Moves:** Move the behavior down a rung · Split Success and Error Tables · Replace doubles with real collaborators · Replace sleep with synchronization · Delete private-function tests
 
@@ -333,7 +336,12 @@ spawn:
         poll()
         sleep(interval)
 
-# ✅ the type that starts it stops it; the wait is cancellable; close waits for the exit
+# ✅ the type that starts it holds what stops it; the wait is cancellable; close joins
+startPoller(interval):
+    poller = Poller(interval)
+    poller.cancel = a cancellation signal
+    poller.task = spawn poller.run(poller.cancel)
+    return poller
 Poller.run(cancel):
     timer = every(self.interval)
     loop:
@@ -341,8 +349,8 @@ Poller.run(cancel):
         cancelled → return
         self.poll(cancel)
 Poller.close():
-    signal cancel
-    join the task                  # returns only when the loop has exited
+    signal self.cancel
+    join self.task                 # returns only when run has exited
 ```
 
 > **Spelling:** the spawn is a `go` statement, a thread or an async task; the
