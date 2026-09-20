@@ -128,10 +128,17 @@ in the plugin's R1 rule.
 
 **Moves:** {{moves "rules/R12-mutation-discipline.md"}}
 
-## 3. {{.Lang}} house rules
+## 3. House rules
 
-Rules that exist because this is {{.Lang}}. Same shape as above, with their own
-numbers so a review can cite them.
+Rules that are not one of the twelve but hold in every language, then the rules that
+exist because this is {{.Lang}}. Same shape as above, with their own numbers so a
+review can cite them.
+
+{{include "handbook/H1/rule.md"}}
+{{include "handbook/H1/spelling.md"}}
+
+{{include "handbook/H2/rule.md"}}
+{{include "handbook/H2/spelling.md"}}
 
 {{include "handbook/house-rules.md"}}
 
@@ -153,7 +160,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R10** {{questions "rules/R10/falsifying-questions.md" 1 5}}
 - **R11** {{questions "rules/R11/falsifying-questions.md" 1 3 4}}
 - **R12** {{questions "rules/R12/falsifying-questions.md" 1 4}}
-- **House rules** {{reviews "handbook/house-rules.md"}}
+- **House rules** {{reviews "handbook/H1/spelling.md"}} · {{reviews "handbook/H2/spelling.md"}} · {{reviews "handbook/house-rules.md"}}
 
 ## 5. Mechanics
 

@@ -74,7 +74,7 @@ class Ports:
 > `typing.NewType("PortNumber", int)` scores zero on the scorecard: it admits every
 > literal.
 
-**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with comma-ok · Name enum strings · Introduce Parameter Object
+**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object
 
 ### R2 — Self-Validating Types
 
@@ -200,7 +200,9 @@ src/app/handlers/rotator_handler.py  src/app/rotator/handler.py
 ```
 
 > **In Python:** the package name is the feature noun, `rotator`, never `services`
-> or `models`; role names live in module names inside the slice. Each type with
+> or `models`, and `utils.py`, `common.py` and `helpers.py` are role names too: a
+> module is named for the vocabulary it holds, or the next function lands beside the
+> first because it did. Role names live in module names inside the slice. Each type with
 > logic sits in its own module named after the type, and `__init__.py` is the
 > slice's front door: it re-exports what other slices may import and nothing else,
 > and it never imports another slice, or the front doors form an import cycle.
@@ -491,10 +493,37 @@ class Grants:
 
 **Moves:** Copy on the Way In · Copy on the Way Out / Encapsulate Collection · Separate Query from Modifier · Remove Setting Method · Split Variable
 
-## 3. Python house rules
+## 3. House rules
 
-Rules that exist because this is Python. Same shape as above, with their own
-numbers so a review can cite them.
+Rules that are not one of the twelve but hold in every language, then the rules that
+exist because this is Python. Same shape as above, with their own numbers so a
+review can cite them.
+
+### H1 — A suppression is a review finding, not a tool
+
+A `# noqa` directive is never added on your own: fix the code, and when the
+finding is a true false positive, propose the exclusion in the linter's configuration
+and get it reviewed. A new suppression in a diff is itself a finding, and no automated
+lint-fix pass adds one or edits the configuration.
+
+> **In Python:** `# noqa` and `# type: ignore` are the same thing, and `[tool.ruff]`
+> and `[tool.mypy]` are the reviewed place for a true false positive.
+
+**Review:** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`?
+
+### H2 — Errors carry the context of the layer that saw them
+
+Handle an error once: wrap it with the context of the boundary it crossed and its
+cause, or handle it, never both log it and pass it on. Catch narrowly, the failure you
+can handle, never everything. Failure vocabulary belongs to the package that raises
+it: one named error per thing that can go wrong, exported only when a caller decides
+on it.
+
+> **In Python:** `except Exception:` swallows the bug with the failure (ruff `BLE001`);
+> inside an `except`, raise with `from err` so the chain is kept (`B904`); exception
+> classes are defined once per package, named for what went wrong.
+
+**Review:** Does any `except` catch `Exception`, re-raise without `from`, or both log and raise?
 
 Rules marked *(opinionated)* are stances, not Python community norms; the departure
 is deliberate.
@@ -521,15 +550,7 @@ typed without `None` and no method guards it.
 
 **Review:** Is any default a mutable literal or a call, or a `None` a method later guards?
 
-### P3 — No `utils.py`, no `common.py`, no `helpers.py` (opinionated)
-
-A module is named for the vocabulary it holds, never for its role. The moment a
-function lands in `utils.py` it has no owner, and the next one lands beside it
-because it did. Find the noun; make the module.
-
-**Review:** Did a module named for its role appear?
-
-### P4 — Tests import the package as a consumer (opinionated)
+### P3 — Tests import the package as a consumer (opinionated)
 
 `from app import user`, never `from app.user._parse import _parse_row`. Python lets
 you reach a `_private` name; the rule is that you do not. The urge is a placement
@@ -537,7 +558,7 @@ signal (R4).
 
 **Review:** Does any test import a `_private` name?
 
-### P5 — A fixture never hides the input a test is about (opinionated)
+### P4 — A fixture never hides the input a test is about (opinionated)
 
 `tmp_path`, a fake HTTP server, an embedded database: those earn a fixture, and
 `conftest.py` holds those. A small fixture that builds a literal is fine; a fixture
@@ -546,16 +567,7 @@ see. Write that literal in the test.
 
 **Review:** Does any fixture return the literal a test is about?
 
-### P6 — Suppressions are review findings, not tools
-
-`# noqa` and `# type: ignore` are the same thing. Neither is added on your own: fix
-the code, and if it is a true false positive, propose a `[tool.ruff]` or
-`[tool.mypy]` change and get it reviewed. A new suppression in a diff is itself a
-finding, and no automated lint-fix pass edits either table.
-
-**Review:** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`?
-
-### P7 — Annotations are the contract (opinionated)
+### P5 — Annotations are the contract (opinionated)
 
 Every public function is fully annotated, and mypy passes where the repository
 configures it. An unexplained `Any` on a public signature is a suppression spelled
@@ -563,15 +575,6 @@ differently: narrow it, or name the `Protocol`. Annotations are what let `X | No
 be a declared absence instead of a hope.
 
 **Review:** Does any public signature carry an unexplained `Any` or lack an annotation?
-
-### P8 — Exceptions are caught narrowly and re-raised with their cause
-
-`except Exception:` swallows the bug with the failure (ruff `BLE001`); catch the
-class you can handle. Inside an `except`, raise with `from err` so the chain is kept
-(ruff `B904`). Never log *and* re-raise the same error. Exception classes are
-package vocabulary: defined once per package, named for what went wrong.
-
-**Review:** Does any `except` catch `Exception`, re-raise without `from`, or both log and raise?
 
 ## 4. Self-review
 
@@ -591,7 +594,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R10** Does every thread or task started in the diff have a provable exit path? · Does production code sleep?
 - **R11** Is the same discriminator inspected in more than one place? · Does a `case _:` (or trailing `else`) handle "unknown kind" away from the boundary? · Does a boolean parameter select between behaviors?
 - **R12** Does a method return an internal list, dict or set by reference? · Can a validated type be mutated around its constructor?
-- **House rules** Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Did a module named for its role appear? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`? · Does any public signature carry an unexplained `Any` or lack an annotation? · Does any `except` catch `Exception`, re-raise without `from`, or both log and raise?
+- **House rules** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`? · Does any `except` catch `Exception`, re-raise without `from`, or both log and raise? · Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Does any public signature carry an unexplained `Any` or lack an annotation?
 
 ## 5. Mechanics
 
@@ -603,7 +606,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 | Suppression | `# noqa` — never added on your own; a new one in a diff is a review finding |
 | Docs | docstring: short, says why, not what; long-form under `docs/` |
 | Type check | `mypy`, where `pyproject.toml` has a `[tool.mypy]` table; never add a checker the repository does not use |
-| Type suppression | `# type: ignore` — the same rule as `# noqa`, see P6 |
+| Type suppression | `# type: ignore` — the same rule as `# noqa`, see H1 |
 | Python | the examples assume 3.11+ (`match`, `X \| None`, `asyncio.TaskGroup`, `typing.assert_never`); on 3.10 import `assert_never` from `typing_extensions` and keep asyncio tasks under kept handles |
 | Tests | pytest collects `test_*.py` and `*_test.py`; under `tests/` mirroring the package or beside the module, whichever the repository does; `pytest.param(id=...)` on every row |
 | Workflow | RED → GREEN → REFACTOR per behavior; package-scoped lint every cycle; review per finished slice; commit only a green tree |
