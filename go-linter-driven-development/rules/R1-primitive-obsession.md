@@ -268,7 +268,7 @@ Stage 2 shows it applied.
   exactly once, at the boundary.
 - **Extract Collection Type**: when logic loops over `[]primitive` or `[]DTO`, wrap
   the slice (`type Ports []Port`) and move the loop into a named query method.
-- **Replace Sentinel with comma-ok**: `return 0` / `return ""` meaning
+- **Replace Sentinel with Declared Absence**: `return 0` / `return ""` meaning
   absence/invalidity → an explicit absence result, or an error.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
   `const StatusReady Status = "READY"`. The same move owns a string *assigned* from a

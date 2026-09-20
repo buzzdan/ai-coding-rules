@@ -63,7 +63,7 @@ from there, never from memory:
 | Move | Owner |
 |------|-------|
 | Extract Function (named after the comment), Early Returns, Honest Rename, Extract Leaf Type | `../../rules/R3-storifying.md` |
-| Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with comma-ok, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
+| Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with Declared Absence, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
 | Add validating constructor, Hoist method checks, Delete re-validation, Separate Failure from Absence, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
 | Demote helper (rung 1), Promote to feature/domain package (rungs 2–3), Split policy from vocabulary | `../../rules/R4-helper-placement.md` |
 | Slice out a feature, Rename layer files by role, Split a generic package by owner | `../../rules/R5-vertical-slice.md` |

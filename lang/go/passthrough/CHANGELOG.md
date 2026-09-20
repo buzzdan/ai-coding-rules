@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The move "Replace Sentinel with comma-ok" is "Replace Sentinel with Declared
+  Absence".** Move names are catalogue names shared by every language rendering,
+  and comma-ok is a Go spelling; the Python handbook placed it beside the aside
+  that forbids that very shape. The move's body is unchanged.
 - **Three Principle sentences read the same standing alone.** R1 names raw
   strings, numbers, booleans and lists instead of Go's type spellings; R8 names
   the composition root instead of `main`; R9's Open Knowledge Format sentence
