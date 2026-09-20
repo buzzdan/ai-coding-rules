@@ -8,10 +8,7 @@ carry it, higher rungs summarizing and pointing down, never duplicating. Two
 invariants hold the network together: **reachability** (every doc is reachable from
 the root: CLAUDE.md → index.md → doc — no orphans) and **bidirectionality** (code
 points up at its feature doc; docs point down at code via greppable symbols; the
-index points everywhere). The doc root itself is an Open Knowledge Format (OKF
-v0.2) bundle: content docs carry YAML frontmatter, a file's path is its identity,
-and every index line is drift-checked against the `description` one level down
-(bundle policy below).
+index points everywhere).
 
 ## Why
 
@@ -145,6 +142,9 @@ TypeScript, `#` in shell or Ruby, a docstring in Python.
 ## Design guidance
 
 Forward guidance — what @documentation applies when writing docs after a feature.
+The doc root itself is an Open Knowledge Format (OKF v0.2) bundle: content docs
+carry YAML frontmatter, a file's path is its identity, and every index line is
+drift-checked against the `description` one level down (bundle policy below).
 
 ### The documentation ladder
 

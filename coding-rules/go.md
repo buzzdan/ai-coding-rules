@@ -31,7 +31,7 @@ rendered for: reviewers cite them by name.
 
 ### R1 — Primitive Obsession
 
-Domain concepts must not travel as raw `string`/`int`/`bool`/`[]T`. When a primitive
+Domain concepts must not travel as raw strings, numbers, booleans or lists. When a primitive
 carries validation rules, behavior, or a domain name, it becomes a type with a
 validating constructor and named methods. The inverse binds equally: a wrapper that
 adds no validation, no logic, and no invariant is over-abstraction — score before you wrap.
@@ -258,8 +258,8 @@ Dependencies are passed down from the caller, never reached sideways: no
 package-level mutable state, no import-time initialization writing state, no
 singletons fetched from inside business logic, no library code that manufactures its
 own root cancellation — cancellation flows from caller to callee. Globals are
-acceptable only at entry points (`main`, handler setup, application wiring), where
-they are read once and injected downward.
+acceptable only at the composition root — the program's entry point, handler setup,
+application wiring — where they are read once and injected downward.
 
 ```go
 // ❌ reached sideways from three layers; untestable without the environment
@@ -291,10 +291,7 @@ carry it, higher rungs summarizing and pointing down, never duplicating. Two
 invariants hold the network together: **reachability** (every doc is reachable from
 the root: CLAUDE.md → index.md → doc — no orphans) and **bidirectionality** (code
 points up at its feature doc; docs point down at code via greppable symbols; the
-index points everywhere). The doc root itself is an Open Knowledge Format (OKF
-v0.2) bundle: content docs carry YAML frontmatter, a file's path is its identity,
-and every index line is drift-checked against the `description` one level down
-(bundle policy below).
+index points everywhere).
 
 ```go
 // ❌ restates the signature; the reader learned nothing

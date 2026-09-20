@@ -6,8 +6,8 @@ Dependencies are passed down from the caller, never reached sideways: no
 package-level mutable state, no import-time initialization writing state, no
 singletons fetched from inside business logic, no library code that manufactures its
 own root cancellation — cancellation flows from caller to callee. Globals are
-acceptable only at entry points (`main`, handler setup, application wiring), where
-they are read once and injected downward.
+acceptable only at the composition root — the program's entry point, handler setup,
+application wiring — where they are read once and injected downward.
 
 ## Why
 
