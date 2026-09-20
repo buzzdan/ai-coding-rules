@@ -301,6 +301,28 @@ func TestHandbook_GenerateThenCheck(t *testing.T) {
 	assert.Contains(t, out.String(), "changed       coding-rules/p.md")
 }
 
+func TestHandbook_GoResidueFailsANonGoHandbook(t *testing.T) {
+	t.Parallel()
+	root := handbookRepo(t)
+	write(t, root, "lang/p/handbook/notes.md", "an interface is fine; a nil-check and a goroutine are not\n")
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	_, _, err = repo.Render("p")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "carries Go residue")
+	assert.Contains(t, err.Error(), "[nil]")
+	assert.Contains(t, err.Error(), "[goroutine]")
+	assert.NotContains(t, err.Error(), "[interface]", "a decided aside is not residue")
+
+	goRoot := handbookRepo(t)
+	write(t, goRoot, "lang/p/profile.yaml", strings.Replace(profileYAML, "lang: Lang", "lang: Go", 1)+"handbook: coding-rules/p.md\n")
+	write(t, goRoot, "lang/p/handbook/notes.md", "a nil-check and a goroutine\n")
+	repo, err = gen.Open(goRoot)
+	require.NoError(t, err)
+	_, _, err = repo.Render("p")
+	require.NoError(t, err, "the Go handbook may spell Go")
+}
+
 func TestHandbook_RefusesToOverwriteAHandWrittenFile(t *testing.T) {
 	t.Parallel()
 	root := handbookRepo(t)

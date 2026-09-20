@@ -83,7 +83,11 @@ markdown path under the repository root, outside every plugin directory, such as
 file at that path that does not open with the generator's marker comment is never
 overwritten. The rendered document restates nothing: besides `{{include}}`, the
 template has five extraction functions that read the rules the plugin already
-carries, so the handbook cannot drift from the plugin.
+carries, so the handbook cannot drift from the plugin. A handbook for any binding
+other than Go is also a residue gate: the render fails on any hard or soft residue
+token in the rendered text, except the decided asides `interface` and `struct`,
+because a Principle that reads as Go with no same-language example beside it is a
+core sentence that wants a neutral rewrite.
 
 | Construct | Renders |
 |---|---|

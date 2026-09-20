@@ -109,7 +109,34 @@ func (r Repo) render(lang string) (rendering, error) {
 	if err != nil {
 		return rendering{}, fmt.Errorf("%s: %w", dir, err)
 	}
+	if err := requireNoGoResidue(out.profile, out.handbook); err != nil {
+		return rendering{}, fmt.Errorf("%s: %w", dir, err)
+	}
 	return out, nil
+}
+
+// goLang is the binding whose handbook may spell Go: the residue scanner names
+// Go idioms, so the Go handbook is the one it cannot judge.
+const goLang = "Go"
+
+// requireNoGoResidue fails the rendering of a handbook for any language other
+// than Go that still carries a Go spelling. In the plugin a Principle sits
+// beside a same-language example that softens such a sentence; the handbook
+// renders it alone, so a hit is a core sentence that wants a neutral rewrite.
+func requireNoGoResidue(p profile.Profile, handbook []byte) error {
+	if p.Lang == goLang {
+		return nil
+	}
+	hits := residue.ScanHandbook(p.Handbook, string(handbook))
+	if len(hits) == 0 {
+		return nil
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "handbook %s carries Go residue; reword the core sentence or the binding's include:", p.Handbook)
+	for _, h := range hits {
+		fmt.Fprintf(&b, "\n  %s:%d [%s] %s", h.Path, h.Line, h.Token, h.Text)
+	}
+	return errors.New(b.String())
 }
 
 // loadBinding reads lang/<lang>/ and, when its profile names an

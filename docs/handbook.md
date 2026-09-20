@@ -37,6 +37,19 @@ from Absence" is understood across languages. The house-rule numbers and the
 bindings both end up writing is the signal it is core doctrine and should become a
 rule.
 
+## The residue gate
+
+A rendered handbook shows each Principle without the same-language example that
+sits beside it in the plugin, which is where a sentence still reasoning from Go
+shows: R1 once listed Go's type names, R8 said `main`, R12 said slices and maps.
+So the generator treats every handbook for a binding other than Go as a gate: the
+render fails on any hit of the residue scanner's hard or soft tokens in the
+rendered text, naming the line, except for the asides `docs/language-residue.md`
+keeps as the general term in every language (`interface`, `struct`). The fix is
+always a neutral rewording of the core sentence, or of the binding's own include
+when the hit is there; never a suppression. The Go handbook is exempt because the
+scanner's tokens name Go.
+
 ## Consuming it
 
 Copy `coding-rules/go.md` or `coding-rules/python.md` into the project, or reference it from a pinned release
