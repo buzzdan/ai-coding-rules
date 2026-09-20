@@ -105,6 +105,21 @@ Domain concepts in Lang never travel raw; placement is R4.
 	assert.Equal(t, want, string(out))
 }
 
+func TestHandbook_ReadsBindingOverrides(t *testing.T) {
+	t.Parallel()
+	b := lang(t, fstest.MapFS{
+		"handbook/R1/example.md":  {Data: []byte("x\n")},
+		"handbook/house-rules.md": {Data: []byte(houseRules)},
+		"overrides/rules/R1.md":   {Data: []byte("## Principle\n\nOverridden for {{.Lang}}.\n\n## Fix pattern\n\n- **Own Move**: theirs.\n")},
+		"overrides/maxims.md":     {Data: []byte("### Tell, don't ask\n\n**Ask:** overridden ask?\n\n### Make the zero value useful\n\n**Ask:** still here?\n")},
+	})
+	out, err := render.Handbook(handbookCore(), b)
+	require.NoError(t, err)
+	assert.Contains(t, string(out), "Overridden for Lang.", "section reads the override the plugin ships")
+	assert.Contains(t, string(out), "**Moves:** Own Move", "moves reads the override")
+	assert.Contains(t, string(out), "**Tell, don't ask.** Overridden ask?", "maxim reads the override")
+}
+
 func TestHandbook_StaysOutOfThePluginTree(t *testing.T) {
 	t.Parallel()
 	tree, err := render.Render(handbookCore(), lang(t, nil))

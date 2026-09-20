@@ -168,33 +168,54 @@ func (r Repo) Generate(lang string) error {
 	if err := requireOwnedDir(dir, name, check.IgnoredAndUnowned(tree, p.Ignored)); err != nil {
 		return err
 	}
+	if err := r.requireHandbookTarget(p); err != nil {
+		return err
+	}
 	if err := check.Write(tree, dir, p.Ignored); err != nil {
 		return err
 	}
 	return r.writeHandbook(out)
 }
 
-// writeHandbook writes the rendered handbook to the profile's handbook path.
-// A file already there must itself be a generated handbook — it opens with the
-// generator's marker — so a hand-written document at that path is refused,
-// never replaced.
+// requireHandbookTarget runs before anything is written: a file already at
+// the handbook path must itself be a generated handbook — it opens with the
+// generator's marker — so a hand-written document there is refused while the
+// plugin directory is still untouched, never after a partial write.
+func (r Repo) requireHandbookTarget(p profile.Profile) error {
+	if !p.HasHandbook() {
+		return nil
+	}
+	existing, err := os.ReadFile(r.handbookPath(p))
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("generate: handbook: %w", err)
+	case !strings.HasPrefix(string(existing), render.HandbookMarker):
+		return fmt.Errorf("generate: %s exists and is not a generated handbook; refusing to overwrite it", p.Handbook)
+	}
+	return nil
+}
+
+func (r Repo) handbookPath(p profile.Profile) string {
+	return filepath.Join(r.root, filepath.FromSlash(p.Handbook))
+}
+
+// writeHandbook writes the rendered handbook to the profile's handbook path
+// with mode 0644. WriteFile keeps an existing file's mode, so the mode is set
+// explicitly: a handbook is a document and is never executable.
 func (r Repo) writeHandbook(out rendering) error {
 	if !out.profile.HasHandbook() {
 		return nil
 	}
-	target := filepath.Join(r.root, filepath.FromSlash(out.profile.Handbook))
-	existing, err := os.ReadFile(target)
-	switch {
-	case errors.Is(err, fs.ErrNotExist):
-	case err != nil:
-		return fmt.Errorf("generate: handbook: %w", err)
-	case !strings.HasPrefix(string(existing), render.HandbookMarker):
-		return fmt.Errorf("generate: %s exists and is not a generated handbook; refusing to overwrite it", out.profile.Handbook)
-	}
+	target := r.handbookPath(out.profile)
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return fmt.Errorf("generate: handbook: %w", err)
 	}
 	if err := os.WriteFile(target, out.handbook, 0o644); err != nil {
+		return fmt.Errorf("generate: handbook: %w", err)
+	}
+	if err := os.Chmod(target, 0o644); err != nil {
 		return fmt.Errorf("generate: handbook: %w", err)
 	}
 	return nil
@@ -228,14 +249,17 @@ func (r Repo) requireUniquePlugins() error {
 	return requireHandbooksOutsidePlugins(handbooks, owner)
 }
 
-// claimHandbook records one binding's handbook path; two bindings rendering
-// the same document would overwrite each other's.
+// claimHandbook records one binding's handbook path. Two bindings rendering
+// the same document would overwrite each other's, and a path below another
+// binding's handbook needs that file to be a directory, so both are refused.
 func claimHandbook(handbooks map[string]string, lang, path string) error {
 	if path == "" {
 		return nil
 	}
-	if other, dup := handbooks[path]; dup {
-		return fmt.Errorf("generate: bindings %s and %s both render handbook %q", other, lang, path)
+	for other, otherLang := range handbooks {
+		if other == path || strings.HasPrefix(path, other+"/") || strings.HasPrefix(other, path+"/") {
+			return fmt.Errorf("generate: bindings %s and %s both render handbook %q; %s renders %q", otherLang, lang, other, lang, path)
+		}
 	}
 	handbooks[path] = lang
 	return nil
@@ -375,21 +399,43 @@ func (r Repo) checkHandbook(w io.Writer, lang string, out rendering) (int, error
 	}
 	rel := out.profile.Handbook
 	want := render.Tree{rel: {Data: out.handbook}}
-	onDisk, err := os.ReadFile(filepath.Join(r.root, filepath.FromSlash(rel)))
+	kind, differs, err := handbookDifference(r.handbookPath(out.profile), out.handbook)
+	if err != nil {
+		return 0, err
+	}
 	var diffs []check.Difference
-	switch {
-	case errors.Is(err, fs.ErrNotExist):
-		diffs = []check.Difference{{Path: rel, Kind: check.Missing}}
-	case err != nil:
-		return 0, fmt.Errorf("check: handbook: %w", err)
-	case !bytes.Equal(onDisk, out.handbook):
-		diffs = []check.Difference{{Path: rel, Kind: check.Changed}}
+	if differs {
+		diffs = []check.Difference{{Path: rel, Kind: kind}}
 	}
 	if len(diffs) > 0 {
 		fmt.Fprintf(w, "%s: the handbook %s differs from its rendering\n", lang, rel)
 		check.Report(w, diffs, want, r.root)
 	}
 	return len(diffs), nil
+}
+
+// handbookDifference compares the handbook on disk with its rendering the way
+// plugin files are compared: missing, changed bytes, or an executable bit the
+// rendering never sets.
+func handbookDifference(target string, want []byte) (check.Kind, bool, error) {
+	onDisk, err := os.ReadFile(target)
+	if errors.Is(err, fs.ErrNotExist) {
+		return check.Missing, true, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("check: handbook: %w", err)
+	}
+	if !bytes.Equal(onDisk, want) {
+		return check.Changed, true, nil
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		return "", false, fmt.Errorf("check: handbook: %w", err)
+	}
+	if info.Mode()&0o111 != 0 {
+		return check.ExecChanged, true, nil
+	}
+	return "", false, nil
 }
 
 // LintCore scans core/ for language residue and writes the report to w. With

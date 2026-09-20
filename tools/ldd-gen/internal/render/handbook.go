@@ -32,7 +32,11 @@ func Handbook(core fs.FS, b binding.Binding) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("handbook: %w", err)
 	}
-	r := &renderer{core: core, binding: b}
+	overrides, err := b.Overrides()
+	if err != nil {
+		return nil, err
+	}
+	r := &renderer{core: core, binding: b, overrides: overrides}
 	out, err := r.executeWith(handbookTemplate, string(src), r.handbookFuncs())
 	if err != nil {
 		return nil, err
@@ -175,10 +179,11 @@ func (r *renderer) reviews(includeName string) (string, error) {
 	return strings.Join(lines, " · "), nil
 }
 
-// renderedCore reads a core file and renders it through the binding, so the
-// text the extraction functions see is what the plugin ships.
+// renderedCore reads a core file — the binding's override of it when one
+// exists, exactly as the plugin render does — and renders it through the
+// binding, so the text the extraction functions see is what the plugin ships.
 func (r *renderer) renderedCore(corePath string) (string, error) {
-	src, err := fs.ReadFile(r.core, corePath)
+	src, _, err := r.source(r.core, corePath)
 	if err != nil {
 		return "", fmt.Errorf("core %s: %w", corePath, err)
 	}

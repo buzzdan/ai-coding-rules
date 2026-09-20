@@ -313,24 +313,53 @@ func TestHandbook_RefusesToOverwriteAHandWrittenFile(t *testing.T) {
 	got, err := os.ReadFile(filepath.Join(root, "coding-rules/p.md"))
 	require.NoError(t, err)
 	assert.Equal(t, "# my own notes\n", string(got), "nothing was overwritten")
+	assert.NoFileExists(t, filepath.Join(root, "out-plugin/rules/R1.md"), "the refusal runs before the plugin directory is written")
+}
+
+func TestHandbook_ModeIsNormalizedAndChecked(t *testing.T) {
+	t.Parallel()
+	root := handbookRepo(t)
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	require.NoError(t, repo.Generate("p"))
+	target := filepath.Join(root, "coding-rules/p.md")
+
+	require.NoError(t, os.Chmod(target, 0o755))
+	var out bytes.Buffer
+	n, err := repo.Check(&out)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Contains(t, out.String(), "exec-changed  coding-rules/p.md")
+
+	require.NoError(t, repo.Generate("p"))
+	info, err := os.Stat(target)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "generate resets the mode WriteFile would have kept")
+	out.Reset()
+	n, err = repo.Check(&out)
+	require.NoError(t, err)
+	assert.Zero(t, n, out.String())
 }
 
 func TestHandbook_PathConflicts(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name     string
+		lang     string // the second binding; "a" loads before p, "q" after it
 		handbook string
 		want     string
 	}{
-		{name: "inside a plugin directory", handbook: "out-plugin/RULES.md", want: "inside a directory the generator owns"},
-		{name: "inside core", handbook: "core/RULES.md", want: "inside a directory the generator owns"},
-		{name: "same path as another binding", handbook: "coding-rules/p.md", want: "both render handbook"},
+		{name: "inside a plugin directory", lang: "q", handbook: "out-plugin/RULES.md", want: "inside a directory the generator owns"},
+		{name: "inside core", lang: "q", handbook: "core/RULES.md", want: "inside a directory the generator owns"},
+		{name: "same path as another binding", lang: "q", handbook: "coding-rules/p.md", want: "both render handbook"},
+		{name: "below a handbook claimed earlier", lang: "q", handbook: "coding-rules/p.md/q.md", want: "both render handbook"},
+		{name: "above a handbook claimed earlier", lang: "a", handbook: "coding-rules/p.md/a.md", want: "both render handbook"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			root := handbookRepo(t)
-			write(t, root, "lang/q/profile.yaml", strings.Replace(profileYAML, "plugin: out-plugin", "plugin: q-plugin", 1)+"handbook: "+tc.handbook+"\n")
+			write(t, root, "lang/"+tc.lang+"/profile.yaml", strings.Replace(profileYAML, "plugin: out-plugin", "plugin: "+tc.lang+"-plugin", 1)+"handbook: "+tc.handbook+"\n")
 			repo, err := gen.Open(root)
 			require.NoError(t, err)
 			err = repo.Generate("p")

@@ -72,7 +72,8 @@ func validateHandbook(rel string) error {
 	}
 	clean := path.Clean(rel)
 	switch {
-	case clean != rel, path.IsAbs(rel), clean == ".", strings.HasPrefix(rel, "../"), strings.HasPrefix(rel, "."):
+	case clean != rel, path.IsAbs(rel), clean == ".", strings.HasPrefix(rel, "../"), strings.HasPrefix(rel, "."),
+		strings.ContainsAny(rel, `\:`): // a backslash or a volume is a separator on Windows that path.Clean cannot see
 		return fmt.Errorf("profile: handbook %q must be a clean relative path inside the repository", rel)
 	case !strings.HasSuffix(rel, ".md"):
 		return fmt.Errorf("profile: handbook %q must be a markdown file", rel)

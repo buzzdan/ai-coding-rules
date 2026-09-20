@@ -60,8 +60,8 @@ func TestParse_Handbook(t *testing.T) {
 	assert.True(t, p.HasHandbook())
 	assert.Equal(t, "coding-rules/go.md", p.Handbook)
 
-	for _, bad := range []string{"/abs.md", "../up.md", "a/../b.md", ".hidden.md", "notes.txt", "./go.md", "dir/"} {
-		_, err := profile.Parse([]byte(full + "handbook: \"" + bad + "\"\n"))
+	for _, bad := range []string{"/abs.md", "../up.md", "a/../b.md", ".hidden.md", "notes.txt", "./go.md", "dir/", `docs\..\..\outside.md`, `C:/outside.md`, `C:\outside.md`} {
+		_, err := profile.Parse([]byte(full + "handbook: '" + bad + "'\n")) // single quotes: a backslash stays literal
 		require.Error(t, err, bad)
 		assert.Contains(t, err.Error(), "handbook", bad)
 	}
