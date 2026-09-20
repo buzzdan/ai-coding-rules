@@ -27,14 +27,17 @@ second language is decided in [language-residue.md](language-residue.md).
 2. Run `task generate` for the Go plugin, `task generate BINDING=python` for the
    Python one and `task generate BINDING=generic` for the generic one. Each renders
    its binding over its plugin directory: every file the generator owns is
-   rewritten, and files it no longer produces are removed.
+   rewritten, and files it no longer produces are removed. A binding whose profile
+   names a `handbook:` path also renders the standalone coding-rules document to
+   that path, outside the plugin directory ([handbook.md](handbook.md)).
 3. Commit the sources and the generated directories together. A binding without its
    rendered directory turns CI red for everyone, because `task check` renders every
    directory under `lang/`.
 
 `task check` renders every binding to memory and compares it with the plugin
-directory on disk; any missing, extra or changed file, or a changed executable bit,
-fails, and changed files print a unified diff. CI runs it on every pull request,
+directory on disk, and the handbook with the file at its path; any missing, extra or
+changed file, or a changed executable bit, fails, and changed files print a unified
+diff. CI runs it on every pull request,
 together with `task lint-core` (no hard residue in `core/`, and the Residue section of
 its README is current), `task docs:check`, `task test-gate` (each generated gate passes
 its own fixture matrix — the Go and Python gates on their own row, the generic gate

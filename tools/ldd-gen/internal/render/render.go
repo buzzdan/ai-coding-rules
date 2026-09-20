@@ -18,7 +18,9 @@ import (
 
 // README.md documents core/ itself; every other core file is a template,
 // except the files under includes/, which are the language-neutral defaults
-// an {{include}} falls back to when the binding has no file of that name.
+// an {{include}} falls back to when the binding has no file of that name, and
+// the handbook template under handbook/, which RenderHandbook renders to a
+// path outside the plugin.
 const (
 	coreReadme  = "README.md"
 	includesDir = "includes"
@@ -87,7 +89,7 @@ type renderer struct {
 }
 
 func (r *renderer) renderCore(core fs.FS, path string) error {
-	if path == coreReadme || strings.HasPrefix(path, includesDir+"/") {
+	if path == coreReadme || strings.HasPrefix(path, includesDir+"/") || strings.HasPrefix(path, handbookDir+"/") {
 		return nil
 	}
 	r.seen[path] = true

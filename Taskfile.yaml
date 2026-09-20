@@ -8,7 +8,7 @@ version: '3'
 
 tasks:
   generate:
-    desc: Render core/ + lang/<BINDING>/ into its plugin directory (BINDING=go; generic renders linter-driven-development/, python renders python-linter-driven-development/)
+    desc: Render core/ + lang/<BINDING>/ into its plugin directory and, when the profile names one, its coding-rules handbook (BINDING=go; generic renders linter-driven-development/, python renders python-linter-driven-development/)
     dir: tools/ldd-gen
     vars:
       BINDING: '{{.BINDING | default "go"}}'
@@ -16,7 +16,7 @@ tasks:
       - go run . -root {{.ROOT_DIR}} -lang {{.BINDING}}
 
   check:
-    desc: Fail when any plugin directory on disk differs from its rendering
+    desc: Fail when any plugin directory or coding-rules handbook on disk differs from its rendering
     dir: tools/ldd-gen
     cmds:
       - go run . -root {{.ROOT_DIR}} -check

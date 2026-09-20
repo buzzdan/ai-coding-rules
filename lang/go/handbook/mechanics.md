@@ -1,0 +1,2 @@
+| Lint config | `.golangci.yaml` at the project root, golangci-lint v2; prefer the project's `task lintwithfix` over the bare command |
+| Tests | `package foo_test`; tables with named fields; testify or the standard library, as the project does |

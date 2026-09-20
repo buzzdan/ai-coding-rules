@@ -21,6 +21,9 @@ doc_form: godoc
 doc_comment: godoc comment
 src_ext: .go
 unexported: unexported
+# The standalone coding-rules document rendered from core/handbook/ with this
+# binding's files under handbook/, written outside the plugin directory.
+handbook: coding-rules/go.md
 # Paths in the plugin directory the generator does not own. A pattern with a
 # slash matches a path or one of its parent directories; a pattern without a
 # slash matches a file or directory name anywhere, in the plugin directory and

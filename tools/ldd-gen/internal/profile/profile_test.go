@@ -49,6 +49,24 @@ func TestParse_Success(t *testing.T) {
 	assert.False(t, p.IncludeFallback.Set())
 }
 
+func TestParse_Handbook(t *testing.T) {
+	t.Parallel()
+	p, err := profile.Parse([]byte(full))
+	require.NoError(t, err)
+	assert.False(t, p.HasHandbook())
+
+	p, err = profile.Parse([]byte(full + "handbook: coding-rules/go.md\n"))
+	require.NoError(t, err)
+	assert.True(t, p.HasHandbook())
+	assert.Equal(t, "coding-rules/go.md", p.Handbook)
+
+	for _, bad := range []string{"/abs.md", "../up.md", "a/../b.md", ".hidden.md", "notes.txt", "./go.md", "dir/"} {
+		_, err := profile.Parse([]byte(full + "handbook: \"" + bad + "\"\n"))
+		require.Error(t, err, bad)
+		assert.Contains(t, err.Error(), "handbook", bad)
+	}
+}
+
 func TestParse_IncludeFallback(t *testing.T) {
 	t.Parallel()
 	p, err := profile.Parse([]byte(full + "include_fallback:\n  from: go\n  under: examples/\n"))
