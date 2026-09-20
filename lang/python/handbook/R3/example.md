@@ -4,7 +4,7 @@ def upsert_iface_addr_host(self, iface: Interface) -> None:
     ip4_added = False
     ip6_added = False
     for a in iface.addrs():
-        if not isinstance(a, IPNetwork) or not a.ip.is_global:
+        if not isinstance(a, IPv4Interface | IPv6Interface) or not a.ip.is_global:
             continue
         if a.ip.version == 6:  # validate IP6
             if ip6_added:  # already added. skip

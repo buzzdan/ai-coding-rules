@@ -11,8 +11,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   strings, numbers, booleans and lists instead of Go's type spellings; R8 names
   the composition root instead of `main`; R9's Open Knowledge Format sentence
   moves from the Principle to the top of Design guidance, where the bundle policy
-  it points at lives. The coding-rules handbook renders each rule's Principle
-  without the language example beside it, which is where the Go spellings showed.
+  it points at lives; R12 says collections instead of slices and maps, and the
+  "Parse, don't validate" maxim describes a parse function instead of quoting a
+  Go signature. The coding-rules handbook renders each rule's Principle without
+  the language example beside it, which is where the Go spellings showed.
 
 ## [0.1.0] - 2026-09-17
 

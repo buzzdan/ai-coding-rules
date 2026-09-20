@@ -31,6 +31,8 @@ async with asyncio.TaskGroup() as tg:
 
 > **In Python:** `asyncio.sleep` is cancellable by construction and fine;
 > `time.sleep` on a thread with a stop condition is the finding, fixed with
-> `Event.wait(timeout)`. A dropped `asyncio.create_task` handle is a leak. A lock
+> `Event.wait(timeout)`. Inside `async def`, a blocking call — `time.sleep`, a sync
+> HTTP client, file I/O — stalls the whole loop and is the same finding; run it in
+> `asyncio.to_thread`. A dropped `asyncio.create_task` handle is a leak. A lock
 > lives beside the fields it guards and is taken with `with`; on 3.13+
 > `Queue.shutdown()` is the closed-channel twin.

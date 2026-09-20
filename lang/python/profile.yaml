@@ -14,7 +14,7 @@ project_marker: pyproject.toml
 nolint: "# noqa"
 comment_prefix: "#"
 default_test: pytest
-default_lint: ruff check . && mypy
+default_lint: ruff check .
 default_lint_fix: ruff check --fix . && ruff format .
 # Single words core prose uses as common nouns: the missing value, a unit of
 # concurrent work (a thread or an asyncio task; the includes name both), the

@@ -13,11 +13,11 @@ class Service:
     def __init__(self, leaves: worker.Store) -> None:
         self._leaves = leaves
 
-def test_rerun(tmp_path: Path, jira: FakeJira) -> None:
-    svc = Service(worker.Store(tmp_path / "leaves.db"), Evaluator(), JiraClient(jira.url))
+def test_rerun(tmp_path: Path) -> None:
+    svc = Service(worker.Store(tmp_path / "leaves.db"))
 ```
 
-> **In Python, opinionated:** `mock.patch` and `monkeypatch` on a collaborator you
+> **In Python (opinionated):** `mock.patch` and `monkeypatch` on a collaborator you
 > own are this smell with no `Protocol` to point at. Patching the true external
 > boundary is fine: the clock, a socket, `os.environ` in an entry-point test. A
 > `Protocol` is structural like an interface, so the one-implementer test transfers

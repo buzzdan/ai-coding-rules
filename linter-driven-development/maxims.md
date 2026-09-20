@@ -72,7 +72,8 @@ illegal state).
 ### Parse, don't validate
 — Alexis King
 
-**Ask:** does this check produce a *more-typed value* (`ParseX(raw) (X, error)`), or
+**Ask:** does this check produce a *more-typed value* (a parse function that returns
+the value or fails), or
 just a boolean the next caller must remember? Validation that returns proof is
 parsing; validation that returns advice is a latent re-check.
 

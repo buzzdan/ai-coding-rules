@@ -3,7 +3,7 @@
 ## Principle
 
 A validated value changes state only through methods that own its invariants — never
-through leaked internals. Constructors copy the slices and maps they are given;
+through leaked internals. Constructors copy the collections they are given;
 queries return copies (or iterators), not the internal reference; a method is a query
 or a modifier, not both; and a type with a validating constructor exposes no setter
 that skips the validation. This rule adapts Fowler's *Mutable Data* smell family

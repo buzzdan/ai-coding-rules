@@ -27,7 +27,10 @@ Before a rule fires, ask the question behind it:
 
 Each rule is stated once, with one {{.Lang}} example and the names of the moves that
 fix it. The moves are shared vocabulary across every language these rules are
-rendered for: reviewers cite them by name.
+rendered for: reviewers cite them by name. Where a rule cites R1's *scorecard*, the
+short form is: a type earns its keep by owning validation, behavior or an invariant,
+and scores zero when its only method unwraps the primitive; the full scorecard lives
+in the plugin's R1 rule.
 
 ### R1 — Primitive Obsession
 

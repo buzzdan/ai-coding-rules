@@ -15,7 +15,7 @@ Before a rule fires, ask the question behind it:
 
 - **Tell, don't ask.** What will the caller *do* with the value it is requesting — and does that decision belong on the type that owns the value?
 - **Make illegal states unrepresentable.** Can this type hold a value its methods would have to defend against? Delete the possibility, not the symptom.
-- **Parse, don't validate.** Does this check produce a *more-typed value* (`ParseX(raw) (X, error)`), or just a boolean the next caller must remember? Validation that returns proof is parsing; validation that returns advice is a latent re-check.
+- **Parse, don't validate.** Does this check produce a *more-typed value* (a parse function that returns the value or fails), or just a boolean the next caller must remember? Validation that returns proof is parsing; validation that returns advice is a latent re-check.
 - **Every indirection must earn its keep.** What does this indirection *own* — a validation, a decision, a second production implementation, a deleted duplication, a real race, a real escaping alias? If the answer is nothing, it is ceremony: delete it.
 - **Duplication is far cheaper than the wrong abstraction.** Is this extraction *earning* its indirection today, with the callers in hand — or is it a bet on imagined futures?
 - **Three strikes and you refactor.** How many real occurrences exist *right now*? One is an instance, two is a coincidence, three is a pattern.
@@ -27,7 +27,10 @@ Before a rule fires, ask the question behind it:
 
 Each rule is stated once, with one Python example and the names of the moves that
 fix it. The moves are shared vocabulary across every language these rules are
-rendered for: reviewers cite them by name.
+rendered for: reviewers cite them by name. Where a rule cites R1's *scorecard*, the
+short form is: a type earns its keep by owning validation, behavior or an invariant,
+and scores zero when its only method unwraps the primitive; the full scorecard lives
+in the plugin's R1 rule.
 
 ### R1 — Primitive Obsession
 
@@ -103,13 +106,14 @@ class Reporter:
         self._sink.write(ev)    # no guard anywhere
 ```
 
-> **In Python:** the self-validating type is `@dataclass(frozen=True)` with
-> `__post_init__`, or a `parse` classmethod that normalises then constructs. Public
+> **In Python:** the self-validating type is the frozen dataclass with `__post_init__`
+> shown under R1, or a `parse` classmethod that normalises then constructs. Public
 > read-only fields are fine: a literal is not a hole because `__post_init__` runs on
 > every construction. The finding is a mutable dataclass carrying invariants with no
 > `__post_init__`. Where the repository already uses pydantic it is the boundary
 > form, and `model_construct` and `model_copy(update=)` are its bypasses; a refactor
-> never introduces pydantic.
+> never introduces pydantic. The fence above is the optional-collaborator case: a
+> Null Object bound once as a module constant, never a `None` the methods guard.
 
 **Moves:** Add validating constructor · Hoist method checks into the constructor · Introduce Null Object · Delete re-validation of composed types · Separate Failure from Absence
 
@@ -126,7 +130,7 @@ def upsert_iface_addr_host(self, iface: Interface) -> None:
     ip4_added = False
     ip6_added = False
     for a in iface.addrs():
-        if not isinstance(a, IPNetwork) or not a.ip.is_global:
+        if not isinstance(a, IPv4Interface | IPv6Interface) or not a.ip.is_global:
             continue
         if a.ip.version == 6:  # validate IP6
             if ip6_added:  # already added. skip
@@ -161,19 +165,21 @@ it.
 # ❌ imported by the test through its private name, so it stays where it should not
 from app.k3s._args import _parse_k3s_argument
 
-# ✅ rung 1: one caller, no vocabulary of its own; covered through the public API that calls it
+# ✅ rung 1: one caller, no vocabulary of its own;
+#    covered through the public API that calls it
 def _parse_k3s_argument(arg: str) -> tuple[str, str] | None: ...
 
-# ✅ rung 3: networking vocabulary with several callers → its own package, named for the domain
+# ✅ rung 3: networking vocabulary with several callers → its own package,
+#    named for the domain
 from app.networking import Port, Ports
 ```
 
 > **In Python:** the leading underscore is a convention, not a wall, so a test *can*
 > import `_parse_row`. That it can is not a reason it should: the urge is a placement
 > signal, and the helper wants its own module with a public name. Rung 2 is the
-> feature package with its `__init__.py` re-exporting `__all__`; rung 3 a shared
-> package under the source root. There is no `internal/`; the underscore and
-> `__all__` carry visibility.
+> feature package, whose `__init__.py` re-exports the slice's public names and lists
+> them in `__all__`; rung 3 a shared package under the source root. There is no
+> `internal/`; the underscore and `__all__` carry visibility.
 
 **Moves:** Demote (rung 1) · Promote to feature sub-package (rung 2) · Promote to domain package (rung 3) · Split policy from vocabulary during promotion · Move Method to the Envied Type
 
@@ -196,7 +202,8 @@ src/app/handlers/rotator_handler.py  src/app/rotator/handler.py
 > **In Python:** the package name is the feature noun, `rotator`, never `services`
 > or `models`; role names live in module names inside the slice. Each type with
 > logic sits in its own module named after the type, and `__init__.py` is the
-> slice's front door: it re-exports what other slices may import and nothing else.
+> slice's front door: it re-exports what other slices may import and nothing else,
+> and it never imports another slice, or the front doors form an import cycle.
 
 **Moves:** Slice out a feature · Rename layer files by role during the move · Split a generic package by owner
 
@@ -223,11 +230,11 @@ class Service:
     def __init__(self, leaves: worker.Store) -> None:
         self._leaves = leaves
 
-def test_rerun(tmp_path: Path, jira: FakeJira) -> None:
-    svc = Service(worker.Store(tmp_path / "leaves.db"), Evaluator(), JiraClient(jira.url))
+def test_rerun(tmp_path: Path) -> None:
+    svc = Service(worker.Store(tmp_path / "leaves.db"))
 ```
 
-> **In Python, opinionated:** `mock.patch` and `monkeypatch` on a collaborator you
+> **In Python (opinionated):** `mock.patch` and `monkeypatch` on a collaborator you
 > own are this smell with no `Protocol` to point at. Patching the true external
 > boundary is fine: the clock, a socket, `os.environ` in an entry-point test. A
 > `Protocol` is structural like an interface, so the one-implementer test transfers
@@ -256,21 +263,28 @@ def test_parse_email(raw: str, expect_err: bool) -> None:
 
 
 # ✅ two functions, one shape each, every row named
-@pytest.mark.parametrize("raw", [pytest.param("a@b.io", id="plain"), pytest.param("A@B.IO", id="upper")])
+@pytest.mark.parametrize(
+    "raw",
+    [pytest.param("a@b.io", id="plain"), pytest.param("A@B.IO", id="upper")],
+)
 def test_parse_email_success(raw: str) -> None:
     assert Email.parse(raw).domain == "b.io"
 
-@pytest.mark.parametrize("raw", [pytest.param("", id="empty"), pytest.param("no-at", id="no-at")])
+
+@pytest.mark.parametrize(
+    "raw",
+    [pytest.param("", id="empty"), pytest.param("no-at", id="no-at")],
+)
 def test_parse_email_error(raw: str) -> None:
     with pytest.raises(ValueError):
         Email.parse(raw)
 ```
 
 > **In Python:** `pytest.param(..., id=...)` on every row so a failure names its
-> case; import as a consumer would, `from app import user`, never a `_private`
-> name; no `time.sleep`, wait on `Event.wait(timeout)`, `Queue.get(timeout)` or an
-> awaited future. Orchestrators are tested by wiring their real collaborators over
-> `tmp_path`, an in-process fake server or an embedded database.
+> case; import as a consumer would, `from app import user`. No `time.sleep`: wait on
+> `Event.wait(timeout)`, `Queue.get(timeout)` or an awaited future. Orchestrators are
+> tested by wiring their real collaborators over `tmp_path`, an in-process fake
+> server or an embedded database.
 
 **Moves:** Move the behavior down a rung · Split Success and Error Tables · Replace doubles with real collaborators · Replace sleep with synchronization · Delete private-function tests
 
@@ -288,7 +302,7 @@ application wiring — where they are read once and injected downward.
 from app.env import CONFIG
 
 def publish_event(event: Event) -> None:
-    conn = nats.connect(CONFIG.nats_address)
+    conn = connect(CONFIG.nats_address)
 
 
 # ✅ read once in the entry point, pushed down as a value
@@ -329,20 +343,22 @@ class Policy:
         for attempt in range(1, self._max_attempts + 1): ...
 
 
-# ✅ the summary line states the contract, the body says why, the doc points down and up
+# ✅ the summary line states the contract, the body says why,
+#    the doc points down at code and code points up at the doc
 class Policy:
     """Retry an operation with full-jitter backoff.
 
     Full jitter over exponential backoff: it spreads retries after an outage so a
-    fleet does not thunder back in lockstep. Decision and measurements: docs/retry-policy.md.
+    fleet does not thunder back in lockstep. Decision and measurements:
+    docs/retry-policy.md.
     """
 ```
 
 > **In Python:** the PEP 257 summary line states the contract and is never a
 > restatement finding; the body earns its lines by saying *why*, and the `Args`,
-> `Returns` and `Raises` sections do not count against that budget. Where ruff's
-> `D` rules require a docstring, a WHAT-docstring is rewritten, not deleted; a
-> `_private` name carries no `D` obligation, so a WHAT-docstring on one is deleted.
+> `Returns` and `Raises` sections are free. Where ruff's `D` rules require a
+> docstring, a WHAT-docstring is rewritten, not deleted; a `_private` name carries no
+> `D` obligation, so a WHAT-docstring on one is deleted.
 
 **Moves:** Push the fact down a rung · Convert WHAT to WHY or delete · Rewire orphan doc · Wire the root · Add missing frontmatter · Update the stale doc with the behavior change
 
@@ -386,7 +402,9 @@ async with asyncio.TaskGroup() as tg:
 
 > **In Python:** `asyncio.sleep` is cancellable by construction and fine;
 > `time.sleep` on a thread with a stop condition is the finding, fixed with
-> `Event.wait(timeout)`. A dropped `asyncio.create_task` handle is a leak. A lock
+> `Event.wait(timeout)`. Inside `async def`, a blocking call — `time.sleep`, a sync
+> HTTP client, file I/O — stalls the whole loop and is the same finding; run it in
+> `asyncio.to_thread`. A dropped `asyncio.create_task` handle is a leak. A lock
 > lives beside the fields it guards and is taken with `with`; on 3.13+
 > `Queue.shutdown()` is the closed-channel twin.
 
@@ -411,31 +429,34 @@ match a.channel:
 
 
 # ✅ chosen once at the boundary; everything downstream tells
+from typing import Protocol, assert_never
+
 class Channel(Protocol):
     def send(self, a: Alert) -> None: ...
     def valid_recipient(self, recipient: str) -> bool: ...
     def retry_delay(self) -> timedelta: ...
 
-def parse_channel(name: ChannelName) -> Channel:
-    match name:                       # the ONE switch
+def parse_channel(raw: str) -> Channel:
+    name = ChannelName(raw)          # the raw string becomes an enum here, or raises
+    match name:                      # the ONE switch
         case ChannelName.EMAIL: return Email()
         case ChannelName.SLACK: return Slack()
         case ChannelName.PAGERDUTY: return PagerDuty()
-        case _: assert_never(name)    # the completeness proof, not an "unknown" path
+        case _: assert_never(name)   # the completeness proof, not an "unknown" path
 ```
 
 > **In Python:** the kept switch is a `match` over an enum closed by
 > `case _: assert_never(x)`; a `case _:` that raises or logs is the finding. Prefer a
-> dict of callables first, a `Protocol` hierarchy second, `functools.singledispatch`
-> third. A positional boolean parameter is always a finding (ruff `FBT001`): make it
-> keyword-only while the branches share a body, Split Flag Argument when they do not.
+> dict of callables first (`CHANNELS[ChannelName(raw)]`), a `Protocol` hierarchy
+> second, `functools.singledispatch` third. A boolean parameter that selects a branch
+> is a Split Flag Argument candidate (P1).
 
 **Moves:** Replace Duplicated Switch with Interface Dispatch · Replace If-Chain with Strategy Map · Introduce Null Object · Split Flag Argument · Keep the Single Exhaustive Switch
 
 ### R12 — Mutation Discipline
 
 A validated value changes state only through methods that own its invariants — never
-through leaked internals. Constructors copy the slices and maps they are given;
+through leaked internals. Constructors copy the collections they are given;
 queries return copies (or iterators), not the internal reference; a method is a query
 or a modifier, not both; and a type with a validating constructor exposes no setter
 that skips the validation. This rule adapts Fowler's *Mutable Data* smell family
@@ -456,7 +477,7 @@ class Grants:
     _perms: tuple[Permission, ...]
 
     @classmethod
-    def of(cls, raw: Iterable[str]) -> "Grants":
+    def of(cls, raw: Iterable[str]) -> Self:
         return cls(tuple(dedupe_and_validate(raw)))
 
     def __iter__(self) -> Iterator[Permission]:
@@ -465,8 +486,8 @@ class Grants:
 
 > **In Python:** `frozen=True` freezes the binding, not the value: a frozen dataclass
 > holding a `list` is mutable through that list. Store tuples and mapping proxies,
-> or copy on the way out. A mutable default in a signature (ruff `B006`) is this
-> rule's most common form.
+> or copy on the way out. A mutable default in a signature is this rule's most
+> common form (P2).
 
 **Moves:** Copy on the Way In · Copy on the Way Out / Encapsulate Collection · Separate Query from Modifier · Remove Setting Method · Split Variable
 
@@ -475,29 +496,30 @@ class Grants:
 Rules that exist because this is Python. Same shape as above, with their own
 numbers so a review can cite them.
 
-Some of these are a stance, not a Python community norm, and are marked
-**opinionated**: the departure is deliberate, held because the rules above hold it
-in every language.
+Rules marked *(opinionated)* are stances, not Python community norms; the departure
+is deliberate.
 
-### P1 — Booleans are keyword-only
+### P1 — Booleans are keyword-only (opinionated)
 
 A positional `True` at a call site says nothing. Every `bool` parameter sits after
 `*`, so the call reads `fetch(url, follow_redirects=True)`. ruff `FBT001` and
-`FBT003` enforce it; when the two branches share little, the flag wants to be two
-functions (R11, Split Flag Argument).
+`FBT003` enforce it where the repository enables them; elsewhere it is a review
+finding. When the two branches share little, the flag wants to be two functions
+(R11, Split Flag Argument).
 
 **Review:** Is any `bool` parameter positional?
 
-### P2 — A default is a name, never a call
+### P2 — A default is a name, never a mutable or a `None` to guard (opinionated)
 
-`def __init__(self, *, sink: Sink = NULL_SINK)`, where `NULL_SINK = NullSink()` is
-bound once at module level. `sink: Sink = NullSink()` in the signature is ruff
-`B008`; `events: list[Event] = []` is `B006`. A `param: X | None = None` with
-substitution inside `__init__` is allowed only for a default that is genuinely
-mutable or expensive, and even then the attribute is typed without `None` and no
-method guards it.
+Two halves. The community half: a mutable literal or a call in a signature is
+evaluated once at definition time (ruff `B006`, `B008`; immutable calls such as
+`tuple()` are exempt). The stance: an optional collaborator is a do-nothing object
+bound once at module level, `def __init__(self, *, sink: Sink = NULL_SINK)`, never
+`sink: Sink | None = None` substituted inside `__init__`. That idiom is allowed only
+for a default that is genuinely mutable or expensive, and even then the attribute is
+typed without `None` and no method guards it.
 
-**Review:** Is any default a call or a mutable literal, or a `None` a method later guards?
+**Review:** Is any default a mutable literal or a call, or a `None` a method later guards?
 
 ### P3 — No `utils.py`, no `common.py`, no `helpers.py` (opinionated)
 
@@ -515,11 +537,12 @@ signal (R4).
 
 **Review:** Does any test import a `_private` name?
 
-### P5 — A fixture builds infrastructure, not the input under test (opinionated)
+### P5 — A fixture never hides the input a test is about (opinionated)
 
 `tmp_path`, a fake HTTP server, an embedded database: those earn a fixture, and
-`conftest.py` holds only those. A fixture that returns the literal the test is about
-hides the one thing a reader needs to see. Write the literal in the test.
+`conftest.py` holds those. A small fixture that builds a literal is fine; a fixture
+that returns the literal the test is *about* hides the one thing a reader needs to
+see. Write that literal in the test.
 
 **Review:** Does any fixture return the literal a test is about?
 
@@ -528,18 +551,27 @@ hides the one thing a reader needs to see. Write the literal in the test.
 `# noqa` and `# type: ignore` are the same thing. Neither is added on your own: fix
 the code, and if it is a true false positive, propose a `[tool.ruff]` or
 `[tool.mypy]` change and get it reviewed. A new suppression in a diff is itself a
-finding, and the linter phase never edits either table.
+finding, and no automated lint-fix pass edits either table.
 
 **Review:** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`?
 
-### P7 — Type hints are the contract, mypy is the compiler
+### P7 — Annotations are the contract (opinionated)
 
-Every public function is fully annotated and mypy passes where the repository
-configures it. `Any` on a public signature is a `# type: ignore` spelled
-differently: narrow it or name the protocol. Annotations are what let `X | None` be
-a declared absence instead of a hope.
+Every public function is fully annotated, and mypy passes where the repository
+configures it. An unexplained `Any` on a public signature is a suppression spelled
+differently: narrow it, or name the `Protocol`. Annotations are what let `X | None`
+be a declared absence instead of a hope.
 
-**Review:** Does any public signature carry `Any` or lack an annotation?
+**Review:** Does any public signature carry an unexplained `Any` or lack an annotation?
+
+### P8 — Exceptions are caught narrowly and re-raised with their cause
+
+`except Exception:` swallows the bug with the failure (ruff `BLE001`); catch the
+class you can handle. Inside an `except`, raise with `from err` so the chain is kept
+(ruff `B904`). Never log *and* re-raise the same error. Exception classes are
+package vocabulary: defined once per package, named for what went wrong.
+
+**Review:** Does any `except` catch `Exception`, re-raise without `from`, or both log and raise?
 
 ## 4. Self-review
 
@@ -559,17 +591,19 @@ are the ones that catch the most.
 - **R10** Does every thread or task started in the diff have a provable exit path? · Does production code sleep?
 - **R11** Is the same discriminator inspected in more than one place? · Does a `case _:` (or trailing `else`) handle "unknown kind" away from the boundary? · Does a boolean parameter select between behaviors?
 - **R12** Does a method return an internal list, dict or set by reference? · Can a validated type be mutated around its constructor?
-- **House rules** Is any `bool` parameter positional? · Is any default a call or a mutable literal, or a `None` a method later guards? · Did a module named for its role appear? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`? · Does any public signature carry `Any` or lack an annotation?
+- **House rules** Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Did a module named for its role appear? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`? · Does any public signature carry an unexplained `Any` or lack an annotation? · Does any `except` catch `Exception`, re-raise without `from`, or both log and raise?
 
 ## 5. Mechanics
 
 | | |
 |---|---|
 | Test | `pytest` |
-| Lint | `ruff check . && mypy` |
+| Lint | `ruff check .` |
 | Lint and fix | `ruff check --fix . && ruff format .` |
 | Suppression | `# noqa` — never added on your own; a new one in a diff is a review finding |
 | Docs | docstring: short, says why, not what; long-form under `docs/` |
-| Type check | `mypy`, where `pyproject.toml` has a `[tool.mypy]` table; the plugin never adds a checker the repository does not use |
-| Tests | pytest collects `test_*.py` and `*_test.py`; `pytest.param(id=...)` on every row; fixtures for infrastructure only |
+| Type check | `mypy`, where `pyproject.toml` has a `[tool.mypy]` table; never add a checker the repository does not use |
+| Type suppression | `# type: ignore` — the same rule as `# noqa`, see P6 |
+| Python | the examples assume 3.11+ (`match`, `X \| None`, `asyncio.TaskGroup`, `typing.assert_never`); on 3.10 import `assert_never` from `typing_extensions` and keep asyncio tasks under kept handles |
+| Tests | pytest collects `test_*.py` and `*_test.py`; under `tests/` mirroring the package or beside the module, whichever the repository does; `pytest.param(id=...)` on every row |
 | Workflow | RED → GREEN → REFACTOR per behavior; package-scoped lint every cycle; review per finished slice; commit only a green tree |

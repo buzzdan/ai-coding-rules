@@ -15,7 +15,7 @@ Before a rule fires, ask the question behind it:
 
 - **Tell, don't ask.** What will the caller *do* with the value it is requesting — and does that decision belong on the type that owns the value?
 - **Make illegal states unrepresentable.** Can this type hold a value its methods would have to defend against? Delete the possibility, not the symptom.
-- **Parse, don't validate.** Does this check produce a *more-typed value* (`ParseX(raw) (X, error)`), or just a boolean the next caller must remember? Validation that returns proof is parsing; validation that returns advice is a latent re-check.
+- **Parse, don't validate.** Does this check produce a *more-typed value* (a parse function that returns the value or fails), or just a boolean the next caller must remember? Validation that returns proof is parsing; validation that returns advice is a latent re-check.
 - **Every indirection must earn its keep.** What does this indirection *own* — a validation, a decision, a second production implementation, a deleted duplication, a real race, a real escaping alias? If the answer is nothing, it is ceremony: delete it.
 - **Duplication is far cheaper than the wrong abstraction.** Is this extraction *earning* its indirection today, with the callers in hand — or is it a bet on imagined futures?
 - **Three strikes and you refactor.** How many real occurrences exist *right now*? One is an instance, two is a coincidence, three is a pattern.
@@ -27,7 +27,10 @@ Before a rule fires, ask the question behind it:
 
 Each rule is stated once, with one Go example and the names of the moves that
 fix it. The moves are shared vocabulary across every language these rules are
-rendered for: reviewers cite them by name.
+rendered for: reviewers cite them by name. Where a rule cites R1's *scorecard*, the
+short form is: a type earns its keep by owning validation, behavior or an invariant,
+and scores zero when its only method unwraps the primitive; the full scorecard lives
+in the plugin's R1 rule.
 
 ### R1 — Primitive Obsession
 
@@ -387,7 +390,7 @@ func ParseChannel(kind string) (Channel, error) // the one switch, exhaustive
 ### R12 — Mutation Discipline
 
 A validated value changes state only through methods that own its invariants — never
-through leaked internals. Constructors copy the slices and maps they are given;
+through leaked internals. Constructors copy the collections they are given;
 queries return copies (or iterators), not the internal reference; a method is a query
 or a modifier, not both; and a type with a validating constructor exposes no setter
 that skips the validation. This rule adapts Fowler's *Mutable Data* smell family

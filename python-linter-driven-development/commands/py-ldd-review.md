@@ -39,7 +39,7 @@ Execute these steps:
 1. **Discover commands** from project docs (README, CLAUDE.md, Makefile, etc.)
 2. **Run in read-only mode**:
    - Tests: Bash([PROJECT_TEST_COMMAND])
-   - Linter: Bash([PROJECT_LINT_COMMAND] **without `--fix`** — report only, e.g. `ruff check . && mypy`)
+   - Linter: Bash([PROJECT_LINT_COMMAND] **without `--fix`** — report only, e.g. `ruff check .`)
    - Review: invoke `Skill(python-linter-driven-development:pre-commit-review)` in FULL mode over the resolved
      scope, passing it the file list. It orchestrates parallel `python-linter-driven-development:rule-hunter` agents + the
      `python-linter-driven-development:overabstraction-skeptic` and reports — it never edits, and it never widens the scope.

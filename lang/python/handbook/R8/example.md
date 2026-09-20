@@ -3,7 +3,7 @@
 from app.env import CONFIG
 
 def publish_event(event: Event) -> None:
-    conn = nats.connect(CONFIG.nats_address)
+    conn = connect(CONFIG.nats_address)
 
 
 # ✅ read once in the entry point, pushed down as a value
