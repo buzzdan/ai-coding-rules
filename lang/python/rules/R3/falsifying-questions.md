@@ -18,7 +18,8 @@
    Detection: `grep -nE '^\s+# ' <file>` within function bodies (not the docstring
    under the `def`, not a `# noqa` or `# type: ignore` directive).
    Violation: a comment naming what the next block does — each is a candidate
-   extraction point; the fix is a function named after the comment.
+   extraction point; the fix is a function named after the comment. Quote each
+   comment's text with its line: the comment is the evidence and the function's name.
 
 4. **Do boolean flags track state across a loop?**
    Detection: `grep -nE '^\s+[a-z_]+ = (False|True)$' <changed files>` near `for`

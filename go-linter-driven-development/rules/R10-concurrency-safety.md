@@ -227,8 +227,10 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Detection: `grep -n 'time\.Sleep' <changed files> | grep -v _test.go`
    Violation: any hit on a cancellable path — backoff/pacing/polling must be a
    timer `select` with `ctx.Done()`, sustained pacing a `rate.Limiter.Wait(ctx)`.
-   Exempt: startup jitter in `main`-adjacent wiring. (Test sleeps are R7's Q6, not
-   this rule.)
+   A bounded loop is not exempt: a retry that sleeps three times on a request path
+   still makes a cancelled caller wait out every backoff; the count bounds the
+   attempts, not the wait. Exempt: startup jitter in `main`-adjacent wiring. (Test
+   sleeps are R7's Q6, not this rule.)
 
 6. **Inverse — is a guard or goroutine ceremony?**
    Detection: for each NEW mutex or goroutine in the diff, grep the package for a

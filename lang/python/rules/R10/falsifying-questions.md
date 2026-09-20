@@ -57,8 +57,11 @@ starts a thread or an asyncio task.
    must be `self._stop.wait(timeout=d)` (it returns early when the event is set) or
    a `queue.get(timeout=d)`. `await asyncio.sleep(d)` is cancellable by construction
    and is not this finding; a `time.sleep` inside an `async def` is (it blocks the
-   loop). Exempt: startup jitter in entry-point wiring. (Test sleeps are R7's Q6,
-   not this rule.)
+   loop). A bounded loop is not exempt: a retry that sleeps three times on a
+   request thread still makes a stopping caller wait out every backoff; the count
+   bounds the attempts, not the wait, and every request thread has a stop condition
+   (the client going away, the server shutting down). Exempt: startup jitter in
+   entry-point wiring. (Test sleeps are R7's Q6, not this rule.)
 
 6. **Inverse — is a guard, thread or task ceremony?**
    Detection: for each NEW `Lock` or spawn site in the diff, grep the package for a

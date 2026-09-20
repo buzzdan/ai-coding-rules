@@ -86,7 +86,12 @@ The manifest has three consumers, so a fact lives once:
    segment alone; a plant may carry `cluster_match` when reports spell the cluster
    in more than one way), and one precision grader per control (the report must not
    mention the control's `symbol`, unless `mention_ok: true` says a correct report
-   legitimately names it). Never hand-edit the generated files; edit the manifest
+   legitimately names it, or `precision: finding` moves the line: the symbol may be
+   named, and the grader fails only when one of the control's files is cited as a
+   finding location, `file:line`, in a row that names the control's rule; a control
+   that correct reports cite as the fix route takes this mode, and a row that leaves
+   its rule id to the section header escapes it, so the mode is lenient by design).
+   Never hand-edit the generated files; edit the manifest
    and regenerate. The evals repository's pull-request check fails when the
    committed graders differ from the manifest.
 2. **The refactor cases' oracles.** The `gone` patterns become file graders with

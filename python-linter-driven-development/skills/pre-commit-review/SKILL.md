@@ -224,7 +224,12 @@ extraction was proposed at the anchor (a function three rules converged on, say)
 entry carries no verdict and routes to @refactoring. The example shows one cluster; a
 whole-repository review commonly has six or more, and the pass is not done until each
 anchor that two rules converged on has its own entry. Member findings still appear
-under their categories below, tagged `[cluster: <anchor>]`. Clustering is *reporting*
+under their categories below, each as its own line tagged `[cluster: <anchor>]`: the
+cluster's Evidence line is an index, and a member that appears only there — a
+production sleep named in the cluster's prose and nowhere under 🔴 — is a finding the
+report dropped. Each member sits under the rule whose falsifying question its evidence
+answers, never under the cluster's lead rule: the sentinel `0` a config reader returns
+is R2's question even when R1 owns the cluster. Clustering is *reporting*
 — this skill still never edits and never invokes fix skills; the caller routes.
 
 Category mapping:
@@ -260,6 +265,11 @@ finding on those lines and takes that finding's effort), as the report example s
 - The evidence cell names the rule and the falsifying question the finding answers,
   by number and in the question's own words — `R1 Q5: host, port and tls travel
   together across three signatures` — so the reader can open the rule and check.
+  When the question asks about text in the code — a block comment, a docstring, a
+  suppression directive — the cell quotes that text, not its line number alone:
+  `R3 Q3: three section comments name unextracted blocks — "# parse the line" (101),
+  "# look up or create device" (129), "# transitions" (149)`. The quoted comment is
+  the evidence and the name of the function to extract.
 - The fix cell names the move exactly as the rule's **Fix pattern** section spells it
   (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
   `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in

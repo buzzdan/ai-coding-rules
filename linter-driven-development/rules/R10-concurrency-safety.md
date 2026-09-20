@@ -200,8 +200,10 @@ task constructor, a task-group or executor submit, an `async` job.
    (`time.Sleep`, `time.sleep`, `asyncio.sleep`, `Thread.sleep`, `setTimeout`).
    Violation: any hit on a cancellable path — backoff/pacing/polling must wait on a
    timer and the cancellation signal together, sustained pacing on a rate limiter
-   that honors cancellation. Exempt: startup jitter in entry-point wiring. (Test
-   sleeps are R7's Q6, not this rule.)
+   that honors cancellation. A bounded loop is not exempt: a retry that sleeps three
+   times on a request path still makes a stopping caller wait out every backoff; the
+   count bounds the attempts, not the wait. Exempt: startup jitter in entry-point
+   wiring. (Test sleeps are R7's Q6, not this rule.)
 
 6. **Inverse — is a guard or concurrent task ceremony?**
    Detection: for each NEW lock or concurrent task in the diff, search the package for a
