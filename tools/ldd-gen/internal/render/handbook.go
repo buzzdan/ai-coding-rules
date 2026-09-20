@@ -45,7 +45,7 @@ func Handbook(core fs.FS, b binding.Binding) ([]byte, error) {
 
 func (r *renderer) handbookFuncs() template.FuncMap {
 	return template.FuncMap{
-		"include":   r.include,
+		includeFunc: r.include,
 		"section":   r.section,
 		"moves":     r.moves,
 		"questions": r.questions,

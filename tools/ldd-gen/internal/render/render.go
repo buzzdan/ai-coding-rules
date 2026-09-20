@@ -19,11 +19,12 @@ import (
 // README.md documents core/ itself; every other core file is a template,
 // except the files under includes/, which are the language-neutral defaults
 // an {{include}} falls back to when the binding has no file of that name, and
-// the handbook template under handbook/, which RenderHandbook renders to a
+// the handbook template under handbook/, which Handbook renders to a
 // path outside the plugin.
 const (
 	coreReadme  = "README.md"
 	includesDir = "includes"
+	includeFunc = "include" // the template function every core file may call
 )
 
 // droppings are names editors and operating systems leave next to sources.
@@ -144,7 +145,7 @@ func (r *renderer) include(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	out, err := r.executeWith(name, body, template.FuncMap{"include": noNestedInclude})
+	out, err := r.executeWith(name, body, template.FuncMap{includeFunc: noNestedInclude})
 	if err != nil {
 		return "", err
 	}
@@ -174,7 +175,7 @@ func (r *renderer) includeSource(name string) (string, error) {
 }
 
 func (r *renderer) execute(name, text string) ([]byte, error) {
-	return r.executeWith(name, text, template.FuncMap{"include": r.include})
+	return r.executeWith(name, text, template.FuncMap{includeFunc: r.include})
 }
 
 func (r *renderer) executeWith(name, text string, funcs template.FuncMap) ([]byte, error) {
