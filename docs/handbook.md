@@ -39,7 +39,7 @@ rule.
 
 ## Consuming it
 
-Copy `coding-rules/go.md` into the project, or reference it from a pinned release
+Copy `coding-rules/go.md` or `coding-rules/python.md` into the project, or reference it from a pinned release
 tag, and import it from `CLAUDE.md` or `AGENTS.md` with an `@` line. It stands alone:
 no plugin, no agents, no detection commands. The file opens with a marker comment
 saying it is generated; the generator refuses to overwrite a file at the handbook
@@ -51,8 +51,9 @@ from a stray `task generate` and simply falls behind.
 Set `handbook: coding-rules/<lang>.md` in the binding's `profile.yaml` and write
 `handbook/R1/example.md` to `handbook/R12/example.md`, `handbook/house-rules.md` and
 `handbook/mechanics.md` under `lang/<lang>/`. These slots have no core default yet; a
-missing one fails the render with the include name. Only the Go binding renders a
-handbook today.
+missing one fails the render with the include name. The Go and Python bindings
+render handbooks today; the generic binding does not, because the pseudocode
+examples and spelling notes that would be its core defaults are not written yet.
 
 ## Measuring it
 

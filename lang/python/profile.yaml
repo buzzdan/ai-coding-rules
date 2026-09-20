@@ -27,6 +27,9 @@ doc_form: docstring
 doc_comment: docstring
 src_ext: .py
 unexported: underscore-prefixed
+# The standalone coding-rules document rendered from core/handbook/ with this
+# binding's files under handbook/, written outside the plugin directory.
+handbook: coding-rules/python.md
 # Paths in the plugin directory the generator does not own. An eval run copies
 # its cases under evals/ at run time.
 ignore:

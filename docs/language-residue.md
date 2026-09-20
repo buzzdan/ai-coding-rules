@@ -154,7 +154,9 @@ were choices rather than translations:
   `_private` name — which is why R4 and R7 hunt for exactly that.
 
 Where a rule's Go text meets a Python idiom, the binding takes a position and the
-includes implement it. The seven positions:
+includes implement it; the handbook under `lang/python/handbook/` states each
+position to the reader as an `In Python` aside under its rule
+([handbook.md](handbook.md)). The seven positions:
 
 1. **Absence.** `None` is a declared absence, never an undeclared failure. A
    `-> X | None` signature is fine when absence is normal and every caller narrows

@@ -15,7 +15,8 @@ knowledge (`docs/language-residue.md`, "The generic binding").
 
 `tools/ldd-gen` renders `core/` plus a binding into the plugin directory the
 marketplace serves, and, for a binding whose profile names one, the standalone
-coding-rules handbook outside it (`coding-rules/go.md`; "The handbook" below). Edit
+coding-rules handbook outside it (`coding-rules/go.md`, `coding-rules/python.md`;
+"The handbook" below). Edit
 sources here or under `lang/`, run `task generate` (and `task generate
 BINDING=python`, `task generate BINDING=generic`), and commit all of them; `task
 check` fails when a plugin directory or a handbook differs from its rendering.
