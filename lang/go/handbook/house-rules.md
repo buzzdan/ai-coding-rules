@@ -50,21 +50,11 @@ nobody reads. Extract it and name it: `defer closeOrLog(f, log)`.
 
 **Review:** Does any `defer` body branch?
 
-### G6 — Lint is the contract; `nolint` is a request, not a tool (opinionated)
+### G6 — Lint runs through the project's task (opinionated)
 
 Projects lint with golangci-lint v2 from `.golangci.yaml` at the root. Run the
 project's `task lintwithfix` where it exists (go vet, `golangci-lint fmt`,
 `golangci-lint run --fix`), else `golangci-lint run --fix`, and it is green before
-every commit. A `//nolint` is never added on your own: fix the code, and if it is a
-true false positive, propose an `exclusions` entry in `.golangci.yaml` and get it
-reviewed, with the v2 configuration reference open.
+every commit, with the v2 configuration reference open before the file is edited.
 
-**Review:** Did the diff add a `//nolint` or edit `.golangci.yaml`?
-
-### G7 — Errors carry the context of the layer that saw them
-
-Wrap at each boundary with `fmt.Errorf("parse port %q: %w", name, err)`; never log
-*and* return the same error; inspect only with `errors.Is` and `errors.As`. A
-sentinel `var ErrX = errors.New(...)` is exported only when a caller decides on it.
-
-**Review:** Is any error both logged and returned, or inspected by string?
+**Review:** Is the tree lint-green through the project's task, not a bare command?

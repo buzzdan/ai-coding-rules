@@ -121,7 +121,7 @@ are never acceptable (`R4-helper-placement.md`).
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
-1. **Is any package named after a layer or role?**
+1. **Is any package or module named after a layer or role?**
    Detection: list the directories that hold source files and match their names
    against `util`, `utils`, `helpers`, `common`, `shared`, `misc`, `domain`,
    `services`, `handlers`, `models`, `repositories`; where the language declares the

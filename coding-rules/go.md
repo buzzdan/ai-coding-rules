@@ -66,7 +66,7 @@ func (ps Ports) First() (Port, bool)
 > wrapper whose only method is `func (c ReplicaCount) Int() int` scores zero on the
 > scorecard: keep the `int`.
 
-**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with comma-ok · Name enum strings · Introduce Parameter Object
+**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object
 
 ### R2 — Self-Validating Types
 
@@ -436,10 +436,37 @@ func (ps Ports) All() iter.Seq[Port] { return slices.Values(ps.items) }
 
 **Moves:** Copy on the Way In · Copy on the Way Out / Encapsulate Collection · Separate Query from Modifier · Remove Setting Method · Split Variable
 
-## 3. Go house rules
+## 3. House rules
 
-Rules that exist because this is Go. Same shape as above, with their own
-numbers so a review can cite them.
+Rules that are not one of the twelve but hold in every language, then the rules that
+exist because this is Go. Same shape as above, with their own numbers so a
+review can cite them.
+
+### H1 — A suppression is a review finding, not a tool
+
+A `//nolint` directive is never added on your own: fix the code, and when the
+finding is a true false positive, propose the exclusion in the linter's configuration
+and get it reviewed. A new suppression in a diff is itself a finding, and no automated
+lint-fix pass adds one or edits the configuration.
+
+> **In Go:** `//nolint` and an `exclusions` entry in `.golangci.yaml` are the two
+> forms; the entry is the reviewed one.
+
+**Review:** Did the diff add a `//nolint` or edit `.golangci.yaml`?
+
+### H2 — Errors carry the context of the layer that saw them
+
+Handle an error once: wrap it with the context of the boundary it crossed and its
+cause, or handle it, never both log it and pass it on. Catch narrowly, the failure you
+can handle, never everything. Failure vocabulary belongs to the package that raises
+it: one named error per thing that can go wrong, made public only when a caller
+decides on it.
+
+> **In Go:** wrap with `fmt.Errorf("parse port %q: %w", name, err)`; inspect only with
+> `errors.Is` and `errors.As`, never by string; a sentinel `var ErrX = errors.New(...)`
+> is exported only when a caller decides on it.
+
+**Review:** Is any error both logged and returned, or inspected by string?
 
 Rules marked *(opinionated)* are stances, not Go community norms; the departure is
 deliberate.
@@ -493,24 +520,14 @@ nobody reads. Extract it and name it: `defer closeOrLog(f, log)`.
 
 **Review:** Does any `defer` body branch?
 
-### G6 — Lint is the contract; `nolint` is a request, not a tool (opinionated)
+### G6 — Lint runs through the project's task (opinionated)
 
 Projects lint with golangci-lint v2 from `.golangci.yaml` at the root. Run the
 project's `task lintwithfix` where it exists (go vet, `golangci-lint fmt`,
 `golangci-lint run --fix`), else `golangci-lint run --fix`, and it is green before
-every commit. A `//nolint` is never added on your own: fix the code, and if it is a
-true false positive, propose an `exclusions` entry in `.golangci.yaml` and get it
-reviewed, with the v2 configuration reference open.
+every commit, with the v2 configuration reference open before the file is edited.
 
-**Review:** Did the diff add a `//nolint` or edit `.golangci.yaml`?
-
-### G7 — Errors carry the context of the layer that saw them
-
-Wrap at each boundary with `fmt.Errorf("parse port %q: %w", name, err)`; never log
-*and* return the same error; inspect only with `errors.Is` and `errors.As`. A
-sentinel `var ErrX = errors.New(...)` is exported only when a caller decides on it.
-
-**Review:** Is any error both logged and returned, or inspected by string?
+**Review:** Is the tree lint-green through the project's task, not a bare command?
 
 ## 4. Self-review
 
@@ -522,7 +539,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R2** Can the type exist in an invalid state? · Does anything return or accept nil as a value?
 - **R3** Does one body mix abstraction levels? · Do block comments narrate sections inside a function body?
 - **R4** Are unexported helpers tested directly? · Does a new shared package have a role name?
-- **R5** Is any package named after a layer or role? · Is one feature's code spread across ≥2 layer directories?
+- **R5** Is any package or module named after a layer or role? · Is one feature's code spread across ≥2 layer directories?
 - **R6** Is the only other implementer a test double? · Does the diff justify a new interface with "for testing" or "import cycle"?
 - **R7** Does any `t.Run` body contain a conditional? · Is any test in the internal package? · Does any test sleep to synchronize?
 - **R8** Does any package declare mutable state at package level? · Does deep code read a global config?
@@ -530,7 +547,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R10** Does every goroutine started in the diff have a provable exit path? · Does production code sleep?
 - **R11** Is the same discriminator inspected in more than one place? · Does a `default:` (or trailing `else`) handle "unknown kind" away from the boundary? · Does a boolean parameter select between behaviors?
 - **R12** Does a method return an internal slice or map by reference? · Can a validated type be mutated around its constructor?
-- **House rules** Does any package name collide with the standard library or a common import? · Does any exported name repeat its package? · Does every exported constructor have an `Example`? · Is any suite wrapping tests that share no setup? · Does any `defer` body branch? · Did the diff add a `//nolint` or edit `.golangci.yaml`? · Is any error both logged and returned, or inspected by string?
+- **House rules** Did the diff add a `//nolint` or edit `.golangci.yaml`? · Is any error both logged and returned, or inspected by string? · Does any package name collide with the standard library or a common import? · Does any exported name repeat its package? · Does every exported constructor have an `Example`? · Is any suite wrapping tests that share no setup? · Does any `defer` body branch? · Is the tree lint-green through the project's task, not a bare command?
 
 ## 5. Mechanics
 

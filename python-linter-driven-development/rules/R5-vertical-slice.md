@@ -122,7 +122,7 @@ are never acceptable (`R4-helper-placement.md`).
 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
-1. **Is any package named after a layer or role?**
+1. **Is any package or module named after a layer or role?**
    Detection: `find . -type d \( -name 'util*' -o -name 'helpers' -o -name 'common' -o -name 'shared' -o -name 'misc' -o -name 'domain' -o -name 'services' -o -name 'handlers' -o -name 'models' -o -name 'repositories' \) -not -path '*/.venv/*'`
    and the module form
    `find . \( -name 'utils.py' -o -name 'helpers.py' -o -name 'common.py' -o -name 'models.py' -o -name 'services.py' -o -name 'handlers.py' \) -not -path '*/.venv/*'`.

@@ -7,6 +7,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The move "Replace Sentinel with comma-ok" is "Replace Sentinel with Declared
+  Absence".** Move names are catalogue names shared by every language rendering,
+  and comma-ok is a Go spelling; the Python handbook placed it beside the aside
+  that forbids that very shape. The move's body is unchanged.
+- **Two more Go spellings leave the shared text.** R11's map dispatch no longer
+  reads "comma-ok on lookup" or shows a Go map literal, and R5's first falsifying
+  question asks about a package *or module* named after a layer or role.
 - **Three Principle sentences read the same standing alone.** R1 names raw
   strings, numbers, booleans and lists instead of Go's type spellings; R8 names
   the composition root instead of `main`; R9's Open Knowledge Format sentence
@@ -24,10 +31,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 - **`coding-rules/python.md`, the Python coding-rules handbook.** The twelve
   rules with Python examples and the binding's positions as `In Python` asides,
-  the house rules P1–P7 (keyword-only booleans, defaults as names, no `utils.py`,
-  consumer imports in tests, fixtures for infrastructure only, suppressions as
-  findings, annotations as the contract), a self-review checklist and the
-  mechanics; generated from `core/handbook/` and `lang/python/handbook/`.
+  the shared house rules H1–H2 (suppressions, errors) with their Python spelling,
+  the Python house rules P1–P5 (keyword-only booleans, defaults as names, consumer
+  imports in tests, fixtures never hide the input, annotations as the contract), a
+  self-review checklist and the mechanics; generated from `core/handbook/` and
+  `lang/python/handbook/`.
 
 ## [0.2.0] - 2026-09-19
 

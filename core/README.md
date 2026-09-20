@@ -102,7 +102,10 @@ What the binding supplies, under `lang/<lang>/handbook/`: `R1/example.md` to
 language's position (`> **In Go:** …`); `house-rules.md`, the rules that exist only
 in that language, each a `### ` heading, a short principle and one `**Review:**`
 line; and `mechanics.md`, extra rows for the mechanics table. These have no core
-default yet: a binding that names a `handbook:` path writes all of them. How to read
+default yet: a binding that names a `handbook:` path writes all of them. The shared
+house rules `H1…` are core: `core/includes/handbook/Hn/rule.md` states each once,
+and `Hn/spelling.md` carries the language's aside and its `**Review:**` line, with a
+neutral core default a binding replaces. How to read
 and consume the result: `docs/handbook.md`.
 
 ## What stays in the binding
