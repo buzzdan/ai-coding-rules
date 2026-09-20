@@ -53,6 +53,32 @@ type Profile struct {
 	Vars            `yaml:",inline"`
 	Ignore          []string        `yaml:"ignore"`
 	IncludeFallback IncludeFallback `yaml:"include_fallback"`
+	// Handbook is the repository-relative path of the standalone coding-rules
+	// document rendered from core/handbook/ for this binding, outside the
+	// plugin directory. Empty means the binding ships no handbook.
+	Handbook string `yaml:"handbook"`
+}
+
+// HasHandbook reports whether the binding renders a coding-rules handbook.
+func (p Profile) HasHandbook() bool { return p.Handbook != "" }
+
+// validateHandbook accepts a clean relative markdown path under the repository
+// root: no leading slash, no "..", not hidden, not the root itself. The
+// generator overwrites this file, so a value that could reach outside the
+// checkout must not load.
+func validateHandbook(rel string) error {
+	if rel == "" {
+		return nil
+	}
+	clean := path.Clean(rel)
+	switch {
+	case clean != rel, path.IsAbs(rel), clean == ".", strings.HasPrefix(rel, "../"), strings.HasPrefix(rel, "."),
+		strings.ContainsAny(rel, `\:`): // a backslash or a volume is a separator on Windows that path.Clean cannot see
+		return fmt.Errorf("profile: handbook %q must be a clean relative path inside the repository", rel)
+	case !strings.HasSuffix(rel, ".md"):
+		return fmt.Errorf("profile: handbook %q must be a markdown file", rel)
+	}
+	return nil
 }
 
 // IncludeFallback is the profile's include_fallback block: From is the
@@ -108,6 +134,9 @@ func (p Profile) validate() error {
 		return fmt.Errorf("profile: cmd_prefix %q must be lower-case letters, digits and dashes", p.CmdPrefix)
 	}
 	if err := p.IncludeFallback.validate(); err != nil {
+		return err
+	}
+	if err := validateHandbook(p.Handbook); err != nil {
 		return err
 	}
 	for _, pattern := range p.Ignore {

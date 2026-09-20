@@ -14,9 +14,11 @@ reads as instructions, and it adds a file only where detection differs from
 knowledge (`docs/language-residue.md`, "The generic binding").
 
 `tools/ldd-gen` renders `core/` plus a binding into the plugin directory the
-marketplace serves. Edit sources here or under `lang/`, run `task generate` (and
-`task generate BINDING=python`, `task generate BINDING=generic`), and commit all of
-them; `task check` fails when a plugin directory differs from its rendering.
+marketplace serves, and, for a binding whose profile names one, the standalone
+coding-rules handbook outside it (`coding-rules/go.md`; "The handbook" below). Edit
+sources here or under `lang/`, run `task generate` (and `task generate
+BINDING=python`, `task generate BINDING=generic`), and commit all of them; `task
+check` fails when a plugin directory or a handbook differs from its rendering.
 
 ## Templating
 
@@ -69,6 +71,34 @@ File-level rules the generator applies without template syntax:
 
 Include files carry no leading or trailing blank lines; the surrounding template
 owns them. That is what keeps a rendered file byte-identical to a hand-written one.
+
+## The handbook
+
+`handbook/coding-rules.md` is the one core file that is not a plugin file: it is the
+template of the standalone coding-rules document a team reads without the plugin,
+rendered for every binding whose profile names a `handbook:` path (a clean relative
+markdown path under the repository root, outside every plugin directory, such as
+`coding-rules/go.md`). `task generate` writes it, `task check` compares it, and a
+file at that path that does not open with the generator's marker comment is never
+overwritten. The rendered document restates nothing: besides `{{include}}`, the
+template has five extraction functions that read the rules the plugin already
+carries, so the handbook cannot drift from the plugin.
+
+| Construct | Renders |
+|---|---|
+| `{{section "rules/R1-primitive-obsession.md" "Principle"}}` | the body of that `## ` section of the core file, through the binding, with `` `Rn-….md` `` references shortened to `Rn` |
+| `{{moves "rules/R1-primitive-obsession.md"}}` | the bold leads of the rule's Fix-pattern bullets, joined with ` · `; a lead that is a sentence (opens with an article, carries a comma, ends in punctuation) is guidance, not a move, and is left out |
+| `{{questions "rules/R1/falsifying-questions.md" 1 4}}` | the bold headlines of the numbered questions in that include — the binding's file, else the core default — for the numbers given, or all of them with none; a number the file lacks is an error |
+| `{{maxim "Tell, don't ask"}}` | `**Tell, don't ask.**` followed by that maxim's `**Ask:**` paragraph from `maxims.md` |
+| `{{reviews "handbook/house-rules.md"}}` | the `**Review:**` lines of that include, joined with ` · ` |
+
+What the binding supplies, under `lang/<lang>/handbook/`: `R1/example.md` to
+`R12/example.md`, one short before-and-after per rule with an optional aside on the
+language's position (`> **In Go:** …`); `house-rules.md`, the rules that exist only
+in that language, each a `### ` heading, a short principle and one `**Review:**`
+line; and `mechanics.md`, extra rows for the mechanics table. These have no core
+default yet: a binding that names a `handbook:` path writes all of them. How to read
+and consume the result: `docs/handbook.md`.
 
 ## What stays in the binding
 

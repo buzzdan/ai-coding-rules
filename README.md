@@ -11,9 +11,12 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 | 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.1.0 | Any language without a binding — detects the language at run time |
 | ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.2.0 | TypeScript + React |
 
-Plus the standalone rule documents the plugins grew out of:
+Plus the coding rules as a single document, for a project that does not use the plugin:
 
-- [`coding_rules.md`](coding_rules.md) — Go coding principles (types, testing, refactoring, anti-patterns)
+- [`coding-rules/go.md`](coding-rules/go.md) — the Go coding rules: the twelve rules with Go examples, the Go house rules, a self-review checklist and the mechanics. Generated from the same sources as the plugin, so it never drifts from it; import it from your `CLAUDE.md` or `AGENTS.md`, or read it before your first PR. How it is built: [docs/handbook.md](docs/handbook.md).
+
+And the hand-written rule documents the TS/React plugin grew out of:
+
 - [`coding_rules_ts_react.md`](coding_rules_ts_react.md) — TypeScript + React principles
 - [`testing_rules_ts_react.md`](testing_rules_ts_react.md) — TypeScript + React testing strategy (Vitest, RTL, MSW)
 
@@ -78,7 +81,7 @@ Team members then install with the same `/plugin install` commands above.
 
 ## Developing the Plugins
 
-1. Clone the repo. The Go, Python and generic plugin directories are generated: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory drifts from its sources. How the pieces fit: [core/README.md](core/README.md) and [docs/generator.md](docs/generator.md).
+1. Clone the repo. The Go, Python and generic plugin directories are generated, and so is `coding-rules/go.md`: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory or a handbook drifts from its sources. How the pieces fit: [core/README.md](core/README.md), [docs/generator.md](docs/generator.md) and [docs/handbook.md](docs/handbook.md).
 2. Test locally by adding the checkout as a marketplace:
    ```
    /plugin marketplace add ./ai-coding-rules
