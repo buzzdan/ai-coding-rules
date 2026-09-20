@@ -124,8 +124,8 @@ with a shared base, or a dispatch table from name to variant object.
   `../examples/switch-to-polymorphism.md`.
 - **Interface vs strategy map.** Variants with several behaviors or state → interface
   with one type per variant. Variants that differ by a single function → a map
-  (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
-  comma-ok check is a dispatch, not a conditional. Either way the decision has one
+  from kind to function — a map lookup whose missing-key case is a declared absence
+  is a dispatch, not a conditional. Either way the decision has one
   owner.
 - **Null object over null-checks.** A scattered "if the logger is set, log" is
   the same disease with two variants. Construct a do-nothing value once; delete every
@@ -163,8 +163,9 @@ with a shared base, or a dispatch table from name to variant object.
   the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
   the caller owns the shared fields, each variant fills its own
   (`../examples/switch-to-polymorphism.md`).
-- **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
-  `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
+- **Replace If-Chain with Strategy Map**: single-behavior variance → a package-level
+  map from kind to function (or a field), the missing-key case handled at the
+  boundary only.
 - **Introduce Null Object**: absent-collaborator null-checks → a do-nothing value
   substituted by the constructor when none is given; delete the guards. A no-op
   implementation when an interface already exists, otherwise a value of the concrete

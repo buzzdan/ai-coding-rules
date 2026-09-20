@@ -200,9 +200,10 @@ src/app/handlers/rotator_handler.py  src/app/rotator/handler.py
 ```
 
 > **In Python:** the package name is the feature noun, `rotator`, never `services`
-> or `models`, and `utils.py`, `common.py` and `helpers.py` are role names too: a
-> module is named for the vocabulary it holds, or the next function lands beside the
-> first because it did. Role names live in module names inside the slice. Each type with
+> or `models`. `utils.py`, `common.py` and `helpers.py` name no vocabulary at all:
+> the first function that lands there has no owner, and the next lands beside it
+> because the first did. Role names (`parser.py`, `handler.py`) live in module names
+> inside the slice. Each type with
 > logic sits in its own module named after the type, and `__init__.py` is the
 > slice's front door: it re-exports what other slices may import and nothing else,
 > and it never imports another slice, or the front doors form an import cycle.
@@ -506,8 +507,10 @@ finding is a true false positive, propose the exclusion in the linter's configur
 and get it reviewed. A new suppression in a diff is itself a finding, and no automated
 lint-fix pass adds one or edits the configuration.
 
-> **In Python:** `# noqa` and `# type: ignore` are the same thing, and `[tool.ruff]`
-> and `[tool.mypy]` are the reviewed place for a true false positive.
+> **In Python:** `# noqa` and `# type: ignore` are the same thing, and each carries
+> its code (`# noqa: E501`, `# type: ignore[return-value]`; a bare one is ruff
+> `PGH003`). `[tool.ruff.lint.per-file-ignores]` and a `[tool.mypy]` override are
+> the reviewed place for a true false positive.
 
 **Review:** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`?
 
@@ -516,14 +519,18 @@ lint-fix pass adds one or edits the configuration.
 Handle an error once: wrap it with the context of the boundary it crossed and its
 cause, or handle it, never both log it and pass it on. Catch narrowly, the failure you
 can handle, never everything. Failure vocabulary belongs to the package that raises
-it: one named error per thing that can go wrong, exported only when a caller decides
-on it.
+it: one named error per thing that can go wrong, made public only when a caller
+decides on it.
 
 > **In Python:** `except Exception:` swallows the bug with the failure (ruff `BLE001`);
-> inside an `except`, raise with `from err` so the chain is kept (`B904`); exception
-> classes are defined once per package, named for what went wrong.
+> the one place it belongs is the process boundary, a worker loop or request handler
+> that logs with `logger.exception` and does not re-raise. Inside an `except`, raise
+> with `from err`, or `from None` when the cause is deliberately hidden; `B904` wants
+> one or the other. Inspect with `except SpecificError`, never `str(e)`. Exception
+> classes are defined once per package, named for what went wrong, and in `__all__`
+> only when a caller catches them.
 
-**Review:** Does any `except` catch `Exception`, re-raise without `from`, or both log and raise?
+**Review:** Does any `except` catch `Exception`, `BaseException` or nothing at all away from the process boundary, re-raise without `from`, both log and raise, or inspect a message string?
 
 Rules marked *(opinionated)* are stances, not Python community norms; the departure
 is deliberate.
@@ -586,7 +593,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R2** Can the type exist in an invalid state? · Does anything return or accept `None` as a value?
 - **R3** Does one body mix abstraction levels? · Do block comments narrate sections inside a function body?
 - **R4** Are `_private` helpers tested directly? · Does a new shared package have a role name?
-- **R5** Is any package named after a layer or role? · Is one feature's code spread across ≥2 layer directories?
+- **R5** Is any package or module named after a layer or role? · Is one feature's code spread across ≥2 layer directories?
 - **R6** Is the only other implementer a test double? · Does the diff justify a new interface with "for testing" or "import cycle"?
 - **R7** Does any test case body contain a conditional? · Does any test reach past the public surface? · Does any test sleep to synchronize?
 - **R8** Does any module declare mutable state at module level? · Does deep code read a global config?
@@ -594,7 +601,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R10** Does every thread or task started in the diff have a provable exit path? · Does production code sleep?
 - **R11** Is the same discriminator inspected in more than one place? · Does a `case _:` (or trailing `else`) handle "unknown kind" away from the boundary? · Does a boolean parameter select between behaviors?
 - **R12** Does a method return an internal list, dict or set by reference? · Can a validated type be mutated around its constructor?
-- **House rules** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`? · Does any `except` catch `Exception`, re-raise without `from`, or both log and raise? · Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Does any public signature carry an unexplained `Any` or lack an annotation?
+- **House rules** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`? · Does any `except` catch `Exception`, `BaseException` or nothing at all away from the process boundary, re-raise without `from`, both log and raise, or inspect a message string? · Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Does any public signature carry an unexplained `Any` or lack an annotation?
 
 ## 5. Mechanics
 

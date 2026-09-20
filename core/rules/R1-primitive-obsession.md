@@ -96,7 +96,7 @@ Stage 2 shows it applied.
 - **Extract Collection Type**: when logic loops over `[]primitive` or `[]DTO`, wrap
   the slice (`type Ports []Port`) and move the loop into a named query method.
 - **Replace Sentinel with Declared Absence**: `return 0` / `return ""` meaning
-  absence/invalidity → an explicit absence result, or an error.
+  absence/invalidity → a declared absence result, or an error.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
   `const StatusReady Status = "READY"`. The same move owns a string *assigned* from a
   fixed set of literals: `scheme := "http"; if tls { scheme = "https" }` written in two

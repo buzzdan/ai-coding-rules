@@ -25,7 +25,7 @@ rendering, the same as for a plugin directory.
 |---|---|
 | Mindset | nine maxims, chosen in the template, each rendered from its `**Ask:**` paragraph in `core/maxims.md` |
 | The twelve rules | per rule: the `## Principle` of `core/rules/Rn-*.md` through the binding's scalars; the binding's `handbook/Rn/example.md`, a before-and-after with an optional `> **In <Lang>:**` aside for the language's position; the move names from the rule's Fix pattern |
-| House rules | first the shared rules `H1…`, core defaults under `core/includes/handbook/Hn/rule.md` with the language's spelling and `**Review:**` line in the binding's `handbook/Hn/spelling.md`; then the binding's `handbook/house-rules.md`, the rules that exist only in that language (`G1…` for Go, `P1…` for Python), each a heading, a short principle and one `**Review:**` line |
+| House rules | first the shared rules `H1…`, each stated once in `core/includes/handbook/Hn/rule.md`, with the language's spelling aside and `**Review:**` line in the binding's `handbook/Hn/spelling.md` (a neutral core default stands in where a binding has none); then the binding's `handbook/house-rules.md`, the rules that exist only in that language (`G1…` for Go, `P1…` for Python), each a heading, a short principle and one `**Review:**` line |
 | Self-review | two or three question headlines per rule, chosen by number in the template from the binding's `rules/Rn/falsifying-questions.md`, plus every house rule's review line |
 | Mechanics | the profile's test, lint, lint-fix, suppression and doc-form scalars, plus the binding's `handbook/mechanics.md` rows |
 
@@ -38,8 +38,8 @@ bindings both end up writing is the signal it is core doctrine: it moves to a sh
 `H` rule, stated once under `core/includes/handbook/` with a spelling aside per
 binding, and the further step, when the plugin's reviewers should hunt it, is a
 numbered rule with detection commands. Suppressions (H1) and errors (H2) took the
-first step; the bucket-module rule both bindings wrote was already R5's Principle and
-went back into the R5 asides.
+first step; the Python bucket-module rule (the old P3) was already R5's Principle and
+went back into the Python R5 aside.
 
 ## The residue gate
 

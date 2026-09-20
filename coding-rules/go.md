@@ -459,8 +459,8 @@ lint-fix pass adds one or edits the configuration.
 Handle an error once: wrap it with the context of the boundary it crossed and its
 cause, or handle it, never both log it and pass it on. Catch narrowly, the failure you
 can handle, never everything. Failure vocabulary belongs to the package that raises
-it: one named error per thing that can go wrong, exported only when a caller decides
-on it.
+it: one named error per thing that can go wrong, made public only when a caller
+decides on it.
 
 > **In Go:** wrap with `fmt.Errorf("parse port %q: %w", name, err)`; inspect only with
 > `errors.Is` and `errors.As`, never by string; a sentinel `var ErrX = errors.New(...)`
@@ -539,7 +539,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R2** Can the type exist in an invalid state? · Does anything return or accept nil as a value?
 - **R3** Does one body mix abstraction levels? · Do block comments narrate sections inside a function body?
 - **R4** Are unexported helpers tested directly? · Does a new shared package have a role name?
-- **R5** Is any package named after a layer or role? · Is one feature's code spread across ≥2 layer directories?
+- **R5** Is any package or module named after a layer or role? · Is one feature's code spread across ≥2 layer directories?
 - **R6** Is the only other implementer a test double? · Does the diff justify a new interface with "for testing" or "import cycle"?
 - **R7** Does any `t.Run` body contain a conditional? · Is any test in the internal package? · Does any test sleep to synchronize?
 - **R8** Does any package declare mutable state at package level? · Does deep code read a global config?
