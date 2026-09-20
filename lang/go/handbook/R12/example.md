@@ -9,6 +9,4 @@ func (ps Ports) All() iter.Seq[Port] { return slices.Values(ps.items) }
 ```
 
 > **In Go:** slices and maps are references into shared backing storage, so a
-> constructor clones what it is given and a query never returns the field itself. A
-> method is a query or a modifier, never both, and a type with a validating
-> constructor has no setter that skips the check.
+> constructor clones what it is given and a query never returns the field itself.

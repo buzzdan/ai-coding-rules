@@ -15,7 +15,8 @@ type Channel interface {
     RetryDelay() time.Duration
 }
 
-func ParseChannel(kind string) (Channel, error) // the one switch, exhaustive
+func ParseKind(raw string) (Kind, error) // the string→enum boundary; the only "unknown" error
+func (k Kind) Channel() Channel          // the one switch, over Kind, closed by exhaustive
 ```
 
 > **In Go:** the kept switch is over a typed enum and closed by the `exhaustive`

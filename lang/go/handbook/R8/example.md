@@ -2,14 +2,14 @@
 // ❌ reached sideways from three layers; untestable without the environment
 var cfg = config.MustLoad()
 
-func (f *Fleet) Record(hb Heartbeat) error {
+func (f *Fleet) Record(ctx context.Context, hb Heartbeat) error {
     if cfg.ReadOnly { /* ... */ }
 }
 
 // ✅ read once in main, pushed down as a value
 func main() {
     cfg := config.MustLoad()
-    fleet := device.NewFleet(store, cfg.Fleet)
+    run(ctx, device.NewFleet(store, cfg.Fleet))
 }
 ```
 

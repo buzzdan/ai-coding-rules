@@ -154,7 +154,9 @@ were choices rather than translations:
   `_private` name — which is why R4 and R7 hunt for exactly that.
 
 Where a rule's Go text meets a Python idiom, the binding takes a position and the
-includes implement it. The seven positions:
+includes implement it; the handbook under `lang/python/handbook/` states each
+position to the reader as an `In Python` aside under its rule
+([handbook.md](handbook.md)). The seven positions:
 
 1. **Absence.** `None` is a declared absence, never an undeclared failure. A
    `-> X | None` signature is fine when absence is normal and every caller narrows
@@ -303,6 +305,12 @@ enforced:
 - **A scalar's literal becomes a hard token once no core line spells it.** Until
   then it stays soft, and the promotion lands in the same change that removes the
   last literal, so `task lint-core` is green on every commit.
+- **A non-Go handbook is a residue gate.** The coding-rules handbook
+  ([handbook.md](handbook.md)) renders each Principle and maxim without the
+  same-language example that softens it in the plugin, so rendering the Python
+  handbook fails on any hard or soft token in the result, except the asides above
+  (`interface`, `struct`). This is how the R1, R8, R12 and maxim Rewrites were
+  found, and the gate keeps the next one from shipping.
 - **Rendered-tree checks guard the seams the scanner cannot see.** After rendering,
   the generator verifies that every move name a table cites appears verbatim as a
   Fix-pattern bullet of the rule the row points at, and that every relative link in a

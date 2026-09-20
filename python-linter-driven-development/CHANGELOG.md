@@ -5,6 +5,30 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Changed
+
+- **Three Principle sentences read the same standing alone.** R1 names raw
+  strings, numbers, booleans and lists instead of Go's type spellings; R8 names
+  the composition root instead of `main`; R9's Open Knowledge Format sentence
+  moves from the Principle to the top of Design guidance, where the bundle policy
+  it points at lives; R12 says collections instead of slices and maps, and the
+  "Parse, don't validate" maxim describes a parse function instead of quoting a
+  Go signature. The coding-rules handbook renders each rule's Principle without
+  the language example beside it, which is where the Go spellings showed.
+
+- **The default lint command is `ruff check .`.** A bare `mypy` with no targets fails
+  unless `[tool.mypy]` names files, and mypy runs only where that table exists; the
+  pre-flight and the handbook's mechanics name it separately.
+
+### Added
+
+- **`coding-rules/python.md`, the Python coding-rules handbook.** The twelve
+  rules with Python examples and the binding's positions as `In Python` asides,
+  the house rules P1–P7 (keyword-only booleans, defaults as names, no `utils.py`,
+  consumer imports in tests, fixtures for infrastructure only, suppressions as
+  findings, annotations as the contract), a self-review checklist and the
+  mechanics; generated from `core/handbook/` and `lang/python/handbook/`.
+
 ## [0.2.0] - 2026-09-19
 
 ### Changed

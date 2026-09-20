@@ -6,6 +6,6 @@ internal/handlers/rotator.go     internal/rotator/handler.go
 internal/models/rotation.go      internal/rotator/rotation.go
 ```
 
-> **In Go:** the package name is the feature noun in flatcase, `rotator`, never
-> `services` or `models`; role names live in file names inside the slice. A type with
-> logic gets its own file named after the type.
+> **In Go:** role names live in file names inside the slice, and a type with logic
+> gets its own file named after the type. Slices live under `internal/` unless
+> another module is meant to import them.

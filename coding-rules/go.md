@@ -15,7 +15,7 @@ Before a rule fires, ask the question behind it:
 
 - **Tell, don't ask.** What will the caller *do* with the value it is requesting — and does that decision belong on the type that owns the value?
 - **Make illegal states unrepresentable.** Can this type hold a value its methods would have to defend against? Delete the possibility, not the symptom.
-- **Parse, don't validate.** Does this check produce a *more-typed value* (`ParseX(raw) (X, error)`), or just a boolean the next caller must remember? Validation that returns proof is parsing; validation that returns advice is a latent re-check.
+- **Parse, don't validate.** Does this check produce a *more-typed value* (a parse function that returns the value or fails), or just a boolean the next caller must remember? Validation that returns proof is parsing; validation that returns advice is a latent re-check.
 - **Every indirection must earn its keep.** What does this indirection *own* — a validation, a decision, a second production implementation, a deleted duplication, a real race, a real escaping alias? If the answer is nothing, it is ceremony: delete it.
 - **Duplication is far cheaper than the wrong abstraction.** Is this extraction *earning* its indirection today, with the callers in hand — or is it a bet on imagined futures?
 - **Three strikes and you refactor.** How many real occurrences exist *right now*? One is an instance, two is a coincidence, three is a pattern.
@@ -27,11 +27,14 @@ Before a rule fires, ask the question behind it:
 
 Each rule is stated once, with one Go example and the names of the moves that
 fix it. The moves are shared vocabulary across every language these rules are
-rendered for: reviewers cite them by name.
+rendered for: reviewers cite them by name. Where a rule cites R1's *scorecard*, the
+short form is: a type earns its keep by owning validation, behavior or an invariant,
+and scores zero when its only method unwraps the primitive; the full scorecard lives
+in the plugin's R1 rule.
 
 ### R1 — Primitive Obsession
 
-Domain concepts must not travel as raw `string`/`int`/`bool`/`[]T`. When a primitive
+Domain concepts must not travel as raw strings, numbers, booleans or lists. When a primitive
 carries validation rules, behavior, or a domain name, it becomes a type with a
 validating constructor and named methods. The inverse binds equally: a wrapper that
 adds no validation, no logic, and no invariant is over-abstraction — score before you wrap.
@@ -96,7 +99,7 @@ func ParseRetention(days int) (Retention, error) {
 func (r Retention) Cutoff(now time.Time) time.Time { return now.AddDate(0, 0, -r.days) }
 ```
 
-> **In Go:** an optional collaborator is a Null Object the caller passes by name, never
+> **In Go (opinionated):** an optional collaborator is a Null Object the caller passes by name, never
 > a `nil` the methods guard: `io.Discard` is the standard library's, and
 > `NewReporter(DiscardSink())` never branches on a missing destination. Never pass
 > `nil` into a function, so the function never checks for it.
@@ -186,9 +189,9 @@ internal/handlers/rotator.go     internal/rotator/handler.go
 internal/models/rotation.go      internal/rotator/rotation.go
 ```
 
-> **In Go:** the package name is the feature noun in flatcase, `rotator`, never
-> `services` or `models`; role names live in file names inside the slice. A type with
-> logic gets its own file named after the type.
+> **In Go:** role names live in file names inside the slice, and a type with logic
+> gets its own file named after the type. Slices live under `internal/` unless
+> another module is meant to import them.
 
 **Moves:** Slice out a feature · Rename layer files by role during the move · Split a generic package by owner
 
@@ -206,14 +209,13 @@ type DeviceStore interface {
     Get(ctx context.Context, id DeviceID) (Device, error)
 }
 
-func NewFleet(store DeviceStore) *Fleet
+func NewFleet(store DeviceStore, cfg FleetConfig) *Fleet
 
 // ✅ depend on the concrete type; the test wires a real store over an embedded database
-func NewFleet(store *sqlite.DeviceStore) *Fleet
+func NewFleet(store *sqlite.DeviceStore, cfg FleetConfig) *Fleet
 ```
 
-> **In Go:** an interface is earned by a second production implementation or a
-> verified import cycle, and it stays small: one or two methods, `io.Reader`-sized. A
+> **In Go:** an earned interface stays small and cohesive, `io.Reader`-sized. A
 > hand-written struct that satisfies a production interface only in a `_test.go` file
 > is a mock, whatever it is called.
 
@@ -231,24 +233,47 @@ overlap with leaf coverage is fine; leaf behavior tested *only* from above is no
 ```go
 // ❌ one table, a flag, and a branch inside t.Run
 func TestParsePort(t *testing.T) {
-    tests := []struct{ name string; in int32; wantErr bool }{ /* ... */ }
+    tests := []struct {
+        name    string
+        in      int32
+        wantErr bool
+    }{ /* ... */ }
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             _, err := networking.ParsePort("x", tt.in)
-            if tt.wantErr { require.Error(t, err) } else { require.NoError(t, err) }
+            if tt.wantErr {
+                require.Error(t, err)
+            } else {
+                require.NoError(t, err)
+            }
         })
     }
 }
 
 // ✅ success and error tables apart, named fields, complexity 1 per case
 func TestParsePort_Success(t *testing.T) { /* rows that parse */ }
-func TestParsePort_Error(t *testing.T)   { /* rows that fail */ }
+
+func TestParsePort_Error(t *testing.T) {
+    tests := []struct {
+        name string
+        in   int32
+    }{
+        {name: "zero", in: 0},
+        {name: "above range", in: 70000},
+    }
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            _, err := networking.ParsePort("x", tt.in)
+            require.Error(t, err)
+        })
+    }
+}
 ```
 
-> **In Go:** tests live in `package foo_test`, so privates are unreachable. Every table
-> row uses named struct fields, because the linter reorders fields. No `time.Sleep`:
-> synchronize on a channel or a `sync.WaitGroup`. Orchestrators are tested by wiring
-> their real collaborators over `httptest`, an embedded database or a temp directory.
+> **In Go:** every table row uses named struct fields, because the linter reorders
+> fields. No `time.Sleep`: synchronize on a channel or a `sync.WaitGroup`.
+> Orchestrators are tested by wiring their real collaborators over `httptest`, an
+> embedded database or a temp directory.
 
 **Moves:** Move the behavior down a rung · Split Success and Error Tables · Replace doubles with real collaborators · Replace sleep with synchronization · Delete private-function tests
 
@@ -258,21 +283,21 @@ Dependencies are passed down from the caller, never reached sideways: no
 package-level mutable state, no import-time initialization writing state, no
 singletons fetched from inside business logic, no library code that manufactures its
 own root cancellation — cancellation flows from caller to callee. Globals are
-acceptable only at entry points (`main`, handler setup, application wiring), where
-they are read once and injected downward.
+acceptable only at the composition root — the program's entry point, handler setup,
+application wiring — where they are read once and injected downward.
 
 ```go
 // ❌ reached sideways from three layers; untestable without the environment
 var cfg = config.MustLoad()
 
-func (f *Fleet) Record(hb Heartbeat) error {
+func (f *Fleet) Record(ctx context.Context, hb Heartbeat) error {
     if cfg.ReadOnly { /* ... */ }
 }
 
 // ✅ read once in main, pushed down as a value
 func main() {
     cfg := config.MustLoad()
-    fleet := device.NewFleet(store, cfg.Fleet)
+    run(ctx, device.NewFleet(store, cfg.Fleet))
 }
 ```
 
@@ -291,10 +316,7 @@ carry it, higher rungs summarizing and pointing down, never duplicating. Two
 invariants hold the network together: **reachability** (every doc is reachable from
 the root: CLAUDE.md → index.md → doc — no orphans) and **bidirectionality** (code
 points up at its feature doc; docs point down at code via greppable symbols; the
-index points everywhere). The doc root itself is an Open Knowledge Format (OKF
-v0.2) bundle: content docs carry YAML frontmatter, a file's path is its identity,
-and every index line is drift-checked against the `description` one level down
-(bundle policy below).
+index points everywhere).
 
 ```go
 // ❌ restates the signature; the reader learned nothing
@@ -378,7 +400,8 @@ type Channel interface {
     RetryDelay() time.Duration
 }
 
-func ParseChannel(kind string) (Channel, error) // the one switch, exhaustive
+func ParseKind(raw string) (Kind, error) // the string→enum boundary; the only "unknown" error
+func (k Kind) Channel() Channel          // the one switch, over Kind, closed by exhaustive
 ```
 
 > **In Go:** the kept switch is over a typed enum and closed by the `exhaustive`
@@ -390,7 +413,7 @@ func ParseChannel(kind string) (Channel, error) // the one switch, exhaustive
 ### R12 — Mutation Discipline
 
 A validated value changes state only through methods that own its invariants — never
-through leaked internals. Constructors copy the slices and maps they are given;
+through leaked internals. Constructors copy the collections they are given;
 queries return copies (or iterators), not the internal reference; a method is a query
 or a modifier, not both; and a type with a validating constructor exposes no setter
 that skips the validation. This rule adapts Fowler's *Mutable Data* smell family
@@ -409,9 +432,7 @@ func (ps Ports) All() iter.Seq[Port] { return slices.Values(ps.items) }
 ```
 
 > **In Go:** slices and maps are references into shared backing storage, so a
-> constructor clones what it is given and a query never returns the field itself. A
-> method is a query or a modifier, never both, and a type with a validating
-> constructor has no setter that skips the check.
+> constructor clones what it is given and a query never returns the field itself.
 
 **Moves:** Copy on the Way In · Copy on the Way Out / Encapsulate Collection · Separate Query from Modifier · Remove Setting Method · Split Variable
 
@@ -420,28 +441,30 @@ func (ps Ports) All() iter.Seq[Port] { return slices.Values(ps.items) }
 Rules that exist because this is Go. Same shape as above, with their own
 numbers so a review can cite them.
 
-### G1 — Package names are flatcase vocabulary that does not collide
+Rules marked *(opinionated)* are stances, not Go community norms; the departure is
+deliberate.
+
+### G1 — Package names are flatcase and do not collide
 
 A package name is one lower-case word from the domain (`wekatrace`, `rotator`). It
-never names a layer or a bucket (`utils`, `common`, `domain`, `models`) and never
-collides with the standard library or a library everyone imports, because every
-importer then pays an alias: `metrics` collides, `wekametrics` does not.
+never collides with the standard library or a library everyone imports, because
+every importer then pays an alias: `metrics` collides, `wekametrics` does not.
 
-**Review:** Does any package name a layer, a bucket, or collide with a common import?
+**Review:** Does any package name collide with the standard library or a common import?
 
 ### G2 — Names read at the call site, not the declaration
 
 The package is part of the name. `version.Info`, not `version.VersionInfo`;
-`user.New`, not `user.NewUser`. A constructor is any public function that returns
-the type, so `ParseAddress(s) (Address, error)` is one.
+`user.New`, not `user.NewUser`.
 
 **Review:** Does any exported name repeat its package?
 
-### G3 — A godoc example shows the happy path and nothing else
+### G3 — A godoc example shows the happy path and nothing else (opinionated)
 
-Every exported type a consumer constructs gets one `Example` function in the
-`_test` package: no arguments, no fakes, no branches, an `// Output:` line. It is
-compiled documentation; complex cases belong in tests.
+Every exported constructor a consumer calls gets one `Example` function in the
+`_test` package: no arguments, no fakes, no branches, an `// Output:` line. A
+constructor is any public function that returns the type, so `ParseAddress(s)
+(Address, error)` is one. It is compiled documentation; edge cases belong in tests.
 
 ```go
 func ExampleParsePort() {
@@ -451,32 +474,33 @@ func ExampleParsePort() {
 }
 ```
 
-**Review:** Does every exported type a consumer constructs have an `Example`?
+**Review:** Does every exported constructor have an `Example`?
 
-### G4 — Table tests for logic, testify suites for expensive setup
+### G4 — Table tests for logic, testify suites for expensive setup (opinionated)
 
 A table is the default, and each case has cyclomatic complexity 1 with named fields.
-A `suite.Suite` earns its place only when several tests share costly setup: a test
-server, an embedded database, a temp directory with teardown. A suite around plain
-value tests is ceremony. Assertions follow the codebase: testify where the project
-uses it, the standard library where it does not.
+A `suite.Suite` earns its place only when several tests share costly setup that
+`t.TempDir()` and `t.Cleanup` do not cover: a test server, an embedded database. A
+suite around plain value tests is ceremony. Assertions follow the codebase: testify
+where the project uses it, the standard library where it does not.
 
 **Review:** Is any suite wrapping tests that share no setup?
 
-### G5 — A `defer` body with a branch is a function
+### G5 — A `defer` body with a branch is a function (opinionated)
 
 `defer func() { if err := f.Close(); err != nil { ... } }()` hides logic in the place
-nobody reads. Extract it, name it, test it.
+nobody reads. Extract it and name it: `defer closeOrLog(f, log)`.
 
 **Review:** Does any `defer` body branch?
 
-### G6 — Lint is the contract; `nolint` is a request, not a tool
+### G6 — Lint is the contract; `nolint` is a request, not a tool (opinionated)
 
-Every project lints with golangci-lint v2 from `.golangci.yaml` at the root, and
-`task lintwithfix` (go vet, `golangci-lint fmt`, `golangci-lint run --fix`) is green
-before every commit. A `//nolint` is never added on your own: fix the code, and if it
-is a true false positive, propose an `exclusions` entry in `.golangci.yaml` and get it
-reviewed. Read the v2 configuration reference before touching the file.
+Projects lint with golangci-lint v2 from `.golangci.yaml` at the root. Run the
+project's `task lintwithfix` where it exists (go vet, `golangci-lint fmt`,
+`golangci-lint run --fix`), else `golangci-lint run --fix`, and it is green before
+every commit. A `//nolint` is never added on your own: fix the code, and if it is a
+true false positive, propose an `exclusions` entry in `.golangci.yaml` and get it
+reviewed, with the v2 configuration reference open.
 
 **Review:** Did the diff add a `//nolint` or edit `.golangci.yaml`?
 
@@ -491,8 +515,8 @@ sentinel `var ErrX = errors.New(...)` is exported only when a caller decides on 
 ## 4. Self-review
 
 Before you ask for review, answer each with a file and line, not a feeling. The
-plugin's reviewers ask every question with a detection command behind it; these
-are the ones that catch the most.
+plugin's reviewers ask every rule question with a detection command behind it; these
+are the ones that catch the most. The house-rule questions are review questions only.
 
 - **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"?
 - **R2** Can the type exist in an invalid state? · Does anything return or accept nil as a value?
@@ -506,7 +530,7 @@ are the ones that catch the most.
 - **R10** Does every goroutine started in the diff have a provable exit path? · Does production code sleep?
 - **R11** Is the same discriminator inspected in more than one place? · Does a `default:` (or trailing `else`) handle "unknown kind" away from the boundary? · Does a boolean parameter select between behaviors?
 - **R12** Does a method return an internal slice or map by reference? · Can a validated type be mutated around its constructor?
-- **House rules** Does any package name a layer, a bucket, or collide with a common import? · Does any exported name repeat its package? · Does every exported type a consumer constructs have an `Example`? · Is any suite wrapping tests that share no setup? · Does any `defer` body branch? · Did the diff add a `//nolint` or edit `.golangci.yaml`? · Is any error both logged and returned, or inspected by string?
+- **House rules** Does any package name collide with the standard library or a common import? · Does any exported name repeat its package? · Does every exported constructor have an `Example`? · Is any suite wrapping tests that share no setup? · Does any `defer` body branch? · Did the diff add a `//nolint` or edit `.golangci.yaml`? · Is any error both logged and returned, or inspected by string?
 
 ## 5. Mechanics
 
@@ -517,6 +541,7 @@ are the ones that catch the most.
 | Lint and fix | `golangci-lint run --fix` |
 | Suppression | `//nolint` — never added on your own; a new one in a diff is a review finding |
 | Docs | godoc: short, says why, not what; long-form under `docs/` |
-| Lint config | `.golangci.yaml` at the project root, golangci-lint v2; prefer the project's `task lintwithfix` over the bare command |
-| Tests | `package foo_test`; tables with named fields; testify or the standard library, as the project does |
+| Lint config | `.golangci.yaml` at the project root, golangci-lint v2; the project's `task lintwithfix` where it exists, else the bare command |
+| Go | the examples assume 1.23+ (`iter.Seq`, `slices.Values`, range-over-func); on 1.21–1.22 return `slices.Clone(ps.items)` instead of an iterator |
+| Tests | `foo_test.go` beside the code in `package foo_test`; integration tests behind `//go:build integration`; black-box system tests under `tests/`; tables with named fields; testify or the standard library, as the project does |
 | Workflow | RED → GREEN → REFACTOR per behavior; package-scoped lint every cycle; review per finished slice; commit only a green tree |

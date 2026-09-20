@@ -15,7 +15,8 @@ knowledge (`docs/language-residue.md`, "The generic binding").
 
 `tools/ldd-gen` renders `core/` plus a binding into the plugin directory the
 marketplace serves, and, for a binding whose profile names one, the standalone
-coding-rules handbook outside it (`coding-rules/go.md`; "The handbook" below). Edit
+coding-rules handbook outside it (`coding-rules/go.md`, `coding-rules/python.md`;
+"The handbook" below). Edit
 sources here or under `lang/`, run `task generate` (and `task generate
 BINDING=python`, `task generate BINDING=generic`), and commit all of them; `task
 check` fails when a plugin directory or a handbook differs from its rendering.
@@ -82,7 +83,11 @@ markdown path under the repository root, outside every plugin directory, such as
 file at that path that does not open with the generator's marker comment is never
 overwritten. The rendered document restates nothing: besides `{{include}}`, the
 template has five extraction functions that read the rules the plugin already
-carries, so the handbook cannot drift from the plugin.
+carries, so the handbook cannot drift from the plugin. A handbook for any binding
+other than Go is also a residue gate: the render fails on any hard or soft residue
+token in the rendered text, except the decided asides `interface` and `struct`,
+because a Principle that reads as Go with no same-language example beside it is a
+core sentence that wants a neutral rewrite.
 
 | Construct | Renders |
 |---|---|

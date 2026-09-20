@@ -27,7 +27,10 @@ Before a rule fires, ask the question behind it:
 
 Each rule is stated once, with one {{.Lang}} example and the names of the moves that
 fix it. The moves are shared vocabulary across every language these rules are
-rendered for: reviewers cite them by name.
+rendered for: reviewers cite them by name. Where a rule cites R1's *scorecard*, the
+short form is: a type earns its keep by owning validation, behavior or an invariant,
+and scores zero when its only method unwraps the primitive; the full scorecard lives
+in the plugin's R1 rule.
 
 ### R1 — Primitive Obsession
 
@@ -135,8 +138,8 @@ numbers so a review can cite them.
 ## 4. Self-review
 
 Before you ask for review, answer each with a file and line, not a feeling. The
-plugin's reviewers ask every question with a detection command behind it; these
-are the ones that catch the most.
+plugin's reviewers ask every rule question with a detection command behind it; these
+are the ones that catch the most. The house-rule questions are review questions only.
 
 - **R1** {{questions "rules/R1/falsifying-questions.md" 1 2 4}}
 - **R2** {{questions "rules/R2/falsifying-questions.md" 1 5}}

@@ -2,7 +2,7 @@
 
 ## Principle
 
-Domain concepts must not travel as raw `string`/`int`/`bool`/`[]T`. When a primitive
+Domain concepts must not travel as raw strings, numbers, booleans or lists. When a primitive
 carries validation rules, behavior, or a domain name, it becomes a type with a
 validating constructor and named methods. The inverse binds equally: a wrapper that
 adds no validation, no logic, and no invariant is over-abstraction — score before you wrap.

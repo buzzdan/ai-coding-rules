@@ -1,2 +1,3 @@
-| Lint config | `.golangci.yaml` at the project root, golangci-lint v2; prefer the project's `task lintwithfix` over the bare command |
-| Tests | `package foo_test`; tables with named fields; testify or the standard library, as the project does |
+| Lint config | `.golangci.yaml` at the project root, golangci-lint v2; the project's `task lintwithfix` where it exists, else the bare command |
+| Go | the examples assume 1.23+ (`iter.Seq`, `slices.Values`, range-over-func); on 1.21–1.22 return `slices.Clone(ps.items)` instead of an iterator |
+| Tests | `foo_test.go` beside the code in `package foo_test`; integration tests behind `//go:build integration`; black-box system tests under `tests/`; tables with named fields; testify or the standard library, as the project does |

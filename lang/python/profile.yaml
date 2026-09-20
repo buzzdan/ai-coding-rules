@@ -14,7 +14,7 @@ project_marker: pyproject.toml
 nolint: "# noqa"
 comment_prefix: "#"
 default_test: pytest
-default_lint: ruff check . && mypy
+default_lint: ruff check .
 default_lint_fix: ruff check --fix . && ruff format .
 # Single words core prose uses as common nouns: the missing value, a unit of
 # concurrent work (a thread or an asyncio task; the includes name both), the
@@ -27,6 +27,9 @@ doc_form: docstring
 doc_comment: docstring
 src_ext: .py
 unexported: underscore-prefixed
+# The standalone coding-rules document rendered from core/handbook/ with this
+# binding's files under handbook/, written outside the plugin directory.
+handbook: coding-rules/python.md
 # Paths in the plugin directory the generator does not own. An eval run copies
 # its cases under evals/ at run time.
 ignore:
