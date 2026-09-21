@@ -9,8 +9,7 @@ status: draft
 Two questions, twelve experiments, one scorecard, one ranking. First, is the plugin
 worth its tokens: eight experiments that add the arm every baseline has been
 missing, the same task without the plugin or with only its rules. Second, is the
-code it leaves behind worth anything to the next agent: four experiments on a clean
-twin of the fixture. This page is the design; nothing here has run yet. The evals
+code it leaves behind worth anything to the next agent: four experiments on a twin of the fixture that the plugin has refactored. This page is the design; nothing here has run yet. The evals
 themselves are described in [eval-harness.md](eval-harness.md), their graders in
 [eval-cases-and-graders.md](eval-cases-and-graders.md), and the way a run is
 recorded and compared in [eval-baseline.md](eval-baseline.md).
@@ -220,19 +219,15 @@ within a few plants of the plugin.
 Budget: about $90 for the Sonnet row, about $50 for the Opus cell, about $770 for
 the whole grid.
 
-## Part two: does clean code pay off for the next agent?
+## Part two: does the code LDD refactored pay off for the next agent?
 
-The plugin rests on a bet: code that follows the twelve rules is cheaper for an
-agent to read, change and extend than code that does not. Nothing has measured
+The plugin rests on a bet: code the plugin has refactored is cheaper for an agent to read, change and extend than the code it started from. Nothing has measured
 that. The plugin is out of the picture in every experiment below on purpose. What
 is measured is the code it leaves behind, and a plain agent's cost of working in it.
 
-**The twin fixture.** py-mini is the dirty codebase. Build py-mini-clean: the same
-behaviour with every plant fixed, by running the refactor tier across the six cases
-and finishing by hand until review-full finds nothing planted. The same tests pass
+**The twin fixture.** py-mini is the dirty codebase. Build py-mini-ldd: py-mini after one full plugin refactor pass, committed exactly as the plugin left it, no hand finishing. Record its review-full plant count as a property of the twin; if the refactor left plants or new shapes, the next agent lives with them, and that is part of the answer. The same tests pass
 on both, so any task has the same oracle on both twins. Every experiment is then
-*same agent, same task, same model, both twins, five runs each*. Building the clean
-twin is the real cost: about a day and $60 in refactor runs. The fixture itself is
+*same agent, same task, same model, both twins, five runs each*. Building the twin costs about $60 in refactor runs and no hand work. A hand-finished py-mini-clean, with every plant fixed, is an optional third arm: it separates the rules from the plugin's execution of them, and earns its cost only if dirty and ldd come out close. One caution: a single refactor pass is one sample of the plugin's output. If experiment 2 shows the refactor oracles pass most of the time, one pass is representative; if it shows high variance, build the twin from the best of five passes and say so. The fixture itself is
 described in [eval-fixture.md](eval-fixture.md).
 
 What every run records, from the trace and the tree after the change:
@@ -249,11 +244,9 @@ What every run records, from the trace and the tree after the change:
 ### 9 · Add a feature, with hidden tests
 Tasks that land on the seams the rules are about: add a maintenance status and its
 transitions, add a fourth region, add a notification channel. In the dirty twin
-each of these touches the duplicated switches R11 names; in the clean twin it
-touches one exhaustive match and one enum. The specs are experiment 7's, verbatim,
+each of these touches the duplicated switches R11 names; in the ldd twin it touches whatever the plugin's refactor left there, which is the point. The specs are experiment 7's, verbatim,
 so both twins and every arm of 7 implement the same document. Hidden tests decide
-the oracle; the existing suite decides regressions. If clean code is easier to
-extend, this is where it shows first: fewer files opened, a smaller diff, no
+the oracle; the existing suite decides regressions. If the plugin's code is easier to extend, this is where it shows first: fewer files opened, a smaller diff, no
 regressions, less cost.
 
 Arms: 3 to 4 features × 2 twins × 5 runs. Budget: about $80.
@@ -287,15 +280,13 @@ Arms: 8 questions × 2 twins × 5 runs. Budget: about $40, these runs are short.
 The one that answers "long term". Apply five features one after another to each
 twin, each run starting from the previous run's result, no plugin. Plot cost per
 feature and regressions per feature across the sequence. Dirty code should decay
-under AI maintenance: each change costs more than the last and breaks more. If the
-clean twin's curve is flat and the dirty one's climbs, that is the payoff in one
-chart. Run review-full on both end states and count findings: clean code should
-stay clean under a plain agent longer than dirty code stays merely dirty.
+under AI maintenance: each change costs more than the last and breaks more. If the ldd twin's curve is flat and the dirty one's climbs, that is the payoff in one
+chart. Run review-full on both end states and count findings: the plugin's code should stay clean under a plain agent longer than dirty code stays merely dirty.
 
 Arms: 5 features × 2 twins × 5 sequences. Budget: about $250.
 
 **What would convince.** Comprehension tokens down by a third and regressions down
-by half on the clean twin would say the rules pay for themselves within a few
+by half on the ldd twin would say the plugin's refactor pays for itself within a few
 maintenance cycles. Equal tokens and equal regressions would say the plugin is a
 review tool, not an investment, and its cost has to be justified per review, which
 is part one's question.
@@ -438,9 +429,9 @@ together.
 | 5 | 11 · Comprehension | $40 + twin | whether storified code is cheaper to read | cheapest test of the rules' own claim about agents |
 | 6 | 2 · Refactor A/B | $120 | whether to keep building the plugin at all | most convincing to outsiders; grades code without interpreting prose |
 | 7 | 8 · Opus summary cell | $50 | whether the plugin is priced against the model gap | one cell, one clear reading |
-| 8 | 9 · Add a feature | $80 + twin | whether clean code is cheaper to extend | direct and well-oracled, but the clean twin costs a day first |
+| 8 | 9 · Add a feature | $80 + twin | whether the plugin's code is cheaper to extend | direct and well-oracled, but the ldd twin has to be built first |
 | 9 | 12 · Five in sequence | $250 | the long-term claim | the one chart that would sell the rules, the widest error bars; only after 9 shows a gap |
-| 10 | 10 · Injected bug | $60 | whether bugs localize in clean code | overlaps 9 and 11 |
+| 10 | 10 · Injected bug | $60 | whether bugs localize in the plugin's code | overlaps 9 and 11 |
 | 11 | 5 · Real repositories | $60 | generalization | soft evidence; only once 2 and 8 say there is something to generalize |
 | 12 | 3 · Cheaper model + plugin | $120 | whether the refactor skill is worth a model tier | the refactor-tier substitution question; only after 2 says the skill matters and 7 leaves the model gap open |
 | 13 | 8 · Fable column, plugin column on Opus | $500+ | nothing the cheaper cells do not show | the scaffold caps what a stronger model can add |
@@ -458,7 +449,7 @@ spent.
 | 1 | experiment 7, first four cells | ~$310 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better | stop spending on evals; the plugin needs fixing, not measuring |
 | 2 | experiment 8, Sonnet row | ~$90 | the plugin beats the summary file on recall by more than the noise floor | the next work is tokens, not experiments; part two waits |
 | 3 | experiment 2, refactor A/B | ~$120 | more oracle passes per dollar than the plain fix prompt | the review is worth keeping, the refactor skill is not; experiment 3 is off |
-| 4 | part two: the clean twin, then 11, then 9, then 12 only if 9 shows a gap | ~$60 for the twin, then $40, $80, $250 | comprehension tokens and regressions down on the clean twin by more than the noise floor | the rules are a review aid, not an investment |
+| 4 | part two: the ldd twin, then 11, then 9, then 12 only if 9 shows a gap | ~$60 for the twin, then $40, $80, $250 | comprehension tokens and regressions down on the ldd twin by more than the noise floor | the plugin's refactor is a review aid, not an investment |
 | 5 | fine tuning: 4's ablations, 8's Opus summary cell, 3, 5, 10 | as each says | as each says | pick and choose |
 
 Gate 1 has a partial pass. If Fable plain matches Sonnet with plugin, the plugin
