@@ -15,8 +15,8 @@ knowledge (`docs/language-residue.md`, "The generic binding").
 
 `tools/ldd-gen` renders `core/` plus a binding into the plugin directory the
 marketplace serves, and, for a binding whose profile names one, the standalone
-coding-rules handbook outside it (`coding-rules/go.md`, `coding-rules/python.md`;
-"The handbook" below). Edit
+coding-rules handbook outside it (`coding-rules/go.md`, `coding-rules/python.md`,
+`coding-rules/generic.md`; "The handbook" below). Edit
 sources here or under `lang/`, run `task generate` (and `task generate
 BINDING=python`, `task generate BINDING=generic`), and commit all of them; `task
 check` fails when a plugin directory or a handbook differs from its rendering.
@@ -101,8 +101,14 @@ What the binding supplies, under `lang/<lang>/handbook/`: `R1/example.md` to
 `R12/example.md`, one short before-and-after per rule with an optional aside on the
 language's position (`> **In Go:** …`); `house-rules.md`, the rules that exist only
 in that language, each a `### ` heading, a short principle and one `**Review:**`
-line; and `mechanics.md`, extra rows for the mechanics table. These have no core
-default yet: a binding that names a `handbook:` path writes all of them. The shared
+line; and `mechanics.md`, extra rows for the mechanics table. The examples have a
+core default under `core/includes/handbook/Rn/example.md`: the same before-and-after
+in the pseudocode dialect of the canonical examples, closed by a `> **Spelling:**`
+aside that names the per-language form of what the fence leaves abstract (failure,
+absence, visibility, the spawn and the join). The generic binding renders those
+defaults as they are; a language binding writes all twelve of its own. `house-rules.md`
+and `mechanics.md` have no core default: a binding that names a `handbook:` path
+writes both. The shared
 house rules `H1…` are core: `core/includes/handbook/Hn/rule.md` states each once,
 and `Hn/spelling.md` carries the language's aside and its `**Review:**` line, with a
 neutral core default a binding replaces. How to read
@@ -169,11 +175,11 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (111 lines):
+Soft residue by token (116 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
-| interface | 80 | 23 |
+| interface | 85 | 25 |
 | Go code fence | 12 | 1 |
 | struct | 7 | 5 |
 | Go (the word) | 6 | 4 |
@@ -182,7 +188,7 @@ Soft residue by token (111 lines):
 | func | 1 | 1 |
 | sync. | 1 | 1 |
 
-Soft residue by file (111 lines):
+Soft residue by file (116 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -197,7 +203,9 @@ Soft residue by file (111 lines):
 | `skills/code-designing/SKILL.md` | 5 | 1 |
 | `skills/refactoring/SKILL.md` | 4 | 2 |
 | `skills/testing/SKILL.md` | 4 | 1 |
+| `includes/handbook/R6/example.md` | 3 | 1 |
 | `includes/skills/documentation/reference/doc-comment-menus.md` | 3 | 1 |
+| `includes/handbook/R11/example.md` | 2 | 1 |
 | `includes/rules/R10/falsifying-questions.md` | 2 | 2 |
 | `agents/overabstraction-skeptic.md` | 1 | 1 |
 | `examples/storify-leaf-type.md` | 1 | 1 |

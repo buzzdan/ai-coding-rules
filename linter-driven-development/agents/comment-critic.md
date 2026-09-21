@@ -78,8 +78,8 @@ appears across packages uncommented, this comment restates a repo-wide
 convention — verdict DELETE; the convention's home is the coding-standards doc,
 not a use site.
 
-**Unexported symbols: the question is existence, not size.** For a comment on
-an unexported function, type, constant, or variable, the default verdict is
+**Symbols outside the public surface: the question is existence, not size.** For a comment on
+an internal function, type, constant, or variable, the default verdict is
 DELETE — the name should carry it, and a name that cannot is an R3
 rename/extraction lead, not a comment's job. The comment survives only as
 **ONE line delivering a very high-value toolbox item** (an ordering

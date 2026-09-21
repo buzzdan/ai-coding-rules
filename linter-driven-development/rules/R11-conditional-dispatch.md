@@ -114,7 +114,7 @@ with a shared base, or a dispatch table from name to variant object.
   asking to live on the interface (`../examples/switch-to-polymorphism.md`).
 - **Dispatch requires owning the output.** An interface method can only be written
   in the package that declares the interface, and it cannot reference another
-  package's unexported types. When the switch's output format belongs to a consumer
+  package's internal types. When the switch's output format belongs to a consumer
   (a private wire request in a client package) and the variants live in a shared API
   package, the move is unavailable — and forcing it (exporting the wire type,
   per-consumer `fill<X>Request` methods on domain types) inverts the dependency.

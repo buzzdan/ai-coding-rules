@@ -73,7 +73,7 @@ drifting apart.
 | `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | the documentation form as a noun or adjective: "its {{.DocForm}}", "kind ({{.DocForm}}/in-body/test)" |
 | `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | the two-word noun in R9 and the comment critic; one scalar would render "docstring comments" |
 | `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | `.<ext>` | `*.py` minus the star | the source-file suffix in worked-example paths and R5's role-named files. The generic value is a placeholder rather than a phrase because every use site glues it to a file name: `user/service.<ext>:14` reads, `user/servicethe language's source suffix:14` does not |
-| `unexported` | `{{.Unexported}}` | unexported | unexported | underscore-prefixed | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads |
+| `unexported` | `{{.Unexported}}` | unexported | internal | underscore-prefixed | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads. "Unexported" is Go's word, so the generic binding says "internal", the one most languages share; the generic handbook's residue gate is what caught it |
 
 Plural forms append `s` to the scalar; every value above pluralizes that way. A
 scalar never carries a sentence: when substitution would need a different article,
@@ -132,7 +132,12 @@ than the paired Go and Python snippets the roadmap allowed: a Go signature such 
 "the value or an error" is a hard residue token, so a Go snippet cannot live under
 `core/`, and a Python snippet would be a third language's idiom passed off as
 universal. The pseudocode shows the shape; each example ends by saying which spelling
-follows the repository's language.
+follows the repository's language. The handbook examples under
+`core/includes/handbook/` take the same shape, shorter: one fence in the same dialect
+(`fail`, `absent`, `spawn`, `hidden`) and a `> **Spelling:**` aside in place of the
+Go and Python bindings' `> **In <Lang>:**` position, so `coding-rules/generic.md` is
+rendered from core defaults plus the binding's two house rules and its mechanics rows
+([handbook.md](handbook.md)).
 
 ## The Python binding
 

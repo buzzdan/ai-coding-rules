@@ -125,7 +125,7 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
 2. **Does any test reach past the public surface?**
    Detection: find test files that import or declare themselves inside the package
    under test rather than importing it as a consumer would (an in-package test, an
-   import of a private module or an unexported name).
+   import of a private module or an internal name).
    Violation: a test that can reach privates — move it to the consumer's side and
    test the public API.
 

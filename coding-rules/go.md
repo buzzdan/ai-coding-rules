@@ -438,9 +438,8 @@ func (ps Ports) All() iter.Seq[Port] { return slices.Values(ps.items) }
 
 ## 3. House rules
 
-Rules that are not one of the twelve but hold in every language, then the rules that
-exist because this is Go. Same shape as above, with their own numbers so a
-review can cite them.
+Rules that are not one of the twelve but hold in every language, then the Go
+house rules. Same shape as above, with their own numbers so a review can cite them.
 
 ### H1 — A suppression is a review finding, not a tool
 

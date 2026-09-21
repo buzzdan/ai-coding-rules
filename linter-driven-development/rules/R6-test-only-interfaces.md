@@ -78,7 +78,7 @@ a real database. The abstraction, its indirection, and the double are all delete
   consumer's package), keep it small and cohesive, and expect every implementation
   to be production code. The worked case of an *earned* interface — multiple
   production implementations replacing a growing type switch, sealed by an
-  unexported method: `../examples/switch-to-polymorphism.md` (dispatch discipline:
+  internal method: `../examples/switch-to-polymorphism.md` (dispatch discipline:
   `R11-conditional-dispatch.md`).
 
 ## Fix pattern

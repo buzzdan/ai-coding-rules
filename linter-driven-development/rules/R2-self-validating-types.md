@@ -25,7 +25,7 @@ follows the repository's.
 
 ```text
 Port                         # cannot exist out of range — the constructor is the only entry
-    name, number             # unexported: no literal builds a Port around the check
+    name, number             # internal: no literal builds a Port around the check
 parsePort(name, number):
     if number <= 0 or number > 65535: fail "port <name>: <number> out of range 1-65535"
     return Port(name, number)
@@ -47,7 +47,7 @@ UserService.createUser(user):
 
 # ✅ constructor validates once; methods trust the receiver
 UserService
-    repo                     # unexported
+    repo                     # internal
 newUserService(repo):
     if repo is null: fail "repo is required"
     return UserService(repo)
@@ -60,7 +60,7 @@ UserService.createUser(user):
 - **Constructors are the only entry.** `ParseX(raw)` for values built from
   unstructured input, `NewX(deps)` for composed objects, each returning the value or an
   error (constructors may carry other names — any public function returning the type
-  qualifies). Fields stay unexported: building the value directly, bypassing the
+  qualifies). Fields stay internal: building the value directly, bypassing the
   constructor, is a hole in the type.
 
 - **Validation ownership.** A type never relies on upstream validation. "The handler
@@ -114,7 +114,7 @@ UserService.createUser(user):
 
 ## Fix pattern
 
-- **Add validating constructor**: make fields unexported, add `NewX`/`ParseX`
+- **Add validating constructor**: make fields internal, add `NewX`/`ParseX`
   returning the value or an error, migrate every literal-construction site through it.
 - **Hoist method checks into the constructor**: collect the field checks scattered
   across methods, run them once at construction, delete them from the methods. For a

@@ -175,7 +175,7 @@ defended in the feature doc.
 
 Not an anti-entry — the existence rule the whole toolbox sits under (normative
 in R9). The toolbox and tier menus price comments on **exported** API. An
-unexported symbol defaults to **zero** comment lines; its name is the
+internal symbol defaults to **zero** comment lines; its name is the
 documentation. The special case is one line carrying a very high-value toolbox
 item: an ordering constraint, an external library quirk, the WHY of a magic
 number, the package's one real policy. Case file with nine worked verdicts:
@@ -202,7 +202,7 @@ var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 **These are MENUS, not forms** (normative: R9's tiered comment-budget policy —
 **1–5 prose lines** scaled to the symbol's role; blank separator lines, the See-edge,
 and short inline examples of 2–4 lines are free). The menus price **public** API
-only — unexported symbols default to no comment at all (R9's visibility
+only — internal symbols default to no comment at all (R9's visibility
 default; special case: one very-high-value line). The WHY is the default
 content; the tier caps how much of a menu any one symbol can order:
 
@@ -673,7 +673,7 @@ vets after the edit.
       re-justified at a use site (documented once at rung 2)
 - [ ] No review-defense narration: design choices are not defended at the code
       line ("bounds-checked", "deliberately narrow — not a table")
-- [ ] Unexported symbols carry no comment — except the special case of ONE line
+- [ ] Symbols outside the public surface carry no comment — except the special case of ONE line
       with a very high-value toolbox item (R9's visibility default)
 - [ ] No decoder-ring references: no plan/decision/test-plan IDs, requirement
       tags, or spec section refs — facts as prose, the doc via one See-edge

@@ -5,7 +5,7 @@
 Every extraction raises a second question: where does the helper live? The answer is
 decided by two axes — juiciness (the scorecard in `R1-primitive-obsession.md`; cite
 it, never re-derive it) and scope (feature-specific versus domain-generic). Three
-rungs: unexported in place, feature sub-package, shared domain package. Never test
+rungs: internal in place, feature sub-package, shared domain package. Never test
 privates, and never export a helper into its parent package just so a test can reach
 it.
 
@@ -13,7 +13,7 @@ it.
 
 Wrong placement rots in both directions. Helpers exported into the parent package for
 testability pollute its API — callers see symbols that exist only for tests, and the
-package's real surface becomes unreadable. Juicy helpers buried as unexported code
+package's real surface becomes unreadable. Juicy helpers buried as internal code
 either go untested or push the team into testing privates, breaking the
 public-API-only discipline (`R7-test-placement.md`). And role-named dumping grounds
 (`util`, `helpers`, `common`) accrete unrelated code that nobody can find, name, or
@@ -40,7 +40,7 @@ The rung-1 contrast — a trivial helper that stays put:
 
 ```text
 # Trivial: one caller, no domain vocabulary, no rules of its own.
-# Stays unexported; covered through the parent's public API.
+# Stays internal; covered through the parent's public API.
 parseArgument(arg):
     key, sep, value = arg.partition("=")
     if sep is empty: return absent
@@ -54,7 +54,7 @@ signal (below) never fires.
 
 ### The placement ladder
 
-1. **Trivial helper** → unexported, same package, tested only through the parent's
+1. **Trivial helper** → internal, same package, tested only through the parent's
    public API.
 2. **Juicy + feature-scoped** → vertical-slice feature sub-package (e.g. `kubefwd/`)
    *if the feature has enough substance to be a package*; types exported there. See
@@ -145,7 +145,7 @@ directory, or whatever the repository uses).
    references exist — it was made public for tests; demote (rung 1) or promote
    (rung 2/3).
 
-2. **Are unexported helpers tested directly?**
+2. **Are internal helpers tested directly?**
    Detection: find test files that can reach non-public symbols (an in-package test,
    an import of a private module, a test that reaches past the public surface), then
    search those files for calls to the package's non-public functions.

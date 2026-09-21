@@ -97,7 +97,7 @@ For each concept in the design, open the rule that owns the question and apply i
 | `../../rules/R1-primitive-obsession.md` | Which primitives become types — score every candidate with R1's juiciness scorecard; reject ceremony wrappers (over-abstraction trap). |
 | `../../rules/R2-self-validating-types.md` | Constructor-only entry, validation ownership, trusting composed values, null is not a value, no defensive checks in methods. |
 | `../../rules/R3-storifying.md` | Plan orchestration functions as 3–5 named steps at one conceptual level; honest names for mutators. |
-| `../../rules/R4-helper-placement.md` | WHERE each helper/type lands — the placement ladder (unexported → feature sub-package → shared domain package). |
+| `../../rules/R4-helper-placement.md` | WHERE each helper/type lands — the placement ladder (internal → feature sub-package → shared domain package). |
 | `../../rules/R5-vertical-slice.md` | Package structure and naming: feature slices with roles inside, flatcase domain vocabulary, migration template. |
 | `../../rules/R6-test-only-interfaces.md` | Default dependencies to concrete types; an interface must be earned by a second production implementation or a grep-verified import cycle. |
 | `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors; orchestrators integration-tested over real collaborators. |
@@ -113,7 +113,7 @@ Before presenting the plan, verify against the rules (cite, don't restate):
 - [ ] No primitive obsession; every proposed type scored, ceremony rejected (R1)
 - [ ] Types are self-validating; composed types trusted, never re-validated (R2)
 - [ ] Orchestration planned as a story; most logic pushed into leaf types (R3, R7)
-- [ ] **Placement decided** for every helper and type via the ladder — unexported helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
+- [ ] **Placement decided** for every helper and type via the ladder — internal helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
 - [ ] Vertical slice structure; package names are flatcase domain vocabulary, never roles/containers (R5)
 - [ ] No test-only interfaces: every interface has a second production implementation OR breaks a real import cycle, verified by grepping the import direction (detection command in `../../rules/R6-test-only-interfaces.md`); otherwise depend on the concrete type
 - [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in @refactoring `<package_decomposition>`)

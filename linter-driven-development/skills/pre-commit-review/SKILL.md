@@ -141,7 +141,7 @@ pure dispatch). Only findings the skeptic cannot kill ship as extraction
 findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
 no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
 broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
-construction mechanics — a validating constructor, unexported fields, an options
+construction mechanics — a validating constructor, internal fields, an options
 type with its `With*` functions, a named Null Object default — are not extractions either
 and never go to the skeptic: they close the holes of a type that already exists, and a
 skeptic verdict on them would be scoring a guard, not a type.
@@ -168,7 +168,7 @@ a notification poll. Its spawn prompt MUST contain:
 2. Payload: the **Comment Value Toolbox** catalog section of
    `../documentation/reference.md` (resolve to an absolute path) pasted verbatim.
 3. The absolute path to `../../examples/private-comment-noise.md` — the critic
-   reads it when judging comments on unexported symbols.
+   reads it when judging comments on internal symbols.
 4. The diff scope.
 
 It judges every comment in the diff (doc comment, in-body, test) against the three-test

@@ -130,9 +130,8 @@ in the plugin's R1 rule.
 
 ## 3. House rules
 
-Rules that are not one of the twelve but hold in every language, then the rules that
-exist because this is {{.Lang}}. Same shape as above, with their own numbers so a
-review can cite them.
+Rules that are not one of the twelve but hold in every language, then the {{.Lang}}
+house rules. Same shape as above, with their own numbers so a review can cite them.
 
 {{include "handbook/H1/rule.md"}}
 {{include "handbook/H1/spelling.md"}}

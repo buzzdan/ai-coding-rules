@@ -20,7 +20,7 @@ Spans R3 × R1 × R2 × R4. Apply least-invasive first; re-run the linter after 
    accumulated state) or named behavior runs on a primitive. Score the candidate with
    R1's scorecard *before* creating it; the new type gets a validating constructor
    per R2. Worked pair of moves 1+4: `../../examples/storify-leaf-type.md`.
-5. **Place it** (R4) — the ladder decides where the extraction lands: unexported
+5. **Place it** (R4) — the ladder decides where the extraction lands: internal
    helper, feature sub-package, or shared domain package.
 
 **When to stop**: the six ordered steps of SKILL.md's `<stopping_criteria>` — linter

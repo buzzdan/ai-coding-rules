@@ -7,6 +7,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **Two sentences name visibility without Go's word.** The comment critic's
+  verdict and the code-comments checklist opened with "Unexported symbols", a
+  literal the visibility scalar could not reach; both now say "symbols outside the
+  public surface", so the Python and generic renderings stop borrowing the Go term.
 - **The move "Replace Sentinel with comma-ok" is "Replace Sentinel with Declared
   Absence".** Move names are catalogue names shared by every language rendering,
   and comma-ok is a Go spelling; the Python handbook placed it beside the aside
