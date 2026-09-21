@@ -445,28 +445,29 @@ together.
 | 12 | 3 · Cheaper model + plugin | $120 | whether the refactor skill is worth a model tier | the refactor-tier substitution question; only after 2 says the skill matters and 7 leaves the model gap open |
 | 13 | 8 · Fable column, plugin column on Opus | $500+ | nothing the cheaper cells do not show | the scaffold caps what a stronger model can add |
 
-## What to run first
+## What to run first: a gated order
 
-1. **The scorecard's structure script**, before any paid run: a pre/post pass over
-   the tree emitting the SIG bands, erosion, duplication, fan-in and volume, plus
-   the pairwise judge in place of the art judge's PASS/FAIL. A day of work, no
-   model cost, and the thing that makes every result below quotable.
-2. **Experiment 8's Sonnet row**, about $90. It contains experiment 1 and adds the
-   arm that tells rules from machinery. Fifteen review-full runs, one day.
-3. **Experiment 7's first four cells**, about $310: Fable plain, Fable with the
-   rules file, Sonnet with the plugin, Sonnet plain, all implementing the same
-   three specs. Then Sonnet with the rules file, about $30, if either Fable cell
-   reviews clean. The Opus column waits.
-4. **Experiment 2 on py-mini**, about $120, once the Sonnet row says the review is
-   worth measuring further.
-5. **Experiment 4's accounting** alongside. It costs nothing and says where to cut
-   if either answer is thin.
-6. **Experiment 6 starting now**, because it only accrues with time.
+The most important experiment runs first, with its pass criterion written down
+before it starts, and nothing further is spent on a fail. The ranking above says
+what a dollar buys; this order says what has to be true before the next dollar is
+spent.
 
-Then one Opus cell of experiment 8, the summary file, about $50. Fable only if
-Opus lands within a few plants of the plugin. Hold 5 until then. Part two starts
-with building py-mini-clean, since every experiment there needs it; then 11, then
-9, then 12 if 9 shows a gap.
+| Gate | Runs | Cost | Pass means | On fail |
+|---|---|---|---|---|
+| 0 | the scorecard's structure script and pairwise judge, a noise-floor run, experiment 6 started | $0 | the yardstick exists and two identical arms land within a known distance | nothing runs until it does |
+| 1 | experiment 7, first four cells | ~$310 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better | stop spending on evals; the plugin needs fixing, not measuring |
+| 2 | experiment 8, Sonnet row | ~$90 | the plugin beats the summary file on recall by more than the noise floor | the next work is tokens, not experiments; part two waits |
+| 3 | experiment 2, refactor A/B | ~$120 | more oracle passes per dollar than the plain fix prompt | the review is worth keeping, the refactor skill is not; experiment 3 is off |
+| 4 | part two: the clean twin, then 11, then 9, then 12 only if 9 shows a gap | ~$60 for the twin, then $40, $80, $250 | comprehension tokens and regressions down on the clean twin by more than the noise floor | the rules are a review aid, not an investment |
+| 5 | fine tuning: 4's ablations, 8's Opus summary cell, 3, 5, 10 | as each says | as each says | pick and choose |
+
+Gate 1 has a partial pass. If Fable plain matches Sonnet with plugin, the plugin
+works but is competing with a model upgrade, so the sequence continues on the price
+question only, gate 2 and then 8's Opus summary cell, and part two waits.
+Experiment 4's accounting is free, but its result matters only once the plugin has
+passed gate 1, so it sits in gate 5 rather than running alongside. Each gate's pass
+number is written into the case before its runs start, which is the
+pre-registration the method rules call for.
 
 ## Sources
 
