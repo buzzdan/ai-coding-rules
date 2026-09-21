@@ -36,8 +36,8 @@ Every budget on this page assumes five runs per cell.
 | 4 · Token accounting | Which rules pay for themselves? | Per-agent usage in existing traces, ablation | $0 then ~$50 |
 | 5 · Repositories not built for it | Does recall survive a real codebase? | Historical refactoring PRs as the oracle | ~$60 |
 | 6 · Acceptance rate | What does it do to your day? | Your accept / dismiss / wrong marks | $0 |
-| 7 · Writing features, rules × models | Does the machinery prevent problems, or does a strong model, plain or with a rules file, write clean code alone? | Hidden tests, then a review-full on the result counting new plants | ~$310 first four cells, ~$420 the grid |
-| 8 · Rules without the machinery | Is it the rules or the plugin? And which model needs which? | Same graders, 3 rule deliveries × 3 models | ~$140 for the cells that can surprise |
+| 7 · Writing features, rules × models | Does the machinery prevent problems, or does a strong model, plain or with the handbook, write clean code alone? | Hidden tests, then a review-full on the result counting new plants | ~$310 first four cells, ~$640 the grid |
+| 8 · Rules without the machinery | Is it the rules or the plugin? And which model needs which? | Same graders, 3 rule deliveries × 3 models | ~$160 for the cells that can surprise |
 
 ### 1 · The no-plugin control on the existing suite
 Run review-full and the six scoped cases on py-mini with plain Claude Code and a
@@ -105,10 +105,10 @@ can. Cheapest experiment on the list and the only one that measures what the
 plugin does to your day rather than to a benchmark. Three columns in a text file
 are enough.
 
-### 7 · Writing features: the plugin against every model, plain and with a rules file
+### 7 · Writing features: the plugin against every model, plain and with the handbook
 Experiment 8 asks whether the machinery matters for finding problems. This one
 asks whether it matters for not creating them, and whether a strong model writes
-clean code on its own, with nothing or with two hundred lines of rules. It puts
+clean code on its own, with nothing or with the handbook. It puts
 the plugin's design-first and TDD skills on trial, not its review, and nothing
 else on the page measures that half of the plugin.
 
@@ -135,17 +135,17 @@ alongside the cases and reused verbatim by experiment 9.
 | Arm | Sonnet 5 | Opus 5 | Fable 5.1 |
 |---|---|---|---|
 | No rules (control) | first, the plugin cell's anchor | later | first, the model-upgrade reading |
-| Coding-rules file | second, if a Fable cell is clean | later | first, the cell that decides it |
+| Handbook | second, if a Fable cell is clean | later | first, the cell that decides it |
+| Handbook + lint gates | second, with the handbook cell | later | later |
 | Full plugin | first, the baseline | skip | skip |
 
-Seven cells in the full grid, three features, five runs each. The plain row is the
+Ten cells in the full grid, three features, five runs each. The plain row is the
 baseline each rules-file cell is read against: without it a clean Fable result
 cannot be credited to the file or to the model. The plugin column on the stronger
 models is the same skip as in experiment 8: the skills are a scaffold, and the
-graders cap what a stronger model inside them can show. The rules file is the same
-one experiment 8 uses, written from the rule texts alone, by a person.
+graders cap what a stronger model inside them can show. The rules file is the handbook, as in experiment 8, and the handbook plus lint gates row is the same token-free delivery.
 
-**Start with four cells, not seven.** Fable plain, Fable with the rules file,
+**Start with four cells, not ten.** Fable plain, Fable with the handbook,
 Sonnet with the plugin, and Sonnet plain. The two Fable cells put the strongest
 model against the plugin directly. Sonnet plain is the cheapest cell on the grid
 and it anchors the plugin cell: without it a clean Sonnet-with-plugin result proves
@@ -154,16 +154,16 @@ nothing, since Sonnet alone might have written the feature clean.
 | Cell | Runs | Estimate |
 |---|---|---|
 | Fable plain | 15 | ~$125 |
-| Fable with rules file | 15 | ~$125 |
+| Fable with handbook | 15 | ~$125 |
 | Sonnet with plugin | 15 | ~$35 |
 | Sonnet plain | 15 | ~$25 |
 | First round | 60 | ~$310 |
 
 | If | Then it means | Next cell |
 |---|---|---|
-| Fable plain reviews as clean as Sonnet with plugin | the plugin is competing with a model upgrade; only price is left to argue | Sonnet with rules file, ~$30 |
-| Fable plain dirty, Fable with rules clean | the rules matter on the strongest model; only the ceremony is on trial | Sonnet with rules file, ~$30 |
-| Fable with rules dirty, Sonnet with plugin clean | the design-first ceremony earns its cost even on the strongest model | none needed; the Opus column can wait indefinitely |
+| Fable plain reviews as clean as Sonnet with plugin | the plugin is competing with a model upgrade; only price is left to argue | Sonnet with handbook and Sonnet with handbook plus lint gates, ~$55 together |
+| Fable plain dirty, Fable with handbook clean | the rules matter on the strongest model; only the ceremony is on trial | Sonnet with handbook and Sonnet with handbook plus lint gates, ~$55 together |
+| Fable with handbook dirty, Sonnet with plugin clean | the design-first ceremony earns its cost even on the strongest model | none needed; the Opus column can wait indefinitely |
 | Sonnet plain as clean as Sonnet with plugin | the plugin cell shows nothing on these features; they are too easy or the review too coarse | harder features before any new cell |
 
 Clean and dirty mean the scorecard below: the hidden tests first, then the
@@ -177,21 +177,19 @@ after five runs, spend on five more of each before spending on any new cell.
 ### 8 · The rules without the machinery, across models
 The plugin is two things: twelve rules, and the machinery that applies them
 (hunter fan-out, skeptic, comment critic, the report shape). This design pulls them
-apart. Condense the twelve rules into one plain coding-rules file, the length of a
-CLAUDE.md: rule name, falsifying questions as one line each, the fix names. Then
-run the same review task three ways, none, summary file, full plugin, on three
-models.
+apart. Deliver the twelve rules as the coding-rules handbook, the standalone document generated from the same rule sources (coding-rules/python.md for py-mini, about 4,700 words), imported from CLAUDE.md with no skills, agents or commands. It is what a team without the plugin would actually use, so it is the arm; [handbook.md](handbook.md) describes how it is generated and consumed. Then run the same review task four ways, none, handbook, handbook plus lint gates, full plugin, on three models. Handbook plus lint gates is the token-free delivery: the rules' detection greps wired into ruff and golangci-lint or hooks, enforced by CI at zero model cost, the shape that survives a model upgrade.
 
 | Arm | Sonnet 5 | Opus 5 | Fable 5.1 |
 |---|---|---|---|
 | No rules (control) | ~$3 / run | ~$8 | ~$15 |
-| Summary file | ~$4 | ~$10 | ~$20 |
+| Handbook | ~$4 | ~$10 | ~$20 |
+| Handbook + lint gates | ~$4 | ~$10 | ~$20 |
 | Full plugin | $11 (measured) | ~$28 | ~$55 |
 
 Costs are review-full per run, scaled from the measured Sonnet runs by list price;
 the Opus and Fable figures are estimates until one run pins them. Five runs per
 cell. The graders are the same recall set and judge as experiment 1; the
-summary-file arm may also take the precision graders.
+handbook arms may also take the precision graders.
 
 Four readings fall out of the grid. Down a column: how much the machinery adds
 over the rules alone on one model. Across a row: whether a stronger model closes
@@ -200,24 +198,21 @@ control. And the cheapest cell that matches the plugin's Sonnet recall is the pr
 of the review in model terms; experiment 3 asks the same of the refactor skill,
 against its oracles.
 
-Two cautions. Write the summary file from the rule texts alone, not from the
-fixture or the graders, or it will be a cheat sheet. And hold the report format
+Two cautions. Use the handbook as generated, not edited for the experiment: it comes from the rule sources, not from the fixture or the graders, so it cannot be a cheat sheet, and editing it would measure something nobody ships. And hold the report format
 loose in the two lighter arms: the recall graders match filenames and the judge
 reads prose, so a plain finding list scores fairly.
 
 **Which cells can surprise.** Not the plugin column. The machinery is a scaffold,
 and Sonnet already sits at 106 of 110; Opus with the plugin at 107 says nothing
 worth $28 a run. The lighter rows are where a stronger model attacks the question
-from the other side. If Opus with the summary file reaches what Sonnet reaches
+from the other side. If Opus with the handbook reaches what Sonnet reaches
 with the plugin, the plugin is Opus-level review at Sonnet prices and its future is
 tied to the price gap between models. If Opus with no rules finds 200 plants, the
 twelve rules are mostly what a strong model already knows. So run the plugin
-column on Sonnet only, the lighter rows on Sonnet first, then the summary file on
-Opus as the one cell that could rewrite the plan. Skip Fable unless Opus lands
+column on Sonnet only, the lighter rows on Sonnet first, then the handbook on Opus as the one cell that could rewrite the plan. Skip Fable unless Opus lands
 within a few plants of the plugin.
 
-Budget: about $90 for the Sonnet row, about $50 for the Opus cell, about $770 for
-the whole grid.
+Budget: about $110 for the Sonnet row, about $50 for the Opus cell, about $940 for the whole grid.
 
 ## Part two: does the code LDD refactored pay off for the next agent?
 
@@ -351,7 +346,7 @@ static number.
 
 | Layer | Measures | Why this | Have / add |
 |---|---|---|---|
-| A · Correctness | hidden tests pass; existing suite regressions; a differential check of behaviour against a reference implementation; pass^k across the k runs of a cell, not pass@1 | around 30 percent of "plausible" agent patches on public benchmarks behave differently from the reference under differential testing; a single run correlates weakly with true reliability | have tests and postcheck; add the differential check and pass^k |
+| A · Correctness | hidden tests pass; existing suite regressions; a differential check of behaviour against a reference implementation; pass^k across the k runs of a cell, not pass@1; mutation score of the tests the arm wrote, gremlins for Go and mutmut for Python, optional and budgeted | around 30 percent of "plausible" agent patches on public benchmarks behave differently from the reference under differential testing; a single run correlates weakly with true reliability | have tests and postcheck; add the differential check, pass^k and mutation testing |
 | B · Structure, as ISO 25010 via SIG | deltas against the pre-change tree: share of LOC in units over 30 and over 60 lines; share in units with McCabe over 10 and over 25; *erosion*, new complexity landing in functions already over the band; duplicated blocks; module fan-in and cycle count; unused code and hard-coded literals; volume added, reported raw | correctness-independent and owned by nobody in the project; erosion and verbosity rose in 80 and 90 percent of agent trajectories in one 2026 benchmark even when tests passed | have radon, complexipy, gocyclo, gocognit; add lizard or funlen, jscpd, the import-graph script and a pre/post diff script, none of which exists yet |
 | C · Design | the plugin review's plant count, kept and labelled *rules conformance*; plus an independent judge: pairwise between two arms' diffs, position randomised and swapped, provenance blinded, comments and model names stripped, repo-grounded rubric, calibrated on about 30 pairs labelled by hand and reported with chance-corrected kappa | the plugin review is the plugin grading its own homework; absolute-scale PASS/FAIL judging is the weakest judge design in the literature, pairwise with position swaps holds up; superficial cues alone move judge accuracy by up to 27 points | have the review and the art judge; convert the art judge to pairwise |
 | Always alongside | cost per passing feature; tokens in and out; turns; diff size | quality without price is not a return | have, in `result.json` |
@@ -365,9 +360,10 @@ static number.
 | Learn the noise floor first | a no-change baseline run twice tells you how far two identical arms drift | the noise floor in [eval-baseline.md](eval-baseline.md) covers the review; do the same for the scorecard |
 | Pin the harness | holding a model fixed across 35 CLI releases moved quality by tens of points from harness changes alone | one Claude Code version for every arm of a round, recorded in the run |
 | Report structure as deltas and distributions, pre-registered | SIG stars and Sonar grades are relative to moving populations; the raw bands and thresholds are what a reader can check | write the thresholds into the case before the first run |
-| Write the rules file by hand | human-written instruction files added about 2.4 percent to success in one study; generated ones slightly hurt and raised cost by a fifth | experiment 8's summary file and experiment 7's rules file: from the rule texts, by a person |
+| Keep the rules file human-authored | human-written instruction files added about 2.4 percent to success in one study; generated ones slightly hurt and raised cost by a fifth | the handbook is generated from rule sources a person wrote; do not condense it further by machine for the experiment |
 | Expect small, fading rule-file effects | a 1,650-session factorial found file size, position and nesting had no detectable effect; the only real effect was decay within a session | a rules-file arm that reviews clean on a short feature and dirty on a long one is the expected shape, not noise |
 | Measure the downstream task, not only the artefact | the best-validated maintainability measure for agent code is whether the next task on top of it succeeds | part two is the load-bearing evidence; a clean-versus-dirty minimal-pair study found pass rate flat, tokens down 7 to 8 percent, file revisits down 34 percent, which is the effect size to expect from 9 and 11 |
+| Re-run gate 1 on each major model release | the value of choreography decays as models improve; a dated result from one model generation says nothing about the next | gate 1's four cells, about $310 per release, dated and read against the previous run; the handbook plus lint gates arm is the one expected to hold its value |
 
 ### Jev as the layer C scorer
 TypeSafe's Jev, in waitlisted early access since 15 September 2026, answers typed
@@ -417,14 +413,13 @@ the project.
 
 Budgets are the cells that can surprise, not the full grids. Two of the top three
 are free. The paid work concentrates in four experiments that each answer a
-different question: 8's Sonnet row, 7's first four cells, 11 and 2, about $560
-together.
+different question: 8's Sonnet row, 7's first four cells, 11 and 2, about $580 together.
 
 | # | Experiment | Cost | What it can change | Why here |
 |---|---|---|---|---|
 | 1 | 6 · Acceptance rate | $0 | which rules stay in the plugin | free, measures real code, only accrues with time |
 | 2 | 4 · Token accounting | $0 | where the next token cut goes | free from existing traces; makes every other result interpretable |
-| 3 | 8 · Sonnet row | $90 | whether the plugin is rules or machinery | fifteen runs answer the question the design rests on, and contain experiment 1 |
+| 3 | 8 · Sonnet row | $110 | whether the plugin is rules, machinery or a linter | twenty runs answer the question the design rests on, and contain experiment 1 |
 | 4 | 7 · Writing features, first four cells | $310 | whether the implementation skills are worth their ceremony | the only test of the half of the plugin that writes code |
 | 5 | 11 · Comprehension | $40 + twin | whether storified code is cheaper to read | cheapest test of the rules' own claim about agents |
 | 6 | 2 · Refactor A/B | $120 | whether to keep building the plugin at all | most convincing to outsiders; grades code without interpreting prose |
@@ -446,8 +441,8 @@ spent.
 | Gate | Runs | Cost | Pass means | On fail |
 |---|---|---|---|---|
 | 0 | the scorecard's structure script and pairwise judge, a noise-floor run, experiment 6 started | $0 | the yardstick exists and two identical arms land within a known distance | nothing runs until it does |
-| 1 | experiment 7, first four cells | ~$310 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better | stop spending on evals; the plugin needs fixing, not measuring |
-| 2 | experiment 8, Sonnet row | ~$90 | the plugin beats the summary file on recall by more than the noise floor | the next work is tokens, not experiments; part two waits |
+| 1 | experiment 7, first four cells | ~$310 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better, and cost per passing feature within a stated multiple of the Sonnet plain cell, 2× unless the case says otherwise | stop spending on evals; the plugin needs fixing, not measuring, and a quality win at 3× the cost is a fail on cost |
+| 2 | experiment 8, Sonnet row, four cells | ~$110 | the plugin beats the handbook, with and without lint gates, on recall by more than the noise floor | the next work is tokens, not experiments; part two waits |
 | 3 | experiment 2, refactor A/B | ~$120 | more oracle passes per dollar than the plain fix prompt | the review is worth keeping, the refactor skill is not; experiment 3 is off |
 | 4 | part two: the ldd twin, then 11, then 9, then 12 only if 9 shows a gap | ~$60 for the twin, then $40, $80, $250 | comprehension tokens and regressions down on the ldd twin by more than the noise floor | the plugin's refactor is a review aid, not an investment |
 | 5 | fine tuning: 4's ablations, 8's Opus summary cell, 3, 5, 10 | as each says | as each says | pick and choose |
