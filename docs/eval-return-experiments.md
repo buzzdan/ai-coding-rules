@@ -33,7 +33,7 @@ Every budget on this page assumes five runs per cell.
 |---|---|---|---|
 | 1 · No-plugin control | Does the review earn its cost against a plain prompt? | Existing recall graders and judge | ~$65 |
 | 2 · Refactor tier A/B | Is the code it produces better, per dollar? | Refactor oracles: gone, present, lint, tests | ~$120 |
-| 3 · Cheaper model + plugin | Does it replace a stronger model? | Same oracles, model swapped in the control. Folded into experiment 8's Opus cell. | ~$120 |
+| 3 · Cheaper model + plugin | Does it replace a stronger model on the refactor tier? | Same oracles as experiment 2, model swapped in the control. Runs only if 2 says the refactor skill matters and 7 leaves the model gap open. | ~$120 |
 | 4 · Token accounting | Which rules pay for themselves? | Per-agent usage in existing traces, ablation | $0 then ~$50 |
 | 5 · Repositories not built for it | Does recall survive a real codebase? | Historical refactoring PRs as the oracle | ~$60 |
 | 6 · Acceptance rate | What does it do to your day? | Your accept / dismiss / wrong marks | $0 |
@@ -71,8 +71,11 @@ model swapped in the control arm: Sonnet with the plugin against Opus without it
 If Sonnet plus plugin matches or beats Opus on the refactor oracles, the plugin
 pays for itself in model cost alone. Record the price per run in both arms with
 the same care as the pass rate. The result is a single sentence: *the plugin is
-worth X dollars of model per task*, positive or negative. In the ranking this is
-struck as a separate item, since experiment 8's Opus cell asks it properly.
+worth X dollars of model per task*, positive or negative. Experiment 7's first four
+cells ask the same substitution question for writing features, and experiment 8's
+Opus cell asks it for the review; neither grades a refactor against its oracle, so
+this stays a separate arm. It runs only after experiment 2 shows the refactor skill
+beats a plain fix prompt and experiment 7 leaves the model gap open.
 
 ### 4 · Where the tokens go, then ablate
 Every trace already carries per-message usage and every hunter, skeptic and critic
@@ -195,7 +198,8 @@ Four readings fall out of the grid. Down a column: how much the machinery adds
 over the rules alone on one model. Across a row: whether a stronger model closes
 the gap that the machinery closes for Sonnet. The no-rules row is experiment 1's
 control. And the cheapest cell that matches the plugin's Sonnet recall is the price
-of the plugin in model terms, which is experiment 3 asked properly.
+of the review in model terms; experiment 3 asks the same of the refactor skill,
+against its oracles.
 
 Two cautions. Write the summary file from the rule texts alone, not from the
 fixture or the graders, or it will be a cheat sheet. And hold the report format
@@ -316,22 +320,23 @@ same. Any "ISO 25010 score" is a vendor's own metrics under ISO's names.
 
 **The operationalisation worth adopting** is the Software Improvement Group's
 maintainability model: TÜViT-certified, mapped explicitly onto the 25010
-sub-characteristics, with published thresholds, and reimplementable with tools the
-postcheck already runs. It reports *risk profiles*, the share of code in the
-high-risk bands, never averages.
+sub-characteristics, with published thresholds, and reimplementable with the
+complexity tools the postcheck already runs plus a few additions named below. It
+reports *risk profiles*, the share of code in the high-risk bands, never averages.
 
-| 25010 sub-characteristic | SIG property and bands | Python / Go tools | Rules it sees |
+| 25010 sub-characteristic | SIG property and bands | Tools the postcheck runs today | Tools to add |
 |---|---|---|---|
-| Analysability | unit size: lines per function, bands 15 / 30 / 60; duplication: blocks of 6+ lines | radon raw, lizard / funlen, scc; jscpd with one config for both languages | R3, R11 |
-| Modifiability | unit complexity: McCabe per function, bands 5 / 10 / 25; duplication; module coupling | radon cc, complexipy / gocyclo, gocognit; jscpd | R3, R11, R8 |
-| Testability | unit complexity, unit size, component independence | as above; test placement from the tree | R3, R7 |
-| Modularity | module coupling: fan-in; component balance; component independence; cyclic dependencies | pydeps or import graph / go list -deps; cycle count | R4, R5, R8 |
-| Reusability | unit size; unit interfacing: parameter count | radon, lizard / gocyclo, ruff and golangci-lint argument limits | R4 |
+| Analysability | unit size: lines per function, bands 15 / 30 / 60; duplication: blocks of 6+ lines | radon (raw counts) | lizard or funlen for Go unit size; jscpd with one config for both languages |
+| Modifiability | unit complexity: McCabe per function, bands 5 / 10 / 25; duplication; module coupling | radon cc, complexipy / gocyclo, gocognit | jscpd; the import-graph script below |
+| Testability | unit complexity, unit size, component independence | as above; test placement read from the tree, as the postcheck already does | none beyond the above |
+| Modularity | module coupling: fan-in; component balance; component independence; cyclic dependencies | none | an import-graph script over pydeps output and go list -deps, with a cycle count |
+| Reusability | unit size; unit interfacing: parameter count | ruff and golangci-lint argument-count limits | lizard for parameter counts per function |
 
-Roughly half the rules are visible to structural metrics: R3, R4, R5, R8 and R11
-land on size, complexity, coupling and duplication. R1, R2, R6, R9, R10 and R12 are
-about types, test seams, documentation, concurrency and encapsulated state, and no
-structural metric sees them. Only the review or a judge can. That boundary belongs
+Rules visible to structural metrics: R3, R4, R5, R7, R8 and R11. Size, complexity,
+coupling and duplication cover R3, R4, R5, R8 and R11; R7 is test placement, which
+the tree shows directly and the postcheck already reads. The other six, R1, R2, R6,
+R9, R10 and R12, are about types, test seams, documentation, concurrency and
+encapsulated state, and no structural metric sees them. Only the review or a judge can. That boundary belongs
 in every write-up: it is exactly what an international standard can and cannot say
 about this plugin.
 
@@ -356,7 +361,7 @@ static number.
 | Layer | Measures | Why this | Have / add |
 |---|---|---|---|
 | A · Correctness | hidden tests pass; existing suite regressions; a differential check of behaviour against a reference implementation; pass^k across the k runs of a cell, not pass@1 | around 30 percent of "plausible" agent patches on public benchmarks behave differently from the reference under differential testing; a single run correlates weakly with true reliability | have tests and postcheck; add the differential check and pass^k |
-| B · Structure, as ISO 25010 via SIG | deltas against the pre-change tree: share of LOC in units over 30 and over 60 lines; share in units with McCabe over 10 and over 25; *erosion*, new complexity landing in functions already over the band; duplicated blocks; module fan-in and cycle count; unused code and hard-coded literals; volume added, reported raw | correctness-independent and owned by nobody in the project; erosion and verbosity rose in 80 and 90 percent of agent trajectories in one 2026 benchmark even when tests passed | have radon, complexipy, gocyclo, gocognit; add jscpd, an import-graph script, a pre/post diff script |
+| B · Structure, as ISO 25010 via SIG | deltas against the pre-change tree: share of LOC in units over 30 and over 60 lines; share in units with McCabe over 10 and over 25; *erosion*, new complexity landing in functions already over the band; duplicated blocks; module fan-in and cycle count; unused code and hard-coded literals; volume added, reported raw | correctness-independent and owned by nobody in the project; erosion and verbosity rose in 80 and 90 percent of agent trajectories in one 2026 benchmark even when tests passed | have radon, complexipy, gocyclo, gocognit; add lizard or funlen, jscpd, the import-graph script and a pre/post diff script, none of which exists yet |
 | C · Design | the plugin review's plant count, kept and labelled *rules conformance*; plus an independent judge: pairwise between two arms' diffs, position randomised and swapped, provenance blinded, comments and model names stripped, repo-grounded rubric, calibrated on about 30 pairs labelled by hand and reported with chance-corrected kappa | the plugin review is the plugin grading its own homework; absolute-scale PASS/FAIL judging is the weakest judge design in the literature, pairwise with position swaps holds up; superficial cues alone move judge accuracy by up to 27 points | have the review and the art judge; convert the art judge to pairwise |
 | Always alongside | cost per passing feature; tokens in and out; turns; diff size | quality without price is not a return | have, in `result.json` |
 
@@ -437,7 +442,7 @@ together.
 | 9 | 12 · Five in sequence | $250 | the long-term claim | the one chart that would sell the rules, the widest error bars; only after 9 shows a gap |
 | 10 | 10 · Injected bug | $60 | whether bugs localize in clean code | overlaps 9 and 11 |
 | 11 | 5 · Real repositories | $60 | generalization | soft evidence; only once 2 and 8 say there is something to generalize |
-| 12 | 3 · Cheaper model + plugin | $120 | same as 8's Opus cell | struck as a separate item |
+| 12 | 3 · Cheaper model + plugin | $120 | whether the refactor skill is worth a model tier | the refactor-tier substitution question; only after 2 says the skill matters and 7 leaves the model gap open |
 | 13 | 8 · Fable column, plugin column on Opus | $500+ | nothing the cheaper cells do not show | the scaffold caps what a stronger model can add |
 
 ## What to run first
