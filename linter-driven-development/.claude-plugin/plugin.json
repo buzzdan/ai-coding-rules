@@ -1,6 +1,6 @@
 {
   "name": "linter-driven-development",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Rules-as-data linter-driven development workflow for any language: the same 12 rules, thin directional skills (design, TDD implementation, refactoring, testing, review, documentation) and hunter/skeptic/critic review as the Go plugin, with the language detected from the repository at run time and its own linter run instead of a bundled one; plus an OKF-conformant repo brain with a shippable CI conformance gate",
   "author": {
     "name": "Dan Mordechay"
