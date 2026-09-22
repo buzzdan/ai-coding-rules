@@ -18,7 +18,8 @@ parallel single-obsession `go-linter-driven-development:rule-hunter` agents, one
 `go-linter-driven-development:comment-critic`.
 Pure orchestration and reporting: this skill may spawn agents but never edits code, never
 fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
-agents receive it as spawn-time payload — they do not invoke skills.
+agents receive the path of the rule they hunt and read it themselves in their first
+turn — the parent never pastes a rule, and agents do not invoke skills.
 </objective>
 
 <timing>
@@ -43,8 +44,9 @@ mid-implementation net; this pass is the verification net on finished work.
 
 <step_1_grep_prefilter>
 In-context, cheap — no agents yet. For each rule below, read its rule file's
-**Falsifying questions** section and run the detection commands there against the diff
-scope (changed files only). The commands live in the rule files; never restate them here.
+**Falsifying questions** section — that section only, never the whole file — and run
+the detection commands there against the diff scope (changed files only). The commands
+live in the rule files; never restate them here.
 A rule with zero hits is skipped — no hunter spawned for it.
 
 | Rule | File | Hunt focus |
@@ -78,6 +80,25 @@ to the repo owner. The fix is a discussion or a separate PR, never silent inclus
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
+**Write the scope bundle first.** Before any agent is spawned, one Bash command writes
+the scope to a temporary directory (`mktemp -d`), so every hunter, the skeptic and the
+critic read the code under review once, in one command, instead of one file per turn:
+
+- `files.txt` — the scope's file list, one path per line, as the caller resolved it.
+- For a scoped review: `diff.patch`, the diff over the scope (`git diff <range> --
+  '*.go'`, untracked files appended whole), and `scope.txt`, the full text of
+  every file in scope with a `==> <path> <==` header before each (`xargs tail -n +1 <
+  files.txt` prints exactly that) — a falsifying question asks about the file, not
+  the hunk.
+- For a whole-repository review (`--all`): `files.txt` and one `scope/<dir>.txt` per
+  source directory (a package, in most languages) holding that directory's source
+  files with the same headers; there is no diff. A real repository is larger than one
+  read, so a hunter reads the per-directory files in order, within its budget, and
+  names the directories it did not reach.
+
+The bundle is the one thing this review writes to disk; the report never is (step 4).
+The bundle's absolute path goes into every spawn prompt below.
+
 For every rule with pre-filter hits, spawn one `go-linter-driven-development:rule-hunter` agent, as **foreground**
 `Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
 run in parallel and every result comes back in that same message. A foreground call
@@ -92,22 +113,31 @@ end the message and let the delivery resume the review. The skeptic and the crit
 (step 3) share one message of their own, spawned only once every hunter result is in
 hand. Each spawn prompt MUST contain:
 
-1. **The rule file's FULL content, pasted** — the hunter's entire rulebook and single
-   obsession. Never a path reference alone; never more than one rule per hunter.
-2. **The diff scope** — the changed-file list or `git diff` range.
+1. **The rule file's absolute path** — the hunter's entire rulebook and single
+   obsession, read whole by the hunter in its first turn. Never the rule's text
+   pasted; never more than one rule per hunter. The parent does not read a rule file
+   to build a spawn prompt — step 1 read its Falsifying questions section, and that
+   is all of it the parent ever reads.
+2. **The scope bundle's absolute path**, and the diff scope it holds — the
+   changed-file list or `git diff` range.
 3. **That rule's pre-filter hits** — as starting leads (the hunter re-runs the
    detection commands itself; leads are a starting point, not a limit).
 
-If the rule cites a case file by plugin-relative path (e.g. `../examples/*.md`), resolve
-it to an absolute path and include that path in the spawn prompt — the hunter runs in the
-reviewed project's cwd and cannot resolve plugin-relative paths on its own.
+Every path in a spawn prompt is absolute — the hunter runs in the reviewed project's
+cwd and cannot resolve plugin-relative paths on its own. Resolve
+`../../rules/R<N>-….md` from this skill's own location, and when the rule cites a case
+file by plugin-relative path (e.g. `../examples/*.md`), resolve and include that path
+too.
 
 Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
 plus one receipt line per falsifying question (`Q<n>: <hits> hit(s) → <findings>
 finding(s)`) and a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
 The receipts are how a whole-repository hunt is read: a question with no receipt was
-not run over the scope, and the leads were never the scope.
+not run over the scope, and the leads were never the scope. A hunter that spends the
+tool-call budget its agent definition states returns the same shape plus one
+`not reached: …` line naming the questions, files or directories it did not cover;
+the report carries that line beside the hunter's tally, never as a clean verdict.
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
@@ -119,9 +149,12 @@ every hunter result is in hand; the comment critic (step 3b), when it runs, is s
 in that same message so the two run in parallel. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
-2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
-   `../../rules/R1-primitive-obsession.md`, pasted.
-3. Payload: the FULL content of `../../examples/overabstraction-cidr.md`, pasted.
+2. The absolute path of `../../rules/R1-primitive-obsession.md`, naming the two
+   sections the skeptic reads from it in its first turn: **Juiciness scoring** and
+   **The over-abstraction trap**.
+3. The absolute path of `../../examples/overabstraction-cidr.md`.
+4. The scope bundle's absolute path — where the skeptic verifies usage counts and
+   call sites before granting points.
 
 Verdicts per finding: `CONFIRMED (score ≥4 + verified evidence)`, `CONFIRMED (score
 2–3, judgment call) — alternative: …` (the type ships as the finding's fix with the
@@ -130,14 +163,16 @@ cheaper alternative`. Carry the verdict word and the score into the report verba
 the report example shows. A refuted proposal does not ship; when its cheaper
 alternative (better naming, private fields + accessors, or R11's Keep the Single
 Exhaustive Switch) is still worth doing, report the alternative as 🟢 Polish. When R11
-dispatch proposals are under review, additionally paste the FULL
-content of both R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
+dispatch proposals are under review, additionally include the absolute paths of both
+R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
 juiciness rejection: the switch stays, goes exhaustive) and
 `../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the
 move is unavailable when the consumer owns the output format; the switch shrinks to
-pure dispatch). Only findings the skeptic cannot kill ship as extraction
-findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
-no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
+pure dispatch). A finding the skeptic's budget did not reach carries
+`skeptic: not reached` in the verdict's place and ships as the hunter proposed it.
+Only findings the skeptic cannot kill ship as extraction findings. Non-extraction
+findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose no new type) skip the
+skeptic and go straight to the report — R9 findings (orphans,
 broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
 construction mechanics — a validating constructor, unexported fields, an options
 type with its `With*` functions, a named Null Object default — are not extractions either
@@ -156,15 +191,15 @@ foreground call returning — or, in a cloud session that backgrounds it after 1
 seconds, by its result arriving on its own — never by a timer, a scheduled wake-up or
 a notification poll. Its spawn prompt MUST contain:
 
-1. Payload: R9's **Comment policy** section (`../../rules/R9-repo-brain.md`,
-   Design guidance) pasted verbatim — the Comment Value Toolbox kinds, the
-   three-test standard, the tier table, budget accounting, and the visibility
-   default.
-2. Payload: the **Comment Value Toolbox** catalog section of
-   `../documentation/reference.md` (resolve to an absolute path) pasted verbatim.
+1. The absolute path of `../../rules/R9-repo-brain.md`, naming the **Comment
+   policy** section (under Design guidance) the critic reads in its first turn —
+   the Comment Value Toolbox kinds, the three-test standard, the tier table, budget
+   accounting, and the visibility default.
+2. The absolute path of `../documentation/reference.md`, naming its **Comment Value
+   Toolbox** catalog section, read in the same turn.
 3. The absolute path to `../../examples/private-comment-noise.md` — the critic
    reads it when judging comments on unexported symbols.
-4. The diff scope.
+4. The diff scope and the scope bundle's absolute path.
 
 It judges every comment in the diff (godoc, in-body, test) against the three-test
 standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
@@ -298,8 +333,8 @@ Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as fi
 ends the review — never written to a file, never attached, never replaced by a summary
 that points at a file or at "the report I sent". Length is no reason: a
 whole-repository report of thirty kilobytes is the normal size and goes in the message
-whole, under its categories. This skill has nothing to write to disk; a Write call
-during a review is the report leaving the page.
+whole, under its categories. Besides the scope bundle of step 2, this skill has
+nothing to write to disk; a Write call during a review is the report leaving the page.
 </step_4_merged_report>
 
 </protocol>
@@ -356,11 +391,14 @@ Caller decides: commit as-is · fix 🔴 first · fix all. Findings are advisory
 This skill MUST NOT:
 - Edit code, fix findings, or invoke fix skills (@refactoring, @code-designing, @testing)
 - Write the report, or any part of it, to a file — the report is the message that
-  ends the review, whole, whatever its length
+  ends the review, whole, whatever its length; the scope bundle of step 2, under a
+  temporary directory, is the only file the review writes
 - Run the linter or tests — the caller does (see @linter-driven-development)
 - Block commits — every finding is advisory; the caller decides what to fix
-- Restate rule content — rules live once in `../../rules/`; paste them as spawn payload
-  and cite them in findings
+- Restate rule content — rules live once in `../../rules/`; name them by absolute
+  path in spawn prompts and cite them in findings
+- Paste a rule file, a section of one, or a case file into a spawn prompt, or read
+  one in order to — agents read their doctrine by path in their first turn
 - Spawn anything other than `go-linter-driven-development:rule-hunter`, `go-linter-driven-development:overabstraction-skeptic`, and
   `go-linter-driven-development:comment-critic`
 - Wait for any agent by polling notifications, arming a monitor or scheduling a

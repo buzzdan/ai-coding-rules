@@ -74,13 +74,14 @@ linter-driven-development/
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with a detected language adapter
 ```
 
-- **[`rules/`](rules/)** — R1–R12, each a self-contained hunter payload: Principle,
+- **[`rules/`](rules/)** — R1–R12, each a self-contained hunter rulebook: Principle,
   Why, a canonical before/after shape, Design guidance, a Fix pattern, and Falsifying
   questions with what to search for.
 - **[`skills/`](skills/)** — thin directional views that sequence and route into the
   rules. They never restate rule content.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
-  contexts with the relevant rule pasted into the prompt.
+  contexts, pointed at the relevant rule file and the scope bundle by path, which they
+  read in their first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the
   documentation-network gate `/wire-repo-brain` installs into your repository. Its
   language adapter is chosen at run time: `go.mod` selects the Go block,

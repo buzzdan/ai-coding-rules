@@ -206,7 +206,7 @@ at the end.
    `3 nouns`: each candidate with its score and verdict — `none scored ≥2` when
    nothing qualified, never a blank.
 4. **The comment critic.** Spawn one `{{.Plugin}}:comment-critic` (Agent tool, foreground) over
-   the touched files with the payload @pre-commit-review step 3b names, and state the
+   the touched files with the doctrine paths @pre-commit-review step 3b names, and state the
    scope in the spawn prompt as *every comment in each touched file*, not the changed
    lines — the `Sink is where events are written.` {{.DocForm}} beside the code just
    reshaped restates its name whether or not this session wrote it. Apply its

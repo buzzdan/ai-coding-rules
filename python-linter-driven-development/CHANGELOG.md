@@ -7,6 +7,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **Hunters read the scope once.** The pre-commit-review skill writes a scope
+  bundle before spawning — the file list, the diff and the full text of every file
+  in scope, or one file per source directory on a whole-repository review — and each
+  rule-hunter, the comment critic and the over-abstraction skeptic read it in their
+  first turn, in one command. A per-file read is for confirming a lead the bundle
+  cannot settle. Each of the three agents states a tool-call budget and what it
+  returns when the budget is spent: receipts for what it covered and a
+  `not reached:` line for what it did not, which the report carries beside the
+  tally. (Token budget stage S1.)
+- **Rules by reference.** The spawn prompt carries the rule file's absolute path
+  and the pre-filter leads, not the rule's text; the hunter reads its rule in its
+  first turn. The skeptic and the critic get the paths and section names of their
+  doctrine the same way, from every skill that spawns them, and the parent never
+  reads a rule file or a case file to build a spawn prompt. (Token budget stage
+  S2.)
 - **Two sentences name visibility without Go's word.** The comment critic's
   verdict and the code-comments checklist opened with "Unexported symbols", a
   literal the visibility scalar could not reach; both now say "symbols outside the

@@ -102,10 +102,12 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    them. Fix every hit before reporting.
 7. **Comment critique**: spawn the `go-linter-driven-development:comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
-   are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
-   section pasted verbatim (toolbox kinds, three-test standard, tiers, budget
-   accounting, visibility default); (b) reference.md's Comment Value Toolbox
-   catalog pasted verbatim; (c) the absolute path to
+   are in scope too. Its spawn prompt MUST contain: (a) the absolute path of
+   `../../rules/R9-repo-brain.md`, naming its comment-policy section (toolbox kinds,
+   three-test standard, tiers, budget accounting, visibility default); (b) the
+   absolute path of this skill's `reference.md`, naming its Comment Value Toolbox
+   catalog — the critic reads both in its first turn; nothing is pasted, and this
+   skill reads neither to spawn it; (c) the absolute path to
    `../../examples/private-comment-noise.md`; (d) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
    fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
    `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the

@@ -12,7 +12,7 @@ The linter tells you **WHAT** to change (complexity 18, function too long). This
 
 ## Architecture: Rules as Data
 
-The organising idea of v2: **the rule is the unit, not the phase.** Each design principle lives exactly **once**, as data, in `rules/`. Everything else is a thin view over those rules or an agent that receives a rule as a payload.
+The organising idea of v2: **the rule is the unit, not the phase.** Each design principle lives exactly **once**, as data, in `rules/`. Everything else is a thin view over those rules or an agent that is pointed at a rule and reads it.
 
 ```
 go-linter-driven-development/
@@ -31,10 +31,10 @@ go-linter-driven-development/
 **Five layers, one fact per fact:**
 
 - **[`maxims.md`](maxims.md)** — the layer above the rules: named design maxims ("Tell, don't ask", "Duplication is far cheaper than the wrong abstraction", "Make the change easy…") as *questions*, each pointing at the rules that compile it. Maxims live only at the judgment points — design interrogation (@code-designing), escalation vocabulary (@refactoring), the skeptic's doctrine — and are banned from hunters: **maxims propose, evidence disposes.** A maxim that keeps convicting graduates into a rule.
-- **[`rules/`](rules/)** — R1–R12, each a self-contained hunter payload. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
+- **[`rules/`](rules/)** — R1–R12, each a self-contained hunter rulebook. A rule file states its Principle, Why, a real-world canonical before/after, Design guidance (forward), a Fix pattern (backward), and Falsifying questions (each phrased to *disprove* compliance, with a grep/count detection command). A rule's content is normative in its file and nowhere else — everything else points at it.
 - **[`examples/`](examples/)** — deep worked case studies (full before/after code + the reasoning). Rules cite them by relative path instead of inlining long studies.
 - **[`skills/`](skills/)** — thin directional views (~100–150 lines) that *sequence* and *route* into the rules. They never restate rule content.
-- **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated contexts. **Agents get knowledge as spawn-time payload — the relevant rule file's content is pasted into the prompt. Agents do NOT invoke skills.**
+- **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated contexts. **Agents get knowledge by reference — the spawn prompt names the relevant rule file's path and the scope bundle's, and the agent reads both in its first turn. Nothing is pasted, and agents do NOT invoke skills.**
 
 ### The Five-Phase Flow
 
@@ -64,8 +64,8 @@ Design happens once, up front (Phase 1); the RED test's shape carries that desig
 
 Phase 4 ([`@pre-commit-review`](skills/pre-commit-review/SKILL.md)) is pure orchestration — it spawns agents and reports, but **never edits code and never blocks a commit**:
 
-1. **Grep pre-filter** (in-context, cheap): run each rule's detection commands against the diff. A rule with zero hits gets no hunter.
-2. **Parallel hunters**: for every rule with hits, spawn one [`rule-hunter`](agents/rule-hunter.md) — single obsession, single rule file pasted in full as its entire rulebook — as foreground calls issued together, so they run in parallel and return in the same message. Each returns evidence-backed findings (`rule | file:line | falsifying-question answers | fix pattern | effort`).
+1. **Grep pre-filter** (in-context, cheap): run each rule's detection commands against the diff. A rule with zero hits gets no hunter. Then write the scope bundle once — the file list, the diff and the full text of every file in scope (one file per source directory on `--all`) — so every agent reads the code under review in one command instead of one file per turn.
+2. **Parallel hunters**: for every rule with hits, spawn one [`rule-hunter`](agents/rule-hunter.md) — single obsession, one rule file read whole in its first turn as its entire rulebook, the scope read from the bundle in that same turn, a stated tool-call budget with a stated exit — as foreground calls issued together, so they run in parallel and return in the same message. Each returns evidence-backed findings (`rule | file:line | falsifying-question answers | fix pattern | effort`).
 3. **Skeptic pass**: every "create a type/package" proposal goes to one [`overabstraction-skeptic`](agents/overabstraction-skeptic.md), which tries to *kill* each extraction using R1's juiciness scorecard and the CIDR case file. A refuted proposal ships only its cheaper alternative (better naming, private fields + accessors).
 4. **Merged report**: surviving findings categorized as 🐛 Bugs / 🔴 Design Debt / 🟡 Readability Debt / 🟢 Polish. All advisory — the caller decides what to fix. Every finding renders with its `file:line` anchor, the rule and the falsifying question it answers (by number, in the question's own words), the move named as the rule's Fix pattern spells it, and effort — on its own line, or on a shared-shape line that lists every anchor when many findings share one shape; never a per-rule count, whatever the scope, and the header reconciles each hunter's tally with the anchors rendered. Findings from *different* rules converging on one anchor (the same type, field, or function) are additionally reported as a 🔗 **CLUSTER**, one entry per converged anchor — each hunter is blind to the others, so independent convergence is evidence of a missing domain concept, and the cluster routes design-first (`@code-designing` scoped to the concept, then `@refactoring` implements) instead of being fixed member-by-member.
 
@@ -95,9 +95,9 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | Example | Demonstrates |
 |---------|--------------|
 | [`examples/storify-leaf-type.md`](examples/storify-leaf-type.md) | R3, R1, R2 — storifying a fat function; extracting a self-validating leaf type |
-| [`examples/overabstraction-cidr.md`](examples/overabstraction-cidr.md) | R1 — when an extraction is over-abstraction (the skeptic's payload) |
+| [`examples/overabstraction-cidr.md`](examples/overabstraction-cidr.md) | R1 — when an extraction is over-abstraction (the skeptic's doctrine) |
 | [`examples/dependency-rejection.md`](examples/dependency-rejection.md) | R8 — dependency rejection: eliminating globals by threading dependencies |
-| [`examples/anti-if-dispatch.md`](examples/anti-if-dispatch.md) | R11 — duplicated kind-switch → interface dispatch / strategy map, plus the kept-switch rejection (the skeptic's dispatch payload) |
+| [`examples/anti-if-dispatch.md`](examples/anti-if-dispatch.md) | R11 — duplicated kind-switch → interface dispatch / strategy map, plus the kept-switch rejection (the skeptic's dispatch doctrine) |
 | [`examples/switch-to-polymorphism.md`](examples/switch-to-polymorphism.md) | R11, R6 — type switch over an owned interface → fill-style method; the earned/sealed interface; the dependency-direction rejection |
 
 **Skills → role** (thin views):
@@ -111,12 +111,12 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`@testing`](skills/testing/SKILL.md) | The composition ladder — test each behavior at the lowest rung that contains it |
 | [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring, OKF conformance + conventions self-hosting; FEATURE mode (Phase 5) / BOOTSTRAP mode |
 
-**Agents → spawned by** (payload-fed, isolated):
+**Agents → spawned by** (reference-fed, isolated):
 
-| Agent | Spawned by | Gets as payload | Edits? |
+| Agent | Spawned by | Reads in its first turn, by path | Edits? |
 |-------|-----------|-----------------|--------|
-| [`rule-hunter`](agents/rule-hunter.md) | `@pre-commit-review` (one per rule with hits, in parallel) | ONE full `rules/R*.md` file + diff scope | No (read-only) |
-| [`overabstraction-skeptic`](agents/overabstraction-skeptic.md) | `@pre-commit-review` (after hunters report) | R1 juiciness scorecard + `examples/overabstraction-cidr.md` | No (read-only) |
+| [`rule-hunter`](agents/rule-hunter.md) | `@pre-commit-review` (one per rule with hits, in parallel) | ONE `rules/R*.md` file + the scope bundle | No (read-only) |
+| [`overabstraction-skeptic`](agents/overabstraction-skeptic.md) | `@pre-commit-review` (after hunters report) | R1's juiciness scorecard + `examples/overabstraction-cidr.md` + the scope bundle | No (read-only) |
 | [`lint-fixer`](agents/lint-fixer.md) | `@linter-driven-development` (Phase 3) | routing table (linter failure → rule) | Yes (mechanical only; escalates design) |
 
 ## Slash Commands
@@ -285,7 +285,7 @@ The plugin follows opinionated Go best practices, each with an owning rule:
 Earlier versions organised knowledge by *phase* and centralised analysis in two generalist agents: **`quality-analyzer`** (a parallel tests+linter+review orchestrator) and **`go-code-reviewer`** (a single design reviewer that loaded the review skill for guidance). v2 replaces both:
 
 - Knowledge moved out of the skills and into `rules/` as data — stated once, cited everywhere.
-- The single design reviewer became **parallel single-obsession `rule-hunter` agents** plus the **`overabstraction-skeptic`**, each fed the relevant rule file as a spawn-time payload rather than loading a skill.
+- The single design reviewer became **parallel single-obsession `rule-hunter` agents** plus the **`overabstraction-skeptic`**, each given the relevant rule file at spawn time rather than loading a skill.
 - The lint loop moved into the isolated **`lint-fixer`** agent.
 
 If you have muscle memory for `quality-analyzer` or `go-code-reviewer`, the closest v2 entry points are `/go-ldd-analyze` (read-only combined report) and `@pre-commit-review` (the hunter/skeptic review).

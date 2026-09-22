@@ -113,7 +113,7 @@ and can still be hostile to the plan.
    as `PREP-DEFERRED`, UNLESS gate 2 showed the feature cannot be tested at all
    without it — then it is not preparation but a design-plan gap: return to Phase 1.
 4. **SKEPTICIZED** — any prep move that creates a type/interface/package is judged by
-   the `{{.Plugin}}:overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
+   the `{{.Plugin}}:overabstraction-skeptic` (Agent tool; spawn prompt per @pre-commit-review step 3), with
    one sharpening in the spawn prompt: the justification is the approved plan in
    hand, not an imagined future — score the extraction as if the feature already
    existed. REFUTED → apply the cheaper alternative or defer. R2's construction
