@@ -140,10 +140,9 @@ the 2M to 3M its main thread costs.
 The pre-commit-review and refactoring skills were 30k and 23k bytes as rendered. Each
 keeps its protocol — the steps, the spawn-prompt items, the report and `Stop check`
 contracts the graders read — and moves the long form into its `reference.md`: the
-bundle recipe, agent output shapes, verdict rules, the cluster pass and report example
-for the review; the pattern index, file and package routing, preparatory mode, the
-suppression scan, the stopping criteria in full and the multi-rule procedures for
-refactoring. Each step names the `sed` range it reads, and the range is printed inside
+hunt-focus table, agent output shapes, verdict rules, the cluster pass and report
+example for the review; the pattern index, file and package routing, preparatory
+mode, the stopping criteria in full and the multi-rule procedures for refactoring. Each step names the `sed` range it reads, and the range is printed inside
 a Bash call the step already makes — the pre-filter, the bundle write, the loop's first
 lint run, the Gates run of the exit — never as a call of its own, because a round trip
 at a 115k-token context costs more than any of these sections; only the report's long
