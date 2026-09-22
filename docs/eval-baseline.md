@@ -75,4 +75,6 @@ so a flip has one cause and a regression elsewhere has one suspect.
 Cheap tier about $66 for 23 runs; medium tier about $23 for 10 runs; a whole-repo
 review is the expensive cheap case at $7 to $15 per run. Sessions that spawn
 subagents in the background and then poll roughly double their cost; the
-`segments` field in each result marks them.
+`segments` field in each result marks them. Where the tokens of a run go, and the
+spend gate a cost-cutting change must pass beside the verdict comparison above, is
+in [token-budget.md](token-budget.md).

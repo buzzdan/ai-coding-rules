@@ -79,7 +79,8 @@ beats a plain fix prompt and experiment 7 leaves the model gap open.
 ### 4 · Where the tokens go, then ablate
 Every trace already carries per-message usage and every hunter, skeptic and critic
 call. Sum by agent across the six review-full runs on hand and you have a cost per
-rule for free. Then ablate: the generator renders a plugin with one rule removed,
+rule for free; for the Go baseline that accounting is done, with `scripts/spend-report.py`,
+in [token-budget.md](token-budget.md). Then ablate: the generator renders a plugin with one rule removed,
 and one five-run review-full cell measures the recall lost against the tokens
 saved. A rule that costs 15 percent of a run and fires on two plants is a candidate
 to fold into a cheaper neighbour. The twelve-rule structure has never been priced.
@@ -177,7 +178,7 @@ after five runs, spend on five more of each before spending on any new cell.
 ### 8 · The rules without the machinery, across models
 The plugin is two things: twelve rules, and the machinery that applies them
 (hunter fan-out, skeptic, comment critic, the report shape). This design pulls them
-apart. Deliver the twelve rules as the coding-rules handbook, the standalone document generated from the same rule sources (coding-rules/python.md for py-mini, about 4,700 words), imported from CLAUDE.md with no skills, agents or commands. It is what a team without the plugin would actually use, so it is the arm; [handbook.md](handbook.md) describes how it is generated and consumed. Then run the same review task four ways, none, handbook, handbook plus lint gates, full plugin, on three models. Handbook plus lint gates is the token-free delivery: the rules' detection greps wired into ruff and golangci-lint or hooks, enforced by CI at zero model cost, the shape that survives a model upgrade.
+apart. Deliver the twelve rules as the coding-rules handbook, the standalone document generated from the same rule sources (coding-rules/python.md for py-mini, about 4,700 words), imported from CLAUDE.md with no skills, agents or commands. It is what a team without the plugin would actually use, so it is the arm; [handbook.md](handbook.md) describes how it is generated and consumed. Then run the same review task four ways, none, handbook, handbook plus lint gates, full plugin, on three models. Handbook plus lint gates is the token-free delivery: the rules' detection greps wired into ruff and golangci-lint or hooks, enforced by CI at zero model cost, the shape that survives a model upgrade; the analyzer behind it is stage S6 of [token-budget.md](token-budget.md).
 
 | Arm | Sonnet 5 | Opus 5 | Fable 5.1 |
 |---|---|---|---|
@@ -441,7 +442,7 @@ spent.
 | Gate | Runs | Cost | Pass means | On fail |
 |---|---|---|---|---|
 | 0 | the scorecard's structure script and pairwise judge, a noise-floor run, experiment 6 started | $0 | the yardstick exists and two identical arms land within a known distance | nothing runs until it does |
-| 0.5 | the mechanical token diet, stages S1 to S4 of the token-budget design, proven in two pairs; in parallel, gate 1's three plugin-free cells | ~$100 for the proofs, ~$275 for the three cells | both pairs pass the token budget's two gates: no grader moves beyond the noise floor and billed tokens fall beyond the run-to-run swing | the plugin stays as it is and gate 1 runs on it, where the cost bound fails for a reason the spend report already gave |
+| 0.5 | the mechanical token diet, stages S1 to S4 of [token-budget.md](token-budget.md), proven in two pairs; in parallel, gate 1's three plugin-free cells | ~$100 for the proofs, ~$275 for the three cells | both pairs pass the token budget's two gates: no grader moves beyond the noise floor and billed tokens fall beyond the run-to-run swing | the plugin stays as it is and gate 1 runs on it, where the cost bound fails for a reason the spend report already gave |
 | 1 | experiment 7's fourth cell, Sonnet with the slim plugin, against the three cells recorded at gate 0.5 | ~$35 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better, and cost per passing feature within a stated multiple of the Sonnet plain cell, 2× unless the case says otherwise | stop spending on evals; the plugin needs fixing, not measuring, and a quality win at 3× the cost is a fail on cost |
 | 2 | experiment 8, Sonnet row, four cells | ~$110 | the plugin beats the handbook, with and without lint gates, on recall by more than the noise floor | the next work is tokens, not experiments; part two waits |
 | 3 | experiment 2, refactor A/B | ~$120 | more oracle passes per dollar than the plain fix prompt | the review is worth keeping, the refactor skill is not; experiment 3 is off |
@@ -450,8 +451,8 @@ spent.
 
 ### Gate 0.5: the mechanical diet, proven in pairs
 
-Gate 1 carries a cost bound, and the spend report in the token-budget design (PR
-#60) already says the plugin bills roughly ten times what a plain session does,
+Gate 1 carries a cost bound, and the spend report in [token-budget.md](token-budget.md)
+already says the plugin bills roughly ten times what a plain session does,
 most of it choreography re-billing itself. Running gate 1 on the plugin as it
 stands would fail on cost for a reason already known and already planned for.
 So the four diet stages that change how the choreography spends without changing
