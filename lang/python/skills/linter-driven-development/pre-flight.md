@@ -4,6 +4,6 @@
 2. **Discover commands** (README.md, CLAUDE.md, Makefile, Taskfile.yaml, the `[tool.*]`
    tables in `pyproject.toml`, `tox.ini`/`noxfile.py`, the CI workflow, in that
    order): test + lint commands, and which checkers the repository runs — ruff alone,
-   ruff plus mypy, or pyright/flake8/pylint. Fallbacks: `pytest`,
-   `ruff check --fix . && ruff format .`; add `mypy` only when a `[tool.mypy]` table or
-   `mypy.ini` exists. Never bring a checker the repository does not configure.
+   ruff plus ty, or pyright/flake8/pylint. Fallbacks: `pytest`,
+   `ruff check --fix . && ruff format .`; add `ty check` only when a `[tool.ty]` table or
+   `ty.toml` exists. Never bring a checker the repository does not configure.
