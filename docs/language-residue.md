@@ -242,7 +242,7 @@ fixture include runs one row, `python`, with no detection cases.
 ## The case studies
 
 The six files under `examples/` are case law: the rules cite them, and the review
-skill pastes two of them into agent payloads. Their prose is a story about specific
+skill names two of them, by path, in agent spawn prompts. Their prose is a story about specific
 code, so most sentences name identifiers from the fence beside them. The seam is
 therefore the section, not the fence: `core/examples/<case>.md` keeps the title,
 the headings and the doctrine — the why-it-is-a-defect bullets, the verdicts, the

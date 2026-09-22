@@ -80,13 +80,23 @@ change the plugin's shape, wait until that order's gate 1 has run.
 
 ### S1 — hunters read the scope once
 
-The pre-commit-review skill writes the scope once, before spawning: the diff for a
-scoped review, or the file list with per-package concatenations for `--all`. Each
-hunter's first turn reads that bundle in one command; per-file Read is allowed only
-to confirm a lead the bundle cannot settle. The rule-hunter, comment-critic and
-overabstraction-skeptic agents state a tool-call budget and the exit when it is
-spent: report what is settled with receipts, name what was not reached. A hunter that
-today spends 50 turns spends about 5.
+The pre-commit-review skill writes the scope once, before spawning: the file list,
+the diff on a scoped review, and one numbered file per source file, because a
+falsifying question asks about the file and not the hunk and a finding needs its
+line. Deleted, binary, generated and very long files stay in the list with the reason
+they were not bundled. Each hunter's first turn reads its rule, the diff and the
+bundled files its leads name, in one command, under a ceiling of about 20k tokens;
+later reads take the files its detection hits name, several per call; a per-file
+Read is for a call site outside the scope. On `--all` every hunter gets its own
+reading order over the directories, its rule's pre-filter hits first, so no two
+hunters truncate at the same tail. The rule-hunter and comment-critic state a budget
+of the first turn plus four calls, six on a whole-repository review, and the skeptic
+one call per finding; each states the exit when the budget is spent: receipts for
+the commands, which ran over the whole scope in one call, and a `not reached:` line
+for what was not read to judge, which the report header renders beside the tally
+with a `PARTIAL coverage` marker. The skeptic gets no bundle, since it verifies call
+sites across the whole repository. A hunter that spent 50 turns on the baseline
+spends about 5.
 
 Expected: the whole-repository review from 8M to 14M tokens down to 2M to 4M; scoped
 reviews down 30 to 40 percent. Cases that must not move: every review case's graders,
@@ -96,9 +106,17 @@ the recall count on the whole-repository review, the clean-tree controls.
 
 The spawn payload carries the rule's path and the pre-filter leads, not the rule's
 text. The hunter reads its rule in its first turn, once, in its own context. The
-parent never reads a rule file to build a payload. The rule-hunter agent's
-description, which today says a full rule file is pasted into the prompt, says the
-path instead.
+parent never reads a rule file to build a payload; the pre-filter prints every rule's
+Falsifying questions section in one command. The skeptic and the comment critic get
+their doctrine the same way, as paths with the `sed` range of the section to read,
+from every skill that spawns them, so neither reads a 30k-byte rule file whole for a
+4k-token section. The parent lists the resolved paths before spawning, and an agent
+whose doctrine does not read returns that instead of hunting from memory. The
+rule-hunter agent's description says the path, not the text.
+
+S1 and S2 are in the plugin sources and in all three bindings; their proof, the
+procedure under "Proving it", has not run, so their rows in the targets table are
+still claims.
 
 Expected: about 6 percent of the review tier, and every hunter prompt shrinks by its
 rule. Risk: none to recall, the hunter reads the same text.
@@ -256,12 +274,18 @@ is a claim to be proven by the procedure above, not a result.
   falsifying question, and the recall graders on the whole-repository review are the
   check; a drop is a Gate 1 failure, and the stage does not ship.
 - **Bundle size.** The whole fixture is about 100k tokens; a real repository is
-  larger. For `--all` the bundle is per package, and a hunter's budget bounds what
-  one agent reads; a review wider than the budget reports the packages it did not
-  reach rather than reading past its budget.
-- **Budgets are prose.** Claude Code agent definitions have no hard turn cap, so a
-  budget is a stated protocol with a stated exit. The spend report's per-agent
-  columns are how a broken budget is seen, and a run that breaks it fails Gate 2.
+  larger. The bundle is per file, a hunter reads the files its leads and hits name
+  under a first-turn ceiling, and on `--all` each hunter's reading order puts its own
+  rule's hits first; a review wider than the budget reports the directories it did
+  not reach rather than reading past its budget. The detection commands still run
+  over the whole scope, so recall from the commands does not depend on what was read;
+  what a budget bounds is the judgement of hits, and the `not reached:` line names
+  the hits left unjudged.
+- **Budgets are prose.** Claude Code agent frontmatter has a `maxTurns` field that
+  caps agentic turns, but a hunter it cuts off returns a partial result without its
+  receipts, which the report cannot reconcile; so a budget is a stated protocol with
+  a stated exit, and the cap is not set. The spend report's per-agent columns are how
+  a broken budget is seen, and a run that breaks it fails Gate 2.
 - **The fixed context is not the plugin's.** The 40k tokens per call are mostly
   Claude Code itself; the plugin's descriptions are a small part. The stages cannot
   shrink it, only the number of times it is billed.
