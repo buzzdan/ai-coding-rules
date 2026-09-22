@@ -27,8 +27,8 @@ class Ports:
 ```
 
 > **In Python:** absence is a declared `-> Port | None` that every caller narrows,
-> checked by mypy; `dict.get` beside `dict[k]` is the model. A `0`, `""` or `None`
+> checked by ty; `dict.get` beside `dict[k]` is the model. A `0`, `""` or `None`
 > returned from a signature that promises `Port` is a sentinel and a finding, and
-> `# type: ignore[return-value]` is its silenced form. Never a `tuple[Port, bool]`.
+> `# ty: ignore[invalid-return-type]` is its silenced form. Never a `tuple[Port, bool]`.
 > `typing.NewType("PortNumber", int)` scores zero on the scorecard: it admits every
 > literal.
