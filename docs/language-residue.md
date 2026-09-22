@@ -232,7 +232,7 @@ R7 Q3.
 Two files every binding must supply because core has no default for them — the
 orchestrator's pre-flight and the analyze command's command discovery — name the
 Python tool chain: `pyproject.toml` as the marker, `pytest`, `ruff check` and
-`ruff format`, and `ty` only where a `[tool.ty]` table exists. The refactoring
+`ruff format`, and `ty check` only where a `[tool.ty]` table exists. The refactoring
 routing table and the lint-fixer's compact copy are keyed by ruff codes; duplicated
 code, file length, exhaustiveness and single-implementer protocols have no ruff rule
 and are review-only rows, as the fixture's manifest records. The gate's adapter is
