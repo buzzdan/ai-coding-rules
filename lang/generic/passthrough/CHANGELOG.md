@@ -8,20 +8,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ### Changed
 
 - **Hunters read the scope once.** The pre-commit-review skill writes a scope
-  bundle before spawning — the file list, the diff and the full text of every file
-  in scope, or one file per source directory on a whole-repository review — and each
-  rule-hunter, the comment critic and the over-abstraction skeptic read it in their
-  first turn, in one command. A per-file read is for confirming a lead the bundle
-  cannot settle. Each of the three agents states a tool-call budget and what it
-  returns when the budget is spent: receipts for what it covered and a
-  `not reached:` line for what it did not, which the report carries beside the
-  tally. (Token budget stage S1.)
+  bundle before spawning — the file list, the diff on a scoped review, and one
+  numbered file per source file, with deleted, binary, generated and very long files
+  listed but not bundled — and each rule-hunter and the comment critic read their
+  rule and the bundled files their leads name in their first turn, in one command,
+  under a stated ceiling. On `--all` each hunter gets its own reading order over the
+  directories, its rule's pre-filter hits first. The hunter and the critic have a
+  budget of the first turn plus four calls, six on a whole-repository review, the
+  skeptic one call per finding, and each states what it returns when the budget is
+  spent: receipts for the detection commands, which ran over the whole scope in one
+  call, and a `not reached:` line for what was not read to judge, which the report
+  header renders beside the tally with a `PARTIAL coverage` marker. The skeptic gets
+  no bundle. (Token budget stage S1.)
 - **Rules by reference.** The spawn prompt carries the rule file's absolute path
   and the pre-filter leads, not the rule's text; the hunter reads its rule in its
-  first turn. The skeptic and the critic get the paths and section names of their
-  doctrine the same way, from every skill that spawns them, and the parent never
-  reads a rule file or a case file to build a spawn prompt. (Token budget stage
-  S2.)
+  first turn. The skeptic and the critic get their doctrine the same way, as paths
+  with the `sed` range of the section to read, from every skill that spawns them; the
+  parent never reads a rule or case file to build a spawn prompt, lists the resolved
+  paths before spawning, and an agent whose rule or doctrine does not read returns
+  that instead of hunting from memory. (Token budget stage S2.)
 
 ## [0.2.0] - 2026-09-21
 

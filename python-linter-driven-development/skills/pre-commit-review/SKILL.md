@@ -43,10 +43,12 @@ mid-implementation net; this pass is the verification net on finished work.
 <protocol>
 
 <step_1_grep_prefilter>
-In-context, cheap — no agents yet. For each rule below, read its rule file's
-**Falsifying questions** section — that section only, never the whole file — and run
-the detection commands there against the diff scope (changed files only). The commands
-live in the rule files; never restate them here.
+In-context, cheap — no agents yet. One Bash command prints the **Falsifying
+questions** section of every rule file below — `for f in <rules dir>/R*.md; do echo
+"==> $f <=="; sed -n '/^## Falsifying questions/,$p' "$f"; done` — that section only,
+never a whole rule and never twelve Read calls; then run the detection commands there
+against the diff scope (changed files only). The commands live in the rule files;
+never restate them here.
 A rule with zero hits is skipped — no hunter spawned for it.
 
 | Rule | File | Hunt focus |
@@ -83,24 +85,33 @@ to the repo owner. The fix is a discussion or a separate PR, never silent inclus
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
-**Write the scope bundle first.** Before any agent is spawned, one Bash command writes
-the scope to a temporary directory (`mktemp -d`), so every hunter, the skeptic and the
-critic read the code under review once, in one command, instead of one file per turn:
+**Write the scope bundle first.** Before any agent is spawned, and only when the
+scope is not empty, one Bash command writes the scope to a temporary directory
+(`B=$(mktemp -d)`), so each hunter and the critic read the code they judge once,
+numbered and sliced to what their leads name, instead of one file per turn:
 
 - `files.txt` — the scope's file list, one path per line, as the caller resolved it.
-- For a scoped review: `diff.patch`, the diff over the scope (`git diff <range> --
-  '*.py'`, untracked files appended whole), and `scope.txt`, the full text of
-  every file in scope with a `==> <path> <==` header before each (`xargs tail -n +1 <
-  files.txt` prints exactly that) — a falsifying question asks about the file, not
-  the hunk.
-- For a whole-repository review (`--all`): `files.txt` and one `scope/<dir>.txt` per
-  source directory (a package, in most languages) holding that directory's source
-  files with the same headers; there is no diff. A real repository is larger than one
-  read, so a hunter reads the per-directory files in order, within its budget, and
-  names the directories it did not reach.
+  A file left out of `scope/` keeps its line here with the reason appended —
+  `(not bundled: deleted)`, `(not bundled: binary)`, `(not bundled: 2400 lines)`,
+  `(not bundled: generated)` — which a hunter reads as ground its detection commands
+  still cover and nothing reads whole.
+- `diff.patch` — on a scoped review, the diff over the scope (`git diff <range> --
+  '*.py'`). An untracked file has no diff and appears only under `scope/`; a
+  whole-repository review has no diff at all.
+- `scope/<path>.txt` — one file per file in scope, at its source path under `scope/`,
+  holding a `==> <path> <==` header and the file's text with its own line numbers, so
+  a finding read from the bundle anchors as exactly as a `grep -n` hit:
+  `while IFS= read -r f; do mkdir -p "$B/scope/$(dirname "$f")"; { printf '==> %s <==\n' "$f"; cat -n -- "$f"; } > "$B/scope/$f.txt"; done < "$B/files.txt"`
+  (run over the files that are bundled). Left out, with the reason in `files.txt`:
+  files the diff deletes, binary files (`grep -Il . -- "$f"` prints nothing), files
+  over about 2000 lines, and files matching the repository's generated-file markers.
+  Nothing else is filtered — a falsifying question asks about the file, not the hunk.
+- `dirs.txt` — on `--all`, the source directories in scope, one per line with their
+  file and line counts, so every hunter can be given its own reading order.
 
 The bundle is the one thing this review writes to disk; the report never is (step 4).
-The bundle's absolute path goes into every spawn prompt below.
+Hunters and the critic get the bundle's absolute path; the skeptic does not — it
+verifies call sites across the whole repository, which no scope bundle holds.
 
 For every rule with pre-filter hits, spawn one `python-linter-driven-development:rule-hunter` agent, as **foreground**
 `Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
@@ -122,7 +133,11 @@ hand. Each spawn prompt MUST contain:
    to build a spawn prompt — step 1 read its Falsifying questions section, and that
    is all of it the parent ever reads.
 2. **The scope bundle's absolute path**, and the diff scope it holds — the
-   changed-file list or `git diff` range.
+   changed-file list or `git diff` range. On `--all`, also **this hunter's reading
+   order**: the directories of `dirs.txt` with this rule's pre-filter hits first, most
+   hits first, ties by line count ascending, then the rest. Each hunter then reads a
+   different head of the repository, and the directories one never reaches are the
+   ones its own rule found nothing in — no two hunters truncate at the same tail.
 3. **That rule's pre-filter hits** — as starting leads (the hunter re-runs the
    detection commands itself; leads are a starting point, not a limit).
 
@@ -130,7 +145,9 @@ Every path in a spawn prompt is absolute — the hunter runs in the reviewed pro
 cwd and cannot resolve plugin-relative paths on its own. Resolve
 `../../rules/R<N>-….md` from this skill's own location, and when the rule cites a case
 file by plugin-relative path (e.g. `../examples/*.md`), resolve and include that path
-too.
+too. Before spawning, list every resolved path in one `ls` — listing is not reading;
+a path that does not list is fixed here, never handed to a hunter, which would
+otherwise hunt without its rulebook.
 
 Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
@@ -139,8 +156,10 @@ finding(s)`) and a final tally line (`R<N>: <M> finding(s)` or a hunted-clean li
 The receipts are how a whole-repository hunt is read: a question with no receipt was
 not run over the scope, and the leads were never the scope. A hunter that spends the
 tool-call budget its agent definition states returns the same shape plus one
-`not reached: …` line naming the questions, files or directories it did not cover;
-the report carries that line beside the hunter's tally, never as a clean verdict.
+`not reached: …` line naming the files or directories it did not read to judge — its
+detection commands still ran over the whole scope, so its receipts are whole — and the
+report header renders that line verbatim beside the hunter's tally (step 4), never as
+a clean verdict.
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
@@ -152,12 +171,14 @@ every hunter result is in hand; the comment critic (step 3b), when it runs, is s
 in that same message so the two run in parallel. Its spawn prompt MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
-2. The absolute path of `../../rules/R1-primitive-obsession.md`, naming the two
-   sections the skeptic reads from it in its first turn: **Juiciness scoring** and
-   **The over-abstraction trap**.
+2. The absolute path of `../../rules/R1-primitive-obsession.md` and the range the
+   skeptic reads from it in its first turn, the **Juiciness scoring** and **The
+   over-abstraction trap** sections: `sed -n '/^### Juiciness scoring/,/^### Placement/p'`.
+   Never the file whole.
 3. The absolute path of `../../examples/overabstraction-cidr.md`.
-4. The scope bundle's absolute path — where the skeptic verifies usage counts and
-   call sites before granting points.
+
+No bundle: the skeptic verifies usage counts and call sites across the whole
+repository, which a scope bundle does not hold; its greps run in the reviewed project.
 
 Verdicts per finding: `CONFIRMED (score ≥4 + verified evidence)`, `CONFIRMED (score
 2–3, judgment call) — alternative: …` (the type ships as the finding's fix with the
@@ -194,15 +215,22 @@ foreground call returning — or, in a cloud session that backgrounds it after 1
 seconds, by its result arriving on its own — never by a timer, a scheduled wake-up or
 a notification poll. Its spawn prompt MUST contain:
 
-1. The absolute path of `../../rules/R9-repo-brain.md`, naming the **Comment
-   policy** section (under Design guidance) the critic reads in its first turn —
-   the Comment Value Toolbox kinds, the three-test standard, the tier table, budget
-   accounting, and the visibility default.
-2. The absolute path of `../documentation/reference.md`, naming its **Comment Value
-   Toolbox** catalog section, read in the same turn.
+1. The absolute path of `../../rules/R9-repo-brain.md` and the range of its
+   **Comment policy** section, read in the critic's first turn —
+   `sed -n '/^### Comment policy/,/^### Edge conventions/p'` (the heading carries a
+   parenthesis, so the range opens on its prefix): the Comment Value Toolbox kinds,
+   the three-test standard, the tier table, budget accounting, and the visibility
+   default.
+2. The absolute path of `../documentation/reference.md` and the range of its
+   **Comment Value Toolbox** catalog —
+   `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'` — read in the
+   same turn. Neither file is read whole: the two ranges are about 4k tokens, the
+   two files about 17k.
 3. The absolute path to `../../examples/private-comment-noise.md` — the critic
    reads it when judging comments on underscore-prefixed symbols.
-4. The diff scope and the scope bundle's absolute path.
+4. The diff scope and the scope bundle's absolute path — when this review wrote one;
+   a caller that spawns the critic without a bundle omits it, and the critic builds
+   its scope in its first turn.
 
 It judges every comment in the diff (docstring, in-body, test) against the three-test
 standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
@@ -328,7 +356,11 @@ rendered below (own line or shared-shape line alike) —
 every rule before the report is emitted; a rendered count below the tally means a
 finding was dropped in the merge, and the fix is to render it, never to adjust the
 tally. A finding the skeptic refuted still counts as rendered when its
-cheaper alternative is on the page.
+cheaper alternative is on the page. A hunter, the skeptic or the critic that returned
+a `not reached:` line has it rendered verbatim in the header beside its tally —
+`R9 12/12 (not reached: internal/store, internal/api)`, `Skeptic: 3 CONFIRMED · 1 not
+reached` — and the Scope line then reads `Mode: FULL · PARTIAL coverage`. A header
+without those words asserts that every agent covered the whole scope.
 Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
 Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
 
@@ -358,6 +390,7 @@ fixes). Use after @refactoring applies fixes or whenever the caller iterates.
 📊 CODE REVIEW REPORT
 Scope: user/service.py, user/auth.py (+ tests) · Mode: FULL
 Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skipped
+         (a hunter's not-reached line, when it returned one, follows its tally here)
 Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
 Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
@@ -395,7 +428,8 @@ This skill MUST NOT:
 - Edit code, fix findings, or invoke fix skills (@refactoring, @code-designing, @testing)
 - Write the report, or any part of it, to a file — the report is the message that
   ends the review, whole, whatever its length; the scope bundle of step 2, under a
-  temporary directory, is the only file the review writes
+  temporary directory, is the only file the review writes, and an empty scope writes
+  none
 - Run the linter or tests — the caller does (see @linter-driven-development)
 - Block commits — every finding is advisory; the caller decides what to fix
 - Restate rule content — rules live once in `../../rules/`; name them by absolute

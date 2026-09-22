@@ -103,11 +103,13 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
 7. **Comment critique**: spawn the `{{.Plugin}}:comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
    are in scope too. Its spawn prompt MUST contain: (a) the absolute path of
-   `../../rules/R9-repo-brain.md`, naming its comment-policy section (toolbox kinds,
-   three-test standard, tiers, budget accounting, visibility default); (b) the
-   absolute path of this skill's `reference.md`, naming its Comment Value Toolbox
-   catalog — the critic reads both in its first turn; nothing is pasted, and this
-   skill reads neither to spawn it; (c) the absolute path to
+   `../../rules/R9-repo-brain.md` and the range of its comment-policy section
+   (toolbox kinds, three-test standard, tiers, budget accounting, visibility
+   default): `sed -n '/^### Comment policy/,/^### Edge conventions/p'`; (b) the
+   absolute path of this skill's `reference.md` and the range of its Comment Value
+   Toolbox catalog: `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`
+   — the critic reads both ranges in its first turn, never a file whole; nothing is
+   pasted, and this skill reads neither to spawn it; (c) the absolute path to
    `../../examples/private-comment-noise.md`; (d) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
    fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
    `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the

@@ -80,8 +80,8 @@ linter-driven-development/
 - **[`skills/`](skills/)** — thin directional views that sequence and route into the
   rules. They never restate rule content.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
-  contexts, pointed at the relevant rule file and the scope bundle by path, which they
-  read in their first turn.
+  contexts, pointed by path at the relevant rule file — and, for hunters and the
+  critic, at the scope bundle — which they read in their first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the
   documentation-network gate `/wire-repo-brain` installs into your repository. Its
   language adapter is chosen at run time: `go.mod` selects the Go block,
