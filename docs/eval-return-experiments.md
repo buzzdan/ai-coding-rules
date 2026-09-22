@@ -441,15 +441,55 @@ spent.
 | Gate | Runs | Cost | Pass means | On fail |
 |---|---|---|---|---|
 | 0 | the scorecard's structure script and pairwise judge, a noise-floor run, experiment 6 started | $0 | the yardstick exists and two identical arms land within a known distance | nothing runs until it does |
-| 1 | experiment 7, first four cells | ~$310 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better, and cost per passing feature within a stated multiple of the Sonnet plain cell, 2× unless the case says otherwise | stop spending on evals; the plugin needs fixing, not measuring, and a quality win at 3× the cost is a fail on cost |
+| 0.5 | the mechanical token diet, stages S1 to S4 of the token-budget design, proven in two pairs; in parallel, gate 1's three plugin-free cells | ~$100 for the proofs, ~$275 for the three cells | both pairs pass the token budget's two gates: no grader moves beyond the noise floor and billed tokens fall beyond the run-to-run swing | the plugin stays as it is and gate 1 runs on it, where the cost bound fails for a reason the spend report already gave |
+| 1 | experiment 7's fourth cell, Sonnet with the slim plugin, against the three cells recorded at gate 0.5 | ~$35 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better, and cost per passing feature within a stated multiple of the Sonnet plain cell, 2× unless the case says otherwise | stop spending on evals; the plugin needs fixing, not measuring, and a quality win at 3× the cost is a fail on cost |
 | 2 | experiment 8, Sonnet row, four cells | ~$110 | the plugin beats the handbook, with and without lint gates, on recall by more than the noise floor | the next work is tokens, not experiments; part two waits |
 | 3 | experiment 2, refactor A/B | ~$120 | more oracle passes per dollar than the plain fix prompt | the review is worth keeping, the refactor skill is not; experiment 3 is off |
 | 4 | part two: the ldd twin, then 11, then 9, then 12 only if 9 shows a gap | ~$60 for the twin, then $40, $80, $250 | comprehension tokens and regressions down on the ldd twin by more than the noise floor | the plugin's refactor is a review aid, not an investment |
 | 5 | fine tuning: 4's ablations, 8's Opus summary cell, 3, 5, 10 | as each says | as each says | pick and choose |
 
+### Gate 0.5: the mechanical diet, proven in pairs
+
+Gate 1 carries a cost bound, and the spend report in the token-budget design (PR
+#60) already says the plugin bills roughly ten times what a plain session does,
+most of it choreography re-billing itself. Running gate 1 on the plugin as it
+stands would fail on cost for a reason already known and already planned for.
+So the four diet stages that change how the choreography spends without changing
+what the rules say go first, and the plugin cell of gate 1 is measured on the
+result. The three cells that do not involve the plugin, Fable plain, Fable with
+the handbook and Sonnet plain, run in parallel with the diet, since nothing in
+the diet can change them, and they give the noise floor, the harness pin and the
+dated model baseline. Stages S5 and S6, which change the plugin's shape, wait for
+gate 1.
+
+| Stage | What changes | Behaviour risk |
+|---|---|---|
+| S1 | hunters read the scope once from a bundle, with a tool budget and a stated exit | real: a hunter that reads once may skim and drop recall |
+| S2 | the spawn payload carries the rule's path, not its text | none: the hunter reads the same text |
+| S3 | the Agent tool is for the lint-fixer only; the lint-fixer states a budget | none to review; removes the improvised-agent class of run |
+| S4 | the review and refactoring skills move examples into their reference files | low: a step that leaned on an inlined example, caught by the art judges |
+
+Each proof runs only the new arm against the recorded baseline, at the token
+budget's convention: the cheap tier at the baseline's run counts and the medium
+tier once, then regrade and the spend report. The proofs are paired because S2
+and S4 add almost no behaviour risk of their own:
+
+| Pair | Proof | Cost | Why paired |
+|---|---|---|---|
+| S1 with S2 | both tiers | ~$58 | same skill; S1 is the one proof that matters, and the refactor tier's ship path exercises the review, so a recall drop would show there too |
+| S3 with S4 | both tiers | ~$42 | cheaper because S1 has already halved the review tier |
+
+If the first pair fails the behaviour gate, bisect by running S1 alone on the
+review tier, about $20. Four separate proofs would cost about $150 to $205 and
+buy attribution that is unlikely to be needed; a single proof after all four
+would cost about $40 and could not say which stage moved a grader. Development
+and proof are separable: the four stages can be written and left on branches at
+no model cost, and proven whenever the spend is wanted. If the proofs run at the
+five runs per cell the value experiments use rather than the baseline's counts,
+the first pair is about $115.
+
 Gate 1 has a partial pass. If Fable plain matches Sonnet with plugin, the plugin
-works but is competing with a model upgrade, so the sequence continues on the price
-question only, gate 2 and then 8's Opus summary cell, and part two waits.
+works but is competing with a model upgrade, so the sequence continues on the price question only, gate 2 and then 8's Opus summary cell, and part two waits. Gate 1's own cost is now the fourth cell alone, since the three plugin-free cells were recorded at gate 0.5.
 Experiment 4's accounting is free, but its result matters only once the plugin has
 passed gate 1, so it sits in gate 5 rather than running alongside. Each gate's pass
 number is written into the case before its runs start, which is the
