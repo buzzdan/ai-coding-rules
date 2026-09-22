@@ -175,20 +175,20 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (116 lines):
+Soft residue by token (115 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
-| interface | 85 | 25 |
+| interface | 85 | 24 |
 | Go code fence | 12 | 1 |
-| struct | 7 | 5 |
 | Go (the word) | 6 | 4 |
+| struct | 6 | 4 |
 | Go stdlib | 5 | 4 |
 | race detector | 2 | 2 |
 | func | 1 | 1 |
 | sync. | 1 | 1 |
 
-Soft residue by file (116 lines):
+Soft residue by file (115 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -201,7 +201,7 @@ Soft residue by file (116 lines):
 | `examples/anti-if-dispatch.md` | 5 | 1 |
 | `includes/rules/R11/falsifying-questions.md` | 5 | 1 |
 | `skills/code-designing/SKILL.md` | 5 | 1 |
-| `skills/refactoring/SKILL.md` | 4 | 2 |
+| `skills/refactoring/reference.md` | 4 | 1 |
 | `skills/testing/SKILL.md` | 4 | 1 |
 | `includes/handbook/R6/example.md` | 3 | 1 |
 | `includes/skills/documentation/reference/doc-comment-menus.md` | 3 | 1 |
@@ -224,5 +224,4 @@ Soft residue by file (116 lines):
 | `rules/R2-self-validating-types.md` | 1 | 1 |
 | `rules/R7-test-placement.md` | 1 | 1 |
 | `skills/linter-driven-development/SKILL.md` | 1 | 1 |
-| `skills/refactoring/reference.md` | 1 | 1 |
 <!-- residue:end -->

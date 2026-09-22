@@ -55,8 +55,12 @@ isolated context, spawned with the package list)
 - Every escalation in scope is fixed by invoking @refactoring with its route (its
   `<routing_table>` maps linter failure → owning rule's Fix pattern; its six-step
   stopping criteria and its commit apply); package-size escalations follow
-  @refactoring `<package_decomposition>`. Escalations are never fixed by hand from
-  this command.
+  @refactoring's `reference.md` `<package_decomposition>`; a `budget spent` escalation
+  is mechanical leftover — spawn the lint-fixer again over the packages it names.
+  Escalations are never fixed by hand from this command, and never by a subagent:
+  @refactoring runs in this thread, whether there are two escalations or twenty. A
+  general-purpose agent applying escalations is the failure this line exists to
+  prevent.
 - Repeat until the agent reports `LINT STATUS: green` for the scope
 
 **Phase 4 — REVIEW over the scope's diff** (via @pre-commit-review)

@@ -14,7 +14,7 @@ findings the hunters own alone.
 | Duplicated code (review-only) | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated `match`/if-chains on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
 | A `match` missing enum cases (review-only; mypy sees it only under `assert_never`) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site and close it with `case _: assert_never(x)`; a second `match` appearing is the R11 violation itself |
 | `FBT001` / `FBT002` (boolean positional parameter) | Mechanical — make it keyword-only; then read the branches: sharing little → `../../rules/R11-conditional-dispatch.md`, Split Flag Argument |
-| File over ~450 lines (review-only) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
+| File over ~450 lines (review-only) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>`, in this skill's `reference.md` |
 | `PLW0603` (`global` statement); import-time side effects (review-only) | `../../rules/R8-no-globals.md` |
 | A `Protocol`/ABC with one implementer; a factory annotated to return the Protocol (review-only) | `../../rules/R6-test-only-interfaces.md` |
 | Unguarded shared state; a `daemon=True` worker; `time.sleep` in a stoppable loop (review-only) | `../../rules/R10-concurrency-safety.md` |

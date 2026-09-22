@@ -41,7 +41,12 @@ never read its file directly.
 | @documentation | `Skill(python-linter-driven-development:documentation)` |
 
 The `python-linter-driven-development:lint-fixer` agent is spawned with the **Agent tool**:
-`subagent_type: "python-linter-driven-development:lint-fixer"`.
+`subagent_type: "python-linter-driven-development:lint-fixer"`. That is the Agent tool's one use in this
+workflow — the review agents are spawned by the skills that own them, and nothing else
+is delegated. Refactoring is a skill invoked in this thread, never handed to a
+general-purpose or any other subagent, however many escalations there are: a subagent
+applying refactorings runs unbounded in a context nobody reads, and is the single most
+expensive thing this workflow can do.
 </skill_invocation>
 
 <flow>
@@ -195,9 +200,12 @@ the entry was a scoped command (`/py-ldd-quickfix` names the rung and the files)
 Name the scope in the agent's spawn prompt; it lints nothing wider.
 
 The agent returns `FIXED` (mechanical — done) and `ESCALATED` (design-level, each
-with a rule route from its embedded routing table). Route every escalation back
-through the Phase 2 REFACTOR step — invoke @refactoring with the routes; **never
-auto-redesign here**. Package-size escalations follow @refactoring
+with a rule route from its embedded routing table). An `ESCALATED: … → mechanical,
+budget spent` line is mechanical work the agent's budget did not reach, not design:
+spawn the lint-fixer again, fresh, over the packages it names. Route every other
+escalation back through the Phase 2 REFACTOR step — invoke @refactoring, in this
+thread, with the routes; **never auto-redesign here, and never delegate the
+escalations to a subagent** (`<skill_invocation>`). Package-size escalations follow @refactoring's `reference.md`
 `<package_decomposition>` (decomposition lands in its own commit). Repeat Phase 3
 until the agent reports `LINT STATUS: green`.
 </phase_3_full_lint>

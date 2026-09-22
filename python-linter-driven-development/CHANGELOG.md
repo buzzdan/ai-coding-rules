@@ -7,6 +7,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The Agent tool has one use in the workflow.** The linter-driven-development
+  skill, the quickfix command and the refactoring skill state that refactoring runs in
+  the main thread and is never delegated to a general-purpose or any other subagent,
+  however many escalations there are. The lint-fixer has a budget of six lint runs and
+  forty edits per spawn; what it did not reach returns as `ESCALATED: … → mechanical,
+  budget spent` lines, and the caller spawns a fresh lint-fixer over those packages.
+  (Token budget stage S3.)
+- **Two skills on a diet.** The pre-commit-review and refactoring skills keep their
+  protocols and contracts and move the long form — bundle recipe, agent output shapes,
+  verdict rules, cluster pass and report example; pattern index, file and package
+  routing, preparatory mode, the suppression scan, stopping criteria in full,
+  multi-rule procedures — into their `reference.md`, each step naming the `sed` range
+  it reads when it needs it. `<file_and_package_routing>` and `<package_decomposition>`
+  now live in the refactoring skill's `reference.md`; the skills that cite them say so.
+  (Token budget stage S4.)
 - **Hunters read the scope once.** The pre-commit-review skill writes a scope
   bundle before spawning — the file list, the diff on a scoped review, and one
   numbered file per source file, with deleted, binary, generated and very long files

@@ -10,7 +10,7 @@ table in `../../agents/lint-fixer.md` — keep them consistent.)
 | `maintidx` | `../../rules/R3-storifying.md` + `../../rules/R1-primitive-obsession.md` |
 | `dupl` | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated blocks that switch on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
 | `exhaustive` (missing enum cases) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site; a second switch appearing is the R11 violation itself |
-| revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
+| revive `file-length-limit`; package-size hook failures (`hooks/check-package-sizes.sh`) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>`, in this skill's `reference.md` |
 | `gochecknoglobals` / `gochecknoinits` | `../../rules/R8-no-globals.md` |
 | `ireturn` / interface lint on single-impl interfaces | `../../rules/R6-test-only-interfaces.md` |
 | `go test -race` failures; `govet` `copylocks` | `../../rules/R10-concurrency-safety.md` |

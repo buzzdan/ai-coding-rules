@@ -30,6 +30,15 @@ slice).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
    show no progress, stop and escalate what's left — do not thrash.
 
+**Budget:** six lint runs and forty edits per spawn, the first run included; every
+turn re-bills your whole context, so a long loop costs more than the fixes are worth.
+Batch: one Read of a file, then every mechanical fix in it. When the budget is spent,
+stop and report — the mechanical issues still open become escalations of their own
+kind, `ESCALATED: <linter> → mechanical, budget spent — respawn lint-fixer at
+<file:line>`, one per issue; the caller spawns a fresh lint-fixer over those packages,
+and a fresh context finishes them cheaper than yours would. Never run past the budget
+to get to green.
+
 **Escalation contract (the core of this job):** {{include "agents/lint-fixer/mechanical-issues.md"}} Complexity and design failures you do NOT redesign — refactoring is
 a design act that belongs to the main context. Return them as escalations routed by
 this table:
