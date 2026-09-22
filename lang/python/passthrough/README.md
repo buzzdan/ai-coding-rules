@@ -9,7 +9,7 @@ design rules stated once as data, thin skills that sequence design, TDD, refacto
 testing, review and documentation, and an evidence-based review run by fresh-context
 agents. What differs is the language-shaped part: every canonical example is Python,
 every detection command greps `.py` files, the linter routing is keyed by ruff codes
-and mypy, and the testing skill speaks pytest.
+and ty, and the testing skill speaks pytest.
 
 Install it for a Python repository. A repository in a language without a binding
 takes [`linter-driven-development`](../linter-driven-development/README.md), which
@@ -46,7 +46,7 @@ Go one:
   ruff `D` rules require a docstring, a WHAT-docstring is rewritten, never deleted;
   on a `_private` name it is deleted.
 - **The kept switch is a `match` over an `Enum` closed by `case _: assert_never(x)`.**
-  That arm is the completeness proof mypy checks, not an unknown-kind default; a
+  That arm is the completeness proof ty checks, not an unknown-kind default; a
   `case _:` that raises or logs is the finding. A dictionary of callables comes
   first, a `Protocol` hierarchy second, `functools.singledispatch` third. A
   positional boolean parameter is always a finding (ruff `FBT001`) and the
@@ -90,7 +90,7 @@ them because the rules hold them in every language:
 ## The linter phase
 
 The plugin runs the checkers the repository already configures — `ruff check`,
-`ruff format`, and `mypy` where a `[tool.mypy]` table exists — through the task the
+`ruff format`, and `ty check` where a `[tool.ty]` table exists — through the task the
 repository defines. It never adds a checker the repository does not use.
 
 - **Findings route by ruff code.** `C901` and the `PLR` complexity family go to R3,
@@ -100,8 +100,8 @@ repository defines. It never adds a checker the repository does not use.
 - **Some findings have no ruff rule.** Duplicated code, file length, a `match`
   missing enum cases, a `Protocol` with one implementer and shared-state races are
   review findings: the hunters own them alone.
-- **`# noqa` and `# type: ignore` are both suppressions.** The lint-fixer never adds
-  either and never edits `[tool.ruff]` or `[tool.mypy]`; a new one in a diff is
+- **`# noqa` and `# ty: ignore` are both suppressions.** The lint-fixer never adds
+  either and never edits `[tool.ruff]` or `[tool.ty]`; a new one in a diff is
   itself a review finding.
 
 ## Architecture: Rules as Data
@@ -150,7 +150,7 @@ is the meta-orchestrator:
 1.5 PREPARE  preparatory refactoring: survey the plan's touch points,
       four autonomous gates decide, @refactoring reshapes → prep commit(s)
 2 IMPLEMENT  per behavior: RED (one failing pytest, lowest rung) → GREEN → REFACTOR
-3 FULL LINT  ONE run of ruff and mypy via the lint-fixer agent (isolated context)
+3 FULL LINT  ONE run of ruff and ty via the lint-fixer agent (isolated context)
       mechanical → FIXED · design → ESCALATED → @refactoring
 4 REVIEW     per completed slice: @pre-commit-review spawns hunters + skeptic + critic
 5 SHIP       @documentation → commit (tests and lint green, tree dirty) → ship summary
