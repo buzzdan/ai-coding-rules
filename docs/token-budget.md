@@ -65,9 +65,18 @@ plugin already states for linters and now applies to itself: measure, do not
 choreograph. Deterministic work moves out of prompts; agents get what they need in
 one read; every loop has a budget; the evals decide how many agents a review needs.
 
-Each stage is one pull request, measured on its own against the baseline before the
-next begins, the convention [eval-baseline.md](eval-baseline.md) already sets for
-behavior changes.
+Each stage is one pull request, compared against the recorded baseline the way
+[eval-baseline.md](eval-baseline.md) already compares behavior changes, but the
+proofs are bought in pairs, not one per stage. S1 and S2 are proven together on both
+tiers, about $58; then S3 and S4 together on both tiers, about $42, cheaper because
+the first pair has already halved the review tier. S2 and S4 add almost no behavior
+risk of their own, so pairing them with the stage they serve costs no attribution
+that is likely to be needed. If the first pair fails Gate 1, the behavior gate below, bisect by running S1
+alone on the review tier, about $20. Development and proof are separable: a stage can
+be written and left on its branch at no model cost, and proven whenever the spend is
+wanted. Where the pairs sit among the value experiments, gate 0.5 of the gated order,
+is in [eval-return-experiments.md](eval-return-experiments.md); S5 and S6, which
+change the plugin's shape, wait until that order's gate 1 has run.
 
 ### S1 — hunters read the scope once
 
@@ -120,14 +129,17 @@ it.
 
 Twelve single-obsession hunters were designed for models that needed a narrow brief.
 Whether they still earn their fan-out is an empirical question, and the answer is the
-Uncle Bob experiment: three arms of the pre-commit-review skill, twelve hunters (the
+hunter-count experiment: three arms of the pre-commit-review skill, twelve hunters (the
 baseline), four cluster hunters (types: R1, R2, R11, R12; structure: R3, R4, R5;
 tests and dependencies: R6, R7, R8, R10; documentation: R9 with the comment critic),
 and one hunter with the whole rulebook. Recall on the whole-repository review's 111
 graders decides; the cheapest arm inside the noise floor ships.
 
 Expected: unknown until measured, which is the point. Spend falls roughly with the
-agent count; recall may not.
+agent count; recall may not. This stage runs only after gate 1 of
+[eval-return-experiments.md](eval-return-experiments.md) has passed, and its per-rule
+half is that page's experiment 4: the cost per rule the spend report already gives,
+then one rule ablated at a time by rendering a plugin without it.
 
 ### S6 — the mechanical questions become a program
 
@@ -142,7 +154,11 @@ become verifiers of the analyzer's findings, or go away under S5.
 Expected: the greps themselves are 1 percent, so the direct saving is small; the
 value is that whole hunters become unnecessary, which lands under S1 and S5, and that
 the same checks run in CI on repositories without the plugin, beside the handbook
-described in [handbook.md](handbook.md).
+described in [handbook.md](handbook.md). That pairing, the handbook plus the rule
+greps wired into golangci-lint and ruff or hooks at zero model cost, is the
+handbook-plus-lint-gates arm of [eval-return-experiments.md](eval-return-experiments.md);
+this analyzer is the mechanism behind it. Like S5 it runs only after that order's
+gate 1.
 
 ## Proving it
 
@@ -172,6 +188,10 @@ too but change with cache pricing; tokens do not.
   mechanism the stage claims to remove is gone: a hunter at 5 turns, not 50; no
   general-purpose agent above its budget.
 
+Gate 1 of [eval-return-experiments.md](eval-return-experiments.md) carries a cost
+bound, and it uses this page's definitions: billed tokens as the measure, and the
+worst run of the new arm against the best run of the baseline as the rule.
+
 ### The instrument
 
 `scripts/spend-report.py` is the reference implementation and produced every number
@@ -192,8 +212,8 @@ and its markdown output goes into the pull request.
 
 1. Branch, change the core sources, `task generate` for all three bindings, `task check`.
 2. Run the cheap tier at the baseline run counts and the medium tier once against
-   the generated Go plugin, model pinned, cap set, `--keep-temp`. About $80 at
-   today's spend; less as stages land.
+   the generated Go plugin, model pinned, cap set, `--keep-temp`. About $58 for the
+   S1 and S2 pair, about $42 for S3 and S4; less as stages land.
 3. Regrade baseline and arm with the current graders. Gate 1 per case.
 4. Spend report on both. Gate 2 per case, per tier, per agent.
 5. Both tables in the pull request. On acceptance, promote the run as the next
@@ -203,12 +223,16 @@ and its markdown output goes into the pull request.
 ### Reference floors
 
 Two more arms run once, not as stages but as the outer bounds of the question the
-design answers: the handbook alone, `coding-rules/go.md` imported from the
-fixture's CLAUDE.md with no skills or agents, and no plugin at all. Their recall on
-the whole-repository review is the floor the harness must beat to justify any token
-at all; their spend is the floor the stages approach. If the handbook arm's recall is
-inside the noise floor of the plugin's, the handbook is the product and the
-remaining choreography is the cost.
+design answers: the handbook alone, `coding-rules/go.md` as generated, imported from
+the fixture's CLAUDE.md with no skills or agents, never a hand-condensed summary; and
+no plugin at all. Their recall on the whole-repository review is the floor the
+harness must beat to justify any token at all; their spend is the floor the stages
+approach. If the handbook arm's recall is inside the noise floor of the plugin's, the
+handbook is the product and the remaining choreography is the cost. Experiment 8 of
+[eval-return-experiments.md](eval-return-experiments.md) is the same design on
+py-mini with a fourth row, none, handbook, handbook plus lint gates, plugin, across
+three models; its gate 0.5 runs the three plugin-free cells in parallel with the
+diet, since nothing in the diet can change them.
 
 ## Targets
 
