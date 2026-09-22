@@ -14,435 +14,202 @@ allowed-tools:
 
 <objective>
 Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
-parallel single-obsession `go-linter-driven-development:rule-hunter` agents, one `go-linter-driven-development:overabstraction-skeptic`, and one
-`go-linter-driven-development:comment-critic`.
-Pure orchestration and reporting: this skill may spawn agents but never edits code, never
-fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
-agents receive the path of the rule they hunt and read it themselves in their first
-turn — the parent never pastes a rule, and agents do not invoke skills.
+parallel single-obsession rule hunters, one over-abstraction skeptic and one comment
+critic — the agents `go-linter-driven-development:rule-hunter`, `go-linter-driven-development:overabstraction-skeptic` and
+`go-linter-driven-development:comment-critic`, spawned by those names and no others. Pure orchestration
+and reporting: this skill spawns agents and reports; it never edits code, never fixes
+findings, never blocks a commit. Rule knowledge lives once in `../../rules/`; agents get
+the path of their rule and read it themselves in their first turn — the parent never
+pastes a rule, and agents do not invoke skills. Each step's long form is in
+`reference.md` here, read by `sed` range inside a Bash call the step already makes —
+never the file whole, never a call of its own — except the report's, read once before
+writing.
 </objective>
 
 <timing>
-Run pre-commit, per completed vertical slice — NEVER mid-implementation. GREEN-step TDD
-code is supposed to look under-designed; reviewing it produces false positives. The
-per-cycle detection greps in the REFACTOR step (see @refactoring) are the
+Run pre-commit, per completed vertical slice — NEVER mid-implementation: GREEN-step TDD
+code is supposed to look under-designed. The REFACTOR step's per-cycle greps are the
 mid-implementation net; this pass is the verification net on finished work.
 </timing>
 
 <inputs>
-- **Diff scope**: the caller's resolved file list or diff range. Callers resolve it by one
-  ladder — an explicit argument, else the working tree's changes against `HEAD`
-  (`git diff --name-only HEAD -- '*.go'` plus untracked files), else the current
-  branch against its base, and the whole repository only when asked for explicitly. This
-  skill never widens the scope it is given, and an empty scope is reported as "nothing to
-  review" — never as a clean verdict.
-- **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes — requires the
-  previous report's findings).
+- **Diff scope**: the caller's resolved file list or diff range — an explicit argument,
+  else the working tree's changes against `HEAD` (`git diff --name-only HEAD --
+  '*.go'` plus untracked files), else the branch against its base, and the whole
+  repository only when asked for explicitly. Never widened here; an empty scope is
+  reported as "nothing to review", never as a clean verdict.
+- **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes; needs the previous
+  report's findings).
 </inputs>
 
 <protocol>
 
 <step_1_grep_prefilter>
-In-context, cheap — no agents yet. One Bash command prints the **Falsifying
-questions** section of every rule file below — `for f in <rules dir>/R*.md; do echo
-"==> $f <=="; sed -n '/^## Falsifying questions/,$p' "$f"; done` — that section only,
-never a whole rule and never twelve Read calls; then run the detection commands there
-against the diff scope (changed files only). The commands live in the rule files;
-never restate them here.
-A rule with zero hits is skipped — no hunter spawned for it.
-
-| Rule | File | Hunt focus |
-|------|------|------------|
-| R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
-| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
-| R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
-| R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
-| R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
-| R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
-| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
-| R8 | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
-| R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
-| R10 | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
-| R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
-| R12 | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
+In-context, cheap, no agents yet. One Bash command prints the **Falsifying questions**
+section of every rule file, and this skill's hunt-focus table beside it —
+`for f in <rules dir>/R*.md; do echo "==> $f <=="; sed -n '/^## Falsifying questions/,$p' "$f"; done; sed -n '/^## Hunt focus/,/^## Waiting for agents/p' <this skill dir>/reference.md`
+— that section only, never a whole rule and never twelve Read calls; then run the
+detection commands there against the diff scope (changed files only). The commands
+live in the rule files (`../../rules/R1-…` to `R12-….md`); never restate them. A rule
+with zero hits is skipped — no hunter for it.
 
 Also in-context: a new `//nolint` directive or `.golangci.yaml` exclusion in the diff is
 itself a finding — the change must justify, with evidence, that the rule genuinely does
 not apply.
 
-Also in-context — the **when-in-Rome check**: a diff must arrive in the host repo's
-existing style, not import a new one. Flag anything the diff introduces that the repo
-does not already use: a new test mechanism (golden files, snapshot testing, a new
-assertion library), a new dependency in `go.mod`, a new tool or config file, edits to
-repo-level convention files (CLAUDE.md, coding standards, lint config) bundled into a
-feature diff, or a directory layout unlike its siblings. Detection is comparative:
-for each candidate, grep the repo *outside* the diff for prior use — zero prior use
-is the finding. These are not style crimes; they are adoption decisions that belong
-to the repo owner. The fix is a discussion or a separate PR, never silent inclusion.
+Also in-context — the **when-in-Rome check**: anything the diff introduces that the
+repo does not already use (a new test mechanism, a dependency in `go.mod`,
+a tool or config file, a convention-file edit bundled into a feature diff, a layout
+unlike its siblings) is a 🟠 finding when a grep of the repo *outside* the diff shows
+zero prior use; the fix is a discussion or a separate PR, never silent inclusion.
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
-**Write the scope bundle first.** Before any agent is spawned, and only when the
-scope is not empty, one Bash command writes the scope to a temporary directory
-(`B=$(mktemp -d)`), so each hunter and the critic read the code they judge once,
-numbered and sliced to what their leads name, instead of one file per turn:
+**Write the scope bundle first**, only when the scope is not empty, in one Bash
+command into `B=$(mktemp -d)`:
 
-- `files.txt` — the scope's file list, one path per line, as the caller resolved it.
-  A file left out of `scope/` keeps its line here with the reason appended —
-  `(not bundled: deleted)`, `(not bundled: binary)`, `(not bundled: 2400 lines)`,
-  `(not bundled: generated)` — which a hunter reads as ground its detection commands
-  still cover and nothing reads whole.
-- `diff.patch` — on a scoped review, the diff over the scope (`git diff <range> --
-  '*.go'`). An untracked file has no diff and appears only under `scope/`; a
-  whole-repository review has no diff at all.
-- `scope/<path>.txt` — one file per file in scope, at its source path under `scope/`,
-  holding a `==> <path> <==` header and the file's text with its own line numbers, so
-  a finding read from the bundle anchors as exactly as a `grep -n` hit:
-  `while IFS= read -r f; do mkdir -p "$B/scope/$(dirname "$f")"; { printf '==> %s <==\n' "$f"; cat -n -- "$f"; } > "$B/scope/$f.txt"; done < "$B/files.txt"`
-  (run over the files that are bundled). Left out, with the reason in `files.txt`:
-  files the diff deletes, binary files (`grep -Il . -- "$f"` prints nothing), files
-  over about 2000 lines, and files matching the repository's generated-file markers.
-  Nothing else is filtered — a falsifying question asks about the file, not the hunk.
-- `dirs.txt` — on `--all`, the source directories in scope, one per line with their
-  file and line counts, so every hunter can be given its own reading order.
+- `files.txt` — the scope, one path per line. A file left out of `scope/` keeps its
+  line with the reason: `(not bundled: deleted)`, `(not bundled: binary)` (`grep -Il .
+  -- "$f"` prints nothing), `(not bundled: <n> lines)` over about 2000, `(not bundled:
+  generated)` by the repository's markers. Hunters read those as ground their commands
+  cover and nothing reads whole. Nothing else is filtered.
+- `diff.patch` — on a scoped review, `git diff <range> -- '*.go'`; untracked
+  files have no diff and appear only under `scope/`; `--all` has no diff.
+- `scope/<path>.txt` — one per bundled file, at its source path, a `==> <path> <==`
+  header then the text with its own line numbers, so a finding read from the bundle
+  anchors like a `grep -n` hit:
+  `while IFS= read -r f; do mkdir -p "$B/scope/$(dirname "$f")"; { printf '==> %s <==\n' "$f"; cat -n -- "$f"; } > "$B/scope/$f.txt"; done < bundled.txt`
+- `dirs.txt` — on `--all`, the source directories with file and line counts, for the
+  hunters' reading orders.
 
-The bundle is the one thing this review writes to disk; the report never is (step 4).
-Hunters and the critic get the bundle's absolute path; the skeptic does not — it
-verifies call sites across the whole repository, which no scope bundle holds.
+The same Bash call prints `sed -n '/^## Waiting for agents/,/^## The merged report/p'
+<this skill dir>/reference.md` — how agents are waited for, what each returns and what
+their verdicts do — so steps 2, 3 and 3b cost no read of their own. The bundle is the
+only file this review writes; hunters and the critic get its path, the skeptic does
+not.
 
-For every rule with pre-filter hits, spawn one `go-linter-driven-development:rule-hunter` agent, as **foreground**
-`Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
-run in parallel and every result comes back in that same message. A foreground call
-blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
-and the review never waits for one any other way: no `ReadNotifications`, `ListAgents`
-or `Monitor` calls, no scheduled wake-up. One host differs: a Claude Code cloud session
-(`CLAUDE_AUTO_BACKGROUND_TASKS` set) turns a foreground call still running after 120
-seconds into a background task and answers "Async agent launched". That hunter is still
-running and its result arrives by itself when it finishes; do not poll for it and do not
-spawn it again — work through the results in hand, and when nothing is left but waiting,
-end the message and let the delivery resume the review. The skeptic and the critic
-(step 3) share one message of their own, spawned only once every hunter result is in
-hand. Each spawn prompt MUST contain:
+For every rule with hits, spawn one rule-hunter, as **foreground** `Agent` calls
+(`run_in_background: false`) issued together in one message, so they run in parallel
+and return in it. Never wait any other way — no polling, monitor or wake-up, no second
+spawn of a call answered "Async agent launched"; its result arrives by itself
+("Waiting for agents", read above). Each spawn prompt MUST contain:
 
-1. **The rule file's absolute path** — the hunter's entire rulebook and single
-   obsession, read whole by the hunter in its first turn. Never the rule's text
-   pasted; never more than one rule per hunter. The parent does not read a rule file
-   to build a spawn prompt — step 1 read its Falsifying questions section, and that
-   is all of it the parent ever reads.
-2. **The scope bundle's absolute path**, and the diff scope it holds — the
-   changed-file list or `git diff` range. On `--all`, also **this hunter's reading
-   order**: the directories of `dirs.txt` with this rule's pre-filter hits first, most
-   hits first, ties by line count ascending, then the rest. Each hunter then reads a
-   different head of the repository, and the directories one never reaches are the
-   ones its own rule found nothing in — no two hunters truncate at the same tail.
-3. **That rule's pre-filter hits** — as starting leads (the hunter re-runs the
-   detection commands itself; leads are a starting point, not a limit).
+1. **The rule file's absolute path** — the hunter's whole rulebook, read in its first
+   turn. Never the text pasted; never two rules per hunter; the parent reads no rule
+   to build a prompt (step 1 printed only the questions).
+2. **The bundle's absolute path** and the diff scope it holds. On `--all`, also this
+   hunter's **reading order**: `dirs.txt` with this rule's pre-filter hits first, most
+   hits first, ties by line count ascending, then the rest — no two hunters truncate
+   at the same tail.
+3. **That rule's pre-filter hits**, as starting leads, never a limit.
 
-Every path in a spawn prompt is absolute — the hunter runs in the reviewed project's
-cwd and cannot resolve plugin-relative paths on its own. Resolve
-`../../rules/R<N>-….md` from this skill's own location, and when the rule cites a case
-file by plugin-relative path (e.g. `../examples/*.md`), resolve and include that path
-too. Before spawning, list every resolved path in one `ls` — listing is not reading;
-a path that does not list is fixed here, never handed to a hunter, which would
-otherwise hunt without its rulebook.
-
-Each hunter returns one block per finding:
-`rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
-plus one receipt line per falsifying question (`Q<n>: <hits> hit(s) → <findings>
-finding(s)`) and a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
-The receipts are how a whole-repository hunt is read: a question with no receipt was
-not run over the scope, and the leads were never the scope. A hunter that spends the
-tool-call budget its agent definition states returns the same shape plus one
-`not reached: …` line naming the files or directories it did not read to judge — its
-detection commands still ran over the whole scope, so its receipts are whole — and the
-report header renders that line verbatim beside the hunter's tally (step 4), never as
-a clean verdict.
+Every path is absolute (the hunter runs in the reviewed project's cwd): resolve
+`../../rules/R<N>-….md` and any case file the rule cites from this skill's own
+location, then `ls` every resolved path before spawning — listing is not reading; a
+path that does not list is fixed here, never handed to a hunter. Each hunter returns
+finding blocks (`rule | file:line | evidence | fix pattern | effort`), one receipt per
+falsifying question (`Q<n>: <hits> hit(s) → <findings> finding(s)`), a tally and, when
+its budget ended the hunt, a `not reached:` line — receipts stay whole because the
+detection commands ran over the whole scope. A question with no receipt was not run
+("Hunter output", read above).
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
-Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
-proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
-"Strategy Map" proposals — and spawn one `go-linter-driven-development:overabstraction-skeptic`, as a **foreground**
-`Agent` call (`run_in_background: false`) in a message with no hunters in it, after
-every hunter result is in hand; the comment critic (step 3b), when it runs, is spawned
-in that same message so the two run in parallel. Its spawn prompt MUST contain:
+Collect every type/package-extraction finding — R1/R2/R4 "create a type/package", R10
+"Extract Synchronized Owner", R11 "Interface Dispatch" / "Strategy Map" — and spawn one
+overabstraction-skeptic, foreground, in a message with no hunters in it, after every
+hunter result is in hand; the critic (step 3b) shares that message. Its spawn prompt
+MUST contain:
 
 1. The extraction findings under review — the hunter blocks pasted verbatim.
-2. The absolute path of `../../rules/R1-primitive-obsession.md` and the range the
-   skeptic reads from it in its first turn, the **Juiciness scoring** and **The
-   over-abstraction trap** sections: `sed -n '/^### Juiciness scoring/,/^### Placement/p'`.
-   Never the file whole.
-3. The absolute path of `../../examples/overabstraction-cidr.md`.
+2. The absolute path of `../../rules/R1-primitive-obsession.md` and the range it reads:
+   `sed -n '/^### Juiciness scoring/,/^### Placement/p'`. Never the file whole.
+3. The absolute path of `../../examples/overabstraction-cidr.md`; with R11 dispatch
+   proposals under review, also `../../examples/anti-if-dispatch.md` and
+   `../../examples/switch-to-polymorphism.md`.
 
-No bundle: the skeptic verifies usage counts and call sites across the whole
-repository, which a scope bundle does not hold; its greps run in the reviewed project.
-
-Verdicts per finding: `CONFIRMED (score ≥4 + verified evidence)`, `CONFIRMED (score
-2–3, judgment call) — alternative: …` (the type ships as the finding's fix with the
-skeptic's cheaper move beside it; the user chooses), or `REFUTED (score 0–1 + reason) →
-cheaper alternative`. Carry the verdict word and the score into the report verbatim, as
-the report example shows. A refuted proposal does not ship; when its cheaper
-alternative (better naming, private fields + accessors, or R11's Keep the Single
-Exhaustive Switch) is still worth doing, report the alternative as 🟢 Polish. When R11
-dispatch proposals are under review, additionally include the absolute paths of both
-R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
-juiciness rejection: the switch stays, goes exhaustive) and
-`../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the
-move is unavailable when the consumer owns the output format; the switch shrinks to
-pure dispatch). A finding the skeptic's budget did not reach carries
-`skeptic: not reached` in the verdict's place and ships as the hunter proposed it.
-Only findings the skeptic cannot kill ship as extraction findings. Non-extraction
-findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose no new type) skip the
-skeptic and go straight to the report — R9 findings (orphans,
-broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
-construction mechanics — a validating constructor, unexported fields, an options
-type with its `With*` functions, a named Null Object default — are not extractions either
-and never go to the skeptic: they close the holes of a type that already exists, and a
-skeptic verdict on them would be scoring a guard, not a type.
+No bundle: the skeptic verifies call sites across the whole repository. Its verdicts
+(`CONFIRMED (score N …)`, `CONFIRMED (score N, judgment call) — alternative: …`,
+`REFUTED (score N …) → cheaper alternative`, `N/A (R2 mechanism)`, `skeptic: not
+reached`) are carried into the report verbatim, score included. What never goes to it
+(R2's construction mechanics, non-extraction findings) and what each verdict does:
+"Skeptic verdicts", read in step 2.
 </step_3_skeptic_pass>
 
 <step_3b_comment_critic>
 When the diff contains comment lines — prefilter:
 `git diff --cached -- '*.go' | grep -E '^\+.*//' | grep -vE '//(go:|nolint| Output:)'`
-(any hit qualifies; directives don't count) — spawn one `go-linter-driven-development:comment-critic` in the same
-hunter-free message as the skeptic (when no skeptic runs, the critic has that message
-alone), also in the **foreground** (`run_in_background: false`): its full-repository
-comment sweep is the longest pass of the review, and waiting for it is done by the
-foreground call returning — or, in a cloud session that backgrounds it after 120
-seconds, by its result arriving on its own — never by a timer, a scheduled wake-up or
-a notification poll. Its spawn prompt MUST contain:
+(any hit qualifies; directives don't count) — spawn one comment-critic in the same
+hunter-free message as the skeptic (alone when no skeptic runs), foreground; its sweep
+is the longest pass of the review and is waited for only by the call returning. Its
+spawn prompt MUST contain:
 
-1. The absolute path of `../../rules/R9-repo-brain.md` and the range of its
-   **Comment policy** section, read in the critic's first turn —
-   `sed -n '/^### Comment policy/,/^### Edge conventions/p'` (the heading carries a
-   parenthesis, so the range opens on its prefix): the Comment Value Toolbox kinds,
-   the three-test standard, the tier table, budget accounting, and the visibility
-   default.
-2. The absolute path of `../documentation/reference.md` and the range of its
-   **Comment Value Toolbox** catalog —
-   `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'` — read in the
-   same turn. Neither file is read whole: the two ranges are about 4k tokens, the
-   two files about 17k.
-3. The absolute path to `../../examples/private-comment-noise.md` — the critic
-   reads it when judging comments on unexported symbols.
-4. The diff scope and the scope bundle's absolute path — when this review wrote one;
-   a caller that spawns the critic without a bundle omits it, and the critic builds
-   its scope in its first turn.
+1. The absolute path of `../../rules/R9-repo-brain.md` and the range of its **Comment
+   policy** section: `sed -n '/^### Comment policy/,/^### Edge conventions/p'`.
+2. The absolute path of `../documentation/reference.md` and the range of its **Comment
+   Value Toolbox** catalog:
+   `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`.
+   Neither file is read whole.
+3. The absolute path of `../../examples/private-comment-noise.md`.
+4. The diff scope and the bundle's absolute path — when this review wrote one; a caller
+   without a bundle omits it, and the critic builds its scope in its first turn.
 
-It judges every comment in the diff (godoc, in-body, test) against the three-test
-standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
-`DELETE → route R3` for in-body extraction candidates) with evidence and proposed
-replacement text. Non-KEEP verdicts land in the report as 🟡 Readability Debt;
-`DELETE → route R3` verdicts merge with any R3 hunter findings on the same lines
-(one finding, not two). The critic is advisory like everything else — accepted
-verdicts are fixed by @documentation (the rung-1 fixer), except R3 routes, which
-go to @refactoring.
+It returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, `DELETE → route
+R3`) with evidence and replacement text, and a tally; non-KEEP verdicts are 🟡
+Readability Debt ("Critic verdicts", read in step 2).
 </step_3b_comment_critic>
 
 <step_4_merged_report>
-Merge surviving findings into one report.
+Before writing, read `reference.md`, `sed -n '/^## The merged report/,$p'` — the cluster
+pass, the category map, the line shape, the reconciliation and the worked example —
+once, now. The contract it spells out, kept whatever the scope:
 
-**Cluster pass (before categorizing):** group *every* hunter finding — kept, refuted
-by the skeptic, or never sent to it — by shared anchor. An anchor is the named thing a
-finding is about, never its line: a type (a finding on one of its fields and a finding
-on one of its methods share the type), a function, a discriminator, or a package (two
-findings on files of one package share the package, and findings that name the same
-two packages together share both as one anchor). List the anchors first, then count.
-An anchor converges when ≥2 findings from *different* rules land on it, or ≥2
-findings answering *different* falsifying questions of one rule — exported nilable
-fields, a method that re-checks them and a nil handed to the constructor are three
-questions of R2 answered on one type, and one missing constructor, not three lines.
-Two findings of the same question on one anchor are a shared-shape line below, not a
-cluster. The skeptic's verdict removes a proposed type from the fix column; it never
-removes the convergence, which is the evidence. Each hunter is single-obsession and
-blind to the others, and each falsifying question is blind to the next, so independent
-convergence on one anchor is evidence that a domain concept is missing there — the
-cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
-primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
-jurisdictions). Render each cluster as a first-class entry above the categories:
-
-```
-🔗 CLUSTER: Alert.Channel
-   Convergence: 4 findings — R1, R11, R2, R7
-   Hypothesis: missing domain concept — a Channel type wants to exist
-   Skeptic: CONFIRMED (score 6: switched in 3 files, +2 unrepresentable — the
-   unknown-channel default at notify.go:71 goes; +2 noun — Send/Deliver)
-   Routing: design-first — @code-designing (cluster-scoped), then @refactoring
-   implements; do NOT fix members independently (partial fixes undo each other)
-```
-
-Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
-anchor: two findings or twenty, the largest and the smallest alike. The title is the
-anchor itself — the type, field, function or package name the findings share
-(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`,
-`🔗 CLUSTER: internal/common, internal/utils`), never a description of the problem;
-the description is the Hypothesis line beneath it. When the skeptic
-reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
-type routes design-first as above; a REFUTED one keeps the cluster (the convergence
-is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no
-extraction was proposed at the anchor (a function three rules converged on, say) the
-entry carries no verdict and routes to @refactoring. The example shows one cluster; a
-whole-repository review commonly has six or more, and the pass is not done until each
-anchor that two rules converged on has its own entry. Member findings still appear
-under their categories below, each as its own line tagged `[cluster: <anchor>]`: the
-cluster's Evidence line is an index, and a member that appears only there — a
-production sleep named in the cluster's prose and nowhere under 🔴 — is a finding the
-report dropped. Each member sits under the rule whose falsifying question its evidence
-answers, never under the cluster's lead rule: the sentinel `0` a config reader returns
-is R2's question even when R1 owns the cluster. Clustering is *reporting*
-— this skill still never edits and never invokes fix skills; the caller routes.
-
-Category mapping:
-
-- 🐛 **Bugs** — will fail at runtime regardless of rule (nil returned as a value,
-  cancellation severed by a manufactured root context, R10 goroutine leaks and
-  unguarded concurrent writes): fix immediately.
-- 🟠 **New Practice (when in Rome)** — the when-in-Rome check's findings: a
-  mechanism, dependency, framework, or convention the host repo does not already
-  use, introduced without discussion. Advisory like everything else, but flag it
-  loudly: reviewers reject these threads hardest, and the fix (owner buy-in or a
-  separate PR) is cheap before pushing and expensive after.
-- 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, R10's non-crash findings (production
-  sleeps, fire-and-forget ownership, mutex placement), R11 (duplicated discriminators,
-  boundary leaks), R12 (leaked mutable internals, unvalidated setters), and R5
-  (advisory — never blocks; the user may have valid reasons): fix before commit
-  recommended.
-- 🟡 **Readability Debt** — R3, R9, unclear naming, and the comment-critic's
-  non-KEEP verdicts (trash or over-budget or hard-to-read comments): improves
-  maintainability.
-- 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
-
-**One line per finding, anchored and answered.** Every finding a hunter returned and
-the skeptic did not kill, every cheaper alternative the skeptic shipped in a refuted
-type's place, and every non-KEEP verdict the comment critic returned renders as its
-own line in the hunter's shape, `file:line | evidence | fix | effort` (a critic line's
-evidence is its verdict and reason, its fix the REWRITE text or DELETE, and its effort
-S — a comment edit is always small; a `DELETE → route R3` verdict merges into the R3
-finding on those lines and takes that finding's effort), as the report example shows:
-
-- The line opens with the `file:line` anchor the hunter cited. A finding without its
-  anchor is a claim, not a finding.
-- The evidence cell names the rule and the falsifying question the finding answers,
-  by number and in the question's own words — `R1 Q5: host, port and tls travel
-  together across three signatures` — so the reader can open the rule and check.
-  When the question asks about text in the code — a block comment, a docstring, a
-  suppression directive — the cell quotes that text, not its line number alone:
-  `R3 Q3: three section comments name unextracted blocks — "# parse the line" (101),
-  "# look up or create device" (129), "# transitions" (149)`. The quoted comment is
-  the evidence and the name of the function to extract.
-- The fix cell names the move exactly as the rule's **Fix pattern** section spells it
-  (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
-  `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
-  its place. The skeptic's verdict and score follow the move when one applies.
-- Effort carries over from the hunter (S/M/L).
-
-A count is never a finding. `R9 (46 findings)` or `R1 (8 findings): highlights …`
-drops the anchors a reader needs to act on and is forbidden as a rendering, whatever
-the scope. The unit that must never be lost is the anchor: every finding's `file:line`
-appears in the report, heading its own line, or — when several findings share one
-shape (thirty restating comments, say) — listed on one shared-shape line that names
-every anchor and the shared evidence and fix once. Either way the anchors rendered
-equal the findings returned. Length is never a reason to roll up: a whole-repository
-review with a hundred and thirty findings renders a hundred and thirty anchors,
-grouped under their categories and rules.
-
-**Reconcile before emitting.** Every hunter ends with a tally (`R<N>: <M> finding(s)`).
-The report header carries, per hunter, that tally beside the number of its anchors
-rendered below (own line or shared-shape line alike) —
-`Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the two numbers agree for
-every rule before the report is emitted; a rendered count below the tally means a
-finding was dropped in the merge, and the fix is to render it, never to adjust the
-tally. A finding the skeptic refuted still counts as rendered when its
-cheaper alternative is on the page. A hunter, the skeptic or the critic that returned
-a `not reached:` line has it rendered verbatim in the header beside its tally —
-`R9 12/12 (not reached: internal/store, internal/api)`, `Skeptic: 3 CONFIRMED · 1 not
-reached` — and the Scope line then reads `Mode: FULL · PARTIAL coverage`. A header
-without those words asserts that every agent covered the whole scope.
-Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
-Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
-
-**The report is the message.** The report is emitted as the text of the message that
-ends the review — never written to a file, never attached, never replaced by a summary
-that points at a file or at "the report I sent". Length is no reason: a
-whole-repository report of thirty kilobytes is the normal size and goes in the message
-whole, under its categories. Besides the scope bundle of step 2, this skill has
-nothing to write to disk; a Write call during a review is the report leaving the page.
+- **Clusters first.** Group every hunter finding by shared anchor — the named type,
+  function, discriminator or package, never a line. An anchor converges when ≥2
+  findings from different rules, or from different falsifying questions of one rule,
+  land on it: one `🔗 CLUSTER: <anchor>` entry per converged anchor above the
+  categories (Convergence, Hypothesis, skeptic verdict when one applies, Routing:
+  design-first — @code-designing then @refactoring); members still render under their
+  categories, tagged `[cluster: <anchor>]`.
+- **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
+  R9, the critic's non-KEEP verdicts) · 🟢 Polish (the skeptic's cheaper alternatives).
+- **One line per finding**: `file:line | R<N> Q<n>: evidence in the question's own
+  words | the move as the rule's Fix pattern spells it (+ skeptic verdict and score) |
+  S/M/L`. A count is never a finding — `R9 (46 findings)` is forbidden; findings of one
+  shape may share one line naming every anchor. Anchors rendered equal findings returned.
+- **Reconcile**: the header carries each hunter's tally beside its rendered count —
+  `Hunters: R1 8/8 · R9 53/53 (not reached: internal/store) · R4–R6 skipped` — and the
+  two agree, or the dropped finding is rendered, never the tally adjusted. Any agent's
+  `not reached:` line renders verbatim beside its tally, and the Scope line then reads
+  `Mode: FULL · PARTIAL coverage`; without those words the header asserts full
+  coverage.
+- Fix routing cites each rule's **Fix pattern**; out-of-scope observations go under
+  BROADER CONTEXT; the report ends `Caller decides: commit as-is · fix 🔴 first · fix
+  all. Findings are advisory.` **The report is the message** that ends the review —
+  never a file, never a summary pointing at one, whatever its length.
 </step_4_merged_report>
 
 </protocol>
 
 <modes>
-**FULL (first run):** pre-filter all twelve rules over the whole diff scope; report every
-surviving finding.
-
-**INCREMENTAL (re-run after fixes):** diff scope = only files changed since the last
-review. Run steps 1–3 on that scope, compare against the previous findings, and report a
-delta: ✅ **Fixed** (previous finding no longer reproducible — re-run its detection
-command to confirm), ⚠️ **Remaining** (still evidenced), 🆕 **New** (introduced by the
-fixes). Use after @refactoring applies fixes or whenever the caller iterates.
+**FULL:** pre-filter all twelve rules over the whole scope; report every surviving
+finding. **INCREMENTAL:** scope = the files changed since the last review; run steps
+1–3 on it and report the delta against the previous findings — ✅ Fixed (its detection
+command re-run confirms), ⚠️ Remaining, 🆕 New.
 </modes>
-
-<report_example>
-```
-📊 CODE REVIEW REPORT
-Scope: user/service.go, user/auth.go (+ tests) · Mode: FULL
-Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skipped
-         (a hunter's not-reached line, when it returned one, follows its tally here)
-Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
-Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
-
-🔴 DESIGN DEBT                       (one finding per line; wrapped here for width)
-user/service.go:67 | R1 Q1: the session token is validated inline as a raw string,
-  no ParseX owns it; Q2: the same emptiness predicate at user/auth.go:41 — two
-  owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED
-  (score 5) | M
-user/auth.go:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an
-  invalid Authenticator; Q2: Verify re-checks the range at auth.go:52 | Add
-  validating constructor: NewAuthenticator | S
-
-🟡 READABILITY DEBT
-user/auth.go:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling
-  in one body; Q3: the block comment `// compare password` names the section |
-  Extract Function named after the comment: comparePassword | S
-user/service.go:15 | critic: the godoc restates the name ("UserService provides
-  user services") — toolbox-value floor, no toolbox item delivered | REWRITE →
-  wider context: "Every user mutation flows through this service — auth, quota,
-  and audit hooks attach here." | S
-
-🟢 POLISH
-user/auth.go:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
-  alternative to REFUTED PasswordHash wrapper (score 1: only method unwraps) | S
-
-📝 BROADER CONTEXT
-user/service.go:23 — email still a raw string (outside diff scope; same R1 pattern).
-
-Caller decides: commit as-is · fix 🔴 first · fix all. Findings are advisory.
-```
-</report_example>
 
 <constraints>
 This skill MUST NOT:
 - Edit code, fix findings, or invoke fix skills (@refactoring, @code-designing, @testing)
-- Write the report, or any part of it, to a file — the report is the message that
-  ends the review, whole, whatever its length; the scope bundle of step 2, under a
-  temporary directory, is the only file the review writes, and an empty scope writes
-  none
-- Run the linter or tests — the caller does (see @linter-driven-development)
-- Block commits — every finding is advisory; the caller decides what to fix
-- Restate rule content — rules live once in `../../rules/`; name them by absolute
-  path in spawn prompts and cite them in findings
-- Paste a rule file, a section of one, or a case file into a spawn prompt, or read
-  one in order to — agents read their doctrine by path in their first turn
-- Spawn anything other than `go-linter-driven-development:rule-hunter`, `go-linter-driven-development:overabstraction-skeptic`, and
-  `go-linter-driven-development:comment-critic`
-- Wait for any agent by polling notifications, arming a monitor or scheduling a
-  wake-up, or spawn an agent a second time because its call was answered "Async agent
-  launched"; a foreground call returns its result in the same message, and a call a
-  cloud session backgrounded after 120 seconds delivers its result by itself
+- Write the report, or any part of it, to a file — the bundle is the only file it
+  writes, and an empty scope writes none
+- Run the linter or tests, or block a commit — every finding is advisory
+- Restate or paste rule content — spawn prompts name rules by absolute path and range
+- Spawn anything but the three agents in `<objective>`, or wait for one by polling,
+  monitoring, scheduling or re-spawning
 </constraints>
 
 <who_invokes>
-1. **@linter-driven-development** — Phase 4, pre-commit / per completed vertical slice
-2. **@refactoring** — after applying patterns, to validate design quality (INCREMENTAL)
-3. **User** — manual standalone review before commit
+@linter-driven-development (Phase 4, per completed slice) · @refactoring (after fixes,
+INCREMENTAL) · the user (standalone review before commit).
 </who_invokes>

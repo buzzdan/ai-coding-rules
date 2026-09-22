@@ -13,27 +13,23 @@ allowed-tools:
 ---
 
 <objective>
-Fix code that already fails lint or review. This skill is a thin directional view:
-every fix pattern lives exactly once in `../../rules/` — this protocol routes each
-failure to its owning rule, sequences multi-rule work via `reference.md`, and loops
-until green. Operates autonomously — no user confirmation between patterns, and no
-user confirmation at the end: every invocation ends with the green tree committed
-and the `Stop check` block in the message that ends the turn (`<stopping_criteria>`,
-`<output_format>`). "Nothing is committed, ready for your review" is this skill
-failing, not finishing — there is no next turn to review in.
-
-Forward counterpart (designing before code exists): @code-designing.
+Fix code that already fails lint or review. A thin directional view: every fix pattern
+lives once in `../../rules/`; this protocol routes each failure to its owning rule and
+loops until green. Autonomous — no user confirmation between patterns or at the end:
+every invocation ends with the green tree committed and the `Stop check` block in the
+message that ends the turn; "ready for your review" is this skill failing, not
+finishing. Each step's long form is in `reference.md` here, read by `sed` range inside
+a Bash call the step already makes — the loop's first lint run, the Gates run of the
+exit — never the file whole and never a call of its own. Forward counterpart:
+@code-designing.
 </objective>
 
 <skill_invocation>
-**CRITICAL**: When this skill says "Invoke @skill-name", you MUST invoke it with the
-**Skill tool** — do not just mention it.
-
-| Notation | Skill Tool Call |
-|----------|-----------------|
-| @code-designing | `Skill(python-linter-driven-development:code-designing)` |
-| @testing | `Skill(python-linter-driven-development:testing)` |
-| @pre-commit-review | `Skill(python-linter-driven-development:pre-commit-review)` |
+"Invoke @skill-name" means call the **Skill tool** — `Skill(python-linter-driven-development:code-designing)`,
+`Skill(python-linter-driven-development:testing)`, `Skill(python-linter-driven-development:pre-commit-review)` — never just mention
+it. This skill runs in the thread that invoked it: its moves are never delegated to a
+general-purpose or any other subagent; the one agent it spawns is the comment critic
+of step 4 below.
 </skill_invocation>
 
 <routing_table>
@@ -53,7 +49,7 @@ findings the hunters own alone.
 | Duplicated code (review-only) | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated `match`/if-chains on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
 | A `match` missing enum cases (review-only; mypy sees it only under `assert_never`) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site and close it with `case _: assert_never(x)`; a second `match` appearing is the R11 violation itself |
 | `FBT001` / `FBT002` (boolean positional parameter) | Mechanical — make it keyword-only; then read the branches: sharing little → `../../rules/R11-conditional-dispatch.md`, Split Flag Argument |
-| File over ~450 lines (review-only) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
+| File over ~450 lines (review-only) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>`, `sed -n '/^## File and package routing/,/^## Preparatory mode/p'` over this skill's `reference.md` |
 | `PLW0603` (`global` statement); import-time side effects (review-only) | `../../rules/R8-no-globals.md` |
 | A `Protocol`/ABC with one implementer; a factory annotated to return the Protocol (review-only) | `../../rules/R6-test-only-interfaces.md` |
 | Unguarded shared state; a `daemon=True` worker; `time.sleep` in a stoppable loop (review-only) | `../../rules/R10-concurrency-safety.md` |
@@ -62,133 +58,47 @@ findings the hunters own alone.
 </routing_table>
 
 <pattern_index>
-Each named refactoring move is owned by one rule's **Fix pattern** section — apply it
-from there, never from memory:
-
-| Move | Owner |
-|------|-------|
-| Extract Function (named after the comment), Early Returns, Honest Rename, Extract Leaf Type | `../../rules/R3-storifying.md` |
-| Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with Declared Absence, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
-| Add validating constructor, Hoist method checks, Delete re-validation, Separate Failure from Absence, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
-| Demote helper (rung 1), Promote to feature/domain package (rungs 2–3), Split policy from vocabulary | `../../rules/R4-helper-placement.md` |
-| Slice out a feature, Rename layer files by role, Split a generic package by owner | `../../rules/R5-vertical-slice.md` |
-| Delete the Test Seam, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
-| Move test down a rung, Split Success and Error Tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
-| Extract Clean Island, Push Global Up One Level, Replace Import-Time Initialization with a Constructor, Pass Cancellation Down | `../../rules/R8-no-globals.md` |
-| Inject the Exit Path, Make Concurrent Work Joinable, Extract Synchronized Owner, Replace Sleep with Cancellable Wait, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
-| Replace Duplicated Switch with Interface Dispatch, Replace If-Chain with Strategy Map, Introduce Null Object, Split Flag Argument, Keep the Single Exhaustive Switch | `../../rules/R11-conditional-dispatch.md` |
-| Copy on the Way In, Copy on the Way Out / Encapsulate Collection, Separate Query from Modifier, Remove Setting Method, Split Variable | `../../rules/R12-mutation-discipline.md` |
-
-**Introduce Null Object, the shape.** The null object is a *named* value of the
-collaborator's existing concrete type — a sink composing the standard no-op writer, a
-clock that is the real clock — supplied as the constructor's default through an option
-or passed by the caller by name. Never a new interface with one no-op implementation
-(R6), never a None parameter that means "default" (R2). An option handed None
-records the error on the value under construction and the constructor fails with it
-(R2's example) — the option never substitutes the default and never stores the
-None.
-
-**In Python:** a `NullSink` whose `write()` discards, bound once as a module-level
-constant `NULL_SINK = NullSink()` (a name, not a call — ruff `B008` flags a call in
-a default), and a clock that is `SYSTEM_CLOCK = SystemClock()` the same way; the
-parameter is keyword-only and typed `Sink`, never `Sink | None`, so
-`Reporter(sink=None)` fails mypy before it runs and `__init__` raises `TypeError`
-for the caller mypy never saw. A `sink: Sink | None = None` default replaced inside
-`__init__` is allowed only when the default is genuinely mutable or expensive to
-build; the attribute is then still typed `Sink` and no method guards it.
-
-**Extract Function prefers the function that exists.** Before writing a helper for a
-step — parse, decode, normalize, validate — grep the package for one that already does
-it (grep the package for a function named after the step's noun) and prefer
-the one with a test. A sibling written beside a tested function is a second owner of
-the same rule (R1 Q2), not an extraction; when the existing function has the wrong
-shape, change it and its test rather than copy it, and never leave two. A behavioral
-difference between the inline code and the existing function — one trims a field, the
-other does not — is not a licence for a sibling: it is a bug in one of them (fix it,
-with a test) or a parameter of the one function, and the STATUS block names which. Two
-parsers of one line format is the finding R1 Q2 exists for.
-
-**Multi-rule procedures** (sequencing, god-object decomposition, package
-decomposition): `reference.md` in this directory.
-
-**Case law** (deep worked studies):
-- Storify → leaf type discovery: `../../examples/storify-leaf-type.md`
-- Over-abstraction rejection + cheaper alternatives: `../../examples/overabstraction-cidr.md`
-- Incremental global elimination: `../../examples/dependency-rejection.md`
-- Duplicated kind-switch → interface dispatch (and the kept-switch rejection): `../../examples/anti-if-dispatch.md`
-- Type switch over an owned interface → fill-style method (and the dependency-direction rejection): `../../examples/switch-to-polymorphism.md`
+Each named move is owned by one rule's **Fix pattern** section — apply it from there,
+never from memory. Which rule owns which move, the shape of Introduce Null Object, and
+why Extract Function prefers the tested function that already exists over a sibling —
+print it in the same Bash call as the loop's opening linter run (step 2, before any
+move), never as a call of its own: `sed -n '/^## Pattern index/,/^## File and package routing/p' <this skill dir>/reference.md`.
+Add to that call, when a file-length or package-size failure is routed,
+`sed -n '/^## File and package routing/,/^## Preparatory mode/p; /^### Package decomposition/,$p'`
+(`<file_and_package_routing>`, `<package_decomposition>` and the procedure), and when
+several rules are routed on one function,
+`sed -n '/^## Multi-rule procedures/,$p'` (sequencing, god-object and package decomposition).
 </pattern_index>
 
-<file_and_package_routing>
-**A module over ~450 lines (ruff has no file-length rule — count):**
-
-| File pattern | Action |
-|---|---|
-| Multiple juicy types | Route to @code-designing — one juicy type per module (juiciness per R1) |
-| Single god class (>15 methods) | `reference.md` → god-object decomposition, then @code-designing for the composition |
-| Long functions, few types | Storify → extract functions (R3) |
-
-<package_decomposition>
-**Package-size zones** — count non-test `.py` modules per package directory:
-
-```
-find <dir> -maxdepth 1 -type f -name '*.py' -not -name 'test_*.py' -not -name '*_test.py' -not -name 'conftest.py' -not -name '__init__.py' -not -name '*_pb2.py' -not -name '*_pb2_grpc.py' | wc -l
-```
-
-≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —
-**must decompose**. Either zone: run the 3-step design review in `reference.md` →
-"Package decomposition" (it is a *design* review — missing domain types are the
-disease, file count the symptom). Invoke @code-designing to validate extracted types.
-</package_decomposition>
-</file_and_package_routing>
-
 <preparatory_mode>
-Fowler's preparatory refactoring — "make the change easy, then make the easy change":
-reshape code an approved plan is about to touch, before the first RED, so the feature
-lands as add-only. Invoked by @linter-driven-development (Phase 1.5, or Phase 2 RED
-friction) or `/py-ldd-prepare`, with a DESIGN PLAN, the touch-point file list, and
-findings that already passed the four PREPARE gates (multiply / safe / bounded /
-skeptic — the gates live in @linter-driven-development `<phase_1_5_prepare>`; this
-mode trusts their verdicts and re-runs none of them). Fully autonomous — no user
-confirmation, same as the rest of this skill.
-
-Differences from failure-driven operation:
-
-- **The trigger is the plan, not the linter.** Targets are usually lint-green;
-  "still failing → next move" does not apply. Route each finding by its rule (the
-  same `<routing_table>` rules own the same fix patterns) and apply.
-- **Safety before motion.** Uncovered paths get characterization tests through the
-  public API first (@testing); the full suite — not just the touched package — runs
-  green after every move, because prep edits existing behavior by definition.
-- **Stopping criterion — landing shape, not lint.** Stop when the planned change
-  lands as add-only or near-add-only: a new variant = one new file plus one case at
-  the dispatch boundary (R11); new behavior = a method on an existing type (R1); new
-  code = testable without touching globals (R8). Re-check against the plan after
-  each move; shape reached → STOP, even with findings left — those were never
-  preparation and belong to Phase 4's advisory report.
-- **Commits are segregated.** Prep work lands in its own commit(s), never mixed with
-  feature code — the reviewer sees behavior-preserving reshaping and new behavior as
-  separate diffs.
+Fowler's preparatory refactoring — reshape code an approved plan is about to touch,
+before the first RED, so the feature lands add-only. Invoked by @linter-driven-development
+(Phase 1.5, or RED friction) or `/py-ldd-prepare` with a DESIGN PLAN, the
+touch-point files and findings that already passed the four PREPARE gates; this mode
+re-runs none of them. The trigger is the plan, not the linter; characterization tests
+come before motion; the stop is the landing shape (add-only), not lint; prep lands in
+its own commits. In full, printed in the loop's opening lint call (step 2) when this
+mode is the one invoked, before any move: `sed -n '/^## Preparatory mode/,/^## Stopping criteria/p' <this skill dir>/reference.md`.
 </preparatory_mode>
 
 <iteration_loop>
-1. Receive trigger (from @linter-driven-development, from the caller acting on accepted
-   @pre-commit-review findings, or manual).
-2. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
-   least-invasive move first (sequencing in `reference.md`).
-3. Re-run the linter immediately — no user confirmation.
-4. Still failing → next move in the sequence. Repeat until green.
-5. **Escalation**: complexity failures that keep recurring mean a new type or design
+1. Receive the trigger (from @linter-driven-development, from the caller acting on
+   accepted @pre-commit-review findings, or manual).
+2. Run the linter once over the scope, before any move, and print in that same Bash
+   call the ranges `<pattern_index>` names: the pattern index always; file and package
+   routing with its procedure when such a failure is routed; preparatory mode when
+   that is the mode. This is the one read of `reference.md` the loop makes.
+3. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
+   least-invasive move first (sequencing: "Multi-rule procedures", `<pattern_index>`).
+4. Re-run the linter immediately — no user confirmation.
+5. Still failing → next move in the sequence. Repeat until green.
+6. **Escalation**: complexity failures that keep recurring mean a new type or design
    is needed — invoke @code-designing. Patterns exhausted → report what was tried and
-   escalate to the user for architectural guidance. Frame the escalation in maxim
-   vocabulary (`../../maxims.md`) — name *why* the code resists ("every caller asks
-   this struct three questions and then decides — the design wants Tell-Don't-Ask"),
-   not just which linter stayed red.
-6. **Green is the exit condition, not the exit.** Linter green → leave the loop
-   through `<stopping_criteria>`: its six steps run in order and each writes its line
-   of the `Stop check` block as it finishes. The loop has ended when the block has
-   its six lines and sits in the message that ends the turn; a green linter with no
-   block is the loop still running.
+   escalate to the user, framed in maxim vocabulary (`../../maxims.md`): name *why*
+   the code resists, not just which linter stayed red.
+7. **Green is the exit condition, not the exit.** Linter green → leave through
+   `<stopping_criteria>`: six steps in order, each writing its line of the `Stop check`
+   block as it finishes. A green linter with no block is the loop still running.
 </iteration_loop>
 
 <testing_integration>
@@ -229,90 +139,49 @@ reported with its rule, not fixed in this session, not silent.
 </nolint_prohibition>
 
 <stopping_criteria>
-Linter green is where stopping begins, not where it ends. The exit is six actions over
-the code this session touched, run in order; each action ends by writing its line of
-the `Stop check` block (`<output_format>`). The line is the receipt: an action with no
-line has not run, and the line is written when the action finishes, never from memory
-at the end.
+Linter green is where stopping begins. The exit is six actions over the code this
+session touched, in order; each ends by writing its line of the `Stop check` block
+(`<output_format>`) — the line is the receipt, written when the action finishes, never
+from memory at the end. The Gates run (step 1) prints the six steps in full in the same
+Bash call as the lint and tests, never a call of their own:
+`sed -n '/^## Stopping criteria, in full/,/^## Integration/p' <this skill dir>/reference.md`;
+they govern steps 2 to 6.
 
 1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
    packages. Line `1 gates`: the four measurements.
-2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
-   questions) of every rule routed in this session over the touched files — and for
-   R8 over the touched packages, because a package-level variable, an import-time
-   initializer or a singleton has no function to sit in: the sibling file of the one just edited is in
-   R8's scope, and in no other rule's. The rules routed this session are the outer
-   bound: a rule no failure routed here has no re-run and no fix in this session,
-   whatever a suppression in the touched code names. Inside that bound, every
-   remaining hit is measured by what this session touched, never the file it landed
-   in:
-   - **Fixed** when the hit sits in a function or type this session changed, or is an
-     R8 package-level declaration in a touched package: the second global beside the
-     one just removed, the import-time initializer under it, the manufactured root
-     context in the function just reshaped, the flag pair in the loop just storified. Route it again;
-     a hit here means not done. "Pre-existing" and "unrelated" are not verdicts for
-     these — the request that named one global meant the linter, not that line — and
-     a suppression directive on a touched function or type is a hit of the rule it
-     suppresses (`<nolint_prohibition>`) when that rule was routed this session.
-   - **Reported** when it sits anywhere else in a touched file — a function this
-     session never opened, a type it only called — or when it is a hit of a rule this
-     session never routed, wherever it sits: one `BROADER CONTEXT` line per hit under
-     the block (`<output_format>`), `file:line — rule and question — what stands`.
-     Reported, not fixed, not silent. Replacing one global read inside a brownfield
-     function does not make that function's eight-linter `# noqa` this session's
-     work: the complexity rules it names were never routed by a globals request, so
-     the directive is a line in the report, never a storifying detour. The reverse
-     bound holds too: a hit in code this session wrote or moved is never a BROADER
-     CONTEXT line — the sibling parser this session extracted beside the tested one
-     (R1 Q2) is fixed, and "pre-existing" is not a word for it.
-   Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits`, the
-   anchor still standing and where it was routed again, or `n reported` for the hits
-   on BROADER CONTEXT lines.
-3. **The noun check.** For each concept the touched code handles, ask once: does it
-   have a named box? A slice walked with flags is a collection type *over that slice*
-   — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
-   query methods on it — not an accumulator that stands beside the loop (that is the
-   flags renamed); an optional collaborator that may be absent is a Null Object
-   default, never an optional field that may be absent, and an option handed None records the error for
-   the constructor to return rather than storing it or substituting the default; a
-   value parsed in two places has one constructor; a repeated predicate is a method.
-   Score each candidate with R1's scorecard: ≥4 → apply the
-   move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
-   it. A candidate is never skipped because the linter is already quiet. Line
-   `3 nouns`: each candidate with its score and verdict — `none scored ≥2` when
-   nothing qualified, never a blank.
-4. **The comment critic.** Spawn one `python-linter-driven-development:comment-critic` (Agent tool, foreground) over
-   the touched files with the doctrine paths @pre-commit-review step 3b names, and state the
-   scope in the spawn prompt as *every comment in each touched file*, not the changed
-   lines — the `Sink is where events are written.` docstring beside the code just
-   reshaped restates its name whether or not this session wrote it. Apply its
-   TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
-   `DELETE → route R3` verdicts back to step 3. Line `4 critic`: the verdict counts
-   applied and routed.
-5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
-   reason to skip it: a one-method type that merely unwraps, a function that only
-   calls another, more layers than concepts — undo that move. Line `5 STOP`: none of
-   the signs, or the move undone.
+2. **Detection re-run.** Re-run the detection commands of every rule routed this
+   session over the touched files (R8: the touched packages). A hit in a function or
+   type this session changed, or an R8 declaration in a touched package, is **fixed** —
+   routed again, "pre-existing" is no verdict; a hit anywhere else in a touched file, or
+   of a rule never routed, is **reported** as one `BROADER CONTEXT` line (`file:line —
+   rule and question — what stands`). Line `2 re-run`: per routed rule, `0 hits`, the
+   anchor routed again, or `n reported`.
+3. **The noun check.** For each concept the touched code handles: does it have a named
+   box? A slice walked with flags is a collection type over it (R1); an optional
+   collaborator is a Null Object default; a value parsed twice has one constructor; a
+   repeated predicate is a method. Score each with R1's scorecard: ≥4 apply; 2–3 apply
+   or record the judgment call; 0–1 leave. Line `3 nouns`: each candidate with score
+   and verdict — `none scored ≥2` when nothing qualified, never a blank.
+4. **The comment critic.** Spawn one `python-linter-driven-development:comment-critic` (Agent tool,
+   foreground) over the touched files, its spawn prompt carrying, as absolute paths,
+   `../../rules/R9-repo-brain.md` with `sed -n '/^### Comment policy/,/^### Edge conventions/p'`,
+   `../documentation/reference.md` with `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`,
+   and `../../examples/private-comment-noise.md`, and the scope stated as *every
+   comment in each touched file*. Apply its TRIM / REWRITE / DELETE verdicts; route
+   `DELETE → route R3` back to step 3. Line `4 critic`: verdicts applied and routed.
+5. **STOP**, reading the over-engineering signs as a check on step 3: a one-method type
+   that merely unwraps, a function that only calls another, more layers than concepts
+   — undo that move. Line `5 STOP`: none of the signs, or the move undone.
 6. **Commit.** Tests and lint green and the tree dirty → `git commit` with the STATUS
-   block's summary as the message — one commit per green step when the caller asked
-   for deployable steps, and for R8 a step is one island and its caller (Extract Clean
-   Island, then Push the Global Up One Level, one level per commit), never every
-   caller threaded at once — so the green tree outlives the session. Inside the
-   workflow, Phase 5 commits the slice it ships; a standalone invocation commits
-   here, now, before the report. A report that ends with "let me know if you'd like
-   me to commit" or "your call" is the failure this step exists to prevent: there is
-   no next turn. Line `6 commit`: the hash and message, `Phase 5 commits the slice`,
-   or `tree clean, nothing to commit`.
+   summary — one commit per green step when deployable steps were asked for (R8: one
+   island and its caller per commit). Inside the workflow, Phase 5 commits the slice; a
+   standalone invocation commits here, before the report. Line `6 commit`: the hash and
+   message, `Phase 5 commits the slice`, or `tree clean, nothing to commit`.
 
-The six lines are the block, and the block goes where the user reads: the message
-that ends the turn, whichever path invoked this skill — a standalone invocation's
-report, the workflow's Phase 5 ship summary, quickfix's ship summary. A caller that
-summarises this skill's work carries the block verbatim above its own summary, and
-the BROADER CONTEXT lines under it travel with the block: what step 2 reported instead
-of fixing is the caller's to hear, not this session's to bury. Prose
-that narrates the steps ("re-ran detection, spawned the critic, committed") in place
-of the six lines is the block missing, and a missing block means the refactoring did
-not finish.
+The six lines are the block, and the block goes in the message that ends the turn,
+whichever path invoked this skill; a caller that summarises this work carries it and
+its BROADER CONTEXT lines verbatim. Prose narrating the steps in place of the six lines
+is the block missing, and a missing block means the refactoring did not finish.
 </stopping_criteria>
 
 <output_format>
@@ -341,23 +210,9 @@ BROADER CONTEXT
 
 STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
-Every line of `Stop check` renders, in this order, with a result — never a bare
-checkmark; a missing line means the step did not run and the STATUS is not final.
-Each line opens with its step number and keyword exactly as shown — `1 gates`,
-`2 re-run`, `3 nouns`, `4 critic`, `5 STOP`, `6 commit` — so the six receipts can be
-found without reading the prose, and the result follows on the same line. Under the
-block, `BROADER CONTEXT` lists every hit step 2 reported rather than fixed, one line
-each with its `file:line`, rule and question, or `none`. The block and its BROADER
-CONTEXT lines are copied verbatim into whatever message ends the turn
-(`<stopping_criteria>`).
+Every `Stop check` line renders, in this order, opening with its number and keyword
+exactly as shown — `1 gates` … `6 commit` — with its result on the same line; a missing
+line means the step did not run and the STATUS is not final. `BROADER CONTEXT` lists
+every hit step 2 reported rather than fixed, or `none`. Who invokes this skill and what
+it invokes: `sed -n '/^## Integration/,/^## Multi-rule procedures/p' <this skill dir>/reference.md`.
 </output_format>
-
-<integration>
-**Invoked by**: @linter-driven-development (Phase 1.5 / RED friction → `<preparatory_mode>`;
-Phase 3, lint failures), or the caller acting
-on accepted @pre-commit-review findings (@linter-driven-development Phase 4 accepted
-findings, or the user) — @pre-commit-review reports only and never invokes fix skills.
-**Invokes**: @code-designing (new types/design needed), @testing (after every extraction
-— mandatory), @pre-commit-review (after lint passes). **Loop**: lint fails → @refactoring
-→ re-lint → @pre-commit-review → repeat until both pass.
-</integration>

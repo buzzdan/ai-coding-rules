@@ -114,8 +114,8 @@ from every skill that spawns them, so neither reads a 30k-byte rule file whole f
 whose doctrine does not read returns that instead of hunting from memory. The
 rule-hunter agent's description says the path, not the text.
 
-S1 and S2 are in the plugin sources and in all three bindings; their proof, the
-procedure under "Proving it", has not run, so their rows in the targets table are
+S1 to S4 are in the plugin sources and in all three bindings; their proofs, the
+procedure under "Proving it", have not run, so their rows in the targets table are
 still claims.
 
 Expected: about 6 percent of the review tier, and every hunter prompt shrinks by its
@@ -123,21 +123,40 @@ rule. Risk: none to recall, the hunter reads the same text.
 
 ### S3 — budgets and the general-purpose ban
 
-The linter-driven-development skill states that the Agent tool is for the lint-fixer
-only; refactoring is a skill invoked in the main thread, never delegated. The quickfix
-command repeats it beside the escalation step. The lint-fixer states a budget of lint
-runs and edits before it returns `ESCALATED` for what is left. The spend report's
-per-agent turn column is the check.
+The linter-driven-development skill names the agents it spawns — the lint-fixer, and
+the skeptic in its PREPARE gate — and says the review agents belong to the skills that
+own them; refactoring is a skill invoked in the main thread, never delegated to a
+general-purpose or any other subagent. What a lint-fixer's respawn ceiling leaves is
+unresolved mechanical lint the ship summary lists, never work for the refactoring
+skill or a subagent. The quickfix command repeats it
+beside the escalation step, and the refactoring skill says the same of itself. The
+lint-fixer states a budget of six lint runs and forty edits per spawn; what its budget
+did not reach comes back as `ESCALATED: … → mechanical, budget spent` lines, and the
+caller spawns a fresh lint-fixer over those packages rather than letting one context
+grow. The spend report's per-agent turn column is the check.
 
 Expected: the 20M-token class of run disappears; the red-lint quickfix returns to
 the 2M to 3M its main thread costs.
 
 ### S4 — skill text on a diet
 
-The pre-commit-review and refactoring skills are 24k and 23k bytes. Each moves its
-reference material, worked examples and long tables into its `reference.md`, read
-when a step needs it, and keeps the protocol. Target: each SKILL.md at or under 10k
-bytes; the injected text per invocation halves.
+The pre-commit-review and refactoring skills were 30k and 23k bytes as rendered. Each
+keeps its protocol — the steps, the spawn-prompt items, the report and `Stop check`
+contracts the graders read — and moves the long form into its `reference.md`: the
+hunt-focus table, agent output shapes, verdict rules, the cluster pass and report
+example for the review; the pattern index, file and package routing, preparatory
+mode, the stopping criteria in full and the multi-rule procedures for refactoring. Each step names the `sed` range it reads, and the range is printed inside
+a Bash call the step already makes — the pre-filter, the bundle write, the loop's first
+lint run, the Gates run of the exit — never as a call of its own, because a round trip
+at a 115k-token context costs more than any of these sections; only the report's long
+form is read on its own, once, before the report is written. Sections a step needs
+unconditionally and early, the bundle recipe and the suppression scan, stay inline.
+So the text enters the context once and late instead of on every call from the
+invocation on. Target: each SKILL.md at or under about 10k bytes
+rendered; as landed, both render at about 13k, from 30k and 23k, the remainder being
+the routing table, the bundle recipe, the suppression scan, the
+spawn-prompt items and the two contracts, which are protocol. The injected text per
+invocation falls by more than half.
 
 Expected: about 5 percent of both tiers, more on long runs. Risk: a step that
 depended on an example the skill no longer inlines; the medium-tier art judges catch
