@@ -53,7 +53,7 @@ detection commands there against the diff scope (changed files only). The comman
 live in the rule files (`../../rules/R1-…` to `R12-….md`); never restate them. A rule
 with zero hits is skipped — no hunter for it.
 
-Also in-context: a new `# noqa` or `# ty: ignore` in the diff, or a new
+Also in-context: a new `# noqa`, `# type: ignore`, or `# ty: ignore` in the diff, or a new
 `ignore`/`per-file-ignores` entry under `[tool.ruff.lint]` or a new
 `[[tool.ty.overrides]]` block, is itself a finding — the change must justify, with
 evidence, that the rule genuinely does not apply. Both directives are suppressions:

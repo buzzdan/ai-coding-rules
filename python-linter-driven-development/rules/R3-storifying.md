@@ -148,7 +148,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
 
 3. **Do block comments narrate sections inside a function body?**
    Detection: `grep -nE '^\s+# ' <file>` within function bodies (not the docstring
-   under the `def`, not a `# noqa` or `# ty: ignore` directive).
+   under the `def`, not a `# noqa`, `# type: ignore`, or `# ty: ignore` directive).
    Violation: a comment naming what the next block does — each is a candidate
    extraction point; the fix is a function named after the comment. Quote each
    comment's text with its line: the comment is the evidence and the function's name.

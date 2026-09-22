@@ -48,7 +48,7 @@ and one `not reached: <files>` line naming the files you did not; a tally that c
 comments you never read is a false verdict.
 
 **Scope:** EVERY comment in the diff — docstrings, in-body comments, and test
-comments. Directives (`# noqa`, `# ty: ignore`, `# pragma: no cover`, `# fmt: off`/`# fmt: on`, `# pylint:`, `# ruff:`, `# isort:`, and `>>>` doctest lines with their expected output) are not comments; skip
+comments. Directives (`# noqa`, `# type: ignore`, `# ty: ignore`, `# pragma: no cover`, `# fmt: off`/`# fmt: on`, `# pylint:`, `# ruff:`, `# isort:`, and `>>>` doctest lines with their expected output) are not comments; skip
 them.
 
 **Critique protocol, per comment:**

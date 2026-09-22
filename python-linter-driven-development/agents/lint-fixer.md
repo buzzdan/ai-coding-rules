@@ -68,7 +68,7 @@ this table:
 | ty `invalid-argument-type` for `None` passed to an `X` parameter | rules/R2-self-validating-types.md (Q6 — fix the caller or introduce a Null Object; never widen the parameter to `X \| None`) |
 
 **Hard limits:**
-- Never add `# noqa` or `# ty: ignore` — not even for issues you escalate.
+- Never add `# noqa`, `# type: ignore`, or `# ty: ignore` — not even for issues you escalate.
 - Never edit `[tool.ruff]`, `[tool.ty]`, `ruff.toml` or `ty.toml` — no new
   `ignore`, `per-file-ignores` or `overrides` entry.
 - Never touch test semantics: you may fix lint inside `test_*.py`/`*_test.py` files,
