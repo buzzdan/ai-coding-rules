@@ -611,7 +611,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 | Lint and fix | `ruff check --fix . && ruff format .` |
 | Suppression | `# noqa` — never added on your own; a new one in a diff is a review finding |
 | Docs | docstring: short, says why, not what; long-form under `docs/` |
-| Type check | `ty`, where `pyproject.toml` has a `[tool.ty]` table; never add a checker the repository does not use |
+| Type check | `ty check`, where `pyproject.toml` has a `[tool.ty]` table; never add a checker the repository does not use |
 | Type suppression | `# ty: ignore` — the same rule as `# noqa`, see H1 |
 | Python | the examples assume 3.11+ (`match`, `X \| None`, `asyncio.TaskGroup`, `typing.assert_never`); on 3.10 import `assert_never` from `typing_extensions` and keep asyncio tasks under kept handles |
 | Tests | pytest collects `test_*.py` and `*_test.py`; under `tests/` mirroring the package or beside the module, whichever the repository does; `pytest.param(id=...)` on every row |

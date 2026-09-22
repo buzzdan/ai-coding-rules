@@ -81,9 +81,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   Go signature. The coding-rules handbook renders each rule's Principle without
   the language example beside it, which is where the Go spellings showed.
 
-- **The default lint command is `ruff check .`.** A bare `ty check` with no targets fails
-  unless `[tool.ty]` names files, and ty runs only where that table exists; the
-  pre-flight and the handbook's mechanics name it separately.
+- **The default lint command is `ruff check .`.** ty runs only where a `[tool.ty]`
+  table exists; the pre-flight and the handbook's mechanics name it separately.
 
 ### Added
 
