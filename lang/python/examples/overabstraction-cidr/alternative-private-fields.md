@@ -22,7 +22,7 @@ def parse_cidr_config(args: Sequence[str]) -> CIDRConfig:
 Why this beat the wrapper:
 
 - **Same safety** — `frozen=True` makes `config.cluster_cidr_set = True` raise
-  `FrozenInstanceError` at run time and fail mypy before it; only the parser decides
+  `FrozenInstanceError` at run time and fail ty before it; only the parser decides
   the values.
 - **4 fewer lines** than the `CIDRPresence` approach, and one class instead of two.
 - **Same readability** — `config.cluster_cidr_set` is just as clear as
