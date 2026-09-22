@@ -21,8 +21,9 @@ and reporting: this skill spawns agents and reports; it never edits code, never 
 findings, never blocks a commit. Rule knowledge lives once in `../../rules/`; agents get
 the path of their rule and read it themselves in their first turn — the parent never
 pastes a rule, and agents do not invoke skills. Each step's long form is in
-`reference.md` here; a step names the `sed` range it reads when it needs it, never
-earlier and never the file whole.
+`reference.md` here, read by `sed` range inside a Bash call the step already makes —
+never the file whole, never a call of its own — except the report's, read once before
+writing.
 </objective>
 
 <timing>
@@ -45,11 +46,12 @@ mid-implementation net; this pass is the verification net on finished work.
 
 <step_1_grep_prefilter>
 In-context, cheap, no agents yet. One Bash command prints the **Falsifying questions**
-section of every rule file — `for f in <rules dir>/R*.md; do echo "==> $f <=="; sed -n
-'/^## Falsifying questions/,$p' "$f"; done` — that section only, never a whole rule and
-never twelve Read calls; then run the detection commands there against the diff scope
-(changed files only). The commands live in the rule files (`../../rules/R1-…` to
-`R12-….md`); never restate them. A rule with zero hits is skipped — no hunter for it.
+section of every rule file, and this skill's hunt-focus table beside it —
+`for f in <rules dir>/R*.md; do echo "==> $f <=="; sed -n '/^## Falsifying questions/,$p' "$f"; done; sed -n '/^## Hunt focus/,/^## Waiting for agents/p' <this skill dir>/reference.md`
+— that section only, never a whole rule and never twelve Read calls; then run the
+detection commands there against the diff scope (changed files only). The commands
+live in the rule files (`../../rules/R1-…` to `R12-….md`); never restate them. A rule
+with zero hits is skipped — no hunter for it.
 
 {{include "skills/pre-commit-review/nolint-finding.md"}}
 
@@ -61,20 +63,34 @@ zero prior use; the fix is a discussion or a separate PR, never silent inclusion
 </step_1_grep_prefilter>
 
 <step_2_spawn_hunters>
-**Write the scope bundle first**, only when the scope is not empty: one Bash command
-into `B=$(mktemp -d)` — `files.txt` (the scope, one path per line; a file left out of
-`scope/` keeps its line with `(not bundled: deleted|binary|<n> lines|generated)`),
-`diff.patch` (scoped review only), one numbered `scope/<path>.txt` per file (a
-`==> <path> <==` header, then `cat -n`), and on `--all` `dirs.txt`. The recipe and the
-exclusions: `reference.md`, `sed -n '/^## Scope bundle/,/^## Waiting/p'`. The bundle is
-the only file this review writes; hunters and the critic get its path, the skeptic
-does not.
+**Write the scope bundle first**, only when the scope is not empty, in one Bash
+command into `B=$(mktemp -d)`:
+
+- `files.txt` — the scope, one path per line. A file left out of `scope/` keeps its
+  line with the reason: `(not bundled: deleted)`, `(not bundled: binary)` (`grep -Il .
+  -- "$f"` prints nothing), `(not bundled: <n> lines)` over about 2000, `(not bundled:
+  generated)` by the repository's markers. Hunters read those as ground their commands
+  cover and nothing reads whole. Nothing else is filtered.
+- `diff.patch` — on a scoped review, `git diff <range> -- '{{.SrcGlob}}'`; untracked
+  files have no diff and appear only under `scope/`; `--all` has no diff.
+- `scope/<path>.txt` — one per bundled file, at its source path, a `==> <path> <==`
+  header then the text with its own line numbers, so a finding read from the bundle
+  anchors like a `grep -n` hit:
+  `while IFS= read -r f; do mkdir -p "$B/scope/$(dirname "$f")"; { printf '==> %s <==\n' "$f"; cat -n -- "$f"; } > "$B/scope/$f.txt"; done < bundled.txt`
+- `dirs.txt` — on `--all`, the source directories with file and line counts, for the
+  hunters' reading orders.
+
+The same Bash call prints `sed -n '/^## Waiting for agents/,/^## The merged report/p'
+<this skill dir>/reference.md` — how agents are waited for, what each returns and what
+their verdicts do — so steps 2, 3 and 3b cost no read of their own. The bundle is the
+only file this review writes; hunters and the critic get its path, the skeptic does
+not.
 
 For every rule with hits, spawn one rule-hunter, as **foreground** `Agent` calls
 (`run_in_background: false`) issued together in one message, so they run in parallel
 and return in it. Never wait any other way — no polling, monitor or wake-up, no second
 spawn of a call answered "Async agent launched"; its result arrives by itself
-(`reference.md`, "Waiting for agents"). Each spawn prompt MUST contain:
+("Waiting for agents", read above). Each spawn prompt MUST contain:
 
 1. **The rule file's absolute path** — the hunter's whole rulebook, read in its first
    turn. Never the text pasted; never two rules per hunter; the parent reads no rule
@@ -93,7 +109,7 @@ finding blocks (`rule | file:line | evidence | fix pattern | effort`), one recei
 falsifying question (`Q<n>: <hits> hit(s) → <findings> finding(s)`), a tally and, when
 its budget ended the hunt, a `not reached:` line — receipts stay whole because the
 detection commands ran over the whole scope. A question with no receipt was not run
-(`reference.md`, "Hunter output").
+("Hunter output", read above).
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
@@ -115,7 +131,7 @@ No bundle: the skeptic verifies call sites across the whole repository. Its verd
 `REFUTED (score N …) → cheaper alternative`, `N/A (R2 mechanism)`, `skeptic: not
 reached`) are carried into the report verbatim, score included. What never goes to it
 (R2's construction mechanics, non-extraction findings) and what each verdict does:
-`reference.md`, `sed -n '/^## Skeptic verdicts/,/^## Critic verdicts/p'`.
+"Skeptic verdicts", read in step 2.
 </step_3_skeptic_pass>
 
 <step_3b_comment_critic>
@@ -129,15 +145,16 @@ spawn prompt MUST contain:
 1. The absolute path of `../../rules/R9-repo-brain.md` and the range of its **Comment
    policy** section: `sed -n '/^### Comment policy/,/^### Edge conventions/p'`.
 2. The absolute path of `../documentation/reference.md` and the range of its **Comment
-   Value Toolbox** catalog: `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter
-   Templates/p'`. Neither file is read whole.
+   Value Toolbox** catalog:
+   `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`.
+   Neither file is read whole.
 3. The absolute path of `../../examples/private-comment-noise.md`.
 4. The diff scope and the bundle's absolute path — when this review wrote one; a caller
    without a bundle omits it, and the critic builds its scope in its first turn.
 
 It returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, `DELETE → route
 R3`) with evidence and replacement text, and a tally; non-KEEP verdicts are 🟡
-Readability Debt (`reference.md`, "Critic verdicts").
+Readability Debt ("Critic verdicts", read in step 2).
 </step_3b_comment_critic>
 
 <step_4_merged_report>

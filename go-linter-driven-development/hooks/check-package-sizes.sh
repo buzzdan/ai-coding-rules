@@ -62,7 +62,7 @@ if (( ${#red_lines[@]} > 0 )); then
     printf '%s\n' "${red_lines[@]}"
     echo ""
     echo "These packages MUST be decomposed before more code lands."
-    echo "Apply the 3-step design review (see refactoring skill <package_decomposition>):"
+    echo "Apply the 3-step design review (see <package_decomposition> in the refactoring skill's reference.md):"
     echo "  1. Does the package name reflect a real-world domain concept (not a role/container)?"
     echo "  2. Are types well-scoped, or are there big structs hiding sub-types or primitive-obsession fields?"
     echo "  3. Only after the type review, decide: sub-packages, new leaf types, or both."

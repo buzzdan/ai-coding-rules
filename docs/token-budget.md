@@ -143,11 +143,16 @@ contracts the graders read — and moves the long form into its `reference.md`: 
 bundle recipe, agent output shapes, verdict rules, the cluster pass and report example
 for the review; the pattern index, file and package routing, preparatory mode, the
 suppression scan, the stopping criteria in full and the multi-rule procedures for
-refactoring. Each step names the `sed` range it reads at the moment it needs it,
-never the file whole, so the text enters the context once and late instead of on
-every call from the invocation on. Target: each SKILL.md at or under about 10k bytes
-rendered; as landed, the review skill renders at about 12k from 30k and the
-refactoring skill at 11k to 13k from 23k, by binding, the remainder being the routing table, the
+refactoring. Each step names the `sed` range it reads, and the range is printed inside
+a Bash call the step already makes — the pre-filter, the bundle write, the loop's first
+lint run, the Gates run of the exit — never as a call of its own, because a round trip
+at a 115k-token context costs more than any of these sections; only the report's long
+form is read on its own, once, before the report is written. Sections a step needs
+unconditionally and early, the bundle recipe and the suppression scan, stay inline.
+So the text enters the context once and late instead of on every call from the
+invocation on. Target: each SKILL.md at or under about 10k bytes
+rendered; as landed, both render at about 13k, from 30k and 23k, the remainder being
+the routing table, the bundle recipe, the suppression scan, the
 spawn-prompt items and the two contracts, which are protocol. The injected text per
 invocation falls by more than half.
 

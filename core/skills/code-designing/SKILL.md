@@ -109,7 +109,7 @@ Before presenting the plan, verify against the rules (cite, don't restate):
 - [ ] **Placement decided** for every helper and type via the ladder — {{.Unexported}} helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
 - [ ] Vertical slice structure; package names are flatcase domain vocabulary, never roles/containers (R5)
 - [ ] No test-only interfaces: every interface has a second production implementation OR breaks a real import cycle, verified by grepping the import direction (detection command in `../../rules/R6-test-only-interfaces.md`); otherwise depend on the concrete type
-- [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in @refactoring's `reference.md` `<package_decomposition>`)
+- [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in `<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p'`))
 - [ ] Dependencies constructor-injected and validated; cancellation flows down; no new globals (R8, R2)
 - [ ] Every {{.Task}} has an owner and exit path; shared state guarded where it lives, or confined (R10)
 - [ ] Every kind/variant family has ONE dispatch owner — interface, strategy map, or a single exhaustive switch; no discriminator inspected in two places (R11)

@@ -30,14 +30,16 @@ slice).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
    show no progress, stop and escalate what's left — do not thrash.
 
-**Budget:** six lint runs and forty edits per spawn, the first run included; every
-turn re-bills your whole context, so a long loop costs more than the fixes are worth.
-Batch: one Read of a file, then every mechanical fix in it. When the budget is spent,
-stop and report — the mechanical issues still open become escalations of their own
-kind, `ESCALATED: <linter> → mechanical, budget spent — respawn lint-fixer at
-<file:line>`, one per issue; the caller spawns a fresh lint-fixer over those packages,
-and a fresh context finishes them cheaper than yours would. Never run past the budget
-to get to green.
+**Budget:** twelve turns per spawn — about six lint runs and forty edits — the first
+run included; every turn re-bills your whole context, so a long loop costs more than
+the fixes are worth. Batch: one Read of a file, then every mechanical fix in it in one
+multi-edit turn. When the budget is spent, stop and report — the mechanical issues
+still open become escalations of their own kind, `ESCALATED: <linter> → mechanical,
+budget spent — respawn lint-fixer at <file:line>`, one per issue; the caller spawns a
+fresh lint-fixer over those packages, and a fresh context finishes them cheaper than
+yours would. Leftovers of the two-run no-progress stop above are a different kind and
+never `budget spent`: `ESCALATED: <linter> → mechanical, no progress at <file:line>`,
+which the caller does not respawn. Never run past the budget to get to green.
 
 **Escalation contract (the core of this job):** mechanical issues you fix —
 formatting (`ruff format`), import ordering (`I`), unused imports/variables/arguments
@@ -83,7 +85,8 @@ LINT STATUS: green | escalations pending (<N>)
 ```
 One `ESCALATED:` line per failure, each carrying its own `file:line` and its route from
 the table above (`<linter> → rules/R3-storifying.md (via @refactoring) at
-<path>:<line>`). A `FIXED:` line lists every linter whose
+<path>:<line>`) — except the `mechanical, budget spent` and `mechanical, no progress`
+lines, whose route is the respawn or its refusal, not a rule. A `FIXED:` line lists every linter whose
 issues are gone; nothing fixed → `FIXED: none`.
 
 FIXED counts every issue resolved since the first run — including those the

@@ -2,4 +2,4 @@
   - `PLR0913` (too many arguments) → design a frozen dataclass of the parameters that travel together (score it per `../../rules/R1-primitive-obsession.md`); a keyword-only `*` marker tidies the call sites but leaves the clump
   - `PLR0911` (too many returns), or a tuple return carrying a `bool` or an error member → design a named result type, or raise (same R1 scoring)
   - a module over ~450 lines (ruff has no file-length rule — count) → split juicy types into their own modules (juiciness per R1; module-per-type per `../../rules/R5-vertical-slice.md`); a single god class routes to @refactoring's god-object decomposition procedure first
-  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring `<package_decomposition>`)
+  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (`<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p'`))

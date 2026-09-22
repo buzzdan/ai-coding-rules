@@ -18,8 +18,10 @@ lives once in `../../rules/`; this protocol routes each failure to its owning ru
 loops until green. Autonomous — no user confirmation between patterns or at the end:
 every invocation ends with the green tree committed and the `Stop check` block in the
 message that ends the turn; "ready for your review" is this skill failing, not
-finishing. Each step's long form is in `reference.md` here, read by `sed` range when
-the step needs it. Forward counterpart: @code-designing.
+finishing. Each step's long form is in `reference.md` here, read by `sed` range inside
+a Bash call the step already makes — the loop's first lint run, the Gates run of the
+exit — never the file whole and never a call of its own. Forward counterpart:
+@code-designing.
 </objective>
 
 <skill_invocation>
@@ -37,10 +39,13 @@ of step 4 below.
 <pattern_index>
 Each named move is owned by one rule's **Fix pattern** section — apply it from there,
 never from memory. Which rule owns which move, the shape of Introduce Null Object, and
-why Extract Function prefers the tested function that already exists over a sibling:
-`reference.md`, `sed -n '/^## Pattern index/,/^## File and package routing/p'`. File-length
-and package-size failures (`<file_and_package_routing>`, `<package_decomposition>`):
-`sed -n '/^## File and package routing/,/^## Preparatory mode/p'`.
+why Extract Function prefers the tested function that already exists over a sibling —
+print it in the same Bash call as the loop's first linter run (step 3), never as a call
+of its own: `sed -n '/^## Pattern index/,/^## File and package routing/p' <this skill dir>/reference.md`.
+Add to that call, when a file-length or package-size failure is routed,
+`sed -n '/^## File and package routing/,/^## Preparatory mode/p'` (`<file_and_package_routing>`,
+`<package_decomposition>`), and when several rules are routed on one function,
+`sed -n '/^## Multi-rule procedures/,$p'` (sequencing, god-object and package decomposition).
 </pattern_index>
 
 <preparatory_mode>
@@ -50,15 +55,15 @@ before the first RED, so the feature lands add-only. Invoked by @linter-driven-d
 touch-point files and findings that already passed the four PREPARE gates; this mode
 re-runs none of them. The trigger is the plan, not the linter; characterization tests
 come before motion; the stop is the landing shape (add-only), not lint; prep lands in
-its own commits. In full: `reference.md`, `sed -n '/^## Preparatory mode/,/^## Stopping
-criteria/p'`, read when this mode is invoked.
+its own commits. In full, printed in that same first lint call when this mode is the
+one invoked: `sed -n '/^## Preparatory mode/,/^## Stopping criteria/p' <this skill dir>/reference.md`.
 </preparatory_mode>
 
 <iteration_loop>
 1. Receive the trigger (from @linter-driven-development, from the caller acting on
    accepted @pre-commit-review findings, or manual).
 2. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
-   least-invasive move first (sequencing: `reference.md`, "Multi-rule procedures").
+   least-invasive move first (sequencing: "Multi-rule procedures", `<pattern_index>`).
 3. Re-run the linter immediately — no user confirmation.
 4. Still failing → next move in the sequence. Repeat until green.
 5. **Escalation**: complexity failures that keep recurring mean a new type or design
@@ -75,22 +80,17 @@ criteria/p'`, read when this mode is invoked.
 </testing_integration>
 
 <nolint_prohibition>
-**NEVER add a `{{.Nolint}}` directive to avoid refactoring** — handle the error,
-validate at the boundary, or reduce the complexity. Before finishing, scan every
-uncommitted file for the language's suppression directive and remove any hit; a
-directive that already sat on a function, type or package-level declaration this
-session touched, naming a linter of a rule routed this session, is a hit of that rule
-and goes with the fix; one elsewhere in a touched file, or naming a rule never routed,
-is a BROADER CONTEXT line. The scan command and the bounds: `reference.md`, `sed -n
-'/^<nolint_prohibition>/,/^<\/nolint_prohibition>/p'`.
+{{include "skills/refactoring/nolint-prohibition.md"}}
 </nolint_prohibition>
 
 <stopping_criteria>
 Linter green is where stopping begins. The exit is six actions over the code this
 session touched, in order; each ends by writing its line of the `Stop check` block
 (`<output_format>`) — the line is the receipt, written when the action finishes, never
-from memory at the end. Before step 2, read the bounds it applies: `reference.md`,
-`sed -n '/^## Stopping criteria, in full/,/^## Integration/p'`.
+from memory at the end. The Gates run (step 1) prints the six steps in full in the same
+Bash call as the lint and tests, never a call of their own:
+`sed -n '/^## Stopping criteria, in full/,/^## Integration/p' <this skill dir>/reference.md`;
+they govern steps 2 to 6.
 
 1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
    packages. Line `1 gates`: the four measurements.
@@ -108,10 +108,12 @@ from memory at the end. Before step 2, read the bounds it applies: `reference.md
    or record the judgment call; 0–1 leave. Line `3 nouns`: each candidate with score
    and verdict — `none scored ≥2` when nothing qualified, never a blank.
 4. **The comment critic.** Spawn one `{{.Plugin}}:comment-critic` (Agent tool,
-   foreground) over the touched files with the doctrine paths and ranges
-   @pre-commit-review step 3b names, scope stated as *every comment in each touched
-   file*. Apply its TRIM / REWRITE / DELETE verdicts; route `DELETE → route R3` back to
-   step 3. Line `4 critic`: verdicts applied and routed.
+   foreground) over the touched files, its spawn prompt carrying, as absolute paths,
+   `../../rules/R9-repo-brain.md` with `sed -n '/^### Comment policy/,/^### Edge conventions/p'`,
+   `../skills/documentation/reference.md` with `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`,
+   and `../../examples/private-comment-noise.md`, and the scope stated as *every
+   comment in each touched file*. Apply its TRIM / REWRITE / DELETE verdicts; route
+   `DELETE → route R3` back to step 3. Line `4 critic`: verdicts applied and routed.
 5. **STOP**, reading the over-engineering signs as a check on step 3: a one-method type
    that merely unwraps, a function that only calls another, more layers than concepts
    — undo that move. Line `5 STOP`: none of the signs, or the move undone.
@@ -157,5 +159,5 @@ Every `Stop check` line renders, in this order, opening with its number and keyw
 exactly as shown — `1 gates` … `6 commit` — with its result on the same line; a missing
 line means the step did not run and the STATUS is not final. `BROADER CONTEXT` lists
 every hit step 2 reported rather than fixed, or `none`. Who invokes this skill and what
-it invokes: `reference.md`, "Integration".
+it invokes: `sed -n '/^## Integration/,/^## Multi-rule procedures/p' <this skill dir>/reference.md`.
 </output_format>

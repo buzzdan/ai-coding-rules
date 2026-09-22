@@ -2,38 +2,30 @@
 
 `SKILL.md` holds the protocol; this file holds the long form each step reads by `sed`
 range at the moment it needs it, never the file whole and never before that step. The
-sections, in the order the steps use them: Scope bundle · Waiting for agents · Hunter
-output · Skeptic verdicts · Critic verdicts · The merged report · Report example.
+sections, in the order the steps use them: Hunt focus · Waiting for agents · Hunter
+output · Skeptic verdicts · Critic verdicts · The merged report · Report example. The
+first five are printed by the Bash calls steps 1 and 2 already make, so they cost no
+round trip; the last two are read once, before the report is written.
 
-## Scope bundle
+## Hunt focus
 
-**Write the scope bundle first.** Before any agent is spawned, and only when the
-scope is not empty, one Bash command writes the scope to a temporary directory
-(`B=$(mktemp -d)`), so each hunter and the critic read the code they judge once,
-numbered and sliced to what their leads name, instead of one file per turn:
+What each hunter is after — the pre-filter's map of the rules, one hunter per row
+with hits:
 
-- `files.txt` — the scope's file list, one path per line, as the caller resolved it.
-  A file left out of `scope/` keeps its line here with the reason appended —
-  `(not bundled: deleted)`, `(not bundled: binary)`, `(not bundled: 2400 lines)`,
-  `(not bundled: generated)` — which a hunter reads as ground its detection commands
-  still cover and nothing reads whole.
-- `diff.patch` — on a scoped review, the diff over the scope (`git diff <range> --
-  'detected-language source'`). An untracked file has no diff and appears only under `scope/`; a
-  whole-repository review has no diff at all.
-- `scope/<path>.txt` — one file per file in scope, at its source path under `scope/`,
-  holding a `==> <path> <==` header and the file's text with its own line numbers, so
-  a finding read from the bundle anchors as exactly as a `grep -n` hit:
-  `while IFS= read -r f; do mkdir -p "$B/scope/$(dirname "$f")"; { printf '==> %s <==\n' "$f"; cat -n -- "$f"; } > "$B/scope/$f.txt"; done < "$B/files.txt"`
-  (run over the files that are bundled). Left out, with the reason in `files.txt`:
-  files the diff deletes, binary files (`grep -Il . -- "$f"` prints nothing), files
-  over about 2000 lines, and files matching the repository's generated-file markers.
-  Nothing else is filtered — a falsifying question asks about the file, not the hunk.
-- `dirs.txt` — on `--all`, the source directories in scope, one per line with their
-  file and line counts, so every hunter can be given its own reading order.
-
-The bundle is the one thing this review writes to disk; the report never is (step 4).
-Hunters and the critic get the bundle's absolute path; the skeptic does not — it
-verifies call sites across the whole repository, which no scope bundle holds.
+| Rule | File | Hunt focus |
+|------|------|------------|
+| R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
+| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
+| R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
+| R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
+| R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
+| R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
+| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R8 | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
+| R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
+| R10 | `../../rules/R10-concurrency-safety.md` | concurrent tasks without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
+| R12 | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
 
 ## Waiting for agents
 
@@ -49,7 +41,7 @@ running and its result arrives by itself when it finishes; do not poll for it an
 spawn it again — work through the results in hand, and when nothing is left but waiting,
 end the message and let the delivery resume the review. The skeptic and the critic
 (step 3) share one message of their own, spawned only once every hunter result is in
-hand. .
+hand.
 
 ## Hunter output
 

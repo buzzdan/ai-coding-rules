@@ -2,9 +2,10 @@
 
 `SKILL.md` holds the loop and the exit; this file holds what a step reads by `sed`
 range when it needs it, never the file whole: the pattern index (which rule owns each
-move), file and package routing, preparatory mode, the suppression-directive rule with
-its scan, the stopping criteria in full, who invokes what, and the multi-rule
-procedures. Single-rule moves live in the rules'
+move), file and package routing, preparatory mode, the stopping criteria in full, who
+invokes what, and the multi-rule procedures. Each range is printed inside a Bash call
+the skill already makes — the loop's first lint run, the Gates run of the exit — so it
+costs no round trip of its own. Single-rule moves live in the rules'
 **Fix pattern** sections and are applied from there; deep worked case law is under
 `../../examples/`.
 
@@ -52,7 +53,7 @@ with a test) or a parameter of the one function, and the STATUS block names whic
 parsers of one line format is the finding R1 Q2 exists for.
 
 **Multi-rule procedures** (sequencing, god-object decomposition, package
-decomposition): `reference.md` in this directory.
+decomposition): "Multi-rule procedures", below.
 
 **Case law** (deep worked studies):
 - Storify → leaf type discovery: `../../examples/storify-leaf-type.md`
@@ -115,38 +116,6 @@ Differences from failure-driven operation:
 - **Commits are segregated.** Prep work lands in its own commit(s), never mixed with
   feature code — the reviewer sees behavior-preserving reshaping and new behavior as
   separate diffs.
-
-## Suppression directives
-
-<nolint_prohibition>
-**NEVER add a lint-suppression directive to avoid refactoring.** Handle the error, validate
-at the boundary, or reduce the complexity. Before finishing, scan all uncommitted
-files for the language's suppression directive — `# noqa`, `# type: ignore`,
-`eslint-disable`, `#[allow(...)]`, `@SuppressWarnings`, or whatever the repository's
-linter documents:
-
-```bash
-changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
-[ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep -nE '<the suppression directive>' 2>/dev/null
-```
-
-Any hit → remove the directive and fix properly. Genuine false positives belong in
-the linter's configuration file — with user approval, never unilaterally.
-
-A lint-suppression directive that was already in a touched file is the same hit when it
-names a linter of a rule routed this session and sits on a function or type this
-session changed, or on a package-level declaration in a touched package (a
-globals check → R8, an import-time-initializer check → R8 in a globals request): it
-suppresses the rule it names, so route it as a finding of that rule and delete it with
-the fix. "Pre-existing" and "unrelated" are not verdicts for those — a request to make
-the linter pass without suppressions is met when the touched functions and the
-touched packages' declarations carry none of the routed rules' directives, not when
-the one directive the request named is gone and its neighbours keep their `TODO`. A
-directive elsewhere in a touched file, or one naming a linter of a rule this session
-never routed — a complexity suppression → R3 on the function whose one global read
-was just replaced — is a BROADER CONTEXT line under the `Stop check` block: reported
-with its rule, not fixed in this session, not silent.
-</nolint_prohibition>
 
 ## Stopping criteria, in full
 
@@ -247,7 +216,9 @@ findings, or the user) — @pre-commit-review reports only and never invokes fix
 
 ## Multi-rule procedures
 
-## Sequencing: which pattern first, and when to stop
+Procedures that span several rules; single-rule moves are the rules' own.
+
+### Sequencing: which pattern first, and when to stop
 
 Spans R3 × R1 × R2 × R4. Apply least-invasive first; re-run the linter after each move.
 
@@ -274,7 +245,7 @@ concepts. The worked rejection: `../../examples/overabstraction-cidr.md`.
 
 **Cohesion > coupling**: put logic where it belongs even if that adds a dependency.
 
-## God-object decomposition
+### God-object decomposition
 
 Spans R3 × R1 × R4. **Trigger**: a type with >15 methods or >500 LOC.
 
@@ -290,7 +261,7 @@ Key insight: step 2 usually reveals the god object was mixing infrastructure con
 with domain logic — that mix, not size, is the disease. Forward design of the
 composition: @code-designing.
 
-## Package decomposition
+### Package decomposition
 
 Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `.<ext>`
 files at one directory level) or yellow zone (8–12) — detection command and zone
@@ -300,7 +271,7 @@ table in `<package_decomposition>` above.
 count is the symptom; the disease is usually missing domain types or multiple
 vertical slices sharing one package. Run the 3 steps *in order*:
 
-### Step 1 — Does the package name reflect a real-world domain concept?
+#### Step 1 — Does the package name reflect a real-world domain concept?
 
 Role names and generic containers (never acceptable — the list and naming method are
 R5's Design guidance) get renamed *first*; the split follows from the new model.
@@ -313,7 +284,7 @@ Naming method for the split — model the real-world relationship:
   HAS tokens → `compiler/` + `compiler/token/`.
 - Test: say `pkg.Type` out loud. `job.ID` sounds right; `domain.ID` sounds like Java.
 
-### Step 2 — Are the existing types well-scoped?
+#### Step 2 — Are the existing types well-scoped?
 
 Look *inside* the package before looking at the file list:
 - **Primitive obsession** (R1): `apiKey string`, `timeout int` fields with validation
@@ -327,7 +298,7 @@ Look *inside* the package before looking at the file list:
 Extracting types often shrinks the package below threshold with no sub-package split.
 Invoke @code-designing to validate the extractions.
 
-### Step 3 — Only now, decide the physical split
+#### Step 3 — Only now, decide the physical split
 
 - Multiple vertical slices in one package → extract sub-packages (Step 1 naming).
 - One slice with undermodeled internals → types into their own files, possibly a leaf

@@ -4,4 +4,4 @@
   - too many parameters → design an options type (grouping data that travels together — score it per `../../rules/R1-primitive-obsession.md`)
   - too many return values → design a named result type (same R1 scoring)
   - file too long → split juicy types into their own files (juiciness per R1; file-per-type per `../../rules/R5-vertical-slice.md`); a single god type routes to @refactoring's god-object decomposition procedure first
-  - a directory in the package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring's `reference.md` `<package_decomposition>`)
+  - a directory in the package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (`<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p'`))

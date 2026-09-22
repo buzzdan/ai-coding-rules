@@ -11,16 +11,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   skill, the quickfix command and the refactoring skill state that refactoring runs in
   the main thread and is never delegated to a general-purpose or any other subagent,
   however many escalations there are. The lint-fixer has a budget of six lint runs and
-  forty edits per spawn; what it did not reach returns as `ESCALATED: … → mechanical,
-  budget spent` lines, and the caller spawns a fresh lint-fixer over those packages.
-  (Token budget stage S3.)
+  forty edits per spawn, twelve turns; what it did not reach returns as `ESCALATED: …
+  → mechanical, budget spent` lines, and the caller spawns a fresh lint-fixer over those
+  packages, at most three times and never after one reports nothing fixed; a `no
+  progress` leftover is never respawned. (Token budget stage S3.)
 - **Two skills on a diet.** The pre-commit-review and refactoring skills keep their
   protocols and contracts and move the long form — bundle recipe, agent output shapes,
   verdict rules, cluster pass and report example; pattern index, file and package
   routing, preparatory mode, the suppression scan, stopping criteria in full,
   multi-rule procedures — into their `reference.md`, each step naming the `sed` range
   it reads when it needs it. `<file_and_package_routing>` and `<package_decomposition>`
-  now live in the refactoring skill's `reference.md`; the skills that cite them say so.
+  now live in the refactoring skill's `reference.md`; the skills that cite them say so. A range is printed inside a Bash call the step already makes, never as a call
+  of its own; the bundle recipe and the suppression scan stay inline.
   (Token budget stage S4.)
 - **Hunters read the scope once.** The pre-commit-review skill writes a scope
   bundle before spawning — the file list, the diff on a scoped review, and one
