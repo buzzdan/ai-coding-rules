@@ -68,9 +68,9 @@ class Ports:
 ```
 
 > **In Python:** absence is a declared `-> Port | None` that every caller narrows,
-> checked by mypy; `dict.get` beside `dict[k]` is the model. A `0`, `""` or `None`
+> checked by ty; `dict.get` beside `dict[k]` is the model. A `0`, `""` or `None`
 > returned from a signature that promises `Port` is a sentinel and a finding, and
-> `# type: ignore[return-value]` is its silenced form. Never a `tuple[Port, bool]`.
+> `# ty: ignore[invalid-return-type]` is its silenced form. Never a `tuple[Port, bool]`.
 > `typing.NewType("PortNumber", int)` scores zero on the scorecard: it admits every
 > literal.
 
@@ -506,12 +506,12 @@ finding is a true false positive, propose the exclusion in the linter's configur
 and get it reviewed. A new suppression in a diff is itself a finding, and no automated
 lint-fix pass adds one or edits the configuration.
 
-> **In Python:** `# noqa` and `# type: ignore` are the same thing, and each carries
-> its code (`# noqa: E501`, `# type: ignore[return-value]`; a bare one is ruff
-> `PGH003`). `[tool.ruff.lint.per-file-ignores]` and a `[tool.mypy]` override are
+> **In Python:** `# noqa` and `# ty: ignore` are the same thing, and each carries
+> its code (`# noqa: E501`, `# ty: ignore[invalid-return-type]`; a bare one loses its rule name
+> ). `[tool.ruff.lint.per-file-ignores]` and a `[tool.ty]` override are
 > the reviewed place for a true false positive.
 
-**Review:** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`?
+**Review:** Did the diff add a `# noqa` or `# ty: ignore`, or edit `[tool.ruff]` or `[tool.ty]`?
 
 ### H2 — Errors carry the context of the layer that saw them
 
@@ -575,7 +575,7 @@ see. Write that literal in the test.
 
 ### P5 — Annotations are the contract (opinionated)
 
-Every public function is fully annotated, and mypy passes where the repository
+Every public function is fully annotated, and ty passes where the repository
 configures it. An unexplained `Any` on a public signature is a suppression spelled
 differently: narrow it, or name the `Protocol`. Annotations are what let `X | None`
 be a declared absence instead of a hope.
@@ -600,7 +600,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R10** Does every thread or task started in the diff have a provable exit path? · Does production code sleep?
 - **R11** Is the same discriminator inspected in more than one place? · Does a `case _:` (or trailing `else`) handle "unknown kind" away from the boundary? · Does a boolean parameter select between behaviors?
 - **R12** Does a method return an internal list, dict or set by reference? · Can a validated type be mutated around its constructor?
-- **House rules** Did the diff add a `# noqa` or `# type: ignore`, or edit `[tool.ruff]` or `[tool.mypy]`? · Does any `except` catch `Exception`, `BaseException` or nothing at all away from the process boundary, re-raise without `from`, both log and raise, or inspect a message string? · Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Does any public signature carry an unexplained `Any` or lack an annotation?
+- **House rules** Did the diff add a `# noqa` or `# ty: ignore`, or edit `[tool.ruff]` or `[tool.ty]`? · Does any `except` catch `Exception`, `BaseException` or nothing at all away from the process boundary, re-raise without `from`, both log and raise, or inspect a message string? · Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Does any public signature carry an unexplained `Any` or lack an annotation?
 
 ## 5. Mechanics
 
@@ -611,8 +611,8 @@ are the ones that catch the most. The house-rule questions are review questions 
 | Lint and fix | `ruff check --fix . && ruff format .` |
 | Suppression | `# noqa` — never added on your own; a new one in a diff is a review finding |
 | Docs | docstring: short, says why, not what; long-form under `docs/` |
-| Type check | `mypy`, where `pyproject.toml` has a `[tool.mypy]` table; never add a checker the repository does not use |
-| Type suppression | `# type: ignore` — the same rule as `# noqa`, see H1 |
+| Type check | `ty`, where `pyproject.toml` has a `[tool.ty]` table; never add a checker the repository does not use |
+| Type suppression | `# ty: ignore` — the same rule as `# noqa`, see H1 |
 | Python | the examples assume 3.11+ (`match`, `X \| None`, `asyncio.TaskGroup`, `typing.assert_never`); on 3.10 import `assert_never` from `typing_extensions` and keep asyncio tasks under kept handles |
 | Tests | pytest collects `test_*.py` and `*_test.py`; under `tests/` mirroring the package or beside the module, whichever the repository does; `pytest.param(id=...)` on every row |
 | Workflow | RED → GREEN → REFACTOR per behavior; package-scoped lint every cycle; review per finished slice; commit only a green tree |

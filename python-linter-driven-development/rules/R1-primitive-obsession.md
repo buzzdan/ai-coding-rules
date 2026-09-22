@@ -301,8 +301,8 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Detection: `grep -nE 'return (0|""|-1|None)\s*(#.*)?$' $(git diff --name-only -- '*.py')`,
    then read each hit's signature: the hit is a sentinel when the return annotation
    promises a real value (`-> Device`, `-> int`) and the body returns `None`, `0` or
-   `""` for the missing case. mypy reports that `None` as `return-value`, so a
-   `# type: ignore[return-value]` on the line is the same hit, silenced. A
+   `""` for the missing case. ty reports that `None` as `invalid-return-type`, so a
+   `# ty: ignore[invalid-return-type]` on the line is the same hit, silenced. A
    `-> X | None` signature is a declared absence and is not this question, as long
    as the `None` means "not there" and never "it failed" (R2 Q5 owns that line). A
    trailing comment (`return 0  # sentinel`) does not hide the hit.

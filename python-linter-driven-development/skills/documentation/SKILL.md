@@ -147,7 +147,7 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    edge, add ONE line — `# See <docroot>/<file>.md ...` — to the front-door anchor's
    existing doc comment (anchor heuristic in reference.md), then confirm the module
    still imports (`python -c "import <module>"`) or the type check still passes
-   (`mypy <file>`) — the edge is a docstring line, so the only way to break it is a
+   (`ty check <file>`) — the edge is a docstring line, so the only way to break it is a
    quoting or indentation error. Python files only — the gate verifies edges in
    `.py` files alone, so an edge in another language is unverifiable; report such
    docs as unwired instead of improvising. Wiring only: never rewrite the comment around it, never wire a stale
