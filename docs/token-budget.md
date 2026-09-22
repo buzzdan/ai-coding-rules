@@ -123,9 +123,12 @@ rule. Risk: none to recall, the hunter reads the same text.
 
 ### S3 — budgets and the general-purpose ban
 
-The linter-driven-development skill states that the Agent tool's one use in the
-workflow is the lint-fixer; refactoring is a skill invoked in the main thread, never
-delegated to a general-purpose or any other subagent. The quickfix command repeats it
+The linter-driven-development skill names the agents it spawns — the lint-fixer, and
+the skeptic in its PREPARE gate — and says the review agents belong to the skills that
+own them; refactoring is a skill invoked in the main thread, never delegated to a
+general-purpose or any other subagent. What a lint-fixer's respawn ceiling leaves is
+unresolved mechanical lint the ship summary lists, never work for the refactoring
+skill or a subagent. The quickfix command repeats it
 beside the escalation step, and the refactoring skill says the same of itself. The
 lint-fixer states a budget of six lint runs and forty edits per spawn; what its budget
 did not reach comes back as `ESCALATED: … → mechanical, budget spent` lines, and the

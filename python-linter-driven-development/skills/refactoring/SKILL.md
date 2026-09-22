@@ -61,11 +61,12 @@ findings the hunters own alone.
 Each named move is owned by one rule's **Fix pattern** section — apply it from there,
 never from memory. Which rule owns which move, the shape of Introduce Null Object, and
 why Extract Function prefers the tested function that already exists over a sibling —
-print it in the same Bash call as the loop's first linter run (step 3), never as a call
-of its own: `sed -n '/^## Pattern index/,/^## File and package routing/p' <this skill dir>/reference.md`.
+print it in the same Bash call as the loop's opening linter run (step 2, before any
+move), never as a call of its own: `sed -n '/^## Pattern index/,/^## File and package routing/p' <this skill dir>/reference.md`.
 Add to that call, when a file-length or package-size failure is routed,
-`sed -n '/^## File and package routing/,/^## Preparatory mode/p'` (`<file_and_package_routing>`,
-`<package_decomposition>`), and when several rules are routed on one function,
+`sed -n '/^## File and package routing/,/^## Preparatory mode/p; /^### Package decomposition/,$p'`
+(`<file_and_package_routing>`, `<package_decomposition>` and the procedure), and when
+several rules are routed on one function,
 `sed -n '/^## Multi-rule procedures/,$p'` (sequencing, god-object and package decomposition).
 </pattern_index>
 
@@ -76,22 +77,26 @@ before the first RED, so the feature lands add-only. Invoked by @linter-driven-d
 touch-point files and findings that already passed the four PREPARE gates; this mode
 re-runs none of them. The trigger is the plan, not the linter; characterization tests
 come before motion; the stop is the landing shape (add-only), not lint; prep lands in
-its own commits. In full, printed in that same first lint call when this mode is the
-one invoked: `sed -n '/^## Preparatory mode/,/^## Stopping criteria/p' <this skill dir>/reference.md`.
+its own commits. In full, printed in the loop's opening lint call (step 2) when this
+mode is the one invoked, before any move: `sed -n '/^## Preparatory mode/,/^## Stopping criteria/p' <this skill dir>/reference.md`.
 </preparatory_mode>
 
 <iteration_loop>
 1. Receive the trigger (from @linter-driven-development, from the caller acting on
    accepted @pre-commit-review findings, or manual).
-2. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
+2. Run the linter once over the scope, before any move, and print in that same Bash
+   call the ranges `<pattern_index>` names: the pattern index always; file and package
+   routing with its procedure when such a failure is routed; preparatory mode when
+   that is the mode. This is the one read of `reference.md` the loop makes.
+3. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
    least-invasive move first (sequencing: "Multi-rule procedures", `<pattern_index>`).
-3. Re-run the linter immediately — no user confirmation.
-4. Still failing → next move in the sequence. Repeat until green.
-5. **Escalation**: complexity failures that keep recurring mean a new type or design
+4. Re-run the linter immediately — no user confirmation.
+5. Still failing → next move in the sequence. Repeat until green.
+6. **Escalation**: complexity failures that keep recurring mean a new type or design
    is needed — invoke @code-designing. Patterns exhausted → report what was tried and
    escalate to the user, framed in maxim vocabulary (`../../maxims.md`): name *why*
    the code resists, not just which linter stayed red.
-6. **Green is the exit condition, not the exit.** Linter green → leave through
+7. **Green is the exit condition, not the exit.** Linter green → leave through
    `<stopping_criteria>`: six steps in order, each writing its line of the `Stop check`
    block as it finishes. A green linter with no block is the loop still running.
 </iteration_loop>
@@ -160,7 +165,7 @@ they govern steps 2 to 6.
 4. **The comment critic.** Spawn one `python-linter-driven-development:comment-critic` (Agent tool,
    foreground) over the touched files, its spawn prompt carrying, as absolute paths,
    `../../rules/R9-repo-brain.md` with `sed -n '/^### Comment policy/,/^### Edge conventions/p'`,
-   `../skills/documentation/reference.md` with `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`,
+   `../documentation/reference.md` with `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`,
    and `../../examples/private-comment-noise.md`, and the scope stated as *every
    comment in each touched file*. Apply its TRIM / REWRITE / DELETE verdicts; route
    `DELETE → route R3` back to step 3. Line `4 critic`: verdicts applied and routed.

@@ -32,7 +32,7 @@ Backward counterpart (fixing code that already fails lint/review): @refactoring.
   - `PLR0913` (too many arguments) → design a frozen dataclass of the parameters that travel together (score it per `../../rules/R1-primitive-obsession.md`); a keyword-only `*` marker tidies the call sites but leaves the clump
   - `PLR0911` (too many returns), or a tuple return carrying a `bool` or an error member → design a named result type, or raise (same R1 scoring)
   - a module over ~450 lines (ruff has no file-length rule — count) → split juicy types into their own modules (juiciness per R1; module-per-type per `../../rules/R5-vertical-slice.md`); a single god class routes to @refactoring's god-object decomposition procedure first
-  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (`<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p'`))
+  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (`<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`))
 - A Phase 4 review CLUSTER (≥2 hunters converging on one anchor —
   @linter-driven-development routes it here) → **cluster-scoped mode**: skip
   `<architecture_scan>` and the user-OK step (acceptance was inherited when the
@@ -115,7 +115,7 @@ Before presenting the plan, verify against the rules (cite, don't restate):
 - [ ] **Placement decided** for every helper and type via the ladder — underscore-prefixed helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
 - [ ] Vertical slice structure; package names are flatcase domain vocabulary, never roles/containers (R5)
 - [ ] No test-only interfaces: every interface has a second production implementation OR breaks a real import cycle, verified by grepping the import direction (detection command in `../../rules/R6-test-only-interfaces.md`); otherwise depend on the concrete type
-- [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in `<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p'`))
+- [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in `<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`))
 - [ ] Dependencies constructor-injected and validated; cancellation flows down; no new globals (R8, R2)
 - [ ] Every concurrent task has an owner and exit path; shared state guarded where it lives, or confined (R10)
 - [ ] Every kind/variant family has ONE dispatch owner — interface, strategy map, or a single exhaustive switch; no discriminator inspected in two places (R11)

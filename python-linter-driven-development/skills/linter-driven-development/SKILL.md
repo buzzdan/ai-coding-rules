@@ -205,14 +205,17 @@ with a rule route from its embedded routing table). An `ESCALATED: … → mecha
 budget spent` line is mechanical work the agent's budget did not reach, not design:
 spawn the lint-fixer again, fresh, over the packages it names — at most three times
 per scope, and never after a fresh lint-fixer reports `FIXED: none` over the same
-packages; what is left then goes to @refactoring as escalations, and the ship summary
-says so. A `mechanical, no progress` line is not respawned at all. Route every other
+packages. What is left at that cutoff, and every `mechanical, no progress` line, is
+unresolved mechanical lint with no rule route: Phase 3 stops there, and the ship
+summary lists each `file:line` under `LINT STATUS: escalations pending` — never handed
+to @refactoring, which has no rule for it, never to a subagent. Route every design
 escalation back through the Phase 2 REFACTOR step — invoke @refactoring, in this
 thread, with the routes; **never auto-redesign here, and never delegate the
 escalations to a subagent** (`<skill_invocation>`). Package-size escalations follow
 `<package_decomposition>` in @refactoring's `reference.md`
-(`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p'`; decomposition
-lands in its own commit). Repeat Phase 3 until the agent reports `LINT STATUS: green`.
+(`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`; decomposition
+lands in its own commit). Repeat Phase 3 until the agent reports `LINT STATUS: green`,
+or until the respawn ceiling ends it with that list.
 </phase_3_full_lint>
 
 <phase_4_review>

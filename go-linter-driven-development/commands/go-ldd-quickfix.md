@@ -56,15 +56,19 @@ isolated context, spawned with the package list)
   `<routing_table>` maps linter failure → owning rule's Fix pattern; its six-step
   stopping criteria and its commit apply); package-size escalations follow
   `<package_decomposition>` in @refactoring's `reference.md`
-  (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p'`); a `budget
+  (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`); a `budget
   spent` escalation is mechanical leftover — spawn the lint-fixer again over the
   packages it names, at most three times per scope and never after a fresh one reports
-  `FIXED: none` on them; a `no progress` escalation is not respawned. Escalations are
-  never fixed by hand from this command, and never by a subagent:
+  `FIXED: none` on them; a `no progress` escalation is not respawned. What is left at
+  either cutoff is unresolved mechanical lint with no rule route: Phase 3 stops, and
+  the ship summary lists each `file:line` under `LINT STATUS: escalations pending` —
+  it never goes to @refactoring. Design escalations are never fixed by hand from this
+  command, and never by a subagent:
   @refactoring runs in this thread, whether there are two escalations or twenty. A
   general-purpose agent applying escalations is the failure this line exists to
   prevent.
-- Repeat until the agent reports `LINT STATUS: green` for the scope
+- Repeat until the agent reports `LINT STATUS: green` for the scope, or until the
+  respawn ceiling ends Phase 3 with that list
 
 **Phase 4 — REVIEW over the scope's diff** (via @pre-commit-review)
 - @pre-commit-review orchestrates parallel `go-linter-driven-development:rule-hunter` agents + the

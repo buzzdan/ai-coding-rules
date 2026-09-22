@@ -16,9 +16,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   packages, at most three times and never after one reports nothing fixed; a `no
   progress` leftover is never respawned. (Token budget stage S3.)
 - **Two skills on a diet.** The pre-commit-review and refactoring skills keep their
-  protocols and contracts and move the long form — bundle recipe, agent output shapes,
+  protocols and contracts and move the long form — hunt-focus table, agent output shapes,
   verdict rules, cluster pass and report example; pattern index, file and package
-  routing, preparatory mode, the suppression scan, stopping criteria in full,
+  routing, preparatory mode, stopping criteria in full,
   multi-rule procedures — into their `reference.md`, each step naming the `sed` range
   it reads when it needs it. `<file_and_package_routing>` and `<package_decomposition>`
   now live in the refactoring skill's `reference.md`; the skills that cite them say so. A range is printed inside a Bash call the step already makes, never as a call
