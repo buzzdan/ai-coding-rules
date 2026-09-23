@@ -1,7 +1,7 @@
 ---
 name: pre-commit-review
 description: |
-  ADVISORY pre-commit review that orchestrates parallel single-obsession rule hunters, an over-abstraction skeptic, and a comment critic against the diff.
+  ADVISORY pre-commit review that orchestrates four parallel rule-family hunters, an over-abstraction skeptic, and a comment critic against the diff.
   Spawns read-only agents (rule-hunter, overabstraction-skeptic, comment-critic); NEVER edits code.
   Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
   Categorizes findings as Bugs, New Practice (when in Rome), Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
@@ -14,12 +14,12 @@ allowed-tools:
 
 <objective>
 Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
-parallel single-obsession rule hunters, one over-abstraction skeptic and one comment
+four parallel rule-family hunters, one over-abstraction skeptic and one comment
 critic — the agents `linter-driven-development:rule-hunter`, `linter-driven-development:overabstraction-skeptic` and
 `linter-driven-development:comment-critic`, spawned by those names and no others. Pure orchestration
 and reporting: this skill spawns agents and reports; it never edits code, never fixes
 findings, never blocks a commit. Rule knowledge lives once in `../../rules/`; agents get
-the path of their rule and read it themselves in their first turn — the parent never
+the paths of their rules and read them themselves in their first turn — the parent never
 pastes a rule, and agents do not invoke skills. Each step's long form is in
 `reference.md` here, read by `sed` range inside a Bash call the step already makes —
 never the file whole, never a call of its own — except the report's, read once before
@@ -90,30 +90,43 @@ their verdicts do — so steps 2, 3 and 3b cost no read of their own. The bundle
 only file this review writes; hunters and the critic get its path, the skeptic does
 not.
 
-For every rule with hits, spawn one rule-hunter, as **foreground** `Agent` calls
-(`run_in_background: false`) issued together in one message, so they run in parallel
-and return in it. Never wait any other way — no polling, monitor or wake-up, no second
-spawn of a call answered "Async agent launched"; its result arrives by itself
-("Waiting for agents", read above). Each spawn prompt MUST contain:
+Spawn **one rule-hunter per rule family with hits** — four at most, never one per
+rule — as **foreground** `Agent` calls (`run_in_background: false`) issued together in
+one message, so they run in parallel and return in it. Never wait any other way — no
+polling, monitor or wake-up, no second spawn of a call answered "Async agent
+launched"; its result arrives by itself ("Waiting for agents", read above). The
+families:
 
-1. **The rule file's absolute path** — the hunter's whole rulebook, read in its first
-   turn. Never the text pasted; never two rules per hunter; the parent reads no rule
-   to build a prompt (step 1 printed only the questions).
+| Hunter | Rules | Family |
+|--------|-------|--------|
+| types | R1, R2, R11, R12 | primitives, validation, enums and sentinels, options |
+| structure | R3, R4, R5 | package, file and function shape |
+| tests and dependencies | R6, R7, R8, R10 | tests, globals, dependency injection, dependencies |
+| documentation | R9 | comments and the documentation network — runs beside the comment-critic (step 3b) |
+
+A family none of whose rules had a hit gets no hunter. Each spawn prompt MUST contain:
+
+1. **The absolute paths of this family's rule files with hits** — the hunter's whole
+   rulebook, each read whole in its first turn. Never the text pasted; never a rule of
+   the family that had no hit; never two families in one hunter; the parent reads no
+   rule to build a prompt (step 1 printed only the questions).
 2. **The bundle's absolute path** and the diff scope it holds. On `--all`, also this
-   hunter's **reading order**: `dirs.txt` with this rule's pre-filter hits first, most
-   hits first, ties by line count ascending, then the rest — no two hunters truncate
-   at the same tail.
-3. **That rule's pre-filter hits**, as starting leads, never a limit.
+   hunter's **reading order**: `dirs.txt` with the family's combined pre-filter hits
+   first, most hits first, ties by line count ascending, then the rest — no two
+   hunters truncate at the same tail.
+3. **The family's pre-filter hits, per rule**, as starting leads, never a limit.
 
 Every path is absolute (the hunter runs in the reviewed project's cwd): resolve
 `../../rules/R<N>-….md` and any case file the rule cites from this skill's own
 location, then `ls` every resolved path before spawning — listing is not reading; a
 path that does not list is fixed here, never handed to a hunter. Each hunter returns
 finding blocks (`rule | file:line | evidence | fix pattern | effort`), one receipt per
-falsifying question (`Q<n>: <hits> hit(s) → <findings> finding(s)`), a tally and, when
-its budget ended the hunt, a `not reached:` line — receipts stay whole because the
-detection commands ran over the whole scope. A question with no receipt was not run
-("Hunter output", read above).
+falsifying question of each rule it was given (`R<N> Q<n>: <hits> hit(s) → <findings>
+finding(s)`), one tally per rule and, when its budget ended the hunt, one `not
+reached:` line — receipts stay whole because the detection commands ran over the whole
+scope. A question with no receipt was not run. Findings, receipts, tallies and that
+line are the whole report, about 3k tokens; a hunter returns no narrative ("Hunter
+output", read above).
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
@@ -206,10 +219,12 @@ once, now. The contract it spells out, kept whatever the scope:
   each one line of text however long — never broken across lines for width. Readers
   grep the report, and a move name or anchor split over two lines is invisible to
   them; length is the renderer's problem, not the report's.
-- **Reconcile**: the header carries each hunter's tally beside its rendered count —
+- **Reconcile**: the header carries every rule's tally beside its rendered count — one
+  entry per rule, a family hunter having returned one tally per rule it was given —
   `Hunters: R1 8/8 · R9 53/53 (not reached: internal/store) · R4–R6 skipped` — and the
   two agree, or the dropped finding is rendered, never the tally adjusted. Any agent's
-  `not reached:` line renders verbatim beside its tally, and the Scope line then reads
+  `not reached:` line renders verbatim beside its tally — a hunter's beside the tallies
+  of the rules it hunted — and the Scope line then reads
   `Mode: FULL · PARTIAL coverage`; without those words the header asserts full
   coverage.
 - Fix routing cites each rule's **Fix pattern**; out-of-scope observations go under

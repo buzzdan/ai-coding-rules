@@ -9,29 +9,32 @@ round trip; the last two are read once, before the report is written.
 
 ## Hunt focus
 
-What each hunter is after — the pre-filter's map of the rules, one hunter per row
-with hits:
+What each hunter is after — the pre-filter's map of the rules. Four hunters, one per
+family with hits, each given the rows of its family that had hits: **types** (R1, R2,
+R11, R12), **structure** (R3, R4, R5), **tests and dependencies** (R6, R7, R8, R10)
+and **documentation** (R9, beside the comment critic):
 
-| Rule | File | Hunt focus |
-|------|------|------------|
-| R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
-| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
-| R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
-| R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
-| R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
-| R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
-| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
-| R8 | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
-| R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
-| R10 | `../../rules/R10-concurrency-safety.md` | {{.Task}}s without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
-| R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
-| R12 | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
+| Rule | Family | File | Hunt focus |
+|------|--------|------|------------|
+| R1 | types | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
+| R2 | types | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
+| R3 | structure | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
+| R4 | structure | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
+| R5 | structure | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
+| R6 | tests and dependencies | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
+| R7 | tests and dependencies | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R8 | tests and dependencies | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
+| R9 | documentation | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
+| R10 | tests and dependencies | `../../rules/R10-concurrency-safety.md` | {{.Task}}s without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R11 | types | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
+| R12 | types | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
 
 ## Waiting for agents
 
-For every rule with pre-filter hits, spawn one `{{.Plugin}}:rule-hunter` agent, as **foreground**
-`Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
-run in parallel and every result comes back in that same message. A foreground call
+For every rule family with pre-filter hits, spawn one `{{.Plugin}}:rule-hunter` agent —
+four at most — as **foreground** `Agent` calls (`run_in_background: false`) issued
+together in one message, so the hunters run in parallel and every result comes back in
+that same message. A foreground call
 blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
 and the review never waits for one any other way: no `ReadNotifications`, `ListAgents`
 or `Monitor` calls, no scheduled wake-up. One host differs: a Claude Code cloud session
@@ -47,15 +50,22 @@ hand.
 
 Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
-plus one receipt line per falsifying question (`Q<n>: <hits> hit(s) → <findings>
-finding(s)`) and a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
-The receipts are how a whole-repository hunt is read: a question with no receipt was
-not run over the scope, and the leads were never the scope. A hunter that spends the
-tool-call budget its agent definition states returns the same shape plus one
-`not reached: …` line naming the files or directories it did not read to judge — its
-detection commands still ran over the whole scope, so its receipts are whole — and the
-report header renders that line verbatim beside the hunter's tally (step 4), never as
-a clean verdict.
+plus one receipt line per falsifying question of each rule it was given (`R<N> Q<n>:
+<hits> hit(s) → <findings> finding(s)`, in rule order) and one tally line per rule
+(`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a types hunter given R1, R2
+and R11 returns three tallies. The receipts are how a whole-repository hunt is read: a
+question with no receipt was not run over the scope, and the leads were never the
+scope. A hunter that spends the tool-call budget its agent definition states returns
+the same shape plus one `not reached: …` line for the hunter, naming the files or
+directories it did not read to judge — its detection commands still ran over the whole
+scope, so its receipts are whole — and the report header renders that line verbatim
+beside the tallies of the rules it hunted (step 4), never as a clean verdict.
+
+**The report cap.** A hunter's report is its finding blocks, its receipts, its tallies
+and its `not reached:` line — nothing else: no narrative of the hunt, no restating of
+a rule, no code beyond the evidence excerpt inside a finding block. About 3k tokens.
+The parent merges four of these into one report and keeps only those four things, so
+every other word a hunter writes is billed and dropped.
 
 ## Skeptic verdicts
 
@@ -107,12 +117,13 @@ fields, a method that re-checks them and a {{.Nil}} handed to the constructor ar
 questions of R2 answered on one type, and one missing constructor, not three lines.
 Two findings of the same question on one anchor are a shared-shape line below, not a
 cluster. The skeptic's verdict removes a proposed type from the fix column; it never
-removes the convergence, which is the evidence. Each hunter is single-obsession and
-blind to the others, and each falsifying question is blind to the next, so independent
+removes the convergence, which is the evidence. Each hunter owns one rule family and
+is blind to the other families, each rule inside a hunter is hunted by its own
+detection commands, and each falsifying question is blind to the next, so independent
 convergence on one anchor is evidence that a domain concept is missing there — the
-cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
-primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
-jurisdictions). Render each cluster as a first-class entry above the categories:
+cluster is a juiciness scorecard that filled itself in (R1's questions see the raw
+primitive, R11's the duplicated switch, R2's the ownerless validation: one disease,
+four jurisdictions). Render each cluster as a first-class entry above the categories:
 
 ```
 🔗 CLUSTER: Alert.Channel
@@ -199,15 +210,16 @@ equal the findings returned. Length is never a reason to roll up: a whole-reposi
 review with a hundred and thirty findings renders a hundred and thirty anchors,
 grouped under their categories and rules.
 
-**Reconcile before emitting.** Every hunter ends with a tally (`R<N>: <M> finding(s)`).
-The report header carries, per hunter, that tally beside the number of its anchors
-rendered below (own line or shared-shape line alike) —
+**Reconcile before emitting.** Every hunter ends with one tally per rule it was given
+(`R<N>: <M> finding(s)`). The report header carries, per rule, that tally beside the
+number of its anchors rendered below (own line or shared-shape line alike) —
 `Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the two numbers agree for
 every rule before the report is emitted; a rendered count below the tally means a
 finding was dropped in the merge, and the fix is to render it, never to adjust the
 tally. A finding the skeptic refuted still counts as rendered when its
 cheaper alternative is on the page. A hunter, the skeptic or the critic that returned
-a `not reached:` line has it rendered verbatim in the header beside its tally —
+a `not reached:` line has it rendered verbatim in the header beside its tally — a
+family hunter's beside the tallies of the rules it hunted —
 `R9 12/12 (not reached: internal/store, internal/api)`, `Skeptic: 3 CONFIRMED · 1 not
 reached` — and the Scope line then reads `Mode: FULL · PARTIAL coverage`. A header
 without those words asserts that every agent covered the whole scope.

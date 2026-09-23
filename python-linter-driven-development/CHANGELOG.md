@@ -7,6 +7,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **Four rule-family hunters.** The pre-commit-review skill spawns one rule-hunter per
+  rule family with pre-filter hits — types (R1, R2, R11, R12), structure (R3, R4, R5),
+  tests and dependencies (R6, R7, R8, R10), documentation (R9, beside the comment
+  critic) — four at most, where it spawned one per rule, up to twelve. A hunter gets
+  the absolute paths of its family's rule files that had hits, reads them all in its
+  first turn (ceiling about 30k tokens, from 20k), runs every rule's detection commands
+  in one labelled call, and returns one receipt per falsifying question per rule and
+  one tally per rule, so the report reconciles per rule as before. Its report is
+  capped: finding blocks, receipts, tallies and the `not reached:` line, about 3k
+  tokens, nothing else. `/py-ldd-review` no longer runs the tests or the linter: a
+  review-only command reads code, it does not verify it; `/py-ldd-analyze` still runs
+  all three gates. (Token budget stage S5.)
 - **Two report promises are back inline.** The S1–S4 proof run rendered no cluster
   entry on Case A twice and wrote the skeptic's alternative where the Fix-pattern move
   name belongs on Case B twice; both rules had shrunk to one line in the review
