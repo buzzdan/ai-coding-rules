@@ -174,15 +174,16 @@ once, now. The contract it spells out, kept whatever the scope:
   above the categories, titled with the anchor itself:
 
   ```
-  🔗 CLUSTER: Alert.Channel
-     Convergence: 4 findings — R1, R11, R2, R7
+  🔗 CLUSTER: Alert.Channel — R1, R11, R2, R7
+     Convergence: 4 findings — R1 Q1, R11 Q2, R2 Q2, R7 Q4
      Hypothesis: missing domain concept — a Channel type wants to exist
      Skeptic: CONFIRMED (score 6) · (or REFUTED → the cheaper alternative, the
      convergence still real · or no verdict when no extraction was proposed)
      Routing: design-first — @code-designing (cluster-scoped), then @refactoring
   ```
 
-  The pass is not done until each anchor two rules converged on has its entry; a
+  The title line carries the anchor and the ids of the rules that converged on it;
+  the pass is not done until each anchor two rules converged on has its entry, and a
   whole-repository review commonly has six or more. Members still render under their
   categories, each tagged `[cluster: <anchor>]`.
 - **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
@@ -196,6 +197,10 @@ once, now. The contract it spells out, kept whatever the scope:
   its alternative; a refuted type's alternative also ships as its own 🟢 Polish line. A
   count is never a finding — `R9 (46 findings)` is forbidden; findings of one shape may
   share one line naming every anchor. Anchors rendered equal findings returned.
+- **One physical line, never wrapped.** A finding line and a cluster title line are
+  each one line of text however long — never broken across lines for width. Readers
+  grep the report, and a move name or anchor split over two lines is invisible to
+  them; length is the renderer's problem, not the report's.
 - **Reconcile**: the header carries each hunter's tally beside its rendered count —
   `Hunters: R1 8/8 · R9 53/53 (not reached: internal/store) · R4–R6 skipped` — and the
   two agree, or the dropped finding is rendered, never the tally adjusted. Any agent's

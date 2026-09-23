@@ -33,12 +33,14 @@
    Violation: re-validating a value that could only ever exist valid.
 
 4. **Does the type rely on upstream validation?**
-   Detection: `grep -rn 'caller must\|assumes valid\|already validated' --include='*.py' .`;
+   Detection: `grep -rniE 'caller must|assumes valid|already validated|defensive|re-?check' --include='*.py' .`;
    also flag public fields consumed by logic in a module that defines no
    `__post_init__`, `parse` or validator for the type, and a `NewType` standing in
    for a validated value (it is erased at run time and admits every literal).
    Violation: any invariant enforced — or merely documented — outside the type
-   itself.
+   itself; a value re-validated after the point that validated it (a "defensive
+   re-check") is the same finding, the invariant living in two places and in neither
+   type.
 
 5. **Does anything return or accept `None` as a value?**
    Detection: `grep -nE 'return None\s*(#.*)?$|^\s+return$' <changed files>` (a bare

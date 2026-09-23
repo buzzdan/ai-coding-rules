@@ -231,27 +231,16 @@ Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skip
 Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
 Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
-🔴 DESIGN DEBT                       (one finding per line; wrapped here for width)
-user/service.py:67 | R1 Q1: the session token is validated inline as a raw string,
-  no ParseX owns it; Q2: the same emptiness predicate at user/auth.py:41 — two
-  owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED
-  (score 5) | M
-user/auth.py:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an
-  invalid Authenticator; Q2: Verify re-checks the range at auth.py:52 | Add
-  validating constructor: NewAuthenticator | S
+🔴 DESIGN DEBT                       (one finding per line, never wrapped)
+user/service.py:67 | R1 Q1: the session token is validated inline as a raw string, no ParseX owns it; Q2: the same emptiness predicate at user/auth.py:41 — two owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED (score 5) | M
+user/auth.py:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an invalid Authenticator; Q2: Verify re-checks the range at auth.py:52 | Add validating constructor: NewAuthenticator | S
 
 🟡 READABILITY DEBT
-user/auth.py:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling
-  in one body; Q3: the block comment `# compare password` names the section |
-  Extract Function named after the comment: comparePassword | S
-user/service.py:15 | critic: the docstring restates the name ("UserService provides
-  user services") — toolbox-value floor, no toolbox item delivered | REWRITE →
-  wider context: "Every user mutation flows through this service — auth, quota,
-  and audit hooks attach here." | S
+user/auth.py:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling in one body; Q3: the block comment `# compare password` names the section | Extract Function named after the comment: comparePassword | S
+user/service.py:15 | critic: the docstring restates the name ("UserService provides user services") — toolbox-value floor, no toolbox item delivered | REWRITE → wider context: "Every user mutation flows through this service — auth, quota, and audit hooks attach here." | S
 
 🟢 POLISH
-user/auth.py:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
-  alternative to REFUTED PasswordHash wrapper (score 1: only method unwraps) | S
+user/auth.py:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper alternative to REFUTED PasswordHash wrapper (score 1: only method unwraps) | S
 
 📝 BROADER CONTEXT
 user/service.py:23 — email still a raw string (outside diff scope; same R1 pattern).
