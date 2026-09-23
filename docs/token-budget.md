@@ -111,8 +111,11 @@ Falsifying questions section in one command. The skeptic and the comment critic 
 their doctrine the same way, as paths with the `sed` range of the section to read,
 from every skill that spawns them, so neither reads a 30k-byte rule file whole for a
 4k-token section. The parent lists the resolved paths before spawning, and an agent
-whose doctrine does not read returns that instead of hunting from memory. The
-rule-hunter agent's description says the path, not the text.
+whose doctrine does not read returns that instead of hunting from memory. The rule-hunter agent's description says the path, not the text. One effect the proof
+run made visible: the pre-filter's recall now rests on the rules' own detection
+commands, where the baseline's parent, having read whole rule files, improvised greps
+that hid a gap; the first such gap, R2's question on upstream validation not naming a
+"defensive re-check", was closed in the rule.
 
 S1 to S4 are in the plugin sources and in all three bindings; their proofs, the
 procedure under "Proving it", have not run, so their rows in the targets table are

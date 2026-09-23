@@ -7,6 +7,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **Two report promises are back inline.** The S1–S4 proof run rendered no cluster
+  entry on Case A twice and wrote the skeptic's alternative where the Fix-pattern move
+  name belongs on Case B twice; both rules had shrunk to one line in the review
+  skill's step 4 when their long form moved to `reference.md`. The step now carries the
+  cluster-pass example and the fix-cell rule (move name first, verdict after, the
+  alternative never in its place) itself, plus two rules the graders showed were
+  load-bearing: a cluster's title line carries the ids of the rules that converged on
+  it, and a finding line is never wrapped for width. The same run showed the
+  pre-filter, now reading only each rule's falsifying questions, skips R2 on a
+  "defensive re-check" that the baseline's parent found by reading the whole rule;
+  R2's question 4 now names `defensive` and `re-check` in its detection.
 - **The Agent tool has one use in the workflow.** The linter-driven-development
   skill, the quickfix command and the refactoring skill state that refactoring runs in
   the main thread and is never delegated to a general-purpose or any other subagent,

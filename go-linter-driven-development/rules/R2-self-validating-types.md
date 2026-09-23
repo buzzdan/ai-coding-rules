@@ -238,11 +238,13 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Violation: re-validating a value that could only ever exist valid.
 
 4. **Does the type rely on upstream validation?**
-   Detection: `grep -rn 'caller must\|assumes valid\|already validated' --include='*.go' .`;
+   Detection: `grep -rniE 'caller must|assumes valid|already validated|defensive|re-?check' --include='*.go' .`;
    also flag exported fields consumed by logic in a package that defines no
    constructor for the type.
    Violation: any invariant enforced — or merely documented — outside the type
-   itself.
+   itself; a value re-validated after the point that validated it (a "defensive
+   re-check") is the same finding, the invariant living in two places and in neither
+   type.
 
 5. **Does anything return or accept nil as a value?**
    Detection: `grep -nE 'return nil$|return nil, nil' <changed files>` — exempt
