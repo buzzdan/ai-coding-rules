@@ -41,4 +41,5 @@ func TestParsePort_Error(t *testing.T) {
 > **In Go:** every table row uses named struct fields, because the linter reorders
 > fields. No `time.Sleep`: synchronize on a channel or a `sync.WaitGroup`.
 > Orchestrators are tested by wiring their real collaborators over `httptest`, an
-> embedded database or a temp directory.
+> embedded database or a temp directory. Leaf packages, and only they, also run
+> under `gremlins unleash`: a `LIVED` mutant is a missing row or dead logic.

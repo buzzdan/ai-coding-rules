@@ -58,7 +58,7 @@ keeps agreeing with the client no matter how wrong both are. Mitigate it:
 
 The composition ladder is defined in SKILL.md; coverage follows it:
 
-- **Rung 0 (leaf types)**: 100% unit test coverage — core logic must be bulletproof, and rung-0 tables are the cheapest tests you will ever write.
+- **Rung 0 (leaf types)**: 100% unit test coverage — core logic must be bulletproof, and rung-0 tables are the cheapest tests you will ever write. Coverage is the floor; the claim is that the tests fail when the logic changes, and `gremlins unleash ./path/to/leaf` checks it: every `LIVED` mutant on a leaf package is a missing row, dead logic, or an equivalent mutant noted beside the tests. Leaf packages only — never `./...`, never an orchestrator.
 - **Higher rungs (orchestrators, composed layers)**: cover the delta each rung adds — the seams/wiring and behaviors that only exist through composition — not a re-test of lower-rung logic. Some overlap with leaf coverage is acceptable for orchestrators.
 - **Goal**: most logic in leaf types, so most coverage lives at rung 0.
 
@@ -390,6 +390,7 @@ func Example_UserID_validation() {
 
 **Coverage:**
 - [ ] Rung 0 (leaf types): 100% unit test coverage
+- [ ] Rung 0 (leaf types): no untriaged `LIVED` mutant from `gremlins unleash` over the leaf package
 - [ ] Higher rungs: each rung's delta covered (seams, emergent behaviors)
 - [ ] Happy path, edge cases, error cases covered
 
@@ -406,7 +407,7 @@ func Example_UserID_validation() {
 **Test Philosophy:**
 - Test only public API (`pkg_test` package)
 - Use real implementations, not mocks
-- Rung 0 (leaf types): 100% coverage
+- Rung 0 (leaf types): 100% coverage, and no surviving mutant (gremlins, leaf packages only)
 - Higher rungs: cover each rung's delta (seams, emergent behaviors)
 
 **Common Pitfalls to Avoid:**

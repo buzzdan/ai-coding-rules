@@ -51,7 +51,9 @@ Writes tests autonomously based on code structure and type design, and serves as
 - If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and `../../rules/R6-test-only-interfaces.md`).
 
 **Coverage targets**
-- Rung 0 (leaf types): 100% unit test coverage
+- Rung 0 (leaf types): 100% unit test coverage, and no untriaged survivor when the
+  mutation tool runs over the leaf's package (`../../rules/R7-test-placement.md`,
+  Mutation score on leaf types only) — coverage is the floor, the mutation score the claim
 - Higher rungs (orchestrating types): cover the delta each rung adds — its seams and emergent behaviors
 - Critical workflows: top-rung (system) tests
 

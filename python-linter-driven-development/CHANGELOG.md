@@ -5,6 +5,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+
+- **Mutation testing on leaf types.** R7 now says what 100% coverage on a leaf type
+  proves and what it does not: coverage is the floor, the mutation score the claim.
+  A new Design-guidance bullet scopes the run to leaf packages only — never
+  orchestrators, the top rung or the whole `src/` tree — and triages every survivor
+  as a missing parametrize row, dead logic or a recorded equivalent mutant; a new
+  Fix-pattern move, Kill the surviving mutant, and a seventh falsifying question give
+  the hunter and the reviewer the same test. The Python mechanics name `mutmut` with
+  `paths_to_mutate` listing leaf packages; the testing skill's coverage targets, the
+  review skill's hunt-focus row, the refactoring routing table, the code-designing
+  test-plan row, the testing reference checklist and the handbook aside carry the
+  same rule.
+
 ### Changed
 
 - **Two report promises are back inline.** The S1–S4 proof run rendered no cluster
