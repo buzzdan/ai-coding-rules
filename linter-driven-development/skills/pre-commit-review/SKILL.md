@@ -169,19 +169,38 @@ Before writing, read `reference.md`, `sed -n '/^## The merged report/,$p'` — t
 pass, the category map, the line shape, the reconciliation and the worked example —
 once, now. The contract it spells out, kept whatever the scope:
 
-- **Clusters first.** Group every hunter finding by shared anchor — the named type,
-  function, discriminator or package, never a line. An anchor converges when ≥2
-  findings from different rules, or from different falsifying questions of one rule,
-  land on it: one `🔗 CLUSTER: <anchor>` entry per converged anchor above the
-  categories (Convergence, Hypothesis, skeptic verdict when one applies, Routing:
-  design-first — @code-designing then @refactoring); members still render under their
-  categories, tagged `[cluster: <anchor>]`.
+- **Clusters first.** Before categorizing, list the anchors: group every hunter finding
+  — kept, refuted by the skeptic, or never sent to it — by the named thing it is about
+  (a type, a function, a discriminator, a package), never by line. An anchor converges
+  when ≥2 findings from different rules, or from different falsifying questions of one
+  rule, land on it — exported nilable fields, a method re-checking them and a
+  null handed to the constructor are three R2 questions on one type, one missing
+  constructor. Render every converged anchor, two findings or twenty, as its own entry
+  above the categories, titled with the anchor itself:
+
+  ```
+  🔗 CLUSTER: Alert.Channel
+     Convergence: 4 findings — R1, R11, R2, R7
+     Hypothesis: missing domain concept — a Channel type wants to exist
+     Skeptic: CONFIRMED (score 6) · (or REFUTED → the cheaper alternative, the
+     convergence still real · or no verdict when no extraction was proposed)
+     Routing: design-first — @code-designing (cluster-scoped), then @refactoring
+  ```
+
+  The pass is not done until each anchor two rules converged on has its entry; a
+  whole-repository review commonly has six or more. Members still render under their
+  categories, each tagged `[cluster: <anchor>]`.
 - **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
   R9, the critic's non-KEEP verdicts) · 🟢 Polish (the skeptic's cheaper alternatives).
 - **One line per finding**: `file:line | R<N> Q<n>: evidence in the question's own
-  words | the move as the rule's Fix pattern spells it (+ skeptic verdict and score) |
-  S/M/L`. A count is never a finding — `R9 (46 findings)` is forbidden; findings of one
-  shape may share one line naming every anchor. Anchors rendered equal findings returned.
+  words | the move as the rule's Fix pattern spells it | S/M/L`. The fix cell names the
+  move exactly as the Fix pattern section spells it — `Introduce Parameter Object`,
+  `Name enum strings`, `Extract Leaf Type` — and the skeptic's verdict and score follow
+  the move in the same cell: `Introduce Parameter Object: Endpoint — skeptic REFUTED
+  (score 1) → rename dial to Client.dial`. A verdict never replaces the move name with
+  its alternative; a refuted type's alternative also ships as its own 🟢 Polish line. A
+  count is never a finding — `R9 (46 findings)` is forbidden; findings of one shape may
+  share one line naming every anchor. Anchors rendered equal findings returned.
 - **Reconcile**: the header carries each hunter's tally beside its rendered count —
   `Hunters: R1 8/8 · R9 53/53 (not reached: internal/store) · R4–R6 skipped` — and the
   two agree, or the dropped finding is rendered, never the tally adjusted. Any agent's
