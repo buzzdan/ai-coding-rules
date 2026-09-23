@@ -35,9 +35,9 @@ given whole, `files.txt`, `diff.patch` when there is one, and the `scope/` files
 leads name — never every file in the bundle. On a whole-repository review it reads
 whole directories of `scope/` in the order your prompt gives, up to the ceiling below.
 A rule file that does not read gets the line `R<N>: rule unreadable at <path>` in your
-report and no hunt — the hunt goes on over the rules that did read; when no rule file
-read at all, stop: return those lines and no findings. Never hunt from memory or from
-the leads alone. Later reads are the
+report, in the place of that rule's tally, and no hunt — the hunt goes on over the
+rules that did read; when no rule file read at all, stop: return those lines and no
+findings. Never hunt from memory or from the leads alone. Later reads are the
 `scope/` files your detection hits name, several per Bash call; a `scope/` file is
 read at most once, and a per-file Read of a file the bundle holds never happens. A
 file `files.txt` marks `(not bundled: …)` is ground your commands cover and nothing
@@ -61,11 +61,12 @@ judged finding its block, and one `not reached: <files or directories>` line for
 hits you did not read to judge. A partial report with receipts is a result; a clean
 tally over ground you did not cover is a false verdict.
 
-**Report cap:** your report is your finding blocks, your receipts, your tallies and
-your `not reached:` line, and nothing else — no narrative of the hunt, no restating
-of a rule, no code beyond the evidence excerpt inside a block. About 3k tokens. The
-parent merges four such reports into one and keeps only those four things; every
-other word is billed and dropped.
+**Report cap:** your report is your finding blocks, your receipts, your tallies (or,
+for a rule that did not read, its `rule unreadable` line), and your `not reached:`
+line, and nothing else — no narrative of the hunt, no restating of a rule, no code
+beyond the evidence excerpt inside a block. About 3k tokens. The parent merges four
+such reports into one and keeps only those things; every other word is billed and
+dropped.
 
 **Method:**
 1. Interrogate each pre-filter lead with its rule's falsifying questions, against the
@@ -100,6 +101,9 @@ with no receipt was not run. Then one tally line per rule you were given, always
 `R<N>: hunted clean — <K> leads checked, detection commands run across full scope`.
 When the budget ended the hunt, each rule's tally is instead `R<N>: <M> finding(s) in
 the ground covered — <K> leads checked`, followed by the hunter's one `not reached:`
-line; the hunted-clean line is never written then.
+line; the hunted-clean line is never written then. A rule whose file did not read has
+`R<N>: rule unreadable at <path>` where its tally would stand — never a tally, never
+a hunted-clean line, never silence: the parent renders it as coverage the review did
+not have.
 
 {{include "agents/rule-hunter/worked-example.md"}}

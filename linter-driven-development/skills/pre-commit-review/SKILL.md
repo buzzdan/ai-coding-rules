@@ -122,11 +122,12 @@ location, then `ls` every resolved path before spawning — listing is not readi
 path that does not list is fixed here, never handed to a hunter. Each hunter returns
 finding blocks (`rule | file:line | evidence | fix pattern | effort`), one receipt per
 falsifying question of each rule it was given (`R<N> Q<n>: <hits> hit(s) → <findings>
-finding(s)`), one tally per rule and, when its budget ended the hunt, one `not
-reached:` line — receipts stay whole because the detection commands ran over the whole
-scope. A question with no receipt was not run. Findings, receipts, tallies and that
-line are the whole report, about 3k tokens; a hunter returns no narrative ("Hunter
-output", read above).
+finding(s)`), one tally per rule — or, for a rule file that did not read, `R<N>: rule
+unreadable at <path>` in the tally's place — and, when its budget ended the hunt, one
+`not reached:` line — receipts stay whole because the detection commands ran over the
+whole scope. A question with no receipt was not run. Findings, receipts, tallies (or
+unreadable lines) and that line are the whole report, about 3k tokens; a hunter returns
+no narrative ("Hunter output", read above).
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
@@ -226,7 +227,10 @@ once, now. The contract it spells out, kept whatever the scope:
   `not reached:` line renders verbatim beside its tally — a hunter's beside the tallies
   of the rules it hunted — and the Scope line then reads
   `Mode: FULL · PARTIAL coverage`; without those words the header asserts full
-  coverage.
+  coverage. A hunter's `R<N>: rule unreadable at <path>` line is the same: it renders
+  verbatim in that rule's place in the header — never as `skipped`, never as a clean
+  tally, never dropped — and the Scope line reads `PARTIAL coverage`; a rule that had
+  hits and was not hunted is coverage the review did not have.
 - Fix routing cites each rule's **Fix pattern**; out-of-scope observations go under
   BROADER CONTEXT; the report ends `Caller decides: commit as-is · fix 🔴 first · fix
   all. Findings are advisory.` **The report is the message** that ends the review —

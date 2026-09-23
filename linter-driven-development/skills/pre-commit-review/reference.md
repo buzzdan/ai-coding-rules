@@ -53,16 +53,19 @@ Each hunter returns one block per finding:
 plus one receipt line per falsifying question of each rule it was given (`R<N> Q<n>:
 <hits> hit(s) → <findings> finding(s)`, in rule order) and one tally line per rule
 (`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a types hunter given R1, R2
-and R11 returns three tallies. The receipts are how a whole-repository hunt is read: a
-question with no receipt was not run over the scope, and the leads were never the
-scope. A hunter that spends the tool-call budget its agent definition states returns
+and R11 returns three tallies. A rule file that did not read has `R<N>: rule unreadable
+at <path>` in its tally's place, and the hunter hunts the rest; that line is part of the
+report shape, never dropped and never a tally. The receipts are how a whole-repository
+hunt is read: a question with no receipt was not run over the scope, and the leads were
+never the scope. A hunter that spends the tool-call budget its agent definition states returns
 the same shape plus one `not reached: …` line for the hunter, naming the files or
 directories it did not read to judge — its detection commands still ran over the whole
 scope, so its receipts are whole — and the report header renders that line verbatim
 beside the tallies of the rules it hunted (step 4), never as a clean verdict.
 
 **The report cap.** A hunter's report is its finding blocks, its receipts, its tallies
-and its `not reached:` line — nothing else: no narrative of the hunt, no restating of
+(or a rule's `rule unreadable` line in a tally's place) and its `not reached:` line —
+nothing else: no narrative of the hunt, no restating of
 a rule, no code beyond the evidence excerpt inside a finding block. About 3k tokens.
 The parent merges four of these into one report and keeps only those four things, so
 every other word a hunter writes is billed and dropped.
@@ -221,8 +224,12 @@ cheaper alternative is on the page. A hunter, the skeptic or the critic that ret
 a `not reached:` line has it rendered verbatim in the header beside its tally — a
 family hunter's beside the tallies of the rules it hunted —
 `R9 12/12 (not reached: internal/store, internal/api)`, `Skeptic: 3 CONFIRMED · 1 not
-reached` — and the Scope line then reads `Mode: FULL · PARTIAL coverage`. A header
-without those words asserts that every agent covered the whole scope.
+reached` — and the Scope line then reads `Mode: FULL · PARTIAL coverage`. A hunter's
+`R<N>: rule unreadable at <path>` line renders the same way, verbatim in that rule's
+place in the header — `R4: rule unreadable at <path>` — never as `R4 skipped` and never
+as a tally, and the Scope line reads `PARTIAL coverage`: a rule with hits that no hunter
+read is ground the review did not cover. A header without those words asserts that
+every agent covered the whole scope.
 Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
 Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
 
