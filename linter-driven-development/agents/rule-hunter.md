@@ -46,9 +46,12 @@ lines (`grep -n -C3`). A per-file Read is for one thing the bundle cannot settle
 symbol's call sites outside the scope.
 
 **Budget:** the first turn plus at most four more tool calls on a scoped review, six
-on a whole-repository one — five to seven in all, not fifty, however many rules you
-were given. One Bash call runs every detection command of every rule, labelled, in
-one go —
+on a whole-repository one, plus one more call for each rule beyond the first you were
+given — a one-rule hunter has five to seven calls in all, a four-rule hunter eight to
+ten, never fifty. The extra calls are for the rules' questions, not for more reading:
+before the budget ends, every question of every rule has had its detection command
+run and its hits judged, and only then does a spare call read another directory. One
+Bash call runs every detection command of every rule, labelled, in one go —
 `for q in R1-Q1 R1-Q2 R2-Q1 R2-Q2; do echo "== $q"; <detection command q>; done` — so
 all the receipts come from one call, never one grep per question and never one call
 per rule. The first turn loads no more than about 30k tokens (120k bytes), four rule
