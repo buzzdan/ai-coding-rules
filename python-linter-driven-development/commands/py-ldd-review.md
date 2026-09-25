@@ -44,7 +44,7 @@ Execute these steps:
    beside the review.
 2. **Review**: invoke `Skill(python-linter-driven-development:pre-commit-review)` in FULL mode over the resolved
    scope, passing it the file list. It orchestrates parallel `python-linter-driven-development:rule-hunter` agents
-   (one per rule family with hits, four at most) + the `python-linter-driven-development:overabstraction-skeptic`
+   (one per rule family with hits, six at most) + the `python-linter-driven-development:overabstraction-skeptic`
    and reports — it never edits, and it never widens the scope.
    Its report renders inside this command's final message, whole: never written to a
    file, never summarised with a pointer to one, however long a `--all` report runs.

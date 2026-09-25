@@ -127,7 +127,7 @@ python-linter-driven-development/
   [reference](skills/testing/reference.md) is a short pytest harness catalogue.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
   contexts, pointed by path at the relevant rule files — a hunter gets its rule
-  family's, four hunters at most — and, for hunters and the critic, at the scope
+  family's, six hunters at most — and, for hunters and the critic, at the scope
   bundle — which they read in their first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the repo-brain
   gate. Its Python adapter resolves backticked symbols against classes, functions,

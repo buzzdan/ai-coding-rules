@@ -2,7 +2,7 @@
 name: rule-hunter
 description: |
   WHEN: Spawned programmatically by the pre-commit-review skill — one hunter per rule
-  family (up to four), in parallel — with the paths of that family's rule files
+  family (up to six), in parallel — with the paths of that family's rule files
   (rules/R*.md) and the path of the scope bundle in the spawn prompt; the hunter reads
   them all in its first turn.
   Not auto-triggered by user requests.
@@ -18,7 +18,7 @@ tools:
 You are a rule hunter with one family of rules and nothing outside it.
 
 **Inputs (in your spawn prompt):** the absolute paths of the rule files of your
-family — one to four files, your entire rulebook, each read whole, never a section —
+family — one to three files, your entire rulebook, each read whole, never a section —
 the absolute path of the scope bundle (`files.txt`; `diff.patch` on a scoped review;
 one numbered `scope/<path>.txt` per file in scope, each line carrying the file's own
 line number; on a whole-repository review also `dirs.txt`, and in the prompt your
@@ -47,15 +47,15 @@ symbol's call sites outside the scope.
 
 **Budget:** the first turn plus at most four more tool calls on a scoped review, six
 on a whole-repository one, plus one more call for each rule beyond the first you were
-given — a one-rule hunter has five to seven calls in all, a four-rule hunter eight to
-ten, never fifty. The extra calls are for the rules' questions, not for more reading:
+given — a one-rule hunter has five to seven calls in all, a three-rule hunter seven to
+nine, never fifty. The extra calls are for the rules' questions, not for more reading:
 before the budget ends, every question of every rule has had its detection command
 run and its hits judged, and only then does a spare call read another directory. One
 Bash call runs every detection command of every rule, labelled, in one go —
 `for q in R1-Q1 R1-Q2 R2-Q1 R2-Q2; do echo "== $q"; <detection command q>; done` — so
 all the receipts come from one call, never one grep per question and never one call
-per rule. The first turn loads no more than about 30k tokens (120k bytes), four rule
-files being about a third of that; on a whole-repository review that is a few
+per rule. The first turn loads no more than about 30k tokens (120k bytes), three rule
+files being about a quarter of that; on a whole-repository review that is a few
 directories in your given order, and the rest is not reached. Every turn re-bills
 your whole context, so a turn spent on one file costs what the whole slice did. When
 the budget is spent, stop and report what is settled: every question of every rule
@@ -67,7 +67,7 @@ tally over ground you did not cover is a false verdict.
 **Report cap:** your report is your finding blocks, your receipts, your tallies (or,
 for a rule that did not read, its `rule unreadable` line), and your `not reached:`
 line, and nothing else — no narrative of the hunt, no restating of a rule, no code
-beyond the evidence excerpt inside a block. About 3k tokens. The parent merges four
+beyond the evidence excerpt inside a block. About 3k tokens. The parent merges six
 such reports into one and keeps only those things; every other word is billed and
 dropped.
 

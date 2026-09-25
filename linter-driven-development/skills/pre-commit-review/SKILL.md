@@ -1,7 +1,7 @@
 ---
 name: pre-commit-review
 description: |
-  ADVISORY pre-commit review that orchestrates four parallel rule-family hunters, an over-abstraction skeptic, and a comment critic against the diff.
+  ADVISORY pre-commit review that orchestrates six parallel rule-family hunters, an over-abstraction skeptic, and a comment critic against the diff.
   Spawns read-only agents (rule-hunter, overabstraction-skeptic, comment-critic); NEVER edits code.
   Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
   Categorizes findings as Bugs, New Practice (when in Rome), Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
@@ -14,7 +14,7 @@ allowed-tools:
 
 <objective>
 Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
-four parallel rule-family hunters, one over-abstraction skeptic and one comment
+six parallel rule-family hunters, one over-abstraction skeptic and one comment
 critic — the agents `linter-driven-development:rule-hunter`, `linter-driven-development:overabstraction-skeptic` and
 `linter-driven-development:comment-critic`, spawned by those names and no others. Pure orchestration
 and reporting: this skill spawns agents and reports; it never edits code, never fixes
@@ -90,7 +90,7 @@ their verdicts do — so steps 2, 3 and 3b cost no read of their own. The bundle
 only file this review writes; hunters and the critic get its path, the skeptic does
 not.
 
-Spawn **one rule-hunter per rule family with hits** — four at most, never one per
+Spawn **one rule-hunter per rule family with hits** — six at most, never one per
 rule — as **foreground** `Agent` calls (`run_in_background: false`) issued together in
 one message, so they run in parallel and return in it. Never wait any other way — no
 polling, monitor or wake-up, no second spawn of a call answered "Async agent
@@ -99,9 +99,11 @@ families:
 
 | Hunter | Rules | Family |
 |--------|-------|--------|
-| types | R1, R2, R11, R12 | primitives, validation, enums and sentinels, options |
+| types | R1, R2 | primitives, validation |
+| dispatch and mutation | R11, R12 | conditional dispatch, mutation discipline |
 | structure | R3, R4, R5 | package, file and function shape |
-| tests and dependencies | R6, R7, R8, R10 | tests, globals, dependency injection, dependencies |
+| tests | R6, R7 | test-only interfaces, test placement |
+| state | R8, R10 | globals, shared state and concurrency |
 | documentation | R9 | comments and the documentation network — runs beside the comment-critic (step 3b) |
 
 A family none of whose rules had a hit gets no hunter. Each spawn prompt MUST contain:

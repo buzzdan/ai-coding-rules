@@ -165,24 +165,34 @@ Expected: about 5 percent of both tiers, more on long runs. Risk: a step that
 depended on an example the skill no longer inlines; the medium-tier art judges catch
 it.
 
-### S5 — four rule-family hunters
+### S5 — six rule-family hunters
 
 Twelve single-obsession hunters were designed for models that needed a narrow brief.
 Measured after S1 to S4, subagents were still 56 percent of the review tier's spend,
 and the whole-repository review spawned up to twelve hunters over one bundle, each
 re-billing its own context every turn: the biggest lever left. The hunter-count
-experiment has three arms, twelve hunters, four cluster hunters, and one hunter with
-the whole rulebook; the four-hunter arm is the one built, and the twelve-hunter arm
-is the S1 to S4 run it is measured against. The one-hunter arm is not built.
+experiment has three arms, twelve hunters, a few cluster hunters, and one hunter with
+the whole rulebook; the cluster arm is the one built, and the twelve-hunter arm is
+the S1 to S4 run it is measured against. The one-hunter arm is not built.
 
-The pre-commit-review skill spawns one hunter per rule family with any pre-filter
-hit, four at most:
+The cluster arm was first built as four hunters, types (R1, R2, R11, R12), structure
+(R3, R4, R5), tests and dependencies (R6, R7, R8, R10) and documentation (R9). Two
+review-tier runs read the same way: the three-rule structure hunter found every
+plant once its budget scaled with its rule count, the one-rule documentation hunter
+never missed, and the two four-rule hunters, twenty falsifying questions each over
+the whole repository, reported `not reached` and dropped plants — the types hunter
+lost the three CASE-A plants in one run — while a larger budget did not move them.
+The rule load per hunter, not the call count, was the ceiling, so the two four-rule
+families were split. The pre-commit-review skill spawns one hunter per rule family
+with any pre-filter hit, six at most, no family over three rules:
 
 | Hunter | Rules | Family |
 |--------|-------|--------|
-| types | R1, R2, R11, R12 | primitives, validation, enums and sentinels, options |
+| types | R1, R2 | primitives, validation |
+| dispatch and mutation | R11, R12 | conditional dispatch, mutation discipline |
 | structure | R3, R4, R5 | package, file and function shape |
-| tests and dependencies | R6, R7, R8, R10 | tests, globals, dependency injection, dependencies |
+| tests | R6, R7 | test-only interfaces, test placement |
+| state | R8, R10 | globals, shared state and concurrency |
 | documentation | R9 | comments and the documentation network, beside the comment critic |
 
 A hunter gets the absolute paths of its family's rule files that had hits, never one
@@ -205,11 +215,13 @@ The stage was gated on gate 1 of
 [eval-return-experiments.md](eval-return-experiments.md). The S1 to S4 proof passed
 Gate 1 and missed Gate 2's per-tier target, and the stage was built on that evidence
 by decision, proved on the review tier alone: the whole-repository review read on its
-grader count, where the families that pack four rules, types and tests and
-dependencies, are where a plant goes missing; the two scoped cases on their graders;
-Gate 2 per case against the S1 to S4 run and the baseline. Expected: the review's
-subagent turns fall about threefold; a hunter's first turn on a whole-repository
-review, four rule files plus directories, is the ceiling to watch. The per-rule half
+grader count, where a plant goes missing when a hunter carries too many rules; the
+two scoped cases on their graders; Gate 2 per case against the S1 to S4 run and the
+baseline. Four hunters billed 45 percent under the baseline's best whole-repository
+run and held the baseline's grader band, 101 to 107 of 111, under the twelve-hunter
+run's 110; six hunters are the arm that is meant to close that gap at about eight
+agents a run against the baseline's fourteen. A hunter's first turn on a
+whole-repository review, its rule files plus directories, is the ceiling to watch. The per-rule half
 of the experiment, that page's experiment 4, stays open: the cost per rule the spend
 report already gives, then one rule ablated at a time by rendering a plugin without
 it.

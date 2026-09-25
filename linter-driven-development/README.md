@@ -81,7 +81,7 @@ linter-driven-development/
   rules. They never restate rule content.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
   contexts, pointed by path at the relevant rule files — a hunter gets its rule
-  family's, four hunters at most — and, for hunters and the critic, at the scope
+  family's, six hunters at most — and, for hunters and the critic, at the scope
   bundle — which they read in their first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the
   documentation-network gate `/wire-repo-brain` installs into your repository. Its

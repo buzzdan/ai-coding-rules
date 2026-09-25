@@ -9,10 +9,12 @@ round trip; the last two are read once, before the report is written.
 
 ## Hunt focus
 
-What each hunter is after — the pre-filter's map of the rules. Four hunters, one per
-family with hits, each given the rows of its family that had hits: **types** (R1, R2,
-R11, R12), **structure** (R3, R4, R5), **tests and dependencies** (R6, R7, R8, R10)
-and **documentation** (R9, beside the comment critic):
+What each hunter is after — the pre-filter's map of the rules. Six hunters, one per
+family with hits, each given the rows of its family that had hits: **types** (R1, R2),
+**dispatch and mutation** (R11, R12), **structure** (R3, R4, R5), **tests** (R6, R7),
+**state** (R8, R10) and **documentation** (R9, beside the comment critic). No family
+carries more than three rules: a hunter given four rules and their twenty questions
+reported `not reached` where a three-rule hunter did not.
 
 | Rule | Family | File | Hunt focus |
 |------|--------|------|------------|
@@ -21,18 +23,18 @@ and **documentation** (R9, beside the comment critic):
 | R3 | structure | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
 | R4 | structure | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
 | R5 | structure | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
-| R6 | tests and dependencies | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
-| R7 | tests and dependencies | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
-| R8 | tests and dependencies | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
+| R6 | tests | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
+| R7 | tests | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R8 | state | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
 | R9 | documentation | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
-| R10 | tests and dependencies | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
-| R11 | types | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
-| R12 | types | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
+| R10 | state | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R11 | dispatch and mutation | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
+| R12 | dispatch and mutation | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
 
 ## Waiting for agents
 
 For every rule family with pre-filter hits, spawn one `go-linter-driven-development:rule-hunter` agent —
-four at most — as **foreground** `Agent` calls (`run_in_background: false`) issued
+six at most — as **foreground** `Agent` calls (`run_in_background: false`) issued
 together in one message, so the hunters run in parallel and every result comes back in
 that same message. A foreground call
 blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
@@ -52,8 +54,8 @@ Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
 plus one receipt line per falsifying question of each rule it was given (`R<N> Q<n>:
 <hits> hit(s) → <findings> finding(s)`, in rule order) and one tally line per rule
-(`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a types hunter given R1, R2
-and R11 returns three tallies. A rule file that did not read has `R<N>: rule unreadable
+(`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a structure hunter given R3, R4
+and R5 returns three tallies. A rule file that did not read has `R<N>: rule unreadable
 at <path>` in its tally's place, and the hunter hunts the rest; that line is part of the
 report shape, never dropped and never a tally. The receipts are how a whole-repository
 hunt is read: a question with no receipt was not run over the scope, and the leads were
@@ -67,7 +69,7 @@ beside the tallies of the rules it hunted (step 4), never as a clean verdict.
 (or a rule's `rule unreadable` line in a tally's place) and its `not reached:` line —
 nothing else: no narrative of the hunt, no restating of
 a rule, no code beyond the evidence excerpt inside a finding block. About 3k tokens.
-The parent merges four of these into one report and keeps only those four things, so
+The parent merges six of these into one report and keeps only those four things, so
 every other word a hunter writes is billed and dropped.
 
 ## Skeptic verdicts
