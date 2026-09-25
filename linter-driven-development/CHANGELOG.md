@@ -14,7 +14,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   missing table row, dead logic or a recorded equivalent mutant; a new Fix-pattern
   move, Kill the surviving mutant, and a seventh falsifying question give the hunter
   and the reviewer the same test. The mechanics bullet names the repository's own
-  mutation tool, as the generic plugin does for every tool; the testing skill's
+  mutation tool, as the generic plugin does for every tool, and says what to do
+  when the language has none: check the table for a row at every comparison's
+  boundary and on each side of every condition, and hand-flip an operator to
+  confirm a survivor; the testing skill's
   coverage targets, the review skill's hunt-focus row, the refactoring routing table
   and the code-designing test-plan row carry the same rule.
 

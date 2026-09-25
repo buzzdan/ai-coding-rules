@@ -97,7 +97,12 @@ private-function test.
 - **Mutation mechanics**: the repository's mutation testing tool, configured once
   and pointed at leaf packages only; run it after the leaf's tests are green and
   after each fix that kills a survivor; a threshold in CI, where the repository has
-  one, is set per leaf package, never module-wide.
+  one, is set per leaf package, never module-wide. When the language has no
+  maintained mutation tool, the check is done by hand and stays cheap because a
+  leaf is small: for every comparison in the leaf the table holds a row at the
+  boundary value and one just past it, for every boolean condition a row on each
+  side, and a suspected gap is confirmed by flipping the operator, running the
+  leaf's tests, and putting it back — green tests mean a survivor.
 - **Orchestrating types**: integration-style tests wiring real collaborators — real
   store over an embedded DB, real client against an in-process HTTP server — never
   interface-injected doubles (`R6-test-only-interfaces.md`). They cover the seams;
@@ -186,7 +191,10 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    Detection: for each new or changed leaf type, run the repository's mutation
    testing tool over that leaf's package only (the mechanics bullet names the tool
    and the command) and read its list of survivors; skip orchestrators, the top
-   rung and any package that does I/O.
+   rung and any package that does I/O. Without a tool, list the leaf's comparisons
+   and boolean conditions, check the table for a row at each boundary value and on
+   each side of each condition, and hand-flip any operator whose rows are missing
+   (`<` to `<=`, `>` to `>=`, a condition negated), run the leaf's tests, revert.
    Violation: any survivor on a leaf type that is not recorded as equivalent — a
    missing table row or dead logic; name the mutant (file, line, operator) and the
    row that would kill it.
