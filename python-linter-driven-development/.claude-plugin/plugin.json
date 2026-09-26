@@ -1,7 +1,7 @@
 {
   "name": "python-linter-driven-development",
   "version": "0.2.2",
-  "description": "Rules-as-data linter-driven development workflow for Python: the same 12 rules, thin directional skills (design, TDD implementation, refactoring, testing, review, documentation) and hunter/skeptic/critic review as the Go plugin, rendered with Python knowledge — ruff and mypy routing, pytest, dataclasses and Protocols, threads and asyncio, docstrings; plus an OKF-conformant repo brain with a shippable CI conformance gate",
+  "description": "Rules-as-data linter-driven development workflow for Python: the same 12 rules, thin directional skills (design, TDD implementation, refactoring, testing, review, documentation) and hunter/skeptic/critic review as the Go plugin, rendered with Python knowledge — ruff, ty and mypy routing, pytest, dataclasses and Protocols, threads and asyncio, docstrings; plus an OKF-conformant repo brain with a shippable CI conformance gate",
   "author": {
     "name": "Dan Mordechay"
   },
@@ -10,6 +10,7 @@
   "keywords": [
     "python",
     "ruff",
+    "ty",
     "mypy",
     "pytest",
     "linter-driven-development",

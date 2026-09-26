@@ -77,9 +77,10 @@ Refactor-only request (no new behavior): 1.5 via @refactoring → 3 → 4 → 5
 2. **Discover commands** (README.md, CLAUDE.md, Makefile, Taskfile.yaml, the `[tool.*]`
    tables in `pyproject.toml`, `tox.ini`/`noxfile.py`, the CI workflow, in that
    order): test + lint commands, and which checkers the repository runs — ruff alone,
-   ruff plus mypy, or pyright/flake8/pylint. Fallbacks: `pytest`,
-   `ruff check --fix . && ruff format .`; add `mypy` only when a `[tool.mypy]` table or
-   `mypy.ini` exists. Never bring a checker the repository does not configure.
+   ruff plus a type checker (ty or mypy), or pyright/flake8/pylint. Fallbacks: `pytest`,
+   `ruff check --fix . && ruff format .`; add `ty check` only when a `[tool.ty]` table or
+   `ty.toml` exists, `mypy` only when a `[tool.mypy]` table or `mypy.ini` exists. Never
+   bring a checker the repository does not configure.
 3. **List the behaviors** this change delivers — each becomes one Phase 2 TDD cycle.
    No plan or unclear scope → Phase 1 produces the plan; unclear intent → ask.
 4. **A request that delivers no behavior is a refactor**, and this skill never
@@ -179,8 +180,8 @@ then route through REFACTOR → @refactoring → its escalation to @code-designi
 Design revision is a deliberate checkpoint, never a mid-GREEN detour.
 
 **REFACTOR (linter-driven)** — on the code just written:
-1. Package-scoped lint (fast): `ruff check <pkg>/` plus `mypy <pkg>/` where the
-   repository configures mypy
+1. Package-scoped lint (fast): `ruff check <pkg>/` plus `ty check <pkg>/` or `mypy <pkg>/`,
+   whichever the repository configures
 2. Cheap rule greps: run the detection commands from the **Falsifying questions**
    sections of the `../../rules/R*.md` files relevant to what was written.
 Any hit → invoke @refactoring: its `<routing_table>` routes each failure to the

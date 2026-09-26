@@ -33,7 +33,7 @@ of step 4 below.
 </skill_invocation>
 
 <routing_table>
-Normative linter→rule routing, keyed by ruff codes and mypy. (The lint-fixer agent
+Normative linter→rule routing, keyed by ruff codes and the type checker's (ty, or mypy). (The lint-fixer agent
 embeds a compact copy of this table in `../../agents/lint-fixer.md` — keep them
 consistent.) ruff has no duplicate-code, file-length, exhaustiveness or
 single-implementer rule and Python has no race detector: those rows are review
@@ -47,14 +47,14 @@ findings the hunters own alone.
 | `PLR1702` (nesting; preview) | `../../rules/R3-storifying.md` |
 | `PLR0913` (too many arguments) | `../../rules/R1-primitive-obsession.md` (Introduce Parameter Object — a frozen dataclass, scored) |
 | Duplicated code (review-only) | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated `match`/if-chains on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
-| A `match` missing enum cases (review-only; mypy sees it only under `assert_never`) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site and close it with `case _: assert_never(x)`; a second `match` appearing is the R11 violation itself |
+| A `match` missing enum cases (review-only; ty and mypy see it only under `assert_never`) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site and close it with `case _: assert_never(x)`; a second `match` appearing is the R11 violation itself |
 | `FBT001` / `FBT002` (boolean positional parameter) | Mechanical — make it keyword-only; then read the branches: sharing little → `../../rules/R11-conditional-dispatch.md`, Split Flag Argument |
 | File over ~450 lines (review-only) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>`, `sed -n '/^## File and package routing/,/^## Preparatory mode/p'` over this skill's `reference.md` |
 | `PLW0603` (`global` statement); import-time side effects (review-only) | `../../rules/R8-no-globals.md` |
 | A `Protocol`/ABC with one implementer; a factory annotated to return the Protocol (review-only) | `../../rules/R6-test-only-interfaces.md` |
 | Unguarded shared state; a `daemon=True` worker; `time.sleep` in a stoppable loop (review-only) | `../../rules/R10-concurrency-safety.md` |
 | `B006` (mutable default argument) / `B008` (call in a default) | `../../rules/R12-mutation-discipline.md` (an immutable default, or a Null Object constant — never a shared literal) |
-| `ARG` (unused argument), `SIM` (simplify), `RET` (return style), `B904` (`raise … from`), `BLE001`/`E722` (broad or bare `except`), `PLR2004` (magic value), `F401`/`F841` (unused import/variable), `I` (import order), `E`/`W` (style), `D` (docstring form), mypy `arg-type`/`return-value`/`assignment` | Mechanical — fix directly (name the constant, narrow the `except`, chain the exception, fix the type or the call, delete the unused symbol, write the docstring per @documentation's menus). Enum-shaped `PLR2004` strings and `== "READY"` comparisons → R1's "Name enum strings" move. A mypy `return-value` on `return None` is R1 Q4 — never a `# type: ignore`. |
+| `ARG` (unused argument), `SIM` (simplify), `RET` (return style), `B904` (`raise … from`), `BLE001`/`E722` (broad or bare `except`), `PLR2004` (magic value), `F401`/`F841` (unused import/variable), `I` (import order), `E`/`W` (style), `D` (docstring form), ty `invalid-argument-type`/`invalid-return-type`/`invalid-assignment` (mypy `arg-type`/`return-value`/`assignment`) | Mechanical — fix directly (name the constant, narrow the `except`, chain the exception, fix the type or the call, delete the unused symbol, write the docstring per @documentation's menus). Enum-shaped `PLR2004` strings and `== "READY"` comparisons → R1's "Name enum strings" move. A ty `invalid-return-type` (mypy `return-value`) on `return None` is R1 Q4 — never a `# ty: ignore` or `# type: ignore`. |
 </routing_table>
 
 <pattern_index>
@@ -110,23 +110,25 @@ mode is the one invoked, before any move: `sed -n '/^## Preparatory mode/,/^## S
 </testing_integration>
 
 <nolint_prohibition>
-**NEVER add `# noqa` or `# type: ignore` to avoid refactoring.** Handle the error,
+**NEVER add `# noqa`, `# type: ignore`, or `# ty: ignore` to avoid refactoring.** Handle the error,
 validate at the boundary, or reduce the complexity. Before finishing, scan all
 uncommitted files:
 
 ```bash
 changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
-[ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep -nE '# *(noqa|type: *ignore)' 2>/dev/null
+[ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep -nE '# *(noqa|(ty|type): *ignore)' 2>/dev/null
 ```
 
 Any hit → remove the directive and fix properly. Genuine false positives belong in
 `pyproject.toml` — `[tool.ruff.lint] ignore`/`per-file-ignores`, a
-`[[tool.mypy.overrides]]` block — with user approval, never unilaterally.
+`[[tool.ty.overrides]]` or `[[tool.mypy.overrides]]` block — with user approval, never
+unilaterally.
 
-A `# noqa` or `# type: ignore` that was already in a touched file is the same hit
+A `# noqa`, `# type: ignore`, or `# ty: ignore` that was already in a touched file is the same hit
 when it names a rule routed this session and sits on a function or class this
 session changed, or on a module-level statement in a touched module (`PLW0603` →
-R8 in a globals request; `# type: ignore[return-value]` on a `return None` → R1):
+R8 in a globals request; `# ty: ignore[invalid-return-type]` or
+`# type: ignore[return-value]` on a `return None` → R1):
 it suppresses the rule it names, so route it as a finding of that rule and delete it
 with the fix. "Pre-existing" and "unrelated" are not verdicts for those — a request
 to make the linter pass without suppressions is met when the touched functions and

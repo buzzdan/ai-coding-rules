@@ -17,7 +17,7 @@
     {
       "name": "python-linter-driven-development",
       "source": "./python-linter-driven-development",
-      "description": "Rules-as-data linter-driven development workflow for Python: the Go plugin's 12 rules, thin directional skills and hunter/skeptic/critic review, rendered with Python knowledge — ruff and mypy routing, pytest, dataclasses and Protocols, threads and asyncio, docstrings"
+      "description": "Rules-as-data linter-driven development workflow for Python: the Go plugin's 12 rules, thin directional skills and hunter/skeptic/critic review, rendered with Python knowledge — ruff and ty routing, pytest, dataclasses and Protocols, threads and asyncio, docstrings"
     },
     {
       "name": "ts-react-linter-driven-development",

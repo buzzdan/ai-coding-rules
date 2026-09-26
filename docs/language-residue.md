@@ -165,9 +165,10 @@ position to the reader as an `In Python` aside under its rule
 
 1. **Absence.** `None` is a declared absence, never an undeclared failure. A
    `-> X | None` signature is fine when absence is normal and every caller narrows
-   it, checked by mypy — `dict.get` beside `dict[k]` is the model. The findings are
-   `None` returned where the signature promises `X` (R1 Q4, with
-   `# type: ignore[return-value]` as the silenced form), `None` standing in for a
+   it, checked by the type checker — `dict.get` beside `dict[k]` is the model. The
+   findings are `None` returned where the signature promises `X` (R1 Q4, with
+   `# ty: ignore[invalid-return-type]` or `# type: ignore[return-value]` as the
+   silenced form), `None` standing in for a
    failure (R2 Q5, Separate Failure from Absence — raise), and callers stacking
    `is None` guards because the absence should have been an exception. Never a
    `tuple[X, bool]`.
@@ -232,7 +233,8 @@ R7 Q3.
 Two files every binding must supply because core has no default for them — the
 orchestrator's pre-flight and the analyze command's command discovery — name the
 Python tool chain: `pyproject.toml` as the marker, `pytest`, `ruff check` and
-`ruff format`, and `mypy` only where a `[tool.mypy]` table exists. The refactoring
+`ruff format`, `ty check` only where a `[tool.ty]` table exists and `mypy` only where a
+`[tool.mypy]` table exists. The refactoring
 routing table and the lint-fixer's compact copy are keyed by ruff codes; duplicated
 code, file length, exhaustiveness and single-implementer protocols have no ruff rule
 and are review-only rows, as the fixture's manifest records. The gate's adapter is
@@ -252,8 +254,8 @@ identifiers) is one include under `examples/<case>/`. About a third of each file
 core; the rest is the binding's.
 
 The Go sections are the original text, cut at section boundaries. The Python
-sections are written in Python and may argue differently where Python differs: mypy
-and `assert_never` where Go had the compiler and `exhaustive`, a recorded tuple of
+sections are written in Python and may argue differently where Python differs: the
+type checker (ty or mypy) and `assert_never` where Go had the compiler and `exhaustive`, a recorded tuple of
 implementers where Go sealed an interface with an unexported method, a frozen
 dataclass where Go had private fields behind accessors, `_private` docstrings where
 Go had comments on unexported symbols. Core headings such as "private fields +
