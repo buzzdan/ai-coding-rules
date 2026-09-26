@@ -9,7 +9,7 @@ design rules stated once as data, thin skills that sequence design, TDD, refacto
 testing, review and documentation, and an evidence-based review run by fresh-context
 agents. What differs is the language-shaped part: every canonical example is Python,
 every detection command greps `.py` files, the linter routing is keyed by ruff codes
-and ty, and the testing skill speaks pytest.
+and the type checker's (ty, or mypy), and the testing skill speaks pytest.
 
 Install it for a Python repository. A repository in a language without a binding
 takes [`linter-driven-development`](../linter-driven-development/README.md), which
@@ -90,8 +90,9 @@ them because the rules hold them in every language:
 ## The linter phase
 
 The plugin runs the checkers the repository already configures — `ruff check`,
-`ruff format`, and `ty check` where a `[tool.ty]` table exists — through the task the
-repository defines. It never adds a checker the repository does not use.
+`ruff format`, and `ty check` where a `[tool.ty]` table exists or `mypy` where a
+`[tool.mypy]` table exists — through the task the repository defines. It never adds a
+checker the repository does not use.
 
 - **Findings route by ruff code.** `C901` and the `PLR` complexity family go to R3,
   `PLR0913` to R1, `PLW0603` to R8, `FBT` to R11, `B006`/`B008` to R12. The
@@ -100,9 +101,9 @@ repository defines. It never adds a checker the repository does not use.
 - **Some findings have no ruff rule.** Duplicated code, file length, a `match`
   missing enum cases, a `Protocol` with one implementer and shared-state races are
   review findings: the hunters own them alone.
-- **`# noqa` and `# ty: ignore` are both suppressions.** The lint-fixer never adds
-  either and never edits `[tool.ruff]` or `[tool.ty]`; a new one in a diff is
-  itself a review finding.
+- **`# noqa`, `# ty: ignore` and `# type: ignore` are all suppressions.** The lint-fixer
+  never adds one and never edits `[tool.ruff]`, `[tool.ty]` or `[tool.mypy]`; a new
+  one in a diff is itself a review finding.
 
 ## Architecture: Rules as Data
 
@@ -150,7 +151,7 @@ is the meta-orchestrator:
 1.5 PREPARE  preparatory refactoring: survey the plan's touch points,
       four autonomous gates decide, @refactoring reshapes → prep commit(s)
 2 IMPLEMENT  per behavior: RED (one failing pytest, lowest rung) → GREEN → REFACTOR
-3 FULL LINT  ONE run of ruff and ty via the lint-fixer agent (isolated context)
+3 FULL LINT  ONE run of ruff and the type checker via the lint-fixer agent (isolated context)
       mechanical → FIXED · design → ESCALATED → @refactoring
 4 REVIEW     per completed slice: @pre-commit-review spawns hunters + skeptic + critic
 5 SHIP       @documentation → commit (tests and lint green, tree dirty) → ship summary

@@ -42,8 +42,8 @@ see. Write that literal in the test.
 
 ### P5 — Annotations are the contract (opinionated)
 
-Every public function is fully annotated, and ty passes where the repository
-configures it. An unexplained `Any` on a public signature is a suppression spelled
+Every public function is fully annotated, and the type checker (ty or mypy) passes
+where the repository configures it. An unexplained `Any` on a public signature is a suppression spelled
 differently: narrow it, or name the `Protocol`. Annotations are what let `X | None`
 be a declared absence instead of a hope.
 

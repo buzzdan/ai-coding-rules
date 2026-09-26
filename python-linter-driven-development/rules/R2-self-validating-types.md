@@ -319,7 +319,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    to pass `None` (`Reporter(sink, None, None)` is the smell; R11). `param: X | None
    = None` with the substitution inside `__init__` is allowed only for a default
    that is genuinely mutable or expensive to build, and even then the attribute is
-   typed `X` and no method guards it. ty makes the typed half of this question
-   mechanical: `None` passed to an `X` parameter fails `invalid-argument-type`, so
-   the finding survives only where the parameter is typed `X | None` or the code is
-   not type-checked.
+   typed `X` and no method guards it. The type checker makes the typed half of this
+   question mechanical: `None` passed to an `X` parameter fails ty's
+   `invalid-argument-type` (mypy's `arg-type`), so the finding survives only where
+   the parameter is typed `X | None` or the code is not type-checked.
