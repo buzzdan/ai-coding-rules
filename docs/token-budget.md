@@ -165,21 +165,66 @@ Expected: about 5 percent of both tiers, more on long runs. Risk: a step that
 depended on an example the skill no longer inlines; the medium-tier art judges catch
 it.
 
-### S5 — how many hunters, decided by the evals
+### S5 — six rule-family hunters
 
 Twelve single-obsession hunters were designed for models that needed a narrow brief.
-Whether they still earn their fan-out is an empirical question, and the answer is the
-hunter-count experiment: three arms of the pre-commit-review skill, twelve hunters (the
-baseline), four cluster hunters (types: R1, R2, R11, R12; structure: R3, R4, R5;
-tests and dependencies: R6, R7, R8, R10; documentation: R9 with the comment critic),
-and one hunter with the whole rulebook. Recall on the whole-repository review's 111
-graders decides; the cheapest arm inside the noise floor ships.
+Measured after S1 to S4, subagents were still 56 percent of the review tier's spend,
+and the whole-repository review spawned up to twelve hunters over one bundle, each
+re-billing its own context every turn: the biggest lever left. The hunter-count
+experiment has three arms, twelve hunters, a few cluster hunters, and one hunter with
+the whole rulebook; the cluster arm is the one built, and the twelve-hunter arm is
+the S1 to S4 run it is measured against. The one-hunter arm is not built.
 
-Expected: unknown until measured, which is the point. Spend falls roughly with the
-agent count; recall may not. This stage runs only after gate 1 of
-[eval-return-experiments.md](eval-return-experiments.md) has passed, and its per-rule
-half is that page's experiment 4: the cost per rule the spend report already gives,
-then one rule ablated at a time by rendering a plugin without it.
+The cluster arm was first built as four hunters, types (R1, R2, R11, R12), structure
+(R3, R4, R5), tests and dependencies (R6, R7, R8, R10) and documentation (R9). Two
+review-tier runs read the same way: the three-rule structure hunter found every
+plant once its budget scaled with its rule count, the one-rule documentation hunter
+never missed, and the two four-rule hunters, twenty falsifying questions each over
+the whole repository, reported `not reached` and dropped plants — the types hunter
+lost the three CASE-A plants in one run — while a larger budget did not move them.
+The rule load per hunter, not the call count, was the ceiling, so the two four-rule
+families were split. The pre-commit-review skill spawns one hunter per rule family
+with any pre-filter hit, six at most, no family over three rules:
+
+| Hunter | Rules | Family |
+|--------|-------|--------|
+| types | R1, R2 | primitives, validation |
+| dispatch and mutation | R11, R12 | conditional dispatch, mutation discipline |
+| structure | R3, R4, R5 | package, file and function shape |
+| tests | R6, R7 | test-only interfaces, test placement |
+| state | R8, R10 | globals, shared state and concurrency |
+| documentation | R9 | comments and the documentation network, beside the comment critic |
+
+A hunter gets the absolute paths of its family's rule files that had hits, never one
+that had none and never a second family; it reads them all in its first turn, whose
+ceiling rises from about 20k to about 30k tokens, runs every rule's detection
+commands in one labelled Bash call, and returns one receipt per falsifying question
+per rule and one tally per rule, so the merged report reconciles per rule exactly as
+before. On a whole-repository review its reading order sorts the directories by the
+family's combined hits.
+
+Two changes ride along because they touch the same files. The hunter report is
+capped: finding blocks, receipts, tallies and the `not reached:` line, about 3k
+tokens, where a hunter's report ran to about 10k of narrative the parent dropped. And
+the review-only command runs no build, tests or linters: the review reads code, it
+does not verify it. The clean-tree review runs had spent about 6M tokens per tier on
+the tests and the linter before a review that changes nothing; the analyze command
+still runs all three gates.
+
+The stage was gated on gate 1 of
+[eval-return-experiments.md](eval-return-experiments.md). The S1 to S4 proof passed
+Gate 1 and missed Gate 2's per-tier target, and the stage was built on that evidence
+by decision, proved on the review tier alone: the whole-repository review read on its
+grader count, where a plant goes missing when a hunter carries too many rules; the
+two scoped cases on their graders; Gate 2 per case against the S1 to S4 run and the
+baseline. Four hunters billed 45 percent under the baseline's best whole-repository
+run and held the baseline's grader band, 101 to 107 of 111, under the twelve-hunter
+run's 110; six hunters are the arm that is meant to close that gap at about eight
+agents a run against the baseline's fourteen. A hunter's first turn on a
+whole-repository review, its rule files plus directories, is the ceiling to watch. The per-rule half
+of the experiment, that page's experiment 4, stays open: the cost per rule the spend
+report already gives, then one rule ablated at a time by rendering a plugin without
+it.
 
 ### S6 — the mechanical questions become a program
 
@@ -192,7 +237,7 @@ replaces the grep pre-filter in the spawn payload. The hunters for those rules
 become verifiers of the analyzer's findings, or go away under S5.
 
 Expected: the greps themselves are 1 percent, so the direct saving is small; the
-value is that whole hunters become unnecessary, which lands under S1 and S5, and that
+value is that whole rules leave the hunters' rulebooks, which lands under S1 and S5, and that
 the same checks run in CI on repositories without the plugin, beside the handbook
 described in [handbook.md](handbook.md). That pairing, the handbook plus the rule
 greps wired into golangci-lint and ruff or hooks at zero model cost, is the

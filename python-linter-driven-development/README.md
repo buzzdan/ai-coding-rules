@@ -127,8 +127,9 @@ python-linter-driven-development/
   rules. They never restate rule content. The testing skill's
   [reference](skills/testing/reference.md) is a short pytest harness catalogue.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
-  contexts, pointed by path at the relevant rule file — and, for hunters and the
-  critic, at the scope bundle — which they read in their first turn.
+  contexts, pointed by path at the relevant rule files — a hunter gets its rule
+  family's, six hunters at most — and, for hunters and the critic, at the scope
+  bundle — which they read in their first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the repo-brain
   gate. Its Python adapter resolves backticked symbols against classes, functions,
   methods and module-level assignments, and treats a `pyproject.toml` directory as a

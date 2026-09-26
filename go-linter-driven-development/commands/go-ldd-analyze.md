@@ -74,7 +74,7 @@ Name the rung in the report's scope line.
    auto-fixes, is intentionally NOT used here — this command never edits.)
 3. **Design review**: invoke `Skill(go-linter-driven-development:pre-commit-review)`
    in FULL mode over the file scope. It grep-prefilters the diff against rules R1–R12,
-   spawns one parallel `go-linter-driven-development:rule-hunter` per rule with hits, runs the
+   spawns one parallel `go-linter-driven-development:rule-hunter` per rule family with hits (at most six), runs the
    `go-linter-driven-development:overabstraction-skeptic` over every type/package-extraction proposal, and returns
    evidence-backed findings. It reports — it never edits.
 
