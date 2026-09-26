@@ -51,7 +51,10 @@
    `[tool.mutmut]` naming that package only, `mutmut run` then `mutmut results`;
    skip orchestrators, the top rung and any module that does I/O. `mutmut` not
    installed: propose the install the mechanics bullet describes before hunting; no
-   survivors from a run that did not execute is not a pass.
+   survivors from a run that did not execute is not a pass. In a read-only review,
+   where no tests may run, take the hand check instead: list the leaf's comparisons
+   and boolean conditions, check the parametrize table for a row at each boundary
+   value and on each side of each condition, and name the row that is missing.
    Violation: any surviving mutant on a leaf module that is not recorded as
    equivalent — a missing parametrize row or dead logic; name the mutant (`mutmut
    show <id>`) and the row that would kill it.
