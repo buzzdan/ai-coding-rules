@@ -19,7 +19,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   boundary and on each side of every condition, and hand-flip an operator to
   confirm a survivor; the testing skill's
   coverage targets, the review skill's hunt-focus row, the refactoring routing table
-  and the code-designing test-plan row carry the same rule.
+  and the code-designing test-plan row carry the same rule. When the language has a
+  tool but the machine lacks it, the plugin proposes a target in the repository's
+  task runner that installs and runs it, or the local install where there is none,
+  and asks before installing; a run that did not execute is never a pass.
 
 ### Changed
 

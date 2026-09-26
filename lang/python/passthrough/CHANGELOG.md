@@ -17,7 +17,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `paths_to_mutate` listing leaf packages; the testing skill's coverage targets, the
   review skill's hunt-focus row, the refactoring routing table, the code-designing
   test-plan row, the testing reference checklist and the handbook aside carry the
-  same rule.
+  same rule. When `mutmut` is not installed, the plugin proposes adding it to the dev
+  dependency group and a `mutate` target in the Taskfile or Makefile, or `pipx
+  install mutmut` where the repository has neither, and asks before installing; a
+  run that did not execute is never a pass. The workflow's pre-flight discovers a
+  mutation target beside the test and lint commands.
 
 ### Changed
 

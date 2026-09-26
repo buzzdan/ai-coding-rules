@@ -46,7 +46,9 @@ Test files are the ones the repository's test runner picks up (`*{{.TestGlob}}`,
    Detection: for each new or changed leaf type, run the repository's mutation
    testing tool over that leaf's package only (the mechanics bullet names the tool
    and the command) and read its list of survivors; skip orchestrators, the top
-   rung and any package that does I/O. Without a tool, list the leaf's comparisons
+   rung and any package that does I/O. A tool the language has but the machine
+   lacks is proposed for install as the mechanics bullet says, never skipped and
+   never counted as a pass. Without any tool, list the leaf's comparisons
    and boolean conditions, check the table for a row at each boundary value and on
    each side of each condition, and hand-flip any operator whose rows are missing
    (`<` to `<=`, `>` to `>=`, a condition negated), run the leaf's tests, revert.

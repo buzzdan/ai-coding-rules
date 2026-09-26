@@ -97,8 +97,13 @@ private-function test.
 - **Mutation mechanics**: the repository's mutation testing tool, configured once
   and pointed at leaf packages only; run it after the leaf's tests are green and
   after each fix that kills a survivor; a threshold in CI, where the repository has
-  one, is set per leaf package, never module-wide. When the language has no
-  maintained mutation tool, the check is done by hand and stays cheap because a
+  one, is set per leaf package, never module-wide. The tool is installed the way the
+  repository installs its other tools: when it is not on the machine, propose a
+  target in the task runner the repository already has (Taskfile, Makefile) that
+  installs a pinned version and runs it over one leaf package, and where there is no
+  task runner propose the local install command for the developer to run; ask before
+  installing, never install silently, and never read a run that did not execute as a
+  pass. When the language has no maintained mutation tool, the check is done by hand and stays cheap because a
   leaf is small: for every comparison in the leaf the table holds a row at the
   boundary value and one just past it, for every boolean condition a row on each
   side, and a suspected gap is confirmed by flipping the operator, running the
@@ -191,7 +196,9 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    Detection: for each new or changed leaf type, run the repository's mutation
    testing tool over that leaf's package only (the mechanics bullet names the tool
    and the command) and read its list of survivors; skip orchestrators, the top
-   rung and any package that does I/O. Without a tool, list the leaf's comparisons
+   rung and any package that does I/O. A tool the language has but the machine
+   lacks is proposed for install as the mechanics bullet says, never skipped and
+   never counted as a pass. Without any tool, list the leaf's comparisons
    and boolean conditions, check the table for a row at each boundary value and on
    each side of each condition, and hand-flip any operator whose rows are missing
    (`<` to `<=`, `>` to `>=`, a condition negated), run the leaf's tests, revert.
