@@ -228,7 +228,10 @@ it: rung 0 is pure leaf types (unit tests with literal inputs, 100% coverage, pu
 API only, imported as a consumer would); each rung above adds exactly one real production
 layer; only the true external boundary is ever faked. Orchestrating types get
 integration-style tests that cover the seams between their real collaborators — some
-overlap with leaf coverage is fine; leaf behavior tested *only* from above is not.
+overlap with leaf coverage is fine; leaf behavior tested *only* from above is not. On
+a leaf type, coverage is the floor and the mutation score is the claim: a leaf's
+tests must fail when its logic is changed, and a mutant that survives them is a
+missing row or dead logic.
 
 ```go
 // ❌ one table, a flag, and a branch inside t.Run
@@ -273,9 +276,10 @@ func TestParsePort_Error(t *testing.T) {
 > **In Go:** every table row uses named struct fields, because the linter reorders
 > fields. No `time.Sleep`: synchronize on a channel or a `sync.WaitGroup`.
 > Orchestrators are tested by wiring their real collaborators over `httptest`, an
-> embedded database or a temp directory.
+> embedded database or a temp directory. Leaf packages, and only they, also run
+> under `gremlins unleash`: a `LIVED` mutant is a missing row or dead logic.
 
-**Moves:** Move the behavior down a rung · Split Success and Error Tables · Replace doubles with real collaborators · Replace sleep with synchronization · Delete private-function tests
+**Moves:** Move the behavior down a rung · Split Success and Error Tables · Kill the surviving mutant · Replace doubles with real collaborators · Replace sleep with synchronization · Delete private-function tests
 
 ### R8 — No Globals
 

@@ -33,3 +33,17 @@
 6. **Does any test sleep to synchronize?**
    Detection: `grep -rn 'time.Sleep' --include='*_test.go' .`
    Violation: any hit — replace with channels/wait groups.
+
+7. **Does a mutant survive a leaf type's tests?**
+   Detection: for each new or changed leaf package,
+   `gremlins unleash ./path/to/leaf | grep -E '^\s*LIVED'`; skip orchestrators, the
+   top rung and any package that does I/O. `gremlins` not on `PATH`: propose the
+   install the mechanics bullet describes before hunting; an empty `LIVED` list from
+   a run that did not execute, or whose mutants all timed out, is not a pass. In a
+   read-only review, where no tests may run, take the hand check instead: list the
+   leaf's comparisons and boolean conditions, check the table for a row at each
+   boundary value and on each side of each condition, and name the row that is
+   missing.
+   Violation: any `LIVED` line on a leaf package that is not recorded as an
+   equivalent mutant — a missing table row or dead logic; name the mutant (file,
+   line, mutation) and the row that would kill it.

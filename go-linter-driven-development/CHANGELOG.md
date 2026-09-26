@@ -5,6 +5,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+
+- **Mutation testing on leaf types.** R7 now says what 100% coverage on a leaf type
+  proves and what it does not: coverage is the floor, the mutation score the claim.
+  A new Design-guidance bullet scopes the run to leaf packages only — never
+  orchestrators, the top rung or `./...` — and triages every survivor as a missing
+  table row, dead logic or a recorded equivalent mutant; a new Fix-pattern move, Kill
+  the surviving mutant, and a seventh falsifying question give the hunter and the
+  reviewer the same test. The Go mechanics name `gremlins unleash` over the leaf
+  package and its `LIVED` lines; the testing skill's coverage targets, the review
+  skill's hunt-focus row, the refactoring routing table, the code-designing test-plan
+  row, the testing reference and the handbook aside carry the same rule. When
+  `gremlins` is not on `PATH`, the plugin proposes a `mutate` target in the
+  repository's Taskfile or Makefile that installs and runs it, or the `go install`
+  line where there is no task runner, and asks before installing; a run whose mutants
+  all timed out is a broken run, never a pass. The workflow's pre-flight discovers a
+  mutation target beside the test and lint commands.
+
 ### Changed
 
 - **Two report promises are back inline.** The S1–S4 proof run rendered no cluster

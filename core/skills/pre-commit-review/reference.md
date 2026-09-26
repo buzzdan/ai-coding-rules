@@ -20,7 +20,7 @@ with hits:
 | R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
 | R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
 | R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
-| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps; untriaged mutation survivors on a leaf type |
 | R8 | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
 | R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
 | R10 | `../../rules/R10-concurrency-safety.md` | {{.Task}}s without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |

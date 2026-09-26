@@ -31,4 +31,5 @@ def test_parse_email_error(raw: str) -> None:
 > case; import as a consumer would, `from app import user`. No `time.sleep`: wait on
 > `Event.wait(timeout)`, `Queue.get(timeout)` or an awaited future. Orchestrators are
 > tested by wiring their real collaborators over `tmp_path`, an in-process fake
-> server or an embedded database.
+> server or an embedded database. Leaf packages, and only they, are also listed under
+> `paths_to_mutate` for `mutmut`: a surviving mutant is a missing row or dead logic.
