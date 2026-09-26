@@ -21,7 +21,7 @@ Writes tests autonomously based on code structure and type design, and serves as
 4. **Compose real layers** - in-memory/in-process implementations from the repository's test-support package
 5. **Avoid pitfalls**: No `time.sleep`, no conditionals in test bodies, no `mock.patch` of internal collaborators
 
-Ready after tests? Run linter: `ruff check --fix . && ruff format . && ty check`
+Ready after tests? Run linter: `ruff check --fix . && ruff format . && ty check` (or `mypy`, whichever the repository configures)
 </quick_start>
 
 <when_to_use>
@@ -262,7 +262,7 @@ All tests pass
 100% coverage on leaf types
 
 Next Steps:
-1. Run linter: ruff check --fix . && ruff format . && ty check
+1. Run linter: ruff check --fix . && ruff format . && ty check   # or mypy, whichever the repository configures
 2. If linter fails → use @refactoring skill
 3. If linter passes → use @pre-commit-review skill
 ```

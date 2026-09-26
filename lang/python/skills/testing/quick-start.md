@@ -4,4 +4,4 @@
 4. **Compose real layers** - in-memory/in-process implementations from the repository's test-support package
 5. **Avoid pitfalls**: No `time.sleep`, no conditionals in test bodies, no `mock.patch` of internal collaborators
 
-Ready after tests? Run linter: `ruff check --fix . && ruff format . && ty check`
+Ready after tests? Run linter: `ruff check --fix . && ruff format . && ty check` (or `mypy`, whichever the repository configures)

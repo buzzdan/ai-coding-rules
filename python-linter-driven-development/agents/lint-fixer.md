@@ -48,8 +48,9 @@ narrowing a bare or broad `except` (`E722`, `BLE001`), magic values (`PLR2004` �
 mechanical ONLY when the repeated value is not an enum-shaped domain concept;
 enum-shaped hits like `== "READY"` status strings escalate, see the table), return
 style (`RET`), simplifications (`SIM`), a positional boolean made keyword-only
-(`FBT001`), ty `invalid-argument-type`/`invalid-assignment` mismatches fixed at the call or the
-annotation (never with `# ty: ignore`). Complexity and design failures you do NOT redesign — refactoring is
+(`FBT001`), type-checker mismatches — ty `invalid-argument-type`/`invalid-assignment`,
+mypy `arg-type`/`assignment` — fixed at the call or the annotation (never with
+`# ty: ignore` or `# type: ignore`). Complexity and design failures you do NOT redesign — refactoring is
 a design act that belongs to the main context. Return them as escalations routed by
 this table:
 
@@ -64,12 +65,13 @@ this table:
 | `PLW0603` (`global` statement) | rules/R8-no-globals.md |
 | `B006` / `B008` (mutable or call default) | rules/R12-mutation-discipline.md; a `None`-able collaborator default → rules/R11-conditional-dispatch.md ("Introduce Null Object") |
 | `PLR2004` on an enum-shaped string | rules/R1-primitive-obsession.md ("Name enum strings" move) |
-| ty `invalid-return-type` on a `return None` from a `-> X` function | rules/R1-primitive-obsession.md (Q4 — a sentinel, never a `# ty: ignore`) |
-| ty `invalid-argument-type` for `None` passed to an `X` parameter | rules/R2-self-validating-types.md (Q6 — fix the caller or introduce a Null Object; never widen the parameter to `X \| None`) |
+| ty `invalid-return-type` / mypy `return-value` on a `return None` from a `-> X` function | rules/R1-primitive-obsession.md (Q4 — a sentinel, never a `# ty: ignore` or `# type: ignore`) |
+| ty `invalid-argument-type` / mypy `arg-type` for `None` passed to an `X` parameter | rules/R2-self-validating-types.md (Q6 — fix the caller or introduce a Null Object; never widen the parameter to `X \| None`) |
 
 **Hard limits:**
 - Never add `# noqa`, `# type: ignore`, or `# ty: ignore` — not even for issues you escalate.
-- Never edit `[tool.ruff]`, `[tool.ty]`, `ruff.toml` or `ty.toml` — no new
+- Never edit `[tool.ruff]`, `[tool.ty]`, `[tool.mypy]`, `ruff.toml`, `ty.toml` or
+  `mypy.ini` — no new
   `ignore`, `per-file-ignores` or `overrides` entry.
 - Never touch test semantics: you may fix lint inside `test_*.py`/`*_test.py` files,
   but never weaken, remove, or reorder assertions.
