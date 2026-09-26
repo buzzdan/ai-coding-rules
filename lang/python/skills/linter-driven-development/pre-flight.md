@@ -5,6 +5,7 @@
    tables in `pyproject.toml`, `tox.ini`/`noxfile.py`, the CI workflow, in that
    order): test + lint commands, the mutation target when one exists (`mutate`,
    `mutmut`), and which checkers the repository runs — ruff alone,
-   ruff plus mypy, or pyright/flake8/pylint. Fallbacks: `pytest`,
-   `ruff check --fix . && ruff format .`; add `mypy` only when a `[tool.mypy]` table or
-   `mypy.ini` exists. Never bring a checker the repository does not configure.
+   ruff plus a type checker (ty or mypy), or pyright/flake8/pylint. Fallbacks: `pytest`,
+   `ruff check --fix . && ruff format .`; add `ty check` only when a `[tool.ty]` table or
+   `ty.toml` exists, `mypy` only when a `[tool.mypy]` table or `mypy.ini` exists. Never
+   bring a checker the repository does not configure.

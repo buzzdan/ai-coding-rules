@@ -61,7 +61,7 @@ class UserService:
 # ✅ constructor validates once; methods trust the instance
 class UserService:
     def __init__(self, repo: Repository) -> None:
-        if repo is None:  # only an untyped caller can get here; mypy rejects it first
+        if repo is None:  # only an untyped caller can get here; ty rejects it first
             raise TypeError("UserService: repo is required")
         self._repo = repo
 
@@ -170,8 +170,8 @@ validators is the same type; inside the domain the dataclass is enough, and
   **The Python shape.** A do-nothing object is stateless, so it can be a real default
   value: `NULL_SINK = NullSink()` at module level (a name, not a call — ruff's `B008`
   flags a call in a default), the parameter keyword-only and typed `Sink`, never
-  `Sink | None`. mypy then rejects `Reporter(sink=None)` before it runs, and the
-  constructor rejects it at run time for callers mypy never saw. `sink: Sink | None =
+  `Sink | None`. ty then rejects `Reporter(sink=None)` before it runs, and the
+  constructor rejects it at run time for callers ty never saw. `sink: Sink | None =
   None` with `self._sink = sink or NullSink()` inside the constructor keeps `None`
   legal and merely moves the check; it is allowed only when the default is genuinely
   mutable or expensive to build, and even then the attribute is typed without `None`
@@ -292,7 +292,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
      caller expects — a lookup by key, the first match of a filter, a blank line in
      a parser — and every caller narrows it: not a finding. `dict.get` versus
      `dict[k]` is the model; `X | None` is Python's declared absence, checked by
-     mypy at each call site;
+     ty at each call site;
    - the signature says `-> X | None` and the `None` branch is a failure —
      malformed input, a broken invariant, an `except ...: return None` that turns an
      I/O error into "not found" — or callers stack `is None` guards because the
@@ -319,7 +319,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    to pass `None` (`Reporter(sink, None, None)` is the smell; R11). `param: X | None
    = None` with the substitution inside `__init__` is allowed only for a default
    that is genuinely mutable or expensive to build, and even then the attribute is
-   typed `X` and no method guards it. mypy makes the typed half of this question
-   mechanical: `None` passed to an `X` parameter fails `arg-type`, so the finding
-   survives only where the parameter is typed `X | None` or the code is not
-   type-checked.
+   typed `X` and no method guards it. The type checker makes the typed half of this
+   question mechanical: `None` passed to an `X` parameter fails ty's
+   `invalid-argument-type` (mypy's `arg-type`), so the finding survives only where
+   the parameter is typed `X | None` or the code is not type-checked.

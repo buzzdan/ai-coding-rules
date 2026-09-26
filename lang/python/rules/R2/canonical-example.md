@@ -41,7 +41,7 @@ class UserService:
 # ✅ constructor validates once; methods trust the instance
 class UserService:
     def __init__(self, repo: Repository) -> None:
-        if repo is None:  # only an untyped caller can get here; mypy rejects it first
+        if repo is None:  # only an untyped caller can get here; ty rejects it first
             raise TypeError("UserService: repo is required")
         self._repo = repo
 

@@ -67,7 +67,7 @@ Three defects, and only one of them is size:
 - **Ask-and-unpack.** The knowledge of *how a Splunk patch serializes* lives in the
   consumer, not on `SplunkPatch`. Each variant's wire mapping has no owner.
 - **Silent growth failure.** Adding a `PubSubPatch` and forgetting this `match`
-  passes ruff and mypy and ships a request carrying only `name` and `type` — a
+  passes ruff and ty and ships a request carrying only `name` and `type` — a
   runtime no-op with no checker or test to catch it unless someone remembers to
   write one. (Mixed in, an R3 note: the business flow — identity → payload → TLS —
   is buried under `is not None` plumbing repeated nine times.)
@@ -190,7 +190,7 @@ the same protocol, and `from_insert_arg` becomes the same three-beat story.
 
 1. **A type check replaces a silent no-op.** A new `PubSubPatch` without
    `fill_update` no longer satisfies `Patch`, so `UpdateArg(patch=PubSubPatch(...))`
-   fails mypy at the moment of authorship — the strongest catch point Python has.
+   fails ty at the moment of authorship — the strongest catch point Python has.
    (This is R11's exhaustiveness payoff without an `assert_never` arm: protocol
    satisfaction *is* the completeness proof.)
 2. **Adding a destination is a new module, not an edit.** `from_update_arg` is frozen
@@ -202,7 +202,7 @@ the same protocol, and `from_insert_arg` becomes the same three-beat story.
    whose only second implementer is a test double). Python cannot seal a protocol
    the way a private method would elsewhere; the closed set is recorded instead,
    as a `PATCH_TYPES: tuple[type[Patch], ...] = (SplunkPatch, S3Patch, KafkaPatch,
-   SyslogPatch)` that mypy checks member by member, and a one-line test that every
+   SyslogPatch)` that ty checks member by member, and a one-line test that every
    `ExportType` has a class in it.
 
 ## Fill, don't construct

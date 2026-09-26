@@ -41,7 +41,10 @@ Ground rules, all enforced:
   strips the directives first: 51 real findings across 13 linters in go-mini, 61
   ruff findings across 21 rules plus 3 mypy errors in py-mini, which is what the
   quickfix case exercises. In py-mini every remaining `# noqa` is live: ruff's
-  unused-noqa rule is on.
+  unused-noqa rule is on. The Python scaffold and the suite's suppression graders
+  also know ty's `# ty: ignore[<rule>]`, the plugin's first-named type checker, so
+  a ty plant needs no scaffold change and an agent cannot hide a finding behind
+  the ty spelling; the fixture itself still runs mypy.
 - **House style is plain.** Standard-library testing and logging (pytest in
   Python), a Taskfile, no assertion library. Anything the agent introduces beyond
   that is a when-in-Rome finding it must raise on itself.

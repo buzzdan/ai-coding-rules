@@ -37,7 +37,7 @@ Full architecture, workflow, and usage: [plugin README](go-linter-driven-develop
 
 ### Python plugin
 
-The same core rendered with Python knowledge: every canonical example is Python, every detection command greps `.py` files, the linter routing is keyed by ruff codes and mypy, and the testing skill speaks pytest. Where a Go idiom has no Python twin the plugin takes a position — `None` as declared absence, Null Object constants, frozen dataclasses, `match` closed by `assert_never`, `Event.wait` over `time.sleep` — recorded in [docs/language-residue.md](docs/language-residue.md). Details and the opinionated stances: [plugin README](python-linter-driven-development/README.md).
+The same core rendered with Python knowledge: every canonical example is Python, every detection command greps `.py` files, the linter routing is keyed by ruff codes and ty, and the testing skill speaks pytest. Where a Go idiom has no Python twin the plugin takes a position — `None` as declared absence, Null Object constants, frozen dataclasses, `match` closed by `assert_never`, `Event.wait` over `time.sleep` — recorded in [docs/language-residue.md](docs/language-residue.md). Details and the opinionated stances: [plugin README](python-linter-driven-development/README.md).
 
 ### Generic plugin
 

@@ -43,7 +43,7 @@ authoritative; this command adds nothing to it. One pass delivers the whole chai
 - Add CI workflows — the report only suggests `bash scripts/check-repo-brain.sh`
 - Touch anything beyond doc files, `index.md`, `conventions.md`,
   CLAUDE.md/AGENTS.md, the copied check script, and one-line docstring edge additions
-  (verified after each by importing the module or running `mypy` on it)
+  (verified after each by importing the module or running `ty check` or `mypy` on it)
 
 **Language scope**: this is the Python plugin, so code↔docs verification is
 Python-first. On a repo with no Python, the pass still delivers the whole structure

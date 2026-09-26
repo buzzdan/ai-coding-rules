@@ -73,6 +73,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   parent never reads a rule or case file to build a spawn prompt, lists the resolved
   paths before spawning, and an agent whose rule or doctrine does not read returns
   that instead of hunting from memory. (Token budget stage S2.)
+- **The type checker is `ty` first, with mypy still known.** Astral's `ty` is
+  named first everywhere the binding names a type checker — `ty check`,
+  `[tool.ty]`/`ty.toml`, `# ty: ignore[<rule>]`, and the routing tables'
+  `invalid-argument-type`/`invalid-assignment`/`invalid-return-type` — and mypy
+  stays beside it: `mypy` where a `[tool.mypy]` table or `mypy.ini` exists, the
+  routing rows carry mypy's `arg-type`/`assignment`/`return-value` too, and every
+  suppression sentence names `# noqa`, `# ty: ignore` and `# type: ignore` alike
+  (ty honors a bare `# type: ignore`, so dropping it would have opened a hole).
+  Each checker runs only where the repository configures it.
 - **Two sentences name visibility without Go's word.** The comment critic's
   verdict and the code-comments checklist opened with "Unexported symbols", a
   literal the visibility scalar could not reach; both now say "symbols outside the
@@ -94,8 +103,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the language example beside it, which is where the Go spellings showed.
 
 - **The default lint command is `ruff check .`.** A bare `mypy` with no targets fails
-  unless `[tool.mypy]` names files, and mypy runs only where that table exists; the
-  pre-flight and the handbook's mechanics name it separately.
+  unless `[tool.mypy]` names files, and each type checker runs only where its table
+  exists; the pre-flight and the handbook's mechanics name them separately.
 
 ### Added
 

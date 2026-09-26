@@ -9,5 +9,5 @@
 | `PLW0603` (`global` statement) | rules/R8-no-globals.md |
 | `B006` / `B008` (mutable or call default) | rules/R12-mutation-discipline.md; a `None`-able collaborator default → rules/R11-conditional-dispatch.md ("Introduce Null Object") |
 | `PLR2004` on an enum-shaped string | rules/R1-primitive-obsession.md ("Name enum strings" move) |
-| mypy `return-value` on a `return None` from a `-> X` function | rules/R1-primitive-obsession.md (Q4 — a sentinel, never a `# type: ignore`) |
-| mypy `arg-type` for `None` passed to an `X` parameter | rules/R2-self-validating-types.md (Q6 — fix the caller or introduce a Null Object; never widen the parameter to `X \| None`) |
+| ty `invalid-return-type` / mypy `return-value` on a `return None` from a `-> X` function | rules/R1-primitive-obsession.md (Q4 — a sentinel, never a `# ty: ignore` or `# type: ignore`) |
+| ty `invalid-argument-type` / mypy `arg-type` for `None` passed to an `X` parameter | rules/R2-self-validating-types.md (Q6 — fix the caller or introduce a Null Object; never widen the parameter to `X \| None`) |
