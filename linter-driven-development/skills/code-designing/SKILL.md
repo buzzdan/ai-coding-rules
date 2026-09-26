@@ -100,7 +100,7 @@ For each concept in the design, open the rule that owns the question and apply i
 | `../../rules/R4-helper-placement.md` | WHERE each helper/type lands — the placement ladder (internal → feature sub-package → shared domain package). |
 | `../../rules/R5-vertical-slice.md` | Package structure and naming: feature slices with roles inside, flatcase domain vocabulary, migration template. |
 | `../../rules/R6-test-only-interfaces.md` | Default dependencies to concrete types; an interface must be earned by a second production implementation or a grep-verified import cycle. |
-| `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors; orchestrators integration-tested over real collaborators. |
+| `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors, checked by a mutation run over the leaf's package; orchestrators integration-tested over real collaborators, never mutated. |
 | `../../rules/R8-no-globals.md` | Dependencies injected via constructors, cancellation passed down from callers, globals only at entry points. |
 | `../../rules/R10-concurrency-safety.md` | Every planned concurrent task gets an owner (stop + wait) and an exit path at construction time; shared state designed with its guard on one type — or designed away via handoff/confinement. |
 | `../../rules/R11-conditional-dispatch.md` | How each kind/variant family dispatches: behavior-heavy or open set → interface chosen once at the boundary; single-behavior variance → strategy map; single-site closed enum → one exhaustive switch (named enum per R1). |
