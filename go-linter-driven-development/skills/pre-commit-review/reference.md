@@ -84,8 +84,13 @@ R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
 juiciness rejection: the switch stays, goes exhaustive) and
 `../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the
 move is unavailable when the consumer owns the output format; the switch shrinks to
-pure dispatch). A finding the skeptic's budget did not reach carries
-`skeptic: not reached` in the verdict's place and ships as the hunter proposed it.
+pure dispatch). The skeptic returns verdict lines only — one per finding, numbered
+as sent, the evidence inside the parentheses, a cheaper alternative on at most one
+more line, about 2k tokens for a dozen findings — and the parent keeps nothing else
+of its report. A finding the skeptic's budget did not reach carries
+`skeptic: not reached` in the verdict's place and ships as the hunter proposed it; a
+report the skeptic's turn ceiling cut off before any verdict is the same for every
+finding it was sent, and the Scope line reads `PARTIAL coverage`.
 Only findings the skeptic cannot kill ship as extraction findings. Non-extraction
 findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose no new type) skip the
 skeptic and go straight to the report — R9 findings (orphans,
