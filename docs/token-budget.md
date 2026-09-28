@@ -260,10 +260,11 @@ proof of S5, the skeptic took twelve findings each time and ran 17, 32 and 24 tu
 one tool call a turn. The two long runs opened 17 and 20 repository files whole with
 Read, which the budget did not count, to reach call sites the findings already cited
 by line; the short run kept to Bash and still spent a call per file rather than per
-finding. Its report ran to about 22k tokens, a doctrine summary and a paragraph of
-argument per finding, where a hunter's is capped at 3k. Under six hunters it reached
-forty turns twice, the harness's ceiling and not its own. After S5 it is the largest
-single line in a whole-repository review.
+finding. Each run pulled 20k to 22k tokens of tool output into the skeptic's context,
+most of it those whole files, re-billed on every later turn; the report it returned
+was 2.5k to 2.9k tokens, a paragraph of argument per verdict. Under six hunters it
+reached forty turns twice, the harness's ceiling and not its own. After S5 it is the
+largest single line in a whole-repository review.
 
 Three changes, in the skeptic's agent file and the step that spawns it. The budget
 counts every tool call: the first turn reads the doctrine in one command, then one
@@ -279,9 +280,10 @@ has, marked partial, with no closing turn, so the ceiling is a backstop above th
 budget and never the budget, and a report it cuts before the verdicts ships every
 finding as proposed, `skeptic: not reached` under `PARTIAL coverage`.
 
-Expected: the skeptic's turns from 17 to 32 down to about 14, its report from 22k
-tokens to about 2k, and the per-agent table showing no Read calls above the count of
-findings. The trace does not separate one subagent's bill from another's, so the
+Expected: the skeptic's turns from 17 to 32 down to about 14, the tool output it
+carries from about 20k tokens to what a dozen greps with context print, its report
+from about 2.7k tokens to about 2k, and the per-agent table showing no Read calls
+above the count of findings. The trace does not separate one subagent's bill from another's, so the
 skeptic's share is read from its turns and the subagent line as a whole. Cases that
 must not move: the extraction graders on the whole-repository review, the verdicts
 in kind, the clean-tree controls. The signal to watch is a refutation turning into a
@@ -371,7 +373,7 @@ diet, since nothing in the diet can change them.
 | S4 | skill text re-billed per call | about 2M | about 3M |
 | S5 | hunter fan-out | 8.45M best to 4.63M worst, recall in band | none |
 | S6 | grep pre-filter, mechanical hunters | enables S1 and S5 | enables CI use |
-| S7 | skeptic whole-file reads, narrative report | skeptic turns 17 to 32 down to about 14 | PREPARE gate, small |
+| S7 | skeptic whole-file reads | skeptic turns 17 to 32 down to about 14 | PREPARE gate, small |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number

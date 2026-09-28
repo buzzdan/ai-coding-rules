@@ -34,8 +34,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   spawn prompt numbers the findings, file-mates adjacent, and states the count and
   the budget in one line. The skeptic's report is verdict lines only, evidence in the
   parentheses, a cheaper alternative on one more line, about 2k tokens for a dozen
-  findings where it ran to 22k; the caller carries the verdicts verbatim and keeps
-  nothing else. A turn ceiling in the agent's definition backstops the budget; a
+  findings; the caller carries the verdicts verbatim and keeps nothing else. A turn ceiling in the agent's definition backstops the budget; a
   report it cuts before the verdicts ships every finding as proposed under
   `PARTIAL coverage`. (Token budget stage S7.)
 - **Four rule-family hunters.** The pre-commit-review skill spawns one rule-hunter per
