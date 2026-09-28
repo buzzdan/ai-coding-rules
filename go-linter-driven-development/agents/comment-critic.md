@@ -42,7 +42,10 @@ memory. Everything after works on what is in your context.
 
 **The scope comes in chunks, never in one dump:** on a whole-repository sweep the
 numbered `scope/` files that carry comments are read several per call, in the
-bundle's directory order, each call sized to come back whole. A result the harness
+bundle's directory order, each call sized to come back whole. The inventory is the
+prompt's count and the bundle's `files.txt` in `dirs.txt` order — never a `find`, `wc`
+or `head` over the scope; a call that measures the scope is a call that did not read
+it. A result the harness
 spills to a file and hands back as a path has cost the call and then a Read per page
 of the same text — the same source billed twice, a turn per page — so never one `cat`
 of the whole scope, never a Read of a spilled result, and a call that spills halves

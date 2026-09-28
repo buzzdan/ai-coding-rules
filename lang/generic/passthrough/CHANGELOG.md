@@ -30,7 +30,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   whole-repository sweep the comment critic reads the numbered scope files that carry
   comments several per call, in the bundle's directory order, each call sized to come
   back whole — never one dump of the scope, which the harness spills to a file that
-  the critic then re-reads page by page, the same source billed twice. Its budget
+  the critic then re-reads page by page, the same source billed twice — and takes its
+  inventory from the bundle's file list, never from a recount of the scope. Its budget
   counts every tool call — the first turn, then at most four calls on a scoped diff,
   six on a sweep, then the verdicts — and the spawn prompts of the review skill's
   step 3b and the documentation skill's critique step state how many files carry
