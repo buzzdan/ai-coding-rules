@@ -43,7 +43,11 @@ Execute these steps:
    or lint commands; `/ldd-analyze` is the command that runs those gates
    beside the review.
 2. **Review**: invoke `Skill(linter-driven-development:pre-commit-review)` in FULL mode over the resolved
-   scope, passing it the file list. It orchestrates parallel `linter-driven-development:rule-hunter` agents
+   scope, passing it the rung as the skill's scope script takes it: the files or
+   directories named (rung 1), `--all` for the whole repository, nothing for the
+   working tree (rung 2), and `--base <merge-base>` for the current PR (rung 3) — a
+   range, never the branch's files as a list, so the diff and the comment lines are
+   the branch's. It orchestrates parallel `linter-driven-development:rule-hunter` agents
    (one per rule family with hits, four at most) + the `linter-driven-development:overabstraction-skeptic`
    and reports — it never edits, and it never widens the scope.
    Its report renders inside this command's final message, whole: never written to a

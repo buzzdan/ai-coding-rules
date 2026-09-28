@@ -406,11 +406,14 @@ suppression check is the table's `SUPPRESS` row. Step 2 hands each hunter its fa
 rows of the hits table, its rules' rows of the counts table and the bundle; the hunter
 runs no detection command, its receipts carry the counts table's numbers, and its work
 is the judgment the prose describes on each hit, plus the judgment questions, which it
-runs by reading as before. A rule with no hit in the table gets no hunter, as a rule
-with no pre-filter hit got none before: a judgment question is read on the ground a
-mechanical hit of its rule names, so judgment rows alone spawn nothing. A question
-capped in the hits table is the one case a hunter runs a pattern itself, over the
-scope's file list. The `Hunters:` header keeps its shape and its numbers now come
+runs by reading as before. A family with no hit in the table gets no hunter, as a
+rule with no pre-filter hit got none before; a family with one gets a hunter carrying
+every rule file of the family, the hitless ones included, so a rule whose only
+violations are judgment questions (R3's function size, R12's aliased constructor
+argument) is still read wherever its family is. The script writes the hits table
+twice, capped per question for the hunter's first turn and uncapped as
+`hits-all.tsv`, so a capped question's remaining hits are one more `awk` and no
+hunter runs a pattern of its own. The `Hunters:` header keeps its shape and its numbers now come
 from the counts table against the hunter receipts, so a hunter that reports fewer
 hits judged than the table counted renders `PARTIAL coverage` mechanically. The
 critic reads the bundle's `comments.txt` as its inventory and opens a scope file only

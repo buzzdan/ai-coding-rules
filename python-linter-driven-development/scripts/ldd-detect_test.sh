@@ -12,7 +12,8 @@
 #
 # Usage:  bash scripts/ldd-detect_test.sh [path/to/ldd-detect.sh]
 #         (default: the sibling ldd-detect.sh; the rules come from ../rules
-#         beside it, so the test always runs the rendered rule files)
+#         beside it, so the test always runs the rendered rule files; the
+#         sibling ldd-scope.sh is tested on the scope rungs the review uses)
 # Exit:   0 all cases pass · 1 any failure (details on stdout)
 #
 # Uses only POSIX-portable tools, like the script under test.
@@ -24,6 +25,7 @@ DETECT="${1:-$HERE/ldd-detect.sh}"
 [[ -f "$DETECT" ]] || { echo "no such script: $DETECT" >&2; exit 2; }
 DETECT=$(cd "$(dirname "$DETECT")" && pwd)/$(basename "$DETECT")
 RULES=$(cd "$(dirname "$DETECT")/../rules" && pwd)
+SCOPE_SH=$(dirname "$DETECT")/ldd-scope.sh
 
 pass=0 failed=0
 CASE=""
@@ -38,6 +40,14 @@ finish() { rm -rf "$REPO" "$BUNDLE"; }
 run_detect() { # [options...] — runs the script over $REPO with $BUNDLE
   OUT=$(cd "$REPO" && bash "$DETECT" "$@" --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
   ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+}
+run_scope() { # [args...] — runs ldd-scope.sh over $REPO into $BUNDLE/scope-out
+  rm -rf "$BUNDLE/scope-out"
+  OUT=$(cd "$REPO" && bash "$SCOPE_SH" --out "$BUNDLE/scope-out" "$@" 2>"$BUNDLE/.stderr"); CODE=$?
+  ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+}
+git_commit_repo() { # commits everything under $REPO, quietly
+  (cd "$REPO" && git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -qm init)
 }
 run_plan() { # [options...] — the parse-only mode
   OUT=$(bash "$DETECT" --plan "$@" 2>"$BUNDLE/.stderr"); CODE=$?
@@ -199,6 +209,33 @@ mk_repo; run_detect --cap 1
 expect_exit 0 && expect_count R10 5 2 \
   && { grep -q '^R10	5	grep	-	0	+1 more hit(s) not listed$' "$BUNDLE/hits.tsv" || bad "no overflow row for R10 Q5"; } \
   && grep -q '^R10	5	grep	-	0	+1 more hit(s) not listed$' "$BUNDLE/hits.tsv" && ok
+finish
+
+begin "hits-all.tsv carries every hit of a capped question"
+mk_repo; run_detect --cap 1
+expect_exit 0 && { (( $(grep -c '^R10	5	grep	' "$BUNDLE/hits-all.tsv") == 2 )) || bad "hits-all.tsv does not carry both R10 Q5 hits"; } \
+  && (( $(grep -c '^R10	5	grep	' "$BUNDLE/hits-all.tsv") == 2 )) \
+  && { ! grep -q 'more hit(s) not listed' "$BUNDLE/hits-all.tsv" || bad "hits-all.tsv has an overflow row"; } \
+  && ! grep -q 'more hit(s) not listed' "$BUNDLE/hits-all.tsv" && ok
+finish
+
+begin "ldd-scope: a directory argument is expanded to the source files under it"
+mk_repo; git_commit_repo; run_scope services
+expect_exit 0 && expect_has "files bundled" \
+  && { grep -qx "$FX_SRC_FILE" "$BUNDLE/scope-out/files.txt" || bad "files.txt lacks $FX_SRC_FILE"; } \
+  && grep -qx "$FX_SRC_FILE" "$BUNDLE/scope-out/files.txt" && ok
+finish
+
+begin "ldd-scope: a committed file named on a clean tree contributes every comment line"
+mk_repo; git_commit_repo; run_scope "$FX_SRC_FILE"
+expect_exit 0 && expect_has "diff 0 lines" \
+  && { grep -q "^$FX_SRC_FILE:[0-9]*:" "$BUNDLE/scope-out/comments.txt" || bad "comments.txt has no line of $FX_SRC_FILE"; } \
+  && grep -q "^$FX_SRC_FILE:[0-9]*:" "$BUNDLE/scope-out/comments.txt" && ok
+finish
+
+begin "ldd-scope: an empty explicit scope prints nothing to review"
+mk_repo; git_commit_repo; mkdir -p "$REPO/empty"; run_scope empty
+expect_exit 0 && expect_has "nothing to review" && ok
 finish
 
 begin "a file listed as not bundled is still detection scope"

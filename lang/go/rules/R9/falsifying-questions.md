@@ -48,7 +48,7 @@ one command answers all four.
    tool that reads AGENTS.md instead of CLAUDE.md starts blind.
 
 4. **Does a doc comment on an exported symbol state WHAT instead of WHY?**
-   Detect-grep: `^(type|func) [A-Z]`
+   Detect-grep: `^(type|func( \([^)]*\))?) [A-Z]`
    Detection: for each exported declaration in the diff, read its doc comment and
    compare its tokens against the identifier and the first lines of the body — a
    comment whose content is recoverable from the name or the code adds nothing.

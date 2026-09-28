@@ -25,13 +25,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the bundle it wrote, and reads the counts table it prints — about 300 tokens in
   place of the Falsifying-questions sections of all twelve rules and the greps the
   parent composed from them. The suppression check is the table's `SUPPRESS` row.
-  Each rule hunter gets its family's rows of the hits table and its rules' rows of the
-  counts table beside the bundle: it runs no detection command, judges every hit the
-  table counted against its question's prose, runs the `judgment` questions by
-  reading as before, and its receipts carry the table's numbers, so the report
-  header's reconciliation is mechanical — a receipt below the table's count, or a
-  question without one, renders `PARTIAL coverage`. A question capped in the table is
-  the one case the hunter runs a pattern itself. The comment critic reads the
+  A family with a hit gets one hunter carrying every rule file of the family, its
+  family's rows of the hits table and its rules' rows of the counts table beside the
+  bundle: it runs no pattern of its own, judges every hit the table counted against
+  its question's prose, runs the `judgment` questions by reading as before, and its
+  receipts carry the table's numbers, so the report header's reconciliation is
+  mechanical — a receipt below the table's count, or a question without one, renders
+  `PARTIAL coverage`. The detection script also writes the hits uncapped as
+  `hits-all.tsv`, where a capped question's remaining hits and every suppression
+  directive are read. The scope script expands a directory argument to the source
+  files under it, and a committed file named on a clean tree contributes every
+  comment line to `comments.txt`, so a file review on a clean tree still reaches
+  the critic; the review command hands the current-PR rung as `--base
+  <merge-base>`. The Go R9 rule's WHAT-comment lead also matches methods. The comment critic reads the
   bundle's `comments.txt` as its inventory and opens a scope file only to judge a
   comment in context; nothing sweeps the scope for comments. The report contract is
   unchanged.

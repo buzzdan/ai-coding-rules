@@ -10,9 +10,9 @@ so they cost no round trip; the last two are read once, before the report is wri
 ## Hunt focus
 
 What each hunter is after — the detection pass's map of the rules. The counts table
-step 1 printed says which rules had hits; four hunters at most, one per family with
-hits, each given the rule files of its family that had them and the family's rows of
-the hits table: **types** (R1, R2, R11, R12), **structure** (R3, R4, R5), **tests and
+step 1 printed says which families had hits; four hunters at most, one per family
+with a hit, each given every rule file of its family and the family's rows of the
+hits table: **types** (R1, R2, R11, R12), **structure** (R3, R4, R5), **tests and
 dependencies** (R6, R7, R8, R10) and **documentation** (R9, beside the comment
 critic):
 
@@ -61,10 +61,10 @@ one tally line per rule (`R<N>: <M> finding(s)` or that rule's hunted-clean line
 types hunter given R1, R2 and R11 returns three tallies. A rule file that did not read
 has `R<N>: rule unreadable at <path>` in its tally's place, and the hunter hunts the
 rest; that line is part of the report shape, never dropped and never a tally. The
-receipts are how a hunt is read against the table: the hunter ran no detection command
-of its own, so a receipt's number is the table's and the reconciliation in step 4 is
-mechanical — a question with no receipt was not run, a receipt below the table's count
-is ground not covered. A hunter that spends the tool-call budget its agent definition
+receipts are how a hunt is read against the table: the hunter ran no pattern of its
+own (a capped question's remaining hits it read from `hits-all.tsv`), so a receipt's
+number is the table's and the reconciliation in step 4 is mechanical — a question with
+no receipt was not run, a receipt below the table's count is ground not covered. A hunter that spends the tool-call budget its agent definition
 states returns the same shape plus one `not reached: …` line for the hunter, naming
 the files or directories it did not read to judge, and the report header renders that
 line verbatim beside the tallies of the rules it hunted (step 4), never as a clean

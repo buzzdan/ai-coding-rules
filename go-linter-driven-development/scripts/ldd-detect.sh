@@ -2,8 +2,9 @@
 # Detection pass of the pre-commit review for the go-linter-driven-development plugin.
 #
 # Runs every falsifying question's detect line over the review's scope and
-# writes two tables into the scope bundle: hits.tsv (one row per hit, capped per
-# question with the overflow counted) and counts.tsv (one row per question). The
+# writes three tables into the scope bundle: hits.tsv (one row per hit, capped
+# per question with the overflow counted), hits-all.tsv (the same rows uncapped,
+# for a capped question's reader) and counts.tsv (one row per question). The
 # counts table and the per-family totals are printed; hunters read the hits
 # table rows of their family. What each question asks stays in the rules — the
 # detect line is the lead generator, never the judgment.
@@ -39,6 +40,7 @@
 #   hits.tsv    rule  question  kind  file  line  excerpt
 #               the overflow row of a capped question: file "-", line 0,
 #               excerpt "+<n> more hit(s) not listed"
+#   hits-all.tsv  the same columns, every hit, no cap and no overflow row
 #   counts.tsv  rule  question  kind  hits      (judgment rows carry "-")
 #               the last row is SUPPRESS  -  grep  <n>: suppression directives
 #               on the diff's added lines when the bundle has a diff.patch,
@@ -174,7 +176,7 @@ END { if (insec) flush() }
 '
 
 plan_file=$(mktemp)
-trap 'rm -f "$plan_file" "${tmp_hits:-}" "${tmp_counts:-}" "${gate_out:-}"' EXIT
+trap 'rm -f "$plan_file" "${tmp_hits:-}" "${tmp_hits_all:-}" "${tmp_counts:-}" "${gate_out:-}"' EXIT
 rule_files=$(find "$RULES_DIR" -maxdepth 1 -name 'R*.md' | awk -F/ '{ n = $NF; sub(/^R/, "", n); sub(/-.*$/, "", n); print n "\t" $0 }' | sort -n | cut -f2)
 [[ -n "$rule_files" ]] || die "no rule files (R*.md) under $RULES_DIR"
 while IFS= read -r f; do
@@ -214,6 +216,7 @@ for f in ${ALL_FILES[@]+"${ALL_FILES[@]}"}; do
 done
 
 tmp_hits=$(mktemp)
+tmp_hits_all=$(mktemp)
 tmp_counts=$(mktemp)
 gate_out=""
 
@@ -276,9 +279,10 @@ record() {
   total=$(wc -l < "$raw" | tr -d ' ')
   kept=0
   while IFS=$'\t' read -r f l ex; do
-    (( kept >= CAP )) && break
-    kept=$((kept + 1))
     ex=$(with_context "$f" "$l" "$ex" "$after")
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$rule" "$q" "$kind" "$f" "$l" "$ex" >> "$tmp_hits_all"
+    (( kept >= CAP )) && continue
+    kept=$((kept + 1))
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$rule" "$q" "$kind" "$f" "$l" "$ex" >> "$tmp_hits"
   done < "$raw"
   if (( total > kept )); then
@@ -397,6 +401,7 @@ rm -f "$suppress_hits"
 
 # ---------- write the tables ----------
 cp "$tmp_hits" "$BUNDLE/hits.tsv"
+cp "$tmp_hits_all" "$BUNDLE/hits-all.tsv"
 cp "$tmp_counts" "$BUNDLE/counts.tsv"
 
 # ---------- print the counts table and the family totals ----------
