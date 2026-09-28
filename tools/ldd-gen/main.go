@@ -6,8 +6,10 @@
 //
 //	ldd-gen -lang go              render lang/go into its plugin directory
 //	ldd-gen -check                render every binding; exit 1 on any difference
-//	ldd-gen lint-core [-write]    report language residue left in core/; exit 1
-//	                              on hard hits; -write refreshes core/README.md
+//	ldd-gen lint-core [-write]    report language residue left in core/ and lint
+//	                              the rules' detect lines; exit 1 on hard hits
+//	                              or a malformed detect line; -write refreshes
+//	                              core/README.md
 //
 // Every form takes -root <dir> (default "."), the repository root, after the
 // subcommand when there is one.
@@ -32,7 +34,7 @@ func main() {
 
 var (
 	errDifferences = errors.New("a plugin directory differs from its rendering; edit core/ or lang/<lang>/, never the plugin directory, then run `task generate` and commit both")
-	errHardResidue = errors.New("hard residue in core/: each hit needs a profile scalar or an include")
+	errHardResidue = errors.New("lint-core failed: hard residue in core/ needs a profile scalar or an include; a detect-line problem is fixed in the question file it names")
 	errBothModes   = errors.New("-check renders every binding; do not combine it with -lang")
 	errNoMode      = errors.New("pass -lang <name>, -check, or lint-core")
 )

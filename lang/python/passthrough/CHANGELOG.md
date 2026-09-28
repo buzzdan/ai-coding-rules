@@ -7,6 +7,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Added
 
+- **The review's detection pass and scope bundle are scripts.** Every falsifying
+  question in `rules/R1` to `R12` now carries a detect line beside its prose — a
+  `grep` pattern over the scope's source files, a `path` pattern over their paths, a
+  reference to one of the R9 gate's questions, or the word `judgment` for a question
+  the hunter can only read. `scripts/ldd-detect.sh` runs every detect line over a
+  scope bundle and writes `hits.tsv` and `counts.tsv`, with the suppression scan as a
+  row; two runs over one tree write identical counts. `scripts/ldd-scope.sh` writes
+  the bundle from the review's scope rung — a file list, the working tree, the branch
+  against its base, or the whole repository — with the added comment lines the
+  critic judges in `comments.txt`, and prints one summary line. Both scripts have
+  their own fixture matrix, `scripts/ldd-detect_test.sh`. The review skill does not
+  call them yet; what each question asks is unchanged.
+
 - **Mutation testing on leaf types.** R7 now says what 100% coverage on a leaf type
   proves and what it does not: coverage is the floor, the mutation score the claim.
   A new Design-guidance bullet scopes the run to leaf packages only — never

@@ -438,3 +438,17 @@ func TestGolden(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, n, out.String())
 }
+
+func TestLintCore_ReportsDetectLineProblems(t *testing.T) {
+	t.Parallel()
+	root := miniRepo(t)
+	write(t, root, "core/includes/rules/R1/falsifying-questions.md", "1. **A question?**\n   Detection: read it.\n")
+	repo, err := gen.Open(root)
+	require.NoError(t, err)
+	var out bytes.Buffer
+	hard, err := repo.LintCore(&out, false)
+	require.NoError(t, err)
+	assert.Equal(t, 1, hard, "a question without a detect line fails lint-core")
+	assert.Contains(t, out.String(), "Detect lines: 1 problem(s)")
+	assert.Contains(t, out.String(), "core/includes/rules/R1/falsifying-questions.md:1: question 1 has no detect line")
+}

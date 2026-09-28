@@ -1,5 +1,6 @@
 1. **Does every goroutine started in the diff have a provable exit path?**
-   Detection: `grep -nE '\bgo\s+[a-zA-Z_][A-Za-z0-9_.]*\(|\.Go\(' <changed files>` —
+   Detect-grep: `\bgo\s+[a-zA-Z_][A-Za-z0-9_.]*\(|\.Go\(` context=8
+   Detection: the pattern
    catches `go func(...)`, method values (`go s.run()`), package-qualified calls,
    and `errgroup`/`WaitGroup` `.Go(...)` spawns. For each hit, read the goroutine
    body: a `for` loop or blocking channel op must have a `ctx.Done()`/closed-channel
@@ -9,6 +10,7 @@
    at 100% CPU — block on the channels or a `Ticker` instead.
 
 2. **Can the code that starts a goroutine also stop it and wait for it?**
+   Detect: judgment
    Detection: for each `go` site, check what the spawning function returns/exposes:
    a `ctx` it honors plus a `Wait`/`Close`/`done`-channel, or an
    `errgroup`/`WaitGroup` the caller holds.
@@ -16,6 +18,7 @@
    shutdown; leaks and lost errors are invisible.
 
 3. **Is shared mutable state written from a goroutine without a guard?**
+   Detect: judgment
    Detection: for each `go func`, list writes to captured variables, receiver
    fields, and maps (`grep -n -A20 'go func' <file>`); cross-check that each written
    location is guarded — `grep -nE 'sync\.(RW)?Mutex|sync\.Map|atomic\.|chan ' <package files>`
@@ -27,14 +30,15 @@
 
 4. **Does each mutex live next to the data it guards, and is the lock taken on
    every access?**
-   Detection: `grep -nE -B1 -A5 'sync\.(RW)?Mutex' <changed files>` — the guarded
+   Detect-grep: `sync\.(RW)?Mutex` context=5
+   Detection: the guarded
    fields must sit in the same struct, and every method touching them must lock;
    grep the field names across the package for unlocked access paths.
    Violation: a mutex guarding fields it doesn't live beside, or any access path
    that skips the lock — the guard is decorative.
 
 5. **Does production code sleep?**
-   Detection: `grep -n 'time\.Sleep' <changed files> | grep -v _test.go`
+   Detect-grep: `time\.Sleep`
    Violation: any hit on a cancellable path — backoff/pacing/polling must be a
    timer `select` with `ctx.Done()`, sustained pacing a `rate.Limiter.Wait(ctx)`.
    A bounded loop is not exempt: a retry that sleeps three times on a request path
@@ -43,6 +47,7 @@
    sleeps are R7's Q6, not this rule.)
 
 6. **Inverse — is a guard or goroutine ceremony?**
+   Detect: judgment
    Detection: for each NEW mutex or goroutine in the diff, grep the package for a
    second goroutine that ever touches the guarded state
    (`grep -rnE '\bgo\s+[a-zA-Z_][A-Za-z0-9_.]*\(|\.Go\(' <package dir>`) or for a

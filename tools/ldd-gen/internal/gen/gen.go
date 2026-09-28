@@ -17,6 +17,7 @@ import (
 
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/check"
+	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/detect"
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/profile"
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/render"
 	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/residue"
@@ -465,20 +466,32 @@ func handbookDifference(target string, want []byte) (check.Kind, bool, error) {
 	return "", false, nil
 }
 
-// LintCore scans core/ for language residue and writes the report to w. With
-// write set, the Residue section of core/README.md is rewritten from the
-// report. It returns the number of hard hits; the caller fails the run when
-// that is not zero.
+// LintCore scans core/ for language residue and writes the report to w, then
+// lints the detect lines of every falsifying-questions file in core and in the
+// bindings and lists the problems. With write set, the Residue section of
+// core/README.md is rewritten from the report. It returns the number of hard
+// hits plus detect-line problems; the caller fails the run when that is not
+// zero.
 func (r Repo) LintCore(w io.Writer, write bool) (int, error) {
 	report, err := residue.Scan(os.DirFS(filepath.Join(r.root, coreDir)))
 	if err != nil {
 		return 0, err
 	}
 	fmt.Fprintln(w, strings.TrimSuffix(report.Markdown(), "\n"))
-	if write {
-		if err := residue.WriteReadme(filepath.Join(r.root, coreReadme), report); err != nil {
-			return len(report.Hard), err
+	problems, err := detect.Lint(os.DirFS(r.root))
+	if err != nil {
+		return len(report.Hard), err
+	}
+	if len(problems) > 0 {
+		fmt.Fprintf(w, "\nDetect lines: %d problem(s)\n", len(problems))
+		for _, p := range problems {
+			fmt.Fprintf(w, "  %s\n", p)
 		}
 	}
-	return len(report.Hard), nil
+	if write {
+		if err := residue.WriteReadme(filepath.Join(r.root, coreReadme), report); err != nil {
+			return len(report.Hard) + len(problems), err
+		}
+	}
+	return len(report.Hard) + len(problems), nil
 }

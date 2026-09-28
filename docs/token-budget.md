@@ -341,40 +341,67 @@ its own fixture matrix; the package-size gate is a hook. S8 adds two scripts of 
 same shape under the plugin's scripts directory, and the machine-readable contract
 they need in the rules' question files.
 
-**ldd-scope** *(planned)* writes the bundle from the review's scope rung and prints
-one summary line: files bundled, files listed with a not-bundled reason, the diff's
-size, the bundle path. It also writes the comment lines the critic judges, the
-added-comment grep the skill has step 3b run, so the critic reads one file instead
-of sweeping the scope. The bundle recipe leaves the skill; the summary line replaces
-it.
+**ldd-scope** (`scripts/ldd-scope.sh` in every plugin) writes the bundle from the
+review's scope rung — an explicit file list, the working tree against `HEAD`, the
+branch against its base, or the whole repository — and prints one summary line:
+files bundled, files listed with a not-bundled reason, the diff's size, the comment
+lines found, the bundle path. It also writes `comments.txt`, the comment lines the
+critic judges: the diff's added lines that carry the language's comment marker, plus
+every comment line of an untracked file, minus directive lines; so the critic reads
+one file instead of sweeping the scope. The bundle recipe leaves the skill; the
+summary line replaces it.
 
-**ldd-detect** *(planned)* runs every falsifying question's detection over the
-bundle's scope and writes two tables: hits, one row per hit with rule, question,
-file, line and the matched excerpt, capped per question with the overflow counted;
-and counts, one row per question with its hit count. It prints the counts table,
-about 300 tokens, and the per-family summary the spawn step needs. The suppression
-scan the skill runs in step 1 is a row of the same table. Its commands come from the
-rules, not from the script: today 14 of the Go binding's 68 detection entries are a
-bare command, 21 are a command followed by a judgment clause, and 33 are a procedure
-in prose with at most an example grep inside it, so the script cannot extract them.
-Each numbered question in the bindings' question files and in the core defaults
-gains one detect line beside its prose: a single command over the scope's file list
-and root, or the word judgment for a question whose only procedure depends on an
-earlier hit, as R1's second question does. The prose Detection and Violation text
-stays as it is, because it is what the hunter reads to judge a hit; the detect line
-is the lead generator, and it never changes what the question asks. The handbook
-extracts only the questions' bold headlines, so it does not change.
+**ldd-detect** (`scripts/ldd-detect.sh` in every plugin) runs every falsifying
+question's detect line over the bundle's scope and writes two tables: `hits.tsv`, one
+row per hit with rule, question, kind, file, line and the matched excerpt, capped per
+question with the overflow counted in a row of its own; and `counts.tsv`, one row per
+question with its hit count. It prints the counts table, about 300 tokens, and the
+per-family totals the spawn step needs. The suppression scan the skill runs in step 1
+is a `SUPPRESS` row of the same table. What runs comes from the rules, not from the
+script: each numbered question in the bindings' question files and in the core
+defaults carries one **detect line** beside its prose, of one of four kinds.
 
-The generator's lint-core check gains a rule: every question carries exactly one
-detect line, a command detect line is one line with no placeholder left in it, and
-every binding that renders a rule renders a detect line for each of its questions. A
-fixture test in the shape of the R9 gate's matrix runs every command over a small
-tree per binding and fails on a command that does not run; the eval manifests, 153
-plants and controls per suite, remain the recall test of what the commands find.
+| Detect line | What the script does |
+|---|---|
+| `Detect-grep: PATTERN [files=src\|test\|all] [exclude-path=ERE,…] [context=n]` — the pattern an ERE in backticks | `grep -nHE` over the scope's source files — the non-test ones unless `files=` says otherwise, minus paths matching an `exclude-path` entry; `context` appends the next n lines to each hit's excerpt |
+| `Detect-path: PATTERN` | the pattern over the scope's relative paths: layer directories, role-named packages |
+| `Detect-gate: Q<n>` | the R9 gate's `[Q<n>]` report lines, from one run of `check-repo-brain.sh` over the repository |
+| `Detect: judgment` | no mechanical lead; the hunter runs the prose, as it does for a question whose only procedure depends on an earlier hit (R1's second question) or on a read |
 
-The review skill rewires around the two scripts. Step 1 is one Bash call that runs
-both and prints the counts table, in place of the twelve-section dump and the
-improvised greps. Step 2 hands each hunter its family's rows of the hits table and
+A pattern is a literal: the placeholder forms the prose used to carry — `<changed
+files>`, `$(git diff --name-only …)`, `<Type>` — are gone from the detect lines,
+because the scope is the script's. The prose Detection and Violation text stays,
+because it is what the hunter reads to judge a hit; the detect line is the lead
+generator, and it never changes what the question asks. The core defaults carry a
+pattern only where it is language-neutral and `judgment` otherwise, so a Go library
+name never sits in core; the language spellings live in the Go and Python bindings'
+files. The handbook extracts only the questions' bold headlines, so it does not
+change. Both scripts read one include, `scripts/ldd-lang.sh`, for everything the
+language decides — the source glob, what a test file is, the suppression directive,
+the comment marker and its directive forms; the generic binding's include detects
+the language from the repository's marker file and takes the glob as an argument
+when there is none.
+
+The generator's `lint-core` check holds the contract: every question carries exactly
+one detect line, its kind is one of the four, a `grep` or `path` pattern compiles
+and carries no placeholder, its flags are the three named, and every binding that
+renders a rule renders the same number of questions as the core default. A fixture
+test in the shape of the R9 gate's matrix, `scripts/ldd-detect_test.sh`, runs every
+pattern over a small tree per binding and fails on a pattern that does not run, a
+planted hit that does not fire, or two runs whose counts differ; the eval manifests,
+153 plants and controls per suite, remain the recall test of what the patterns find.
+The classification the pass produced, per binding:
+
+| Binding | grep | path | gate | judgment |
+|---|---:|---:|---:|---:|
+| Go | 35 | 2 | 4 | 29 |
+| Python | 36 | 2 | 4 | 28 |
+| generic (core defaults) | 16 | 2 | 4 | 48 |
+
+The review skill rewires around the two scripts (the second half of this stage; the
+scripts ship first, with the skill unchanged, so no eval behavior moves before the
+rewiring is proved). Step 1 is one Bash call that runs both and prints the counts
+table, in place of the twelve-section dump and the improvised greps. Step 2 hands each hunter its family's rows of the hits table and
 the bundle; the hunter no longer runs detection commands, its receipts are the counts
 table's rows for its rules, and its work is the judgment the prose describes on each
 hit, plus the judgment questions, which it runs as today. The `Hunters:` header keeps
@@ -388,12 +415,12 @@ re-billed on every later call, so Cases A to F should fall 10 to 15 percent; on 
 whole-repository review the hunters' detection calls and the critic's sweep go, a
 smaller share of a run the agents still dominate. Determinism: the counts table is a
 function of the tree, so two runs on the same scaffold produce byte-identical
-tables, and a question with no command is visible in the table as judgment rather
+tables, and a question with no pattern is visible in the table as judgment rather
 than silently skipped, which is the failure class #63 closed by hand for one rule.
 
 S8 changes how the review finds leads, not the plugin's shape, so it does not wait
 for gate 1 of [eval-return-experiments.md](eval-return-experiments.md). It is also
-the seam S6 needs: the analyzer, when it comes, replaces a detect line's grep with
+the seam S6 needs: the analyzer, when it comes, replaces a detect line's pattern with
 its own output for the questions that are AST facts and writes the same hits table,
 so S6 changes rules and one script and touches no skill.
 
@@ -406,7 +433,7 @@ report-header and cluster graders, the clean-tree controls. Proof: review tier,
 the whole-repository review three times and Cases A, B and F twice, about $25,
 against the S7 runs.
 
-Risks: a detect command wider than its prose floods the hits table, so hits are
+Risks: a detect pattern wider than its prose floods the hits table, so hits are
 capped per question and the overflow count is itself a lead; a question marked
 judgment loses the improvised grep a hunter used to run for it, so the eval
 manifest's per-rule recall is read per rule after the change and a drop names its

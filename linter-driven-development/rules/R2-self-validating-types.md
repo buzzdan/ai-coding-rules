@@ -146,6 +146,7 @@ source files (`detected-language source`), excluding test files, with the reposi
 or ripgrep, and read the hits.
 
 1. **Can the type exist in an invalid state?**
+   Detect: judgment
    Detection: for each new/changed type with invariants, search for literal
    construction outside its own file (the type's name followed by the language's
    literal or constructor-call syntax, in non-test files); check whether
@@ -154,6 +155,7 @@ or ripgrep, and read the hits.
    callers a path around the constructor.
 
 2. **Do methods re-check what the constructor should guarantee?**
+   Detect: judgment
    Detection: in the changed files, find conditionals inside method bodies that test
    the receiver's own fields for the missing value or for emptiness (`if self.repo is
    null`, `if len(this.items) == 0`).
@@ -165,11 +167,13 @@ or ripgrep, and read the hits.
    finding when the code does not say which the field is.
 
 3. **Does a constructor re-validate a composed self-validating type?**
+   Detect: judgment
    Detection: read each `NewX`/`ParseX` in the diff; for every parameter whose type
    has its own constructor, search the body for checks on that parameter.
    Violation: re-validating a value that could only ever exist valid.
 
 4. **Does the type rely on upstream validation?**
+   Detect-grep: `[Cc]aller must|[Aa]ssumes valid|[Aa]lready validated|[Dd]efensive|[Rr]e-?check` files=all
    Detection: search the source files for `caller must`, `assumes valid`,
    `already validated`, `defensive` and `re-check`; also flag public fields consumed
    by logic in a package or module that defines no constructor for the type.
@@ -179,6 +183,7 @@ or ripgrep, and read the hits.
    type.
 
 5. **Does anything return or accept the missing value as a value?**
+   Detect: judgment
    Detection: in the changed files, find returns of the language's missing value
    (`return null`, and a missing value paired with a "no error" result) — exempt
    the failure position of an error result and a legitimately optional return type
@@ -188,6 +193,7 @@ or ripgrep, and read the hits.
    by construction.
 
 6. **Does any call site pass the missing value as a non-error argument?**
+   Detect: judgment
    Detection: in the changed files, find call sites with the missing value as an
    argument (`(null,`, `, null)`) — exempt error positions, comparisons
    (`== null`, `is null`), and standard-library idioms where the missing

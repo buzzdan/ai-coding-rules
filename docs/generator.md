@@ -38,10 +38,14 @@ second language is decided in [language-residue.md](language-residue.md).
 directory on disk, and the handbook with the file at its path; any missing, extra or
 changed file, or a changed executable bit, fails, and changed files print a unified
 diff. CI runs it on every pull request,
-together with `task lint-core` (no hard residue in `core/`, and the Residue section of
-its README is current), `task docs:check`, `task test-gate` (each generated gate passes
-its own fixture matrix — the Go and Python gates on their own row, the generic gate
-once per language its adapter detects), and the generator's unit tests and linter. The fixture matrix uses
+together with `task lint-core` (no hard residue in `core/`, the Residue section of
+its README is current, and every falsifying question in `core/includes/rules/` and
+`lang/*/rules/` carries exactly one well-formed detect line — the machine-readable
+lead the review's detection script runs; the kinds and their shape are in
+[token-budget.md](token-budget.md), "S8"), `task docs:check`, `task test-gate` (each
+generated script passes its own fixture matrix — the repo-brain gate and the review's
+detection pass, the Go and Python plugins on their own row, the generic plugin once
+per language its block detects), and the generator's unit tests and linter. The fixture matrix uses
 GNU `sed`, so on macOS two of its cases fail while the same run passes on Linux.
 Paths listed under `ignore` in the profile, such as eval cases copied under the
 plugin's `evals/` directory at run time, are left alone by both `check` and

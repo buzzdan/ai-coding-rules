@@ -118,6 +118,7 @@ Build each search over the language's source files (`detected-language source`),
 files; "entry point" means the main function, application wiring and handler setup.
 
 1. **Does any package declare mutable state at package level?**
+   Detect: judgment
    Detection: search the non-test source files for module-level or package-level
    variable declarations (a `var` at column 0, an assignment at module top level, a
    static mutable field) — then exclude const-like declarations (error sentinels,
@@ -126,6 +127,7 @@ files; "entry point" means the main function, application wiring and handler set
    configuration/state — reject it into a constructor-injected field.
 
 2. **Does any import-time initializer write state?**
+   Detect: judgment
    Detection: search for the language's load-time hooks (an `init` function, a
    module body that runs code on import, a static initializer block) — read each for
    assignments to package-level variables or registrations with side effects.
@@ -133,6 +135,7 @@ files; "entry point" means the main function, application wiring and handler set
    constructor called at the edge.
 
 3. **Does library code manufacture its own cancellation root?**
+   Detect: judgment
    Detection: search the non-test source files outside the entry points for the
    language's root-context or fresh-event-loop constructors (a background context, a
    new event loop, a cancellation source created deep in a call chain).
@@ -140,6 +143,7 @@ files; "entry point" means the main function, application wiring and handler set
    cancellation signal from its caller.
 
 4. **Is a singleton reached sideways?**
+   Detect: judgment
    Detection: search for the language's once-only initialization idiom (a once
    guard, a lazily created module-level instance, a memoized getter) — check whether
    the guarded instance is a package-level variable returned by a getter that
@@ -148,6 +152,7 @@ files; "entry point" means the main function, application wiring and handler set
    down.
 
 5. **Does deep code read a global config?**
+   Detect-grep: `\b([Gg]etenv|environ|process\.env|GetEnvironmentVariable)\b`
    Detection: search the non-test source files outside the entry points for reads of
    the configuration object and of environment variables (`env.Configs`,
    `os.Getenv`, `os.environ`, `process.env`).
@@ -155,6 +160,7 @@ files; "entry point" means the main function, application wiring and handler set
    reject upward.
 
 6. **Do tests mutate globals to run?**
+   Detect: judgment
    Detection: search the test files for assignments to the configuration object or
    to package-level variables (`env.Configs.X =`, a monkeypatch of a module
    attribute).

@@ -152,6 +152,7 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
 `tests/` directory, or whatever the repository uses); build each search over them.
 
 1. **Does any test case body contain a conditional?**
+   Detect-grep: `\b[Ww]ant_?[Ee]rr(or)?\b|\b[Ee]xpect_?[Ee]rr(or)?\b|\b[Ss]hould_?[Ff]ail\b` files=test
    Detection: search the test files for `if`/`switch`/`match` inside a test function
    or a parametrized case, and for a success-or-error flag in a case table
    (`expectError`, `shouldFail`, `raises` as a boolean column).
@@ -159,6 +160,7 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    success and error cases are fused; split the functions.
 
 2. **Does any test reach past the public surface?**
+   Detect: judgment
    Detection: find test files that import or declare themselves inside the package
    under test rather than importing it as a consumer would (an in-package test, an
    import of a private module or an internal name).
@@ -166,6 +168,7 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    test the public API.
 
 3. **Does a test construct a big object to exercise a leaf behavior?**
+   Detect: judgment
    Detection: read each new/changed test — compare the setup (fixtures, services,
    servers) against the assertion's subject; count setup lines vs. the one predicate
    actually checked.
@@ -173,12 +176,14 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    owns (or should own) — move the test down a rung, extracting the leaf if needed.
 
 4. **Does a new behavior's test sit above the lowest rung that contains it?**
+   Detect: judgment
    Detection: for each new public method on a leaf type, search the test files for
    its name — is it exercised directly, or only through an orchestrator's test?
    Violation: leaf behavior reached only from above — add the rung-0 test; the
    orchestrator test keeps only the seam.
 
 5. **Does a test assert on a fake's internals rather than observable behavior?**
+   Detect-grep: `[Aa]ssert(_?[Cc]alled|_?[Ee]xpectations|_?[Aa]ny_?[Cc]all|_?[Hh]as_?[Cc]alls)|\.call_count|\.mock_calls|\.calls\b` files=test
    Detection: search the test files for the mocking library's verification calls
    (`assertExpectations`, `assertCalled`, `assert_called_with`, `.calls`); also flag
    assertions reading fields of a test double instead of querying the system under
@@ -187,12 +192,14 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    (and the double itself is likely an R6 finding).
 
 6. **Does any test sleep to synchronize?**
+   Detect-grep: `\b[Ss]leep\(` files=test
    Detection: search the test files for the language's sleep call (`time.Sleep`,
    `time.sleep`, `setTimeout`, `Thread.sleep`).
    Violation: any hit — replace with an event, channel or wait primitive with a
    timeout.
 
 7. **Does a mutant survive a leaf type's tests?**
+   Detect: judgment
    Detection: for each new or changed leaf type, run the repository's mutation
    testing tool over that leaf's package only (the mechanics bullet names the tool
    and the command) and read its list of survivors; skip orchestrators, the top

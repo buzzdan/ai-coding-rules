@@ -1,4 +1,5 @@
 1. **Does a method return an internal slice or map by reference?**
+   Detect-grep: `^\s*return [a-z][a-zA-Z0-9]*\.[a-z][A-Za-z0-9]*$`
    Detection: for each type in the diff with a validating constructor, list its
    slice/map fields (`grep -A8 'type <X> struct' <file>`), then
    `grep -nE 'return [a-z][a-zA-Z]*\.(<field1>|<field2>)$' <file>` — a bare
@@ -6,6 +7,7 @@
    Violation: an internal reference escapes a validated type — Copy on the Way Out.
 
 2. **Does a constructor store a caller-provided slice/map without copying?**
+   Detect: judgment
    Detection: inside each `ParseX`/`NewX` in the diff, check the struct literal for a
    slice/map field assigned directly from a parameter identifier
    (`grep -nE '<param>\s*[,}]' within the return literal).
@@ -14,6 +16,7 @@
    result, is fine — no one else holds it.)
 
 3. **Does one method both return domain data and mutate the receiver?**
+   Detect: judgment
    Detection: for each changed method with a non-error return value,
    grep its body for assignments to receiver fields (`<recv>.<field> =`,
    `append(<recv>.` ).
@@ -23,18 +26,20 @@
    one operation; name it as a mutator per R3 and move on.)
 
 4. **Can a validated type be mutated around its constructor?**
-   Detection: `grep -rnE 'func \([a-z][a-zA-Z]* \*?[A-Z][a-zA-Z]*\) Set[A-Z]' --include='*.go' .`
-   for setters; for each hit, does the receiver type have a `ParseX`/`NewX` that
+   Detect-grep: `^func \([a-z][a-zA-Z]* \*?[A-Z][a-zA-Z]*\) Set[A-Z]`
+   Detection: the hits are setters; for each hit, does the receiver type have a `ParseX`/`NewX` that
    validates, and does the setter re-check?
    Violation: a setter that assigns unchecked on a constructor-validated type —
    Remove Setting Method. (Exported mutable fields on such types are R2's Q1.)
 
 5. **Is one variable reassigned to mean something different?**
+   Detect: judgment
    Detection: read each changed function; for every reassignment (`x = ...` after
    `x := ...`), ask whether the right-hand side computes the same concept.
    Violation: two meanings under one name — Split Variable; cite both assignments.
 
 6. **Inverse — does the diff copy defensively where no alias escapes?**
+   Detect-grep: `slices\.Clone\(|maps\.Clone\(|\bcopy\(`
    Detection: for each new `slices.Clone`/`maps.Clone`/manual copy loop in the diff,
    trace the copied value: does the source or the copy ever cross a function
    boundary or outlive the call?
