@@ -240,7 +240,8 @@ questions that are AST facts: package-level mutable state and manufactured root
 contexts (R8), test placement (R7), function and file length (R3), the mechanical
 halves of concurrency safety (R10) and mutation discipline (R12). It emits findings
 with a rule code and a `file:line`, runs as a hook and in CI at zero tokens, and
-replaces the grep pre-filter in the spawn payload. The hunters for those rules
+replaces the grep behind a question's detect line, writing the same hits table S8
+introduces. The hunters for those rules
 become verifiers of the analyzer's findings, or go away under S5.
 
 Expected: the greps themselves are 1 percent, so the direct saving is small; the
@@ -314,6 +315,104 @@ this stage and both inside the 2.1x run-to-run swing the problem section records
 The skeptic's saving, some sixteen turns of a 50k-token context, is under that
 noise at three runs; the stage removes the mechanism it names and does not move the
 bill it can be measured by, and the critic's sweep is the next line to bound.
+
+### S8 — the review's mechanics become scripts
+
+After S1 to S7 the agents are bounded and what the review still pays for is the
+parent following recipes. Three of them are deterministic and run on every review,
+composed by the model from prose each time: the pre-filter, which prints the
+Falsifying questions section of all twelve rules into the parent's context, about
+10k tokens carried for the rest of the session, and runs the detection commands it
+finds there; the scope bundle, the `mktemp`, `files.txt`, `diff.patch`, one
+numbered file per source file and `dirs.txt`, whose recipe S4 had to keep inline
+because every review needs it first; and the reconciliation, the `Hunters:` header
+that compares each hunter's receipts with the pre-filter's counts by the parent's
+reading. The hunters then run the same detection commands a second time, each over
+the whole scope in its first labelled Bash call, and the comment critic sweeps the
+scope for comments on its own; S7's proof measured that sweep at about 52k tokens of
+tool output. Every one of these steps has also failed as prose at least once on the
+record: the R2 question the baseline's parent covered only by an improvised grep,
+the critic skipped in one of three S5 runs, the skeptic's Reads its budget did not
+count. A procedure the model paraphrases is a procedure that drifts.
+
+The plugin already ships the pattern. R9's gate is `check-repo-brain.sh`, a core
+template rendered per binding with the language adapter as an include and tested by
+its own fixture matrix; the package-size gate is a hook. S8 adds two scripts of the
+same shape under the plugin's scripts directory, and the machine-readable contract
+they need in the rules' question files.
+
+**ldd-scope** *(planned)* writes the bundle from the review's scope rung and prints
+one summary line: files bundled, files listed with a not-bundled reason, the diff's
+size, the bundle path. It also writes the comment lines the critic judges, the
+added-comment grep the skill has step 3b run, so the critic reads one file instead
+of sweeping the scope. The bundle recipe leaves the skill; the summary line replaces
+it.
+
+**ldd-detect** *(planned)* runs every falsifying question's detection over the
+bundle's scope and writes two tables: hits, one row per hit with rule, question,
+file, line and the matched excerpt, capped per question with the overflow counted;
+and counts, one row per question with its hit count. It prints the counts table,
+about 300 tokens, and the per-family summary the spawn step needs. The suppression
+scan the skill runs in step 1 is a row of the same table. Its commands come from the
+rules, not from the script: today 14 of the Go binding's 68 detection entries are a
+bare command, 21 are a command followed by a judgment clause, and 33 are a procedure
+in prose with at most an example grep inside it, so the script cannot extract them.
+Each numbered question in the bindings' question files and in the core defaults
+gains one detect line beside its prose: a single command over the scope's file list
+and root, or the word judgment for a question whose only procedure depends on an
+earlier hit, as R1's second question does. The prose Detection and Violation text
+stays as it is, because it is what the hunter reads to judge a hit; the detect line
+is the lead generator, and it never changes what the question asks. The handbook
+extracts only the questions' bold headlines, so it does not change.
+
+The generator's lint-core check gains a rule: every question carries exactly one
+detect line, a command detect line is one line with no placeholder left in it, and
+every binding that renders a rule renders a detect line for each of its questions. A
+fixture test in the shape of the R9 gate's matrix runs every command over a small
+tree per binding and fails on a command that does not run; the eval manifests, 153
+plants and controls per suite, remain the recall test of what the commands find.
+
+The review skill rewires around the two scripts. Step 1 is one Bash call that runs
+both and prints the counts table, in place of the twelve-section dump and the
+improvised greps. Step 2 hands each hunter its family's rows of the hits table and
+the bundle; the hunter no longer runs detection commands, its receipts are the counts
+table's rows for its rules, and its work is the judgment the prose describes on each
+hit, plus the judgment questions, which it runs as today. The `Hunters:` header keeps
+its shape and its numbers now come from the counts table against the hunter tallies,
+so a hunter that reports fewer hits judged than the table counted renders `PARTIAL
+coverage` mechanically. The report contract the graders read does not change.
+
+What this stage buys is measured in two places. Tokens: on a scoped review the main
+thread is 75 to 85 percent of the bill and the step 1 dump alone is about 10k tokens
+re-billed on every later call, so Cases A to F should fall 10 to 15 percent; on the
+whole-repository review the hunters' detection calls and the critic's sweep go, a
+smaller share of a run the agents still dominate. Determinism: the counts table is a
+function of the tree, so two runs on the same scaffold produce byte-identical
+tables, and a question with no command is visible in the table as judgment rather
+than silently skipped, which is the failure class #63 closed by hand for one rule.
+
+S8 changes how the review finds leads, not the plugin's shape, so it does not wait
+for gate 1 of [eval-return-experiments.md](eval-return-experiments.md). It is also
+the seam S6 needs: the analyzer, when it comes, replaces a detect line's grep with
+its own output for the questions that are AST facts and writes the same hits table,
+so S6 changes rules and one script and touches no skill.
+
+Expected: Cases A to F down 10 to 15 percent each; the whole-repository review down
+about 5 to 10 percent, mostly hunter tool output and the critic's sweep; hunters with
+no detection Bash call in the per-agent table; critic tool output under 30k tokens;
+two runs on one scaffold with identical counts tables. Cases that must not move:
+every review case's graders, the whole-repository recall in the S5 band, the
+report-header and cluster graders, the clean-tree controls. Proof: review tier,
+the whole-repository review three times and Cases A, B and F twice, about $25,
+against the S7 runs.
+
+Risks: a detect command wider than its prose floods the hits table, so hits are
+capped per question and the overflow count is itself a lead; a question marked
+judgment loses the improvised grep a hunter used to run for it, so the eval
+manifest's per-rule recall is read per rule after the change and a drop names its
+question; the generic binding detects the language at run time, so its scripts take
+the source glob as an argument where the Go and Python renderings carry it as a
+scalar.
 
 ### S9 — the critic reads the scope in chunks and reports what changes
 
@@ -436,6 +535,7 @@ diet, since nothing in the diet can change them.
 | S5 | hunter fan-out | 8.45M best to 4.63M worst, recall in band | none |
 | S6 | grep pre-filter, mechanical hunters | enables S1 and S5 | enables CI use |
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
+| S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A to F 10 to 15 percent each; whole-repository 5 to 10 percent; counts table identical across runs | none |
 | S9 | critic reads the scope twice, writes every KEEP | critic tool output 36k to 59k down to the scope once, report about half | documentation skill, small |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
