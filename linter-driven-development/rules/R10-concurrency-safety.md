@@ -161,6 +161,7 @@ means wherever the repository starts a concurrent task — a `go` statement, a t
 task constructor, a task-group or executor submit, an `async` job.
 
 1. **Does every concurrent task started in the diff have a provable exit path?**
+   Detect: judgment
    Detection: in the changed files, find every spawn site. For each hit, read the
    concurrent task's body: a loop or a blocking take/put must wait on the cancellation
    signal (or a closed queue) at the same time, or the work must be provably bounded.
@@ -169,6 +170,7 @@ task constructor, a task-group or executor submit, an `async` job.
    violation: it spins at 100% CPU — block on the queue or a ticker instead.
 
 2. **Can the code that starts a concurrent task also stop it and wait for it?**
+   Detect: judgment
    Detection: for each spawn site, check what the spawning function returns/exposes:
    a cancellation signal it honors plus a join/close/done handle, or a task group the
    caller holds.
@@ -176,6 +178,7 @@ task constructor, a task-group or executor submit, an `async` job.
    shutdown; leaks and lost errors are invisible.
 
 3. **Is shared mutable state written from a concurrent task without a guard?**
+   Detect: judgment
    Detection: for each spawned body, list writes to captured variables, receiver
    fields, and maps; cross-check that each written location is guarded — search the
    package for the language's lock, atomic and concurrent-collection types (atomic
@@ -188,6 +191,7 @@ task constructor, a task-group or executor submit, an `async` job.
 
 4. **Does each lock live next to the data it guards, and is the lock taken on
    every access?**
+   Detect: judgment
    Detection: for each lock declared in the changed files, read the declaration's
    neighbors — the guarded fields must sit in the same type, and every method
    touching them must lock; search the field names across the package for unlocked
@@ -196,6 +200,7 @@ task constructor, a task-group or executor submit, an `async` job.
    that skips the lock — the guard is decorative.
 
 5. **Does production code sleep?**
+   Detect-grep: `\b[Ss]leep\(`
    Detection: search the changed non-test files for the language's sleep call
    (`time.Sleep`, `time.sleep`, `asyncio.sleep`, `Thread.sleep`, `setTimeout`).
    Violation: any hit on a cancellable path — backoff/pacing/polling must wait on a
@@ -206,6 +211,7 @@ task constructor, a task-group or executor submit, an `async` job.
    wiring. (Test sleeps are R7's Q6, not this rule.)
 
 6. **Inverse — is a guard or concurrent task ceremony?**
+   Detect: judgment
    Detection: for each NEW lock or concurrent task in the diff, search the package for a
    second concurrent task that ever touches the guarded state, or for a caller that needed
    the work to be asynchronous.

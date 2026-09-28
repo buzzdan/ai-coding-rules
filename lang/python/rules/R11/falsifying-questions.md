@@ -1,7 +1,6 @@
 1. **Is the same discriminator inspected in more than one place?**
-   Detection: list discriminators in the diff —
-   `grep -nE 'match [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level)\b' $(git diff --name-only -- '*.py')`
-   and if-chain forms `grep -nE 'if [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level) ==' ...`;
+   Detect-grep: `match [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level)\b|if [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level) ==`
+   Detection: the hits list the diff's discriminators, `match` and if-chain forms;
    then count each across the package: `grep -rnE 'match .*\.<field>|\.<field> ==|\.<field> in \(' --include='*.py' . | wc -l`.
    A `dict` of callables keyed by the field is a dispatch site too — the healthy
    one when it is the only one; a `.get(kind, fallback)` on such a dict deep in
@@ -14,8 +13,8 @@
    class.
 
 2. **Does a type switch dispatch on concrete types outside a boundary?**
-   Detection: `grep -rnE 'isinstance\([a-zA-Z_.]+, [A-Z]|case [A-Z][A-Za-z]*\(' --include='*.py' .` —
-   an `isinstance` chain or a `match` with class patterns; for each hit, is it in a
+   Detect-grep: `isinstance\([a-zA-Z_.]+, [A-Z]|case [A-Z][A-Za-z]*\(`
+   Detection: an `isinstance` chain or a `match` with class patterns; for each hit, is it in a
    `parse`/decoder/boundary adapter, or in business logic?
    Violation: a type switch in domain logic whose cases call variant-specific
    behavior or unpack the variants' fields — the behavior belongs on the variants.
@@ -29,6 +28,7 @@
    types, and decoding foreign JSON into your own types, are not this pattern.
 
 3. **Does a `case _:` (or trailing `else`) handle "unknown kind" away from the boundary?**
+   Detect: judgment
    Detection: for each `match` found in Q1, read the `case _:` arm; for each
    if-chain, the trailing `else`; for each strategy dict, any `.get(k, default)`.
    Violation: a `case _:` that raises `ValueError("unknown kind")`, logs, or
@@ -41,8 +41,8 @@
    the missing arm is itself a finding under Keep the Single Exhaustive Switch.
 
 4. **Does a boolean parameter select between behaviors?**
-   Detection: `grep -nE 'def .*\(.*\b[a-z_]+: bool' $(git diff --name-only -- '*.py')`,
-   and ruff `FBT001` (boolean positional parameter) / `FBT003` (boolean positional
+   Detect-grep: `def .*\(.*\b[a-z_]+: bool`
+   Detection: ruff `FBT001` (boolean positional parameter) / `FBT003` (boolean positional
    call argument) where the repository enables them; check whether the function
    branches on the flag near the top.
    Violation: a positional boolean parameter is always the finding — the lint-fixer
@@ -52,6 +52,7 @@
    into two named functions.
 
 5. **Inverse — is a NEW dispatch abstraction in the diff unearned?**
+   Detect: judgment
    Detection: for each new `Protocol`/ABC hierarchy, strategy dict or
    `singledispatch` in the diff, count production implementations/entries and the
    number of sites the old conditional occupied (`git log -p` or the pre-diff file).

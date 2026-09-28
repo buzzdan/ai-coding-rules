@@ -150,6 +150,13 @@ differently from the other bindings:
   code-comments checklist and the bug-fix examples are includes, with the Go text
   under `lang/go/skills/documentation/reference/` and neutral defaults under
   `core/includes/`.
+- `scripts/ldd-detect.sh`, `scripts/ldd-scope.sh` and `scripts/ldd-detect_test.sh`,
+  the review's detection pass, its scope bundle and their fixture matrix, are core
+  templates that read two includes with no core default: `scripts/ldd-lang.sh`, the
+  language block (source glob, test-file test, suppression directive, comment marker
+  and its directive forms), and `scripts/ldd-fixture.sh`, the fixture rows the matrix
+  runs. Every binding writes both; the generic binding's block detects the language
+  from the repository's marker file, as its repo-brain adapter does.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The

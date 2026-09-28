@@ -2,7 +2,8 @@ Build each search over `*.py` files; "spawn site" means wherever the repository
 starts a thread or an asyncio task.
 
 1. **Does every thread or task started in the diff have a provable exit path?**
-   Detection: `grep -nE 'Thread\(|\.start\(\)|create_task\(|ensure_future\(|\.submit\(|TaskGroup\(|run_in_executor\(' <changed files>` —
+   Detect-grep: `Thread\(|\.start\(\)|create_task\(|ensure_future\(|\.submit\(|TaskGroup\(|run_in_executor\(` context=8
+   Detection: the pattern
    catches `threading.Thread(target=...)`, a `Thread` subclass's `.start()`,
    `asyncio.create_task`, executor submits and task groups. For each hit, read the
    body it runs: a `while True` or a blocking `queue.get()`/`await` must test a
@@ -18,6 +19,7 @@ starts a thread or an asyncio task.
    on the queue with a timeout instead.
 
 2. **Can the code that starts a thread or task also stop it and wait for it?**
+   Detect: judgment
    Detection: for each spawn site, check what the spawning object exposes: a
    `close()`/`stop()` (or `__exit__`/`__aexit__`) that sets the event and
    `join()`s the thread, or cancels and awaits the task; a `create_task` handle
@@ -29,6 +31,7 @@ starts a thread or an asyncio task.
    line, not handling).
 
 3. **Is shared mutable state written from a thread without a guard?**
+   Detect: judgment
    Detection: for each thread body, list writes to `self.` attributes, captured
    variables and dicts/lists (`grep -n -A20 'def _run\|def run\|target=' <file>`);
    cross-check that each written location is guarded —
@@ -43,7 +46,8 @@ starts a thread or an asyncio task.
 
 4. **Does each lock live next to the data it guards, and is the lock taken on
    every access?**
-   Detection: `grep -nE -B1 -A5 'threading\.(Lock|RLock)\(\)' <changed files>` — the
+   Detect-grep: `threading\.(Lock|RLock)\(\)` context=5
+   Detection: the
    guarded attributes must be assigned in the same `__init__`, and every method
    touching them must hold the lock with `with self._lock:`; grep the attribute
    names across the module for access paths outside a `with` block. A lock handed
@@ -52,7 +56,7 @@ starts a thread or an asyncio task.
    that skips the lock — the guard is decorative.
 
 5. **Does production code sleep?**
-   Detection: `grep -nE 'time\.sleep\(' <changed files> | grep -v 'test_\|_test.py'`
+   Detect-grep: `time\.sleep\(`
    Violation: any hit on a thread that has a stop condition — backoff/pacing/polling
    must be `self._stop.wait(timeout=d)` (it returns early when the event is set) or
    a `queue.get(timeout=d)`. `await asyncio.sleep(d)` is cancellable by construction
@@ -64,6 +68,7 @@ starts a thread or an asyncio task.
    entry-point wiring. (Test sleeps are R7's Q6, not this rule.)
 
 6. **Inverse — is a guard, thread or task ceremony?**
+   Detect: judgment
    Detection: for each NEW `Lock` or spawn site in the diff, grep the package for a
    second thread or task that ever touches the guarded state
    (`grep -rnE 'Thread\(|create_task\(|\.submit\(' <package dir>`) or for a

@@ -213,6 +213,7 @@ source files (`detected-language source`) with the repository's own grep or ripg
 hits — a pattern finds candidates, the question decides.
 
 1. **Does the diff validate a primitive inline instead of constructing a type?**
+   Detect-grep: `\b(if|elif|else if) .*\b[a-zA-Z_.]+ (==|!=) ""|\b(if|elif|else if) .*\b[a-zA-Z_.]+ (<=?|>=?) [0-9]`
    Detection: in the changed files, find conditionals that compare a parameter or DTO
    field against an empty string, a number bound or a format (`== ""`, `<= 0`,
    `> 65535`, a regex match) — the check often sits second in a compound condition
@@ -223,12 +224,14 @@ hits — a pattern finds candidates, the question decides.
    constructor.
 
 2. **Is the same predicate enforced in more than one place?**
+   Detect: judgment
    Detection: for each predicate found above, search its normalized form across the
    package or module (`> 0` and `<= 65535` together, the same regex, the same
    emptiness check on the same field name) — count hits.
    Violation: ≥2 hits — the rule has no single owner; a type is missing.
 
 3. **Does named behavior run on a bare primitive?** Loops/switches over a list of
+   Detect-grep: `== "[A-Z_]+"`
    strings, string-literal status comparisons, format logic on a string field, a
    variable assigned one of a fixed set of literals under a flag.
    Detection: search for enum-shaped comparisons (`== "READY"`, an upper-case string
@@ -241,6 +244,7 @@ hits — a pattern finds candidates, the question decides.
    would carry it.
 
 4. **Does any function return a sentinel to mean "not found / invalid"?**
+   Detect-grep: `\breturn (0|""|-1)\s*([/#].*)?$`
    Detection: in the changed files, find `return 0`, `return ""`, `return -1` and
    `return null` (the language's missing value), then read each hit's signature:
    the hit is a sentinel when the signature promises a real value and has no separate
@@ -251,6 +255,7 @@ hits — a pattern finds candidates, the question decides.
    optional, a found flag) or a failure.
 
 5. **Do the same parameters travel together across signatures?**
+   Detect: judgment
    Detection: for each changed function with ≥3 parameters, search the package or
    module for the same parameter-name pair/trio in other signatures (`host` and `port`
    side by side in a second signature, say).
@@ -259,6 +264,7 @@ hits — a pattern finds candidates, the question decides.
    scorecard, plus its usage points).
 
 6. **Inverse — is a NEW type in the diff mere ceremony?**
+   Detect: judgment
    Detection: count its methods and check whether any method does more than unwrap or
    rename the primitive; score it with the scorecard above.
    Violation: Score 0-1, or the only method is `return <primitive>(x)` —

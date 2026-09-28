@@ -451,6 +451,7 @@ directory. Q1–Q3 and Q7 are fully mechanical: the plugin ships them as
 one command answers all four.
 
 1. **Is any doc an orphan?**
+   Detect-gate: Q1
    Detection: `find <docroot> -name '*.md' ! -name 'index.md'` versus the link
    targets extracted from `index.md` and any sub-indexes, e.g.
    `grep -oE '\]\([^)]+\.md\)' <docroot>/index.md`.
@@ -458,6 +459,7 @@ one command answers all four.
    unread, so rotting. Cite the file and the index that should list it.
 
 2. **Is any edge broken — in either direction?**
+   Detect-gate: Q2
    Detection, code→docs: `grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' --include='*.go' .`
    plus `.md`-to-`.md` links inside `<docroot>`; `test -f` each target.
    Detection, docs→code: build the repo's declaration set once — single-line
@@ -482,6 +484,7 @@ one command answers all four.
    *(planned)*, and a *(planned)*-marked line is exempt from resolution.
 
 3. **Is the root unwired?**
+   Detect-gate: Q3
    Detection: for each doc root, `grep -l '<docroot>/index.md' CLAUDE.md AGENTS.md
    2>/dev/null` in the root's owning project directory — the exact path, never a
    bare `index.md` mention. A monorepo sub-root also counts as wired when the
@@ -492,8 +495,8 @@ one command answers all four.
    tool that reads AGENTS.md instead of CLAUDE.md starts blind.
 
 4. **Does a doc comment on an exported symbol state WHAT instead of WHY?**
-   Detection: for each exported declaration in the diff
-   (`grep -nE '^(type|func) [A-Z]' <changed files>`), read its doc comment and
+   Detect-grep: `^(type|func) [A-Z]`
+   Detection: for each exported declaration in the diff, read its doc comment and
    compare its tokens against the identifier and the first lines of the body — a
    comment whose content is recoverable from the name or the code adds nothing.
    Violation: the comment restates the identifier (`// Policy is a policy`) or
@@ -502,6 +505,7 @@ one command answers all four.
    NOT this question — they are `R3-storifying.md` Q3 (extraction candidates).
 
 5. **Is new exported API naked, or a feature-sized change undocumented at rung 2?**
+   Detect: judgment
    Detection: in the diff, `grep -nE '^(type|func) [A-Z]'` on added lines and check
    each for a preceding `//` doc comment; separately, compare new packages or entry
    points in the diff against `<docroot>` contents.
@@ -510,6 +514,7 @@ one command answers all four.
    the knowledge shipped without joining the network.
 
 6. **Did behavior change silently under an existing doc?** *(advisory)*
+   Detect: judgment
    Detection: map the diff's changed packages to docs that cite their symbols or
    package paths (grep `<docroot>` for the package name and its exported symbols);
    check whether any such doc is in the diff.
@@ -518,6 +523,7 @@ one command answers all four.
    affected section, never appending history.
 
 7. **Does any file break the bundle contract?**
+   Detect-gate: Q7
    Detection: every content `.md` under `<docroot>` starts with a terminated
    frontmatter block (first line `---`, a closing `---` follows) carrying
    `type` valued `feature` / `architecture` / `guide` and a non-empty

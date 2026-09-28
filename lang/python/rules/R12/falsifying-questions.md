@@ -1,4 +1,5 @@
 1. **Does a method return an internal list, dict or set by reference?**
+   Detect-grep: `^\s+return self\._?[a-z_]+$`
    Detection: for each type in the diff with a validating constructor, list its
    collection attributes (`grep -nE '^\s+(self\.)?_?[a-z_]+: (list|dict|set)\[' <file>`), then
    `grep -nE 'return self\._?(<field1>|<field2>)$' <file>` — a bare
@@ -9,6 +10,7 @@
    (`tuple(self._items)`, `types.MappingProxyType(self._by_id)`, `frozenset(...)`).
 
 2. **Does a constructor store a caller-provided list or dict without copying?**
+   Detect: judgment
    Detection: inside each `__init__`, `__post_init__` and `parse` classmethod in the
    diff, check for a collection attribute assigned directly from a parameter
    (`self._items = items`; a dataclass field typed `list[...]` with no
@@ -20,6 +22,7 @@
    else holds it.)
 
 3. **Does one method both return domain data and mutate the receiver?**
+   Detect: judgment
    Detection: for each changed method with a return annotation other than `-> None`,
    grep its body for assignments to `self.` attributes (`self\.[a-z_]+ =`,
    `self\.[a-z_]+\.(append|extend|pop|update|remove|clear)\(`).
@@ -29,8 +32,8 @@
    one operation; name it as a mutator per R3 and move on.)
 
 4. **Can a validated type be mutated around its constructor?**
-   Detection: `grep -rnE '@[a-z_]+\.setter|def set_[a-z_]+\(self' --include='*.py' .`
-   for setters, and for each `@dataclass` with a `__post_init__` check whether it is
+   Detect-grep: `@[a-z_]+\.setter|def set_[a-z_]+\(self`
+   Detection: the hits are setters; for each `@dataclass` with a `__post_init__` check whether it is
    `frozen=True`; for each hit, does the type validate in its constructor, and does
    the setter re-check?
    Violation: a setter, or an unfrozen dataclass, that assigns unchecked on a
@@ -39,12 +42,14 @@
    constructor check at all are R2's Q1.)
 
 5. **Is one variable reassigned to mean something different?**
+   Detect: judgment
    Detection: read each changed function; for every reassignment (`x = ...` after
    `x` was first bound, including a loop variable reused after its loop), ask
    whether the right-hand side computes the same concept.
    Violation: two meanings under one name — Split Variable; cite both assignments.
 
 6. **Inverse — does the diff copy defensively where no alias escapes?**
+   Detect-grep: `\b(list|dict|set)\([a-z_.]+\)|\.copy\(\)|copy\.deepcopy\(`
    Detection: for each new `list(...)`, `dict(...)`, `.copy()`, `copy.deepcopy` or
    manual copy loop in the diff, trace the copied value: does the source or the copy
    ever cross a function boundary or outlive the call?
