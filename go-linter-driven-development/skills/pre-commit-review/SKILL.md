@@ -135,19 +135,26 @@ overabstraction-skeptic, foreground, in a message with no hunters in it, after e
 hunter result is in hand; the critic (step 3b) shares that message. Its spawn prompt
 MUST contain:
 
-1. The extraction findings under review — the hunter blocks pasted verbatim.
+1. The extraction findings under review — the hunter blocks pasted verbatim,
+   numbered, findings that share a file or a package adjacent, so one inspection call
+   verifies them together.
 2. The absolute path of `../../rules/R1-primitive-obsession.md` and the range it reads:
    `sed -n '/^### Juiciness scoring/,/^### Placement/p'`. Never the file whole.
 3. The absolute path of `../../examples/overabstraction-cidr.md`; with R11 dispatch
    proposals under review, also `../../examples/anti-if-dispatch.md` and
    `../../examples/switch-to-polymorphism.md`.
+4. The count and the budget it fixes, in one line: `N findings — budget: the first
+   turn, then one inspection call per finding (every tool counts; findings sharing a
+   file share a call), then the verdicts. Report verdict lines only.`
 
 No bundle: the skeptic verifies call sites across the whole repository. Its verdicts
 (`CONFIRMED (score N …)`, `CONFIRMED (score N, judgment call) — alternative: …`,
 `REFUTED (score N …) → cheaper alternative`, `N/A (R2 mechanism)`, `skeptic: not
-reached`) are carried into the report verbatim, score included. What never goes to it
-(R2's construction mechanics, non-extraction findings) and what each verdict does:
-"Skeptic verdicts", read in step 2.
+reached`) are carried into the report verbatim, score included; a report its turn
+ceiling cut off before the verdicts carries none, and every finding sent then ships
+as proposed with `skeptic: not reached`. What never goes to it (R2's construction
+mechanics, non-extraction findings) and what each verdict does: "Skeptic verdicts",
+read in step 2.
 </step_3_skeptic_pass>
 
 <step_3b_comment_critic>

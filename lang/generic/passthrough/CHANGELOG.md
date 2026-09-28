@@ -26,6 +26,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The skeptic's budget holds.** The overabstraction skeptic counts every tool call
+  against its budget — the first turn reads its doctrine in one command, then one
+  inspection call per finding, a grep with context that prints the usage count and
+  the call sites together, findings sharing a file sharing a call, then the
+  verdicts — and a whole-file Read is never the way to a call site. The review skill's
+  spawn prompt numbers the findings, file-mates adjacent, and states the count and
+  the budget in one line. The skeptic's report is verdict lines only, evidence in the
+  parentheses, a cheaper alternative on one more line, about 2k tokens for a dozen
+  findings; the caller carries the verdicts verbatim and keeps nothing else. A turn ceiling in the agent's definition backstops the budget; a
+  report it cuts before the verdicts ships every finding as proposed under
+  `PARTIAL coverage`. (Token budget stage S7.)
 - **Four rule-family hunters.** The pre-commit-review skill spawns one rule-hunter per
   rule family with pre-filter hits — types (R1, R2, R11, R12), structure (R3, R4, R5),
   tests and dependencies (R6, R7, R8, R10), documentation (R9, beside the comment
