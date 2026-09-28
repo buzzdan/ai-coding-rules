@@ -165,34 +165,24 @@ Expected: about 5 percent of both tiers, more on long runs. Risk: a step that
 depended on an example the skill no longer inlines; the medium-tier art judges catch
 it.
 
-### S5 — six rule-family hunters
+### S5 — four rule-family hunters
 
 Twelve single-obsession hunters were designed for models that needed a narrow brief.
 Measured after S1 to S4, subagents were still 56 percent of the review tier's spend,
 and the whole-repository review spawned up to twelve hunters over one bundle, each
 re-billing its own context every turn: the biggest lever left. The hunter-count
-experiment has three arms, twelve hunters, a few cluster hunters, and one hunter with
-the whole rulebook; the cluster arm is the one built, and the twelve-hunter arm is
-the S1 to S4 run it is measured against. The one-hunter arm is not built.
+experiment has three arms, twelve hunters, four cluster hunters, and one hunter with
+the whole rulebook; the four-hunter arm is the one built, and the twelve-hunter arm
+is the S1 to S4 run it is measured against. The one-hunter arm is not built.
 
-The cluster arm was first built as four hunters, types (R1, R2, R11, R12), structure
-(R3, R4, R5), tests and dependencies (R6, R7, R8, R10) and documentation (R9). Two
-review-tier runs read the same way: the three-rule structure hunter found every
-plant once its budget scaled with its rule count, the one-rule documentation hunter
-never missed, and the two four-rule hunters, twenty falsifying questions each over
-the whole repository, reported `not reached` and dropped plants — the types hunter
-lost the three CASE-A plants in one run — while a larger budget did not move them.
-The rule load per hunter, not the call count, was the ceiling, so the two four-rule
-families were split. The pre-commit-review skill spawns one hunter per rule family
-with any pre-filter hit, six at most, no family over three rules:
+The pre-commit-review skill spawns one hunter per rule family with any pre-filter
+hit, four at most:
 
 | Hunter | Rules | Family |
 |--------|-------|--------|
-| types | R1, R2 | primitives, validation |
-| dispatch and mutation | R11, R12 | conditional dispatch, mutation discipline |
+| types | R1, R2, R11, R12 | primitives, validation, enums and sentinels, options |
 | structure | R3, R4, R5 | package, file and function shape |
-| tests | R6, R7 | test-only interfaces, test placement |
-| state | R8, R10 | globals, shared state and concurrency |
+| tests and dependencies | R6, R7, R8, R10 | tests, globals, dependency injection, dependencies |
 | documentation | R9 | comments and the documentation network, beside the comment critic |
 
 A hunter gets the absolute paths of its family's rule files that had hits, never one
@@ -214,15 +204,32 @@ still runs all three gates.
 The stage was gated on gate 1 of
 [eval-return-experiments.md](eval-return-experiments.md). The S1 to S4 proof passed
 Gate 1 and missed Gate 2's per-tier target, and the stage was built on that evidence
-by decision, proved on the review tier alone: the whole-repository review read on its
-grader count, where a plant goes missing when a hunter carries too many rules; the
-two scoped cases on their graders; Gate 2 per case against the S1 to S4 run and the
-baseline. Four hunters billed 45 percent under the baseline's best whole-repository
-run and held the baseline's grader band, 101 to 107 of 111, under the twelve-hunter
-run's 110; six hunters are the arm that is meant to close that gap at about eight
-agents a run against the baseline's fourteen. A hunter's first turn on a
-whole-repository review, its rule files plus directories, is the ceiling to watch. The per-rule half
-of the experiment, that page's experiment 4, stays open: the cost per rule the spend
+by decision, proved on the review tier alone, three runs of the whole-repository
+review per arm on Sonnet 5 against the S1 to S4 run and the pre-S1 baseline.
+
+The four-hunter arm passed both gates. Its recall sits in the baseline band, 107,
+104 and 101 of 111 graders with the baseline at 103 to 105 and the twelve-hunter
+run at 110; its worst run bills 4.63M tokens against the baseline's best 8.45M, a
+45 percent cut, and under the S1 to S4 mean of about 6.6M. Two adjustments were
+made on the way and stay: the hunter's budget scales with its rule count, one call
+per rule beyond the first reserved for that rule's questions before any further
+reading, because a four-rule hunter on a fixed seven-call budget reported
+`not reached` on its last rule; and the rule that does not read gets a
+`rule unreadable` line in its tally's place, rendered as partial coverage.
+
+A six-hunter variant was built and measured in the same way, and rejected. The two
+four-rule families were split, types into types and dispatch and mutation, tests and
+dependencies into tests and state, no family over three rules, on the reading that
+rule load per hunter was the ceiling. It was not: six hunters scored 109, 104 and
+101, the same mean and the same floor as four, and the misses moved rather than
+closed, a two-rule hunter dropping a plant that a four-rule hunter had found. Six
+hunters billed 26 percent more, and the extra went to the overabstraction skeptic,
+which read one file per extraction proposal and hit forty turns in two runs, not to
+the hunters. The miss traces agree across both arms: a hunter that judges a plant
+from grep context instead of reading the file is what every `not reached` line
+describes. The next levers are therefore a turn budget on the skeptic and a
+read-before-judge rule for the hunters, not the hunter count. The per-rule half of
+the experiment, that page's experiment 4, stays open: the cost per rule the spend
 report already gives, then one rule ablated at a time by rendering a plugin without
 it.
 
@@ -327,7 +334,7 @@ diet, since nothing in the diet can change them.
 | S2 | rulebook pasted twice | a further 3M to 4M | about 1M |
 | S3 | unbounded improvised agents | none | 66M to about 45M |
 | S4 | skill text re-billed per call | about 2M | about 3M |
-| S5 | hunter fan-out | decided by recall | none |
+| S5 | hunter fan-out | 8.45M best to 4.63M worst, recall in band | none |
 | S6 | grep pre-filter, mechanical hunters | enables S1 and S5 | enables CI use |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
