@@ -108,9 +108,11 @@ ships as the hunter proposed it, and the verdict is not a refutation.
 ## Critic verdicts
 
 It judges every comment in the diff ({{.DocForm}}, in-body, test) against the three-test
-standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
+standard and returns one block per non-KEEP verdict (`TRIM / REWRITE / DELETE`, or
 `DELETE → route R3` for in-body extraction candidates) with evidence and proposed
-replacement text. Non-KEEP verdicts land in the report as 🟡 Readability Debt;
+replacement text, and a tally whose KEEP count is the only trace of the comments it
+passed — a KEEP is never a block, and the parent keeps nothing of the report but the
+blocks and the tally. Non-KEEP verdicts land in the report as 🟡 Readability Debt;
 `DELETE → route R3` verdicts merge with any R3 hunter findings on the same lines
 (one finding, not two). The critic is advisory like everything else — accepted
 verdicts are fixed by @documentation (the rung-1 fixer), except R3 routes, which

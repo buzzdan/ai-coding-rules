@@ -414,6 +414,63 @@ question; the generic binding detects the language at run time, so its scripts t
 the source glob as an argument where the Go and Python renderings carry it as a
 scalar.
 
+### S9 — the critic reads the scope in chunks and reports what changes
+
+The comment critic's turns were bounded by S1, from 75 on the baseline to 8 to 15
+since, and two mechanisms remain, both read on the whole-repository runs of S5 and
+S7. First, the critic opens the scope in one call: one `cat` of every numbered scope
+file, or one grep with context over all of them written to a scratch file. The
+harness spills a result that size to a file and hands back its path, and the critic
+then reads the file in three or four pages, so the same 29k tokens of source are
+billed twice, once as the spilled result and once as the pages, and every page is a
+turn; its tool output ran to 36k to 59k tokens on a scope of 29k. Second, the report
+writes a block for every comment it judged, KEEPs included: 230 to 280 blocks, 3k to
+10k tokens, of which the parent renders the non-KEEP blocks and the tally and drops
+the rest; a hundred KEEP blocks written out is the difference between a 3k report and
+a 9k one.
+
+Two changes, in the critic's agent file and the two steps that spawn it, the bound
+the critic has until S8's scope script writes its comment lines for it. The scope
+comes in chunks: on a whole-repository sweep the numbered scope files that carry
+comments are read several per call in the bundle's directory order, each call sized
+to come back whole, never one dump of the scope and never a Read of a spilled result;
+a scoped diff still comes in the first turn as before. The budget counts every tool
+call, the first turn then at most four calls scoped or six on a sweep, and the spawn
+prompt states how many files carry comments and the budget in one line, from the
+review skill's step 3b and the documentation skill's critique step alike. The report
+is the blocks that change something and the tally: a KEEP is counted and never
+written, evidence one line, proposal at most two.
+
+Expected: the critic's tool output from 36k to 59k tokens down to the scope read once,
+about 29k on the fixture; its turns from 8 to 15 down to about 8 on a sweep; its
+report from 3k to 10k tokens down to the non-KEEP blocks, about half. The critic is
+a tenth of a whole-repository review, so the bill is read alongside and the mechanism
+is the gate: the per-agent table showing no Read of a spilled result and no KEEP
+block in the report. Cases that must not move: the critic's graders on the
+whole-repository review (the caller-must and restated-idiom recalls, the WHY-comment
+control), the tally in kind, the clean-tree controls.
+
+Measured, three whole-repository runs against S7 and S5b. Gate 1 holds: 104, 107 and
+107 of 111 graders against 105, 102 and 110 and 107, 104 and 101, the floor of 104
+the highest of any cluster arm; the critic's four graders passed in every run of
+every arm, and the critic was spawned in all three runs where S5b and S7 each
+skipped it once. The double read is gone: no Read of a spilled result in any run,
+tool output 37k, 34k and 48k tokens against S7's 51k and 54k, the 48k a run that
+chunked the test files in with the source. Two expectations did not hold. The turns
+did not fall, 15, 9 and 13 against 12 to 15: the page reads went and inventory calls
+took their place, one run spending four calls and another six on `find`, `wc` and
+`head` over a scope whose file count the prompt had stated, so the agent file now
+names `files.txt` as the inventory and forbids measuring the scope. The report did
+not halve, 7.8k, 6.6k and 7.5k tokens with 4, 2 and 3 KEEP blocks against 3k to 10k
+with a hundred: the KEEP blocks were never the bulk, the 117 to 144 non-KEEP blocks
+with their evidence and proposal are, and those the parent renders. The bill did not
+fall, 4.97M, 4.16M and 5.86M against S7's 5.48M, 4.06M and 5.07M, and its shape
+moved: the subagents' share fell from 66 to 77 percent to 58 to 64 while the main
+thread's calls rose from 14 to 16 on S5b to 19 to 24 here, at 80k to 100k tokens of
+context each. Each spawn prompt S7 and S9 ask the parent to compose, numbering the
+findings, counting the files, stating a budget, is parent work at that context, and
+it is the parent's turns, not another agent's, that S8's scripts are for.
+
 ## Proving it
 
 Every stage passes two gates on the same run, or it does not ship.
@@ -500,6 +557,7 @@ diet, since nothing in the diet can change them.
 | S6 | grep pre-filter, mechanical hunters | enables S1 and S5 | enables CI use |
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
 | S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A to F 10 to 15 percent each; whole-repository 5 to 10 percent; counts table identical across runs | none |
+| S9 | critic reads the scope twice, writes every KEEP | double read gone, tool output 51k to 54k down to 34k to 48k; turns, report and bill unmoved, main-thread calls up to 19 to 24 | documentation skill, small |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number
