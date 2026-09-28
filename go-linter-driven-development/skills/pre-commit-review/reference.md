@@ -98,7 +98,12 @@ broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
 construction mechanics — a validating constructor, unexported fields, an options
 type with its `With*` functions, a named Null Object default — are not extractions either
 and never go to the skeptic: they close the holes of a type that already exists, and a
-skeptic verdict on them would be scoring a guard, not a type.
+skeptic verdict on them would be scoring a guard, not a type. An R10 finding whose fix
+is a lock taken, or a write moved under the lock that already exists, names no owner
+type and goes straight to the report too; Extract Synchronized Owner goes to the
+skeptic only when the finding names the new owner. What still arrives comes back as
+`N/A (R2 mechanism)` or `N/A (no extraction)`, one line, never scored: the finding
+ships as the hunter proposed it, and the verdict is not a refutation.
 
 ## Critic verdicts
 

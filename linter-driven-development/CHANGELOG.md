@@ -26,6 +26,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The skeptic gets extractions only.** The review skill's step 3 now says inline
+  what goes to the overabstraction skeptic — a finding whose fix is a new type or
+  package: R1's domain type, parameter object and named enum, R4's promotion to a
+  package, R10's Extract Synchronized Owner when it names the owner, R11's dispatch
+  moves — and what never does: R2's construction mechanics, an R10 fix that is a lock
+  taken or a write moved under one, a rename, a deletion or a test. The exclusion
+  lived only in the reference, and the whole-repository proof of S7 saw the parent
+  send six such findings in one run. The skeptic's verdict schema gains
+  `N/A (no extraction)` beside `N/A (R2 mechanism)` for what still arrives: one line,
+  never scored, the fix shipped as the hunter wrote it.
 - **The skeptic's budget holds.** The overabstraction skeptic counts every tool call
   against its budget — the first turn reads its doctrine in one command, then one
   inspection call per finding, a grep with context that prints the usage count and

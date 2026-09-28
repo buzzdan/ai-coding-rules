@@ -127,8 +127,14 @@ no narrative ("Hunter output", read above).
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
-Collect every type/package-extraction finding — R1/R2/R4 "create a type/package", R10
-"Extract Synchronized Owner", R11 "Interface Dispatch" / "Strategy Map" — and spawn one
+Collect every finding whose fix is a new type or package — R1's Replace Primitive
+with Domain Type, Introduce Parameter Object and Name enum strings, R4's promotion to a
+package, R10's Extract Synchronized Owner when it names the owner type, R11's
+Interface Dispatch and Strategy Map — and no other. Never an R2 construction
+mechanic (a validating constructor, {{.Unexported}} fields, an options type and its
+`With*` functions, a Null Object default), never an R10 fix that is a lock taken or a
+write moved under one, never a fix that is a rename, a deletion or a test: those
+propose no type, and they go straight to the report. Spawn one
 overabstraction-skeptic, foreground, in a message with no hunters in it, after every
 hunter result is in hand; the critic (step 3b) shares that message. Its spawn prompt
 MUST contain:
@@ -147,8 +153,9 @@ MUST contain:
 
 No bundle: the skeptic verifies call sites across the whole repository. Its verdicts
 (`CONFIRMED (score N …)`, `CONFIRMED (score N, judgment call) — alternative: …`,
-`REFUTED (score N …) → cheaper alternative`, `N/A (R2 mechanism)`, `skeptic: not
-reached`) are carried into the report verbatim, score included; a report its turn
+`REFUTED (score N …) → cheaper alternative`, `N/A (R2 mechanism)`, `N/A (no
+extraction)`, `skeptic: not reached`) are carried into the report verbatim, score
+included; a report its turn
 ceiling cut off before the verdicts carries none, and every finding sent then ships
 as proposed with `skeptic: not reached`. What never goes to it (R2's construction
 mechanics, non-extraction findings) and what each verdict does: "Skeptic verdicts",
