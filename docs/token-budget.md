@@ -283,11 +283,35 @@ finding as proposed, `skeptic: not reached` under `PARTIAL coverage`.
 Expected: the skeptic's turns from 17 to 32 down to about 14, the tool output it
 carries from about 20k tokens to what a dozen greps with context print, its report
 from about 2.7k tokens to about 2k, and the per-agent table showing no Read calls
-above the count of findings. The trace does not separate one subagent's bill from another's, so the
-skeptic's share is read from its turns and the subagent line as a whole. Cases that
-must not move: the extraction graders on the whole-repository review, the verdicts
-in kind, the clean-tree controls. The signal to watch is a refutation turning into a
-`not reached` line, which the report header shows.
+above the count of findings. The trace does not separate one subagent's bill from
+another's, so the skeptic's share is read from its turns and the subagent line as a
+whole. Cases that must not move: the extraction graders on the whole-repository
+review, the verdicts in kind, the clean-tree controls. The signal to watch is a
+refutation turning into a `not reached` line, which the report header shows.
+
+Measured, three whole-repository runs against the four-hunter run it follows. Gate 1
+holds: 105, 102 and 110 of 111 graders against 107, 104 and 101, the 110 tying the
+twelve-hunter run's ceiling; every finding sent was verified, no `not reached` line
+in any run, and every miss is a hunter's, a plant the skeptic was never sent. The
+mechanism is gone: the skeptic ran 21, 8 and 4 turns, median 8 against 24, with no
+Read call in any run against a median of 17, tool output of about 14k tokens against
+22k, and reports of 1.5k to 1.9k tokens in the verdict-line shape. Two of its budget
+claims did not hold as written: the 21-turn run spent a call per file on its first
+pass and a second pass of single greps, above the N+2 the budget states, and the
+twenty-turn ceiling in the agent's definition did not stop it, so the harness
+version the evals run on either does not enforce the field for a plugin's agents or
+counts turns differently, and the ceiling is declared but not relied on. The 4-turn
+run batched fourteen findings into four greps and returned six `N/A (R2 mechanism)`
+verdicts, so the parent still sends R2's construction mechanics despite the step
+that says not to. Gate 2 per case does not hold at three runs: 5.48M, 4.06M and
+5.07M billed tokens against 4.63M, 4.44M and 4.00M, the worst new run above the
+best old one, and the tier up 12 percent. The extra is not the skeptic's: the
+comment critic ran 12 to 15 turns with about 52k tokens of tool output against 9 to
+10 turns and 29k, and the hunters' tool output rose by a quarter, both untouched by
+this stage and both inside the 2.1x run-to-run swing the problem section records.
+The skeptic's saving, some sixteen turns of a 50k-token context, is under that
+noise at three runs; the stage removes the mechanism it names and does not move the
+bill it can be measured by, and the critic's sweep is the next line to bound.
 
 ## Proving it
 
@@ -373,7 +397,7 @@ diet, since nothing in the diet can change them.
 | S4 | skill text re-billed per call | about 2M | about 3M |
 | S5 | hunter fan-out | 8.45M best to 4.63M worst, recall in band | none |
 | S6 | grep pre-filter, mechanical hunters | enables S1 and S5 | enables CI use |
-| S7 | skeptic whole-file reads | skeptic turns 17 to 32 down to about 14 | PREPARE gate, small |
+| S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number
