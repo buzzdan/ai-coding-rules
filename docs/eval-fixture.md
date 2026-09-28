@@ -55,7 +55,7 @@ Ground rules, all enforced:
 
 ## The manifest
 `go/violations.yaml`, beside the fixture, is the answer key, kept outside the scaffolded tree. One
-entry per plant or control, 149 in total. `py/violations.yaml` carries the same 149
+entry per plant or control, 153 in total. `py/violations.yaml` carries the same 153
 ids in the same order with Python files and anchors; where a plant's disease had
 to change with the language, a comment on the entry says so, and `expect.lint`
 names the ruff rule that fires (or `"-"` where ruff has no rule for the plant, such
