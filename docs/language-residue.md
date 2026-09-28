@@ -23,7 +23,7 @@ Every hit gets exactly one of these.
 |---|---|---|
 | **Rewrite** | A Go *spelling* of a universal idea sits inside a core sentence: `pkg_test` for "imported as a consumer would", `context.Background()` for "a library that manufactures its own root cancellation", `(X, error)` for "the value or an error" | The core sentence is reworded so it is true in every language; the Go spelling moves into the rule's canonical example, which the binding owns. This changes the Go plugin's text, so it ships as a content change with a version bump, never inside a byte-identical refactor |
 | **Scalar** | One word or spelling that recurs in five or more lines, and substituting it keeps every sentence true in every binding | A `profile.yaml` key rendered as `{{.Name}}`. Its Go literal then becomes hard residue, so a missed site fails `task lint-core` |
-| **Include** | A whole block — bullet, paragraph, code fence, table row — whose *content* is one language's mechanism, not just its spelling: R10's guard and exit-path mechanics, R7's table-test mechanics, a worked example in Go | `{{include "path"}}`. The generator reads `lang/<lang>/path`; when the binding has no such file it reads `core/includes/path`, the language-neutral default. A binding adds a file only where its language truly differs |
+| **Include** | A whole block — bullet, paragraph, code fence, table row — whose *content* is one language's mechanism, not just its spelling: R10's guard and exit-path mechanics, R7's table-test mechanics and its mutation-tool mechanics (`rules/R7/mutation-mechanics.md`: gremlins for Go, mutmut for Python, the repository's own tool in the neutral default), a worked example in Go | `{{include "path"}}`. The generator reads `lang/<lang>/path`; when the binding has no such file it reads `core/includes/path`, the language-neutral default. A binding adds a file only where its language truly differs |
 | **Aside** | A Go word used as the common noun for a concept every language has, where the sentence stays true as written: "interface", "struct" as a shape, the attributed Go proverbs in `maxims.md` | Nothing changes; the decision is recorded once so the token is not re-triaged |
 | **Override** | A whole core file whose text differs per language | `lang/<lang>/overrides/<core path>`. Never used for a rule, skill, agent or command; kept for files such as a plugin README that differ entirely |
 
@@ -165,9 +165,10 @@ position to the reader as an `In Python` aside under its rule
 
 1. **Absence.** `None` is a declared absence, never an undeclared failure. A
    `-> X | None` signature is fine when absence is normal and every caller narrows
-   it, checked by mypy — `dict.get` beside `dict[k]` is the model. The findings are
-   `None` returned where the signature promises `X` (R1 Q4, with
-   `# type: ignore[return-value]` as the silenced form), `None` standing in for a
+   it, checked by the type checker — `dict.get` beside `dict[k]` is the model. The
+   findings are `None` returned where the signature promises `X` (R1 Q4, with
+   `# ty: ignore[invalid-return-type]` or `# type: ignore[return-value]` as the
+   silenced form), `None` standing in for a
    failure (R2 Q5, Separate Failure from Absence — raise), and callers stacking
    `is None` guards because the absence should have been an exception. Never a
    `tuple[X, bool]`.
@@ -232,7 +233,8 @@ R7 Q3.
 Two files every binding must supply because core has no default for them — the
 orchestrator's pre-flight and the analyze command's command discovery — name the
 Python tool chain: `pyproject.toml` as the marker, `pytest`, `ruff check` and
-`ruff format`, and `mypy` only where a `[tool.mypy]` table exists. The refactoring
+`ruff format`, `ty check` only where a `[tool.ty]` table exists and `mypy` only where a
+`[tool.mypy]` table exists. The refactoring
 routing table and the lint-fixer's compact copy are keyed by ruff codes; duplicated
 code, file length, exhaustiveness and single-implementer protocols have no ruff rule
 and are review-only rows, as the fixture's manifest records. The gate's adapter is
@@ -252,8 +254,8 @@ identifiers) is one include under `examples/<case>/`. About a third of each file
 core; the rest is the binding's.
 
 The Go sections are the original text, cut at section boundaries. The Python
-sections are written in Python and may argue differently where Python differs: mypy
-and `assert_never` where Go had the compiler and `exhaustive`, a recorded tuple of
+sections are written in Python and may argue differently where Python differs: the
+type checker (ty or mypy) and `assert_never` where Go had the compiler and `exhaustive`, a recorded tuple of
 implementers where Go sealed an interface with an unexported method, a frozen
 dataclass where Go had private fields behind accessors, `_private` docstrings where
 Go had comments on unexported symbols. Core headings such as "private fields +

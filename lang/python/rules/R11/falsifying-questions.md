@@ -35,9 +35,9 @@
    returns a fallback deep in the call graph — the maybe-unknown concept leaked past
    construction; dispatch should have been chosen at `parse`. The one `case _:`
    that is not a finding is `case _: assert_never(x)` closing a `match` over an
-   `Enum` or a `Literal`: it is the completeness proof mypy checks, not a default.
+   `Enum` or a `Literal`: it is the completeness proof ty checks, not a default.
    A `match` over an `Enum` with no such arm is incomplete silently — ruff has no
-   exhaustiveness rule, and mypy checks only when `assert_never` asks it to — so
+   exhaustiveness rule, and ty checks only when `assert_never` asks it to — so
    the missing arm is itself a finding under Keep the Single Exhaustive Switch.
 
 4. **Does a boolean parameter select between behaviors?**

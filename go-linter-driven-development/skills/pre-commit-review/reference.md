@@ -24,7 +24,7 @@ reported `not reached` where a three-rule hunter did not.
 | R4 | structure | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
 | R5 | structure | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
 | R6 | tests | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
-| R7 | tests | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R7 | tests | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps; untriaged mutation survivors on a leaf type |
 | R8 | state | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
 | R9 | documentation | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
 | R10 | state | `../../rules/R10-concurrency-safety.md` | goroutines without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |

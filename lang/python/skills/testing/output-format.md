@@ -31,7 +31,7 @@ All tests pass
 100% coverage on leaf types
 
 Next Steps:
-1. Run linter: ruff check --fix . && ruff format . && mypy
+1. Run linter: ruff check --fix . && ruff format . && ty check   # or mypy, whichever the repository configures
 2. If linter fails → use @refactoring skill
 3. If linter passes → use @pre-commit-review skill
 ```

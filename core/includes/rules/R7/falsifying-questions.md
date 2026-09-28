@@ -41,3 +41,17 @@ Test files are the ones the repository's test runner picks up (`*{{.TestGlob}}`,
    `time.sleep`, `setTimeout`, `Thread.sleep`).
    Violation: any hit — replace with an event, channel or wait primitive with a
    timeout.
+
+7. **Does a mutant survive a leaf type's tests?**
+   Detection: for each new or changed leaf type, run the repository's mutation
+   testing tool over that leaf's package only (the mechanics bullet names the tool
+   and the command) and read its list of survivors; skip orchestrators, the top
+   rung and any package that does I/O. A tool the language has but the machine
+   lacks is proposed for install as the mechanics bullet says, never skipped and
+   never counted as a pass. Without any tool, list the leaf's comparisons
+   and boolean conditions, check the table for a row at each boundary value and on
+   each side of each condition, and hand-flip any operator whose rows are missing
+   (`<` to `<=`, `>` to `>=`, a condition negated), run the leaf's tests, revert.
+   Violation: any survivor on a leaf type that is not recorded as equivalent — a
+   missing table row or dead logic; name the mutant (file, line, operator) and the
+   row that would kill it.

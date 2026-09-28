@@ -51,10 +51,10 @@ baselines is in [eval-baseline.md](eval-baseline.md).
 |---|---|
 | `runner/` | `ldd-eval`, the stop-gap runner, language-neutral; deleted the day the gate opens |
 | `<lang>/fixture/<lang>-mini/` | the fixture (`go/fixture/go-mini/`, `py/fixture/py-mini/`): a device-fleet service planted with every rule's violations and a control per rule; no hints in the tree |
-| `<lang>/violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it; the same 149 ids in both suites |
+| `<lang>/violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it; the same 153 ids in both suites |
 | `<lang>/check-manifest.sh` | keeps the manifest honest: anchors match, no hint words, every rule has plants and controls |
 | `go/gen-review-graders.sh` | generates the whole-repo review's recall, cluster and precision graders from either manifest |
-| `<lang>/scaffold/` | `default.sh` copies the fixture into a fresh git repo; `red-lint.sh` also strips every suppression (`//nolint`, or `# noqa` and `# type: ignore`) |
+| `<lang>/scaffold/` | `default.sh` copies the fixture into a fresh git repo; `red-lint.sh` also strips every suppression (`//nolint`, or `# noqa`, `# type: ignore` and `# ty: ignore`) |
 | `<lang>/cases/<case>/` | `prompt.md`, `graders/*.md`, `case.yaml`, optional `postcheck.sh`; `py/cases/suite.yaml` names the Python source and test globs |
 | `<lang>/postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite (a Go test for go-mini, pytest for py-mini, one shared recording) |
 | `baselines/<lang>-<plugin version>-<plugin sha>/` | committed reference runs: verdicts, one `traces.tar.zst`, the plugin pin, the write-up |

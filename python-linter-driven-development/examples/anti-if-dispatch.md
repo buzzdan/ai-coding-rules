@@ -52,7 +52,7 @@ Why this is a defect and not a style choice:
   in view when the third channel landed. Duplicated discriminators drift the same way
   duplicated validation predicates drift (R1's Q2).
 - **Adding SMS is a scavenger hunt.** Three known sites, plus whatever a grep misses
-  (test helpers, a metrics label formatter). Neither ruff nor mypy flags any of them:
+  (test helpers, a metrics label formatter). Neither ruff nor ty flags any of them:
   an if-chain has no completeness, a `match` on a `str` has nothing to be exhaustive
   over, and a `.get(kind, default)` swallows the new case silently.
 - **"Unknown channel" leaks everywhere.** Every switching site carries the
@@ -253,13 +253,13 @@ cheaper alternative is R11's sanctioned form, **Keep the Single Exhaustive Switc
             case Severity.CRITICAL:
                 return "red"
             case _:
-                assert_never(self)  # exhaustive: mypy fails when a Severity is added unhandled
+                assert_never(self)  # exhaustive: ty fails when a Severity is added unhandled
 ```
 
 The `case _: assert_never(self)` arm is not an unknown-kind default — it is the
-completeness proof. mypy narrows `self` through the arms; if a member is left
+completeness proof. ty narrows `self` through the arms; if a member is left
 unhandled, the type reaching `assert_never` is not `Never` and the check fails at
-this `match`. Adding `Severity.FATAL` now fails `mypy` instead of falling through to
+this `match`. Adding `Severity.FATAL` now fails `ty` instead of falling through to
 `""`. That is the whole benefit, at none of the cost. (ruff has no exhaustiveness
 rule; without the `assert_never` arm the `match` is incomplete silently.)
 
