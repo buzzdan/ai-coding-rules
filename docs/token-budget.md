@@ -315,7 +315,7 @@ The skeptic's saving, some sixteen turns of a 50k-token context, is under that
 noise at three runs; the stage removes the mechanism it names and does not move the
 bill it can be measured by, and the critic's sweep is the next line to bound.
 
-### S8 — the critic reads the scope in chunks and reports what changes
+### S9 — the critic reads the scope in chunks and reports what changes
 
 The comment critic's turns were bounded by S1, from 75 on the baseline to 8 to 15
 since, and two mechanisms remain, both read on the whole-repository runs of S5 and
@@ -330,7 +330,8 @@ writes a block for every comment it judged, KEEPs included: 230 to 280 blocks, 3
 the rest; a hundred KEEP blocks written out is the difference between a 3k report and
 a 9k one.
 
-Two changes, in the critic's agent file and the two steps that spawn it. The scope
+Two changes, in the critic's agent file and the two steps that spawn it, the bound
+the critic has until S8's scope script writes its comment lines for it. The scope
 comes in chunks: on a whole-repository sweep the numbered scope files that carry
 comments are read several per call in the bundle's directory order, each call sized
 to come back whole, never one dump of the scope and never a Read of a spilled result;
@@ -435,7 +436,7 @@ diet, since nothing in the diet can change them.
 | S5 | hunter fan-out | 8.45M best to 4.63M worst, recall in band | none |
 | S6 | grep pre-filter, mechanical hunters | enables S1 and S5 | enables CI use |
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
-| S8 | critic reads the scope twice, writes every KEEP | critic tool output 36k to 59k down to the scope once, report about half | documentation skill, small |
+| S9 | critic reads the scope twice, writes every KEEP | critic tool output 36k to 59k down to the scope once, report about half | documentation skill, small |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number
