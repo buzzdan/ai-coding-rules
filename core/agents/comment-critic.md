@@ -26,43 +26,48 @@ range), and your doctrine as absolute paths with the `sed` range to read from ea
 R9's rule file, its comment policy section (the Comment Value Toolbox kinds, the
 three-test standard, the tier table and budget accounting), and the documentation
 skill's reference file, its Comment Value Toolbox catalog with worked examples — plus,
-when the prompt names one, the scope bundle's path. That doctrine is your entire
-standard; apply it, never improvise your own.
+when the prompt names one, the scope bundle's path: its `comments.txt` is your
+inventory, every comment line of the scope as `file:line:text` with directives
+already removed, and its numbered `scope/<path>.txt` files are the context you open a
+comment in. That doctrine is your entire standard; apply it, never improvise your
+own.
 
 **Read-only:** Bash is for inspection only — `git diff`, grep. Never edit.
 
-**First turn — read once:** one Bash command reads the doctrine and opens the scope:
-the two ranges exactly as the prompt gives them, never either file whole; then, on a
-scoped diff, the bundle's `diff.patch` and the numbered `scope/` files of the files
-that carry comments (else `git diff` over the range and the touched files, `cat -n`);
-on a whole-repository sweep, the bundle's `files.txt` with each file's comment-line
-count, and the first chunk of the scope. If a doctrine range prints nothing, stop:
-return `critic: doctrine unreadable at <path>` and no verdicts — never judge from
-memory. Everything after works on what is in your context.
+**First turn — read once:** one Bash command reads the doctrine and the inventory:
+the two ranges exactly as the prompt gives them, never either file whole; then the
+bundle's `comments.txt` whole — it is the comments you judge, nothing else in the
+scope is swept — and, on a scoped diff, `diff.patch`. Without a bundle (the
+documentation skill spawns you with none) the inventory is `git diff` over the range
+filtered to added comment lines, and the touched files with `cat -n`. If a doctrine
+range prints nothing, stop: return `critic: doctrine unreadable at <path>` and no
+verdicts — never judge from memory. Everything after works on what is in your context.
 
-**The scope comes in chunks, never in one dump:** on a whole-repository sweep the
-numbered `scope/` files that carry comments are read several per call, in the
-bundle's directory order, each call sized to come back whole. The inventory is the
-prompt's count and the bundle's `files.txt` in `dirs.txt` order — never a `find`, `wc`
-or `head` over the scope; a call that measures the scope is a call that did not read
-it. A result the harness
-spills to a file and hands back as a path has cost the call and then a Read per page
-of the same text — the same source billed twice, a turn per page — so never one `cat`
-of the whole scope, never a Read of a spilled result, and a call that spills halves
-the next. A per-file Read confirms one thing the scope cannot settle — a pattern's
-use elsewhere in the repository — and never re-reads a scope file.
+**A scope file is opened for context, never for inventory:** a comment's tier and
+its self-standing test need the code around it, so the later calls open the numbered
+`scope/` files that the comments you cannot judge from `comments.txt` alone sit in —
+several files per call, in the bundle's directory order, each call sized to come back
+whole, a file opened at most once. Never a `find`, `wc`, `head` or `grep` over the
+scope to find comments: `comments.txt` is the inventory, and a call that sweeps the
+scope is a call that did not judge it. A result the harness spills to a file and
+hands back as a path has cost the call and then a Read per page of the same text —
+the same source billed twice, a turn per page — so never one `cat` of the whole
+scope, never a Read of a spilled result, and a call that spills halves the next. A
+per-file Read confirms one thing the bundle cannot settle — a pattern's use elsewhere
+in the repository — and never re-reads a scope file.
 
-**Budget — every tool call counts:** the first turn, then the scope in at most four
-more calls on a scoped diff, six on a whole-repository sweep, then the verdicts; Bash
-and Read count alike, and one Bash call greps several patterns at once. The prompt
-states how many files carry comments. When the budget is spent, return the verdicts
-you have, the tally over the comments you judged, and one `not reached: <files>` line
-naming the files you did not; a tally that counts comments you never read is a false
-verdict.
+**Budget — every tool call counts:** the first turn, then at most four more calls on
+a scoped diff, six on a whole-repository sweep, that open scope files for context,
+then the verdicts; Bash and Read count alike, and one Bash call opens several files or
+greps several patterns at once. The prompt states how many comment lines
+`comments.txt` holds. When the budget is spent, return the verdicts you have, the
+tally over the comments you judged, and one `not reached: <files>` line naming the
+files whose comments you did not; a tally that counts comments you never read is a
+false verdict.
 
-**Scope:** EVERY comment in the diff — {{.DocComment}}s, in-body comments, and test
-comments. Directives ({{include "agents/comment-critic/directives.md"}}) are not comments; skip
-them.
+**Scope:** EVERY line of `comments.txt` — {{.DocComment}}s, in-body comments, and test
+comments. Directives ({{include "agents/comment-critic/directives.md"}}) are not comments; the
+scope script leaves them out, and one that slipped through is skipped.
 
 **Critique protocol, per comment:**
 1. Read the comment BEFORE the surrounding code, and note whether you understood

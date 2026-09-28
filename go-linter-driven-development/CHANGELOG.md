@@ -17,8 +17,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the bundle from the review's scope rung — a file list, the working tree, the branch
   against its base, or the whole repository — with the added comment lines the
   critic judges in `comments.txt`, and prints one summary line. Both scripts have
-  their own fixture matrix, `scripts/ldd-detect_test.sh`. The review skill does not
-  call them yet; what each question asks is unchanged.
+  their own fixture matrix, `scripts/ldd-detect_test.sh`. What each question asks is
+  unchanged.
+
+- **The review runs on the scripts.** The pre-commit review's first step is one Bash
+  call that runs `ldd-scope.sh` for the caller's scope rung and `ldd-detect.sh` over
+  the bundle it wrote, and reads the counts table it prints — about 300 tokens in
+  place of the Falsifying-questions sections of all twelve rules and the greps the
+  parent composed from them. The suppression check is the table's `SUPPRESS` row.
+  Each rule hunter gets its family's rows of the hits table and its rules' rows of the
+  counts table beside the bundle: it runs no detection command, judges every hit the
+  table counted against its question's prose, runs the `judgment` questions by
+  reading as before, and its receipts carry the table's numbers, so the report
+  header's reconciliation is mechanical — a receipt below the table's count, or a
+  question without one, renders `PARTIAL coverage`. A question capped in the table is
+  the one case the hunter runs a pattern itself. The comment critic reads the
+  bundle's `comments.txt` as its inventory and opens a scope file only to judge a
+  comment in context; nothing sweeps the scope for comments. The report contract is
+  unchanged.
 
 - **Mutation testing on leaf types.** R7 now says what 100% coverage on a leaf type
   proves and what it does not: coverage is the floor, the mutation score the claim.

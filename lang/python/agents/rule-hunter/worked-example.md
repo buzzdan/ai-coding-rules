@@ -1,6 +1,6 @@
 **Worked example (analysis style only — your rule file governs the substance):**
 ```
-Lead (pre-filter): user/service.py:14 matched inline check on a domain primitive.
+Lead (hits.tsv, R<N> Q1): user/service.py:14 matched inline check on a domain primitive.
 Q1 (rule): validated inline instead of via a constructor?
   Read user/service.py:10-16 → `if "@" not in email: raise ValueError(...)`
   → YES: domain concept checked in a service method, no `Email.parse`/`__post_init__` owns it.

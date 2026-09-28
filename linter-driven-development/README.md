@@ -72,17 +72,21 @@ linter-driven-development/
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Go for demonstration)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with a detected language adapter
+                  ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
 ```
 
 - **[`rules/`](rules/)** — R1–R12, each a self-contained hunter rulebook: Principle,
   Why, a canonical before/after shape, Design guidance, a Fix pattern, and Falsifying
-  questions with what to search for.
+  questions with what to search for — a detect line where a pattern is
+  language-neutral, `judgment` where only a reading answers.
 - **[`skills/`](skills/)** — thin directional views that sequence and route into the
   rules. They never restate rule content.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
   contexts, pointed by path at the relevant rule files — a hunter gets its rule
   family's, four hunters at most — and, for hunters and the critic, at the scope
-  bundle — which they read in their first turn.
+  bundle the review scripts wrote — a hunter gets its family's rows of the detection
+  pass's hits table, the critic the bundle's comment lines — which they read in their
+  first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the
   documentation-network gate `/wire-repo-brain` installs into your repository. Its
   language adapter is chosen at run time: `go.mod` selects the Go block,

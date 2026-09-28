@@ -398,16 +398,23 @@ The classification the pass produced, per binding:
 | Python | 36 | 2 | 4 | 28 |
 | generic (core defaults) | 16 | 2 | 4 | 48 |
 
-The review skill rewires around the two scripts (the second half of this stage; the
-scripts ship first, with the skill unchanged, so no eval behavior moves before the
-rewiring is proved). Step 1 is one Bash call that runs both and prints the counts
-table, in place of the twelve-section dump and the improvised greps. Step 2 hands each hunter its family's rows of the hits table and
-the bundle; the hunter no longer runs detection commands, its receipts are the counts
-table's rows for its rules, and its work is the judgment the prose describes on each
-hit, plus the judgment questions, which it runs as today. The `Hunters:` header keeps
-its shape and its numbers now come from the counts table against the hunter tallies,
-so a hunter that reports fewer hits judged than the table counted renders `PARTIAL
-coverage` mechanically. The report contract the graders read does not change.
+The review skill runs on the two scripts (the stage shipped in two halves: the
+scripts first with the skill unchanged, so no eval behavior moved before the rewiring
+was proved, then the rewiring). Step 1 is one Bash call that runs both and prints the
+counts table, in place of the twelve-section dump and the improvised greps; the
+suppression check is the table's `SUPPRESS` row. Step 2 hands each hunter its family's
+rows of the hits table, its rules' rows of the counts table and the bundle; the hunter
+runs no detection command, its receipts carry the counts table's numbers, and its work
+is the judgment the prose describes on each hit, plus the judgment questions, which it
+runs by reading as before. A rule with no hit in the table gets no hunter, as a rule
+with no pre-filter hit got none before: a judgment question is read on the ground a
+mechanical hit of its rule names, so judgment rows alone spawn nothing. A question
+capped in the hits table is the one case a hunter runs a pattern itself, over the
+scope's file list. The `Hunters:` header keeps its shape and its numbers now come
+from the counts table against the hunter receipts, so a hunter that reports fewer
+hits judged than the table counted renders `PARTIAL coverage` mechanically. The
+critic reads the bundle's `comments.txt` as its inventory and opens a scope file only
+to judge a comment in context. The report contract the graders read does not change.
 
 What this stage buys is measured in two places. Tokens: on a scoped review the main
 thread is 75 to 85 percent of the bill and the step 1 dump alone is about 10k tokens

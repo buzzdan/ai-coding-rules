@@ -8,7 +8,7 @@ This Claude Code plugin is built from the same core as
 design rules stated once as data, thin skills that sequence design, TDD, refactoring,
 testing, review and documentation, and an evidence-based review run by fresh-context
 agents. What differs is the language-shaped part: every canonical example is Python,
-every detection command greps `.py` files, the linter routing is keyed by ruff codes
+every detect line runs over `.py` files, the linter routing is keyed by ruff codes
 and the type checker's (ty, or mypy), and the testing skill speaks pytest.
 
 Install it for a Python repository. A repository in a language without a binding
@@ -118,18 +118,22 @@ python-linter-driven-development/
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Python)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with the Python adapter
+                  ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
 ```
 
 - **[`rules/`](rules/)** — R1–R12, each a self-contained hunter rulebook: Principle,
   Why, a canonical before/after in Python, Design guidance, a Fix pattern, and
-  Falsifying questions with grep commands over `.py` files.
+  Falsifying questions, each with a detect line the detection script runs over `.py`
+  files — a grep or path pattern, an R9 gate question, or `judgment`.
 - **[`skills/`](skills/)** — thin directional views that sequence and route into the
   rules. They never restate rule content. The testing skill's
   [reference](skills/testing/reference.md) is a short pytest harness catalogue.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
   contexts, pointed by path at the relevant rule files — a hunter gets its rule
   family's, four hunters at most — and, for hunters and the critic, at the scope
-  bundle — which they read in their first turn.
+  bundle the review scripts wrote — a hunter gets its family's rows of the detection
+  pass's hits table, the critic the bundle's comment lines — which they read in their
+  first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the repo-brain
   gate. Its Python adapter resolves backticked symbols against classes, functions,
   methods and module-level assignments, and treats a `pyproject.toml` directory as a
