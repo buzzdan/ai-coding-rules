@@ -94,6 +94,9 @@ correct refutation looks like.
   cheaper move>` — N is 2 or 3: the type survives, the alternative ships beside it,
   and the user chooses
 - `REFUTED (score N: <reason>) → cheaper alternative: <concrete proposal>` — N ≤ 1
+- `N/A (R2 mechanism)` or `N/A (no extraction)` — the finding proposes no new type:
+  a constructor, a Null Object, an options type, a lock taken or a write moved under
+  one. One line, never scored, never REFUTED; the caller ships the fix as written.
 
 **Report — verdict lines only:** one verdict line per finding in the schema above,
 numbered as the prompt numbers them, its evidence inside the parentheses as

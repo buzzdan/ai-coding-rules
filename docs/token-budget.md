@@ -301,9 +301,11 @@ pass and a second pass of single greps, above the N+2 the budget states, and the
 twenty-turn ceiling in the agent's definition did not stop it, so the harness
 version the evals run on either does not enforce the field for a plugin's agents or
 counts turns differently, and the ceiling is declared but not relied on. The 4-turn
-run batched fourteen findings into four greps and returned six `N/A (R2 mechanism)`
-verdicts, so the parent still sends R2's construction mechanics despite the step
-that says not to. Gate 2 per case does not hold at three runs: 5.48M, 4.06M and
+run batched fourteen findings into four greps and returned six `N/A` verdicts, three
+for R2 construction mechanics and three for R10 lock fixes that name no owner type,
+findings the parent sent against the reference's own exclusion; step 3 now states the
+exclusion inline, and the skeptic has an `N/A (no extraction)` line for what still
+arrives. Gate 2 per case does not hold at three runs: 5.48M, 4.06M and
 5.07M billed tokens against 4.63M, 4.44M and 4.00M, the worst new run above the
 best old one, and the tier up 12 percent. The extra is not the skeptic's: the
 comment critic ran 12 to 15 turns with about 52k tokens of tool output against 9 to
