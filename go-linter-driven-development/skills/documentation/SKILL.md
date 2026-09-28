@@ -110,8 +110,11 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    Toolbox catalog: `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`
    — the critic reads both ranges in its first turn, never a file whole; nothing is
    pasted, and this skill reads neither to spawn it; (c) the absolute path to
-   `../../examples/private-comment-noise.md`; (d) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
-   fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
+   `../../examples/private-comment-noise.md`; (d) the diff scope; (e) the count of
+   files in the diff that carry comments and the critic's budget in one line, as
+   @pre-commit-review step 3b states it — the critic reads the scope several files a
+   call, never in one dump, and reports non-KEEP verdicts and the tally. Apply every
+   non-KEEP verdict (this skill is the rung-1 fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
    `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the
    caller — never fixed here (extraction is @refactoring's move). Then re-spawn
    the critic ONCE to confirm clean; a still-dirty re-critique is reported as-is,

@@ -26,6 +26,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The critic reads the scope in chunks and reports what changes.** On a
+  whole-repository sweep the comment critic reads the numbered scope files that carry
+  comments several per call, in the bundle's directory order, each call sized to come
+  back whole — never one dump of the scope, which the harness spills to a file that
+  the critic then re-reads page by page, the same source billed twice. Its budget
+  counts every tool call — the first turn, then at most four calls on a scoped diff,
+  six on a sweep, then the verdicts — and the spawn prompts of the review skill's
+  step 3b and the documentation skill's critique step state how many files carry
+  comments and the budget in one line. Its report is one block per TRIM, REWRITE,
+  DELETE or R3 route and the tally; a KEEP is counted in the tally and never written
+  as a block, where a sweep had written a hundred of them for the caller to drop.
+  (Token budget stage S8.)
 - **The skeptic gets extractions only.** The review skill's step 3 now says inline
   what goes to the overabstraction skeptic — a finding whose fix is a new type or
   package: R1's domain type, parameter object and named enum, R4's promotion to a

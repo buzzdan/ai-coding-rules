@@ -186,10 +186,16 @@ spawn prompt MUST contain:
 3. The absolute path of `../../examples/private-comment-noise.md`.
 4. The diff scope and the bundle's absolute path — when this review wrote one; a caller
    without a bundle omits it, and the critic builds its scope in its first turn.
+5. The count of in-scope files that carry comments — the prefilter's files on a
+   scoped diff, `files.txt` grepped on `--all` — and the budget in one line: `N files
+   carry comments — budget: the first turn, then the scope in at most K calls of
+   several files each (every tool counts; never one dump of the scope), then the
+   verdicts. Report non-KEEP verdicts and the tally.` K is four on a scoped diff, six
+   on `--all`.
 
-It returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, `DELETE → route
-R3`) with evidence and replacement text, and a tally; non-KEEP verdicts are 🟡
-Readability Debt ("Critic verdicts", read in step 2).
+It returns one block per non-KEEP verdict (`TRIM / REWRITE / DELETE`, `DELETE → route
+R3`) with evidence and replacement text, and a tally that counts the KEEPs; non-KEEP
+verdicts are 🟡 Readability Debt ("Critic verdicts", read in step 2).
 </step_3b_comment_critic>
 
 <step_4_merged_report>
