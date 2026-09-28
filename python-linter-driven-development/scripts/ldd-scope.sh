@@ -35,7 +35,10 @@
 #                  from the bundle anchors like a grep -n hit
 #   dirs.txt       on --all: "<dir> TAB <files> TAB <lines>" per source
 #                  directory, for the hunters' reading orders
-#   comments.txt   the comment lines the critic judges, "file:line:text": on a
+#   comments.txt   the comment lines the critic judges, "file:line:text ⏎ code",
+#                  the code being the first non-blank, non-comment line below
+#                  the comment — the declaration it documents, so the critic
+#                  can tell a comment's subject without opening the file: on a
 #                  scoped rung the diff's added lines that carry the language's
 #                  comment marker, plus every comment line of a bundled file the
 #                  diff does not touch (an untracked file, or a committed file
@@ -279,6 +282,24 @@ else
     done
     comment_lines_of ${UNTOUCHED[@]+"${UNTOUCHED[@]}"} >> "$OUT/comments.txt"
   fi
+fi
+# Each comment line gets the first code line below it (" ⏎ <code>"): the
+# declaration a doc comment documents, or the statement an in-body comment
+# names. Files are read once each, in comments.txt order.
+if [[ -s "$OUT/comments.txt" ]]; then
+  LC_ALL=C sort -t: -k1,1 -k2,2n "$OUT/comments.txt" | awk -v cre="^[ \t]*($LANG_COMMENT_RE)" '
+    {
+      i = index($0, ":"); f = substr($0, 1, i - 1); rest = substr($0, i + 1)
+      j = index(rest, ":"); l = substr(rest, 1, j - 1) + 0
+      if (f != cur) { cur = f; n = 0; delete buf; while ((getline line < f) > 0) buf[++n] = line; close(f) }
+      code = ""
+      for (k = l + 1; k <= n; k++) {
+        s = buf[k]
+        if (s ~ /^[ \t]*$/ || s ~ cre) continue
+        gsub(/\t/, " ", s); sub(/^ +/, "", s); sub(/ +$/, "", s); code = substr(s, 1, 160); break
+      }
+      print $0 (code == "" ? "" : " ⏎ " code)
+    }' > "$OUT/comments.tmp" && mv "$OUT/comments.tmp" "$OUT/comments.txt"
 fi
 comment_lines=$(wc -l < "$OUT/comments.txt" | tr -d ' ')
 

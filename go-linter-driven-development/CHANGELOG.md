@@ -37,9 +37,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   files under it, and a committed file named on a clean tree contributes every
   comment line to `comments.txt`, so a file review on a clean tree still reaches
   the critic; the review command hands the current-PR rung as `--base
-  <merge-base>`. The Go R9 rule's WHAT-comment lead also matches methods. The comment critic reads the
-  bundle's `comments.txt` as its inventory and opens a scope file only to judge a
-  comment in context; nothing sweeps the scope for comments. The report contract is
+  <merge-base>`. The Go R9 rule's WHAT-comment lead also matches methods, and the Go
+  R8 rule's test-mutates-a-global lead matches any assignment to a package's
+  exported name in a test. The comment critic reads the
+  bundle's `comments.txt` as its inventory — each line carrying the code line below
+  the comment, the declaration it documents — and opens a scope file only for a
+  comment that line does not settle; nothing sweeps the scope for comments. The
+  report's first line is `📊 CODE REVIEW REPORT`, and a finding the skeptic refuted
+  keeps its own line beside its cheaper alternative. The report contract is
   unchanged.
 
 - **Mutation testing on leaf types.** R7 now says what 100% coverage on a leaf type

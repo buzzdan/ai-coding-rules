@@ -413,7 +413,9 @@ violations are judgment questions (R3's function size, R12's aliased constructor
 argument) is still read wherever its family is. The script writes the hits table
 twice, capped per question for the hunter's first turn and uncapped as
 `hits-all.tsv`, so a capped question's remaining hits are one more `awk` and no
-hunter runs a pattern of its own. The `Hunters:` header keeps its shape and its numbers now come
+hunter runs a pattern of its own. Each line of `comments.txt` carries the code line below the comment — the
+declaration it documents — so the critic settles most comments from the inventory
+and opens a scope file only for the ones it does not. The `Hunters:` header keeps its shape and its numbers now come
 from the counts table against the hunter receipts, so a hunter that reports fewer
 hits judged than the table counted renders `PARTIAL coverage` mechanically. The
 critic reads the bundle's `comments.txt` as its inventory and opens a scope file only

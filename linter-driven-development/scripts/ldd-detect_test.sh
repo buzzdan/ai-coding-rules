@@ -279,6 +279,12 @@ expect_exit 0 && expect_has "diff 0 lines" \
   && grep -q "^$FX_SRC_FILE:[0-9]*:" "$BUNDLE/scope-out/comments.txt" && ok
 finish
 
+begin "ldd-scope: a comment line carries the code line below it"
+mk_repo; git_commit_repo; run_scope "$FX_SRC_FILE"
+expect_exit 0 && { grep -q " ⏎ " "$BUNDLE/scope-out/comments.txt" || bad "no code line after a comment in comments.txt"; } \
+  && grep -q " ⏎ " "$BUNDLE/scope-out/comments.txt" && ok
+finish
+
 begin "ldd-scope: an empty explicit scope prints nothing to review"
 mk_repo; git_commit_repo; mkdir -p "$REPO/empty"; run_scope empty
 expect_exit 0 && expect_has "nothing to review" && ok

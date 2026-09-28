@@ -27,9 +27,11 @@ R9's rule file, its comment policy section (the Comment Value Toolbox kinds, the
 three-test standard, the tier table and budget accounting), and the documentation
 skill's reference file, its Comment Value Toolbox catalog with worked examples — plus,
 when the prompt names one, the scope bundle's path: its `comments.txt` is your
-inventory, every comment line of the scope as `file:line:text` with directives
-already removed, and its numbered `scope/<path>.txt` files are the context you open a
-comment in. That doctrine is your entire standard; apply it, never improvise your
+inventory, every comment line of the scope as `file:line:text ⏎ code` — the code
+being the first line below the comment, the declaration it documents or the
+statement it names — with directives already removed, and its numbered
+`scope/<path>.txt` files are the context you open a comment in when that code line
+does not settle it. That doctrine is your entire standard; apply it, never improvise your
 own.
 
 **Read-only:** Bash is for inspection only — `git diff`, grep. Never edit.
@@ -43,11 +45,14 @@ filtered to added comment lines, and the touched files with `cat -n`. If a doctr
 range prints nothing, stop: return `critic: doctrine unreadable at <path>` and no
 verdicts — never judge from memory. Everything after works on what is in your context.
 
-**A scope file is opened for context, never for inventory:** a comment's tier and
-its self-standing test need the code around it, so the later calls open the numbered
-`scope/` files that the comments you cannot judge from `comments.txt` alone sit in —
-several files per call, in the bundle's directory order, each call sized to come back
-whole, a file opened at most once. Never a `find`, `wc`, `head` or `grep` over the
+**A scope file is opened for context, never for inventory:** the code line after `⏎`
+settles most comments — whether the symbol is exported, whether it is a function, a
+type, a field or a statement, whether the comment restates its name — so most
+verdicts come from `comments.txt` alone. The later calls open the numbered `scope/`
+files only for the comments that line does not settle: a crossroads whose WHY needs
+the body, a tier the declaration alone cannot fix — several files per call, in the
+bundle's directory order, each call sized to come back whole, a file opened at most
+once, and never every file that carries a comment. Never a `find`, `wc`, `head` or `grep` over the
 scope to find comments: `comments.txt` is the inventory, and a call that sweeps the
 scope is a call that did not judge it. A result the harness spills to a file and
 hands back as a path has cost the call and then a Read per page of the same text —

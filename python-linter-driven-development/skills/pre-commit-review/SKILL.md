@@ -200,9 +200,11 @@ read in step 2.
 
 <step_3b_comment_critic>
 When the scope carries comment lines — step 1's summary line says how many, and
-`comments.txt` in the bundle holds them as `file:line:text`, the diff's added comment
-lines on a scoped review, every comment line of the bundled files on `--all`, minus
-directives; one line qualifies, none and the critic is not spawned — spawn one
+`comments.txt` in the bundle holds them as `file:line:text ⏎ code`, the code being the
+declaration or statement below the comment: the diff's added comment lines on a
+scoped review plus every comment line of a bundled file the diff does not touch,
+every comment line of the bundled files on `--all`, minus directives; one line
+qualifies, none and the critic is not spawned — spawn one
 comment-critic in the same hunter-free message as the skeptic (alone when no skeptic
 runs), foreground; it is waited for only by the call returning. Its spawn prompt MUST
 contain:
@@ -256,6 +258,9 @@ once, now. The contract it spells out, kept whatever the scope:
   the pass is not done until each anchor two rules converged on has its entry, and a
   whole-repository review commonly has six or more. Members still render under their
   categories, each tagged `[cluster: <anchor>]`.
+- **The first line is `📊 CODE REVIEW REPORT`**, then the `Scope:`, `Hunters:`,
+  `Skeptic:` and `Critic:` lines as the example shows — before any cluster, never
+  under a title of the review's own.
 - **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
   R9, the critic's non-KEEP verdicts) · 🟢 Polish (the skeptic's cheaper alternatives).
 - **One line per finding**: `file:line | R<N> Q<n>: evidence in the question's own
@@ -264,7 +269,10 @@ once, now. The contract it spells out, kept whatever the scope:
   `Name enum strings`, `Extract Leaf Type` — and the skeptic's verdict and score follow
   the move in the same cell: `Introduce Parameter Object: Endpoint — skeptic REFUTED
   (score 1) → rename dial to Client.dial`. A verdict never replaces the move name with
-  its alternative; a refuted type's alternative also ships as its own 🟢 Polish line. A
+  its alternative, and a REFUTED finding keeps its own line under its category — the
+  hunter's evidence in the question's words, the move, the verdict — while its
+  cheaper alternative ships as a second line under 🟢 Polish; a Polish line alone is
+  a finding dropped, and the `Hunters:` count does not count it. A
   count is never a finding — `R9 (46 findings)` is forbidden; findings of one shape may
   share one line naming every anchor. Anchors rendered equal findings returned.
 - **One physical line, never wrapped.** A finding line and a cluster title line are

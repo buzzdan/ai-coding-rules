@@ -161,6 +161,6 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    reject upward (`../examples/dependency-rejection.md`).
 
 6. **Do tests mutate globals to run?**
-   Detect-grep: `env\.Configs\.[A-Za-z_.]* *=[^=]|\b(os|t)\.Setenv\(` files=test
+   Detect-grep: `^\s*[a-z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9_.]* *=[^=]|\b(os|t)\.Setenv\(` files=test
    Violation: a test writing shared state to inject a value — the production code
    under test has a hidden dependency; fix the production code, not the test.
