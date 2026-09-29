@@ -7,8 +7,9 @@
 #
 # Usage:  bash scripts/ldd-scope.sh [options] [<file>...]
 #   Rungs — the first that applies:
-#     <file>...            an explicit scope; the diff is the working tree
-#                          against HEAD for those files
+#     <file>...            an explicit scope — files, or directories expanded
+#                          to the source files under them; the diff is the
+#                          working tree against HEAD for those files
 #     --base <ref>         the branch against its base: <ref>...HEAD
 #     --all                every source file of the repository; no diff
 #     (none)               the working tree against HEAD, plus untracked files
@@ -34,12 +35,17 @@
 #                  from the bundle anchors like a grep -n hit
 #   dirs.txt       on --all: "<dir> TAB <files> TAB <lines>" per source
 #                  directory, for the hunters' reading orders
-#   comments.txt   the comment lines the critic judges, "file:line:text": on a
+#   comments.txt   the comment lines the critic judges, "file:line:text ⏎ code",
+#                  the code being the first non-blank, non-comment line below
+#                  the comment — the declaration it documents, so the critic
+#                  can tell a comment's subject without opening the file: on a
 #                  scoped rung the diff's added lines that carry the language's
-#                  comment marker plus every comment line of an untracked file,
-#                  on --all every comment line of the bundled files — minus
-#                  directive lines (pragmas, build tags, the
-#                  linter's suppression directive, doc-test output markers)
+#                  comment marker, plus every comment line of a bundled file the
+#                  diff does not touch (an untracked file, or a committed file
+#                  named on the command line); on --all every comment line of
+#                  the bundled files — minus directive lines (pragmas, build
+#                  tags, the linter's suppression directive, doc-test output
+#                  markers)
 #
 # Summary line (stdout, last word the bundle path):
 #   ldd-scope: <n> files bundled, <m> listed not bundled, diff <k> lines, <c> comment lines → <bundle>
@@ -120,7 +126,15 @@ add_scope() { # reads paths on stdin — fed by process substitution, never a pi
 DIFF_ARGS=()
 case "$RUNG" in
   explicit)
-    add_scope < <(printf '%s\n' "${EXPLICIT[@]}")
+    # a directory argument stands for the source files under it
+    for f in "${EXPLICIT[@]}"; do
+      if [[ -d "$f" ]]; then
+        if in_git; then add_scope < <(git ls-files --cached --others --exclude-standard -- "$f" | grep -E -- "$(printf '%s' "$LANG_SRC_GLOB" | sed 's/[.]/\\./g; s/\*/.*/g')\$")
+        else add_scope < <(find "$f" -type f -name "$LANG_SRC_GLOB"); fi
+      else
+        add_scope < <(printf '%s\n' "$f")
+      fi
+    done
     in_git && DIFF_ARGS=(--relative HEAD --)
     ;;
   base)
@@ -201,8 +215,10 @@ if [[ "$RUNG" == "all" ]] && (( ${#BUNDLED[@]} > 0 )); then
        | LC_ALL=C sort > "$OUT/dirs.txt"
 fi
 
-# comments.txt — the critic's prefilter: added comment lines on a scoped rung,
-# every comment line of the bundle on --all; directives never count.
+# comments.txt — the critic's inventory: on a scoped rung the diff's added
+# comment lines plus every comment line of a bundled file the diff does not
+# touch (untracked, or committed and named on the command line); every comment
+# line of the bundle on --all; directives never count.
 # comment_lines_of <file>... — every comment line of the files, grep -nH shape
 comment_lines_of() {
   (( $# > 0 )) || return 0
@@ -222,14 +238,35 @@ else
       { n++ }
     ' "$OUT/diff.patch" | LC_ALL=C grep -E -- "^[^:]*:[0-9]+:.*($LANG_COMMENT_RE)" | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE" >> "$OUT/comments.txt"
   fi
-  # an untracked file has no diff: every line of it is added, comments included
-  if in_git && (( ${#BUNDLED[@]} > 0 )); then
-    UNTRACKED=()
-    while IFS= read -r f; do
-      for b in "${BUNDLED[@]}"; do [[ "$b" == "$f" ]] && UNTRACKED+=("$f"); done
-    done < <(git ls-files --others --exclude-standard -- "$LANG_SRC_GLOB")
-    comment_lines_of ${UNTRACKED[@]+"${UNTRACKED[@]}"} >> "$OUT/comments.txt"
+  # a bundled file the diff does not touch has no added lines: every comment
+  # line of it is the critic's (an untracked file, or a committed file named
+  # on the command line on a clean tree)
+  if (( ${#BUNDLED[@]} > 0 )); then
+    touched=$(awk '/^\+\+\+ / { f = $2; sub(/^b\//, "", f); print f }' "$OUT/diff.patch" 2>/dev/null)
+    UNTOUCHED=()
+    for b in "${BUNDLED[@]}"; do
+      printf '%s\n' "$touched" | grep -qxF -- "$b" || UNTOUCHED+=("$b")
+    done
+    comment_lines_of ${UNTOUCHED[@]+"${UNTOUCHED[@]}"} >> "$OUT/comments.txt"
   fi
+fi
+# Each comment line gets the first code line below it (" ⏎ <code>"): the
+# declaration a doc comment documents, or the statement an in-body comment
+# names. Files are read once each, in comments.txt order.
+if [[ -s "$OUT/comments.txt" ]]; then
+  LC_ALL=C sort -t: -k1,1 -k2,2n "$OUT/comments.txt" | awk -v cre="^[ \t]*($LANG_COMMENT_RE)" '
+    {
+      i = index($0, ":"); f = substr($0, 1, i - 1); rest = substr($0, i + 1)
+      j = index(rest, ":"); l = substr(rest, 1, j - 1) + 0
+      if (f != cur) { cur = f; n = 0; delete buf; while ((getline line < f) > 0) buf[++n] = line; close(f) }
+      code = ""
+      for (k = l + 1; k <= n; k++) {
+        s = buf[k]
+        if (s ~ /^[ \t]*$/ || s ~ cre) continue
+        gsub(/\t/, " ", s); sub(/^ +/, "", s); sub(/ +$/, "", s); code = substr(s, 1, 160); break
+      }
+      print $0 (code == "" ? "" : " ⏎ " code)
+    }' > "$OUT/comments.tmp" && mv "$OUT/comments.tmp" "$OUT/comments.txt"
 fi
 comment_lines=$(wc -l < "$OUT/comments.txt" | tr -d ' ')
 

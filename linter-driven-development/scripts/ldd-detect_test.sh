@@ -12,7 +12,8 @@
 #
 # Usage:  bash scripts/ldd-detect_test.sh [path/to/ldd-detect.sh]
 #         (default: the sibling ldd-detect.sh; the rules come from ../rules
-#         beside it, so the test always runs the rendered rule files)
+#         beside it, so the test always runs the rendered rule files; the
+#         sibling ldd-scope.sh is tested on the scope rungs the review uses)
 # Exit:   0 all cases pass · 1 any failure (details on stdout)
 #
 # Uses only POSIX-portable tools, like the script under test.
@@ -24,6 +25,7 @@ DETECT="${1:-$HERE/ldd-detect.sh}"
 [[ -f "$DETECT" ]] || { echo "no such script: $DETECT" >&2; exit 2; }
 DETECT=$(cd "$(dirname "$DETECT")" && pwd)/$(basename "$DETECT")
 RULES=$(cd "$(dirname "$DETECT")/../rules" && pwd)
+SCOPE_SH=$(dirname "$DETECT")/ldd-scope.sh
 
 pass=0 failed=0
 CASE=""
@@ -38,6 +40,14 @@ finish() { rm -rf "$REPO" "$BUNDLE"; }
 run_detect() { # [options...] — runs the script over $REPO with $BUNDLE
   OUT=$(cd "$REPO" && bash "$DETECT" "$@" --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
   ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+}
+run_scope() { # [args...] — runs ldd-scope.sh over $REPO into $BUNDLE/scope-out
+  rm -rf "$BUNDLE/scope-out"
+  OUT=$(cd "$REPO" && bash "$SCOPE_SH" --out "$BUNDLE/scope-out" "$@" 2>"$BUNDLE/.stderr"); CODE=$?
+  ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+}
+git_commit_repo() { # commits everything under $REPO, quietly
+  (cd "$REPO" && git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -qm init)
 }
 run_plan() { # [options...] — the parse-only mode
   OUT=$(bash "$DETECT" --plan "$@" 2>"$BUNDLE/.stderr"); CODE=$?
@@ -225,9 +235,14 @@ mk_repo; run_detect
 expect_exit 0 && expect_count R5 1 '>=1' && ok
 finish
 
-begin "a planted gate hit fires (R9 Q1: an orphan doc)"
-mk_repo; run_detect
+begin "a planted gate hit fires on a whole-repository bundle (R9 Q1: an orphan doc)"
+mk_repo; : > "$BUNDLE/dirs.txt"; run_detect
 expect_exit 0 && expect_count R9 1 '>=1' && ok
+finish
+
+begin "a scoped bundle keeps only the gate lines about its own files"
+mk_repo; run_detect
+expect_exit 0 && expect_count R9 1 0 && ok
 finish
 
 begin "a judgment question renders as a judgment row"
@@ -245,6 +260,96 @@ mk_repo; run_detect --cap 1
 expect_exit 0 && expect_count R10 5 2 \
   && { grep -q '^R10	5	grep	-	0	+1 more hit(s) not listed$' "$BUNDLE/hits.tsv" || bad "no overflow row for R10 Q5"; } \
   && grep -q '^R10	5	grep	-	0	+1 more hit(s) not listed$' "$BUNDLE/hits.tsv" && ok
+finish
+
+begin "hits-all.tsv carries every hit of a capped question"
+mk_repo; run_detect --cap 1
+expect_exit 0 && { (( $(grep -c '^R10	5	grep	' "$BUNDLE/hits-all.tsv") == 2 )) || bad "hits-all.tsv does not carry both R10 Q5 hits"; } \
+  && (( $(grep -c '^R10	5	grep	' "$BUNDLE/hits-all.tsv") == 2 )) \
+  && { ! grep -q 'more hit(s) not listed' "$BUNDLE/hits-all.tsv" || bad "hits-all.tsv has an overflow row"; } \
+  && ! grep -q 'more hit(s) not listed' "$BUNDLE/hits-all.tsv" && ok
+finish
+
+begin "ldd-scope: a directory argument is expanded to the source files under it"
+mk_repo; git_commit_repo; run_scope services
+expect_exit 0 && expect_has "files bundled" \
+  && { grep -qx "$FX_SRC_FILE" "$BUNDLE/scope-out/files.txt" || bad "files.txt lacks $FX_SRC_FILE"; } \
+  && grep -qx "$FX_SRC_FILE" "$BUNDLE/scope-out/files.txt" && ok
+finish
+
+begin "ldd-scope: a committed file named on a clean tree contributes every comment line"
+mk_repo; git_commit_repo; run_scope "$FX_SRC_FILE"
+expect_exit 0 && expect_has "diff 0 lines" \
+  && { grep -q "^$FX_SRC_FILE:[0-9]*:" "$BUNDLE/scope-out/comments.txt" || bad "comments.txt has no line of $FX_SRC_FILE"; } \
+  && grep -q "^$FX_SRC_FILE:[0-9]*:" "$BUNDLE/scope-out/comments.txt" && ok
+finish
+
+begin "ldd-scope: a comment line carries the code line below it"
+mk_repo; git_commit_repo; run_scope "$FX_SRC_FILE"
+expect_exit 0 && { grep -q " ⏎ " "$BUNDLE/scope-out/comments.txt" || bad "no code line after a comment in comments.txt"; } \
+  && grep -q " ⏎ " "$BUNDLE/scope-out/comments.txt" && ok
+finish
+
+begin "ldd-scope: an empty explicit scope prints nothing to review"
+mk_repo; git_commit_repo; mkdir -p "$REPO/empty"; run_scope empty
+expect_exit 0 && expect_has "nothing to review" && ok
+finish
+
+# fx_comment_line — a one-line comment in the row's language, for added lines
+fx_comment_line() { case "$FX_GLOB" in *.py) printf '# added by the test\n' ;; *) printf '// added by the test\n' ;; esac; }
+# fx_ext — the row's source suffix, for files the cases create
+fx_ext() { printf '%s' "${FX_GLOB#\*}"; }
+
+begin "ldd-scope: --base diffs the branch against its base and keeps only the added comment lines"
+mk_repo; git_commit_repo
+fx_comment_line >> "$REPO/$FX_SRC_FILE"
+(cd "$REPO" && git -c user.name=t -c user.email=t@t commit -qam change)
+run_scope --base HEAD~1
+expect_exit 0 && { grep -qx "$FX_SRC_FILE" "$BUNDLE/scope-out/files.txt" || bad "files.txt lacks the changed file"; } \
+  && { [[ -s "$BUNDLE/scope-out/diff.patch" ]] || bad "diff.patch is empty on --base"; } \
+  && { (( $(wc -l < "$BUNDLE/scope-out/comments.txt") == 1 )) || bad "comments.txt should carry the one added comment line, has $(wc -l < "$BUNDLE/scope-out/comments.txt")"; } \
+  && grep -q "added by the test" "$BUNDLE/scope-out/comments.txt" && ok
+finish
+
+begin "ldd-scope: the worktree rung takes changed and untracked files, every comment line of the untracked one"
+mk_repo; git_commit_repo
+fx_comment_line >> "$REPO/$FX_SRC_FILE"
+{ fx_comment_line; fx_comment_line; } > "$REPO/services/fresh$(fx_ext)"
+run_scope
+expect_exit 0 && { grep -qx "$FX_SRC_FILE" "$BUNDLE/scope-out/files.txt" || bad "files.txt lacks the changed file"; } \
+  && { grep -qx "services/fresh$(fx_ext)" "$BUNDLE/scope-out/files.txt" || bad "files.txt lacks the untracked file"; } \
+  && { (( $(grep -c "^services/fresh" "$BUNDLE/scope-out/comments.txt") == 2 )) || bad "the untracked file's two comment lines are not both in comments.txt"; } \
+  && (( $(grep -c "^$FX_SRC_FILE:" "$BUNDLE/scope-out/comments.txt") == 1 )) && ok
+finish
+
+begin "ldd-scope: --all writes dirs.txt with a file and line count per directory"
+mk_repo; git_commit_repo; run_scope --all
+expect_exit 0 && { [[ -f "$BUNDLE/scope-out/dirs.txt" ]] || bad "no dirs.txt on --all"; } \
+  && { grep -qE "^services	[0-9]+	[0-9]+$" "$BUNDLE/scope-out/dirs.txt" || bad "dirs.txt has no 'services TAB files TAB lines' row: $(cat "$BUNDLE/scope-out/dirs.txt")"; } \
+  && { (( $(awk -F'\t' '{ n += $2 } END { print n + 0 }' "$BUNDLE/scope-out/dirs.txt") == 2 )) || bad "dirs.txt file counts do not sum to the 2 bundled files"; } \
+  && { [[ ! -f "$BUNDLE/scope-out/diff.patch" ]] || bad "--all wrote a diff.patch"; } && ok
+finish
+
+begin "ldd-scope: a deleted, a binary, an over-long and a generated file are listed, not bundled"
+mk_repo; git_commit_repo
+printf '\000\001\002binary\n' > "$REPO/services/blob$(fx_ext)"
+{ fx_comment_line; seq 1 5 | sed 's/^/x = /'; } > "$REPO/services/long$(fx_ext)"
+{ printf '%s\n' "$(fx_comment_line | sed 's/added by the test/@generated by a tool/')"; fx_comment_line; } > "$REPO/services/gen$(fx_ext)"
+rm "$REPO/$FX_SRC_FILE"
+run_scope --max-lines 3 "$FX_SRC_FILE" "services/blob$(fx_ext)" "services/long$(fx_ext)" "services/gen$(fx_ext)"
+expect_exit 0 && expect_has "4 listed not bundled" \
+  && { grep -q "^$FX_SRC_FILE (not bundled: deleted)$" "$BUNDLE/scope-out/files.txt" || bad "deleted file not listed as deleted"; } \
+  && { grep -q "^services/blob$(fx_ext) (not bundled: binary)$" "$BUNDLE/scope-out/files.txt" || bad "binary file not listed as binary"; } \
+  && { grep -q "^services/long$(fx_ext) (not bundled: 6 lines)$" "$BUNDLE/scope-out/files.txt" || bad "long file not listed with its line count"; } \
+  && { grep -q "^services/gen$(fx_ext) (not bundled: generated)$" "$BUNDLE/scope-out/files.txt" || bad "generated file not listed as generated"; } \
+  && { [[ ! -d "$BUNDLE/scope-out/scope/services" ]] || bad "a not-bundled file was written under scope/"; } && ok
+finish
+
+begin "ldd-scope: --out refuses a directory that is not empty (exit 2)"
+mk_repo; git_commit_repo
+mkdir -p "$BUNDLE/scope-out"; : > "$BUNDLE/scope-out/stale"
+OUT=$(cd "$REPO" && bash "$SCOPE_SH" --out "$BUNDLE/scope-out" "$FX_SRC_FILE" 2>&1); CODE=$?; ERR=""
+expect_exit 2 && expect_has "empty" && ok
 finish
 
 begin "a file listed as not bundled is still detection scope"

@@ -17,8 +17,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the bundle from the review's scope rung — a file list, the working tree, the branch
   against its base, or the whole repository — with the added comment lines the
   critic judges in `comments.txt`, and prints one summary line. Both scripts have
-  their own fixture matrix, `scripts/ldd-detect_test.sh`. The review skill does not
-  call them yet; what each question asks is unchanged.
+  their own fixture matrix, `scripts/ldd-detect_test.sh`. What each question asks is
+  unchanged.
+
+- **The review runs on the scripts.** The pre-commit review's first step is one Bash
+  call that runs `ldd-scope.sh` for the caller's scope rung and `ldd-detect.sh` over
+  the bundle it wrote, and reads the counts table it prints — about 300 tokens in
+  place of the Falsifying-questions sections of all twelve rules and the greps the
+  parent composed from them. The suppression check is the table's `SUPPRESS` row.
+  A family with a hit gets one hunter carrying every rule file of the family, its
+  family's rows of the hits table and its rules' rows of the counts table beside the
+  bundle: it runs no pattern of its own, judges every hit the table counted against
+  its question's prose, runs the `judgment` questions by reading as before, and its
+  receipts carry the table's numbers, so the report header's reconciliation is
+  mechanical — a receipt below the table's count, or a question without one, renders
+  `PARTIAL coverage`. The detection script also writes the hits uncapped as
+  `hits-all.tsv`, where a capped question's remaining hits and every suppression
+  directive are read. The scope script expands a directory argument to the source
+  files under it, and a committed file named on a clean tree contributes every
+  comment line to `comments.txt`, so a file review on a clean tree still reaches
+  the critic; the review command hands the current-PR rung as `--base
+  <merge-base>`. The Go R9 rule's WHAT-comment lead also matches methods, and the Go
+  R8 rule's test-mutates-a-global lead matches any assignment to a package's
+  exported name in a test. On a scoped review the R9 gate's rows are limited to the
+  scope's own files: an orphan doc or an unwired root is a whole-repository finding,
+  not the diff's. The comment critic reads the
+  bundle's `comments.txt` as its inventory — each line carrying the code line below
+  the comment, the declaration it documents — and opens a scope file only for a
+  comment that line does not settle; nothing sweeps the scope for comments. The
+  report's first line is `📊 CODE REVIEW REPORT`, and a finding the skeptic refuted
+  keeps its own line beside its cheaper alternative. The report contract is
+  unchanged.
 
 - **Mutation testing on leaf types.** R7 now says what 100% coverage on a leaf type
   proves and what it does not: coverage is the floor, the mutation score the claim.

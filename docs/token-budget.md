@@ -398,16 +398,30 @@ The classification the pass produced, per binding:
 | Python | 36 | 2 | 4 | 28 |
 | generic (core defaults) | 16 | 2 | 4 | 48 |
 
-The review skill rewires around the two scripts (the second half of this stage; the
-scripts ship first, with the skill unchanged, so no eval behavior moves before the
-rewiring is proved). Step 1 is one Bash call that runs both and prints the counts
-table, in place of the twelve-section dump and the improvised greps. Step 2 hands each hunter its family's rows of the hits table and
-the bundle; the hunter no longer runs detection commands, its receipts are the counts
-table's rows for its rules, and its work is the judgment the prose describes on each
-hit, plus the judgment questions, which it runs as today. The `Hunters:` header keeps
-its shape and its numbers now come from the counts table against the hunter tallies,
-so a hunter that reports fewer hits judged than the table counted renders `PARTIAL
-coverage` mechanically. The report contract the graders read does not change.
+The review skill runs on the two scripts (the stage shipped in two halves: the
+scripts first with the skill unchanged, so no eval behavior moved before the rewiring
+was proved, then the rewiring). Step 1 is one Bash call that runs both and prints the
+counts table, in place of the twelve-section dump and the improvised greps; the
+suppression check is the table's `SUPPRESS` row. Step 2 hands each hunter its family's
+rows of the hits table, its rules' rows of the counts table and the bundle; the hunter
+runs no detection command, its receipts carry the counts table's numbers, and its work
+is the judgment the prose describes on each hit, plus the judgment questions, which it
+runs by reading as before. A family with no hit in the table gets no hunter, as a
+rule with no pre-filter hit got none before; a family with one gets a hunter carrying
+every rule file of the family, the hitless ones included, so a rule whose only
+violations are judgment questions (R3's function size, R12's aliased constructor
+argument) is still read wherever its family is. The script writes the hits table
+twice, capped per question for the hunter's first turn and uncapped as
+`hits-all.tsv`, so a capped question's remaining hits are one more `awk` and no
+hunter runs a pattern of its own. On a scoped review the detection script keeps only the R9 gate's rows about the
+scope's own files, so repository-wide doc drift does not spawn the documentation
+hunter on every file review. Each line of `comments.txt` carries the code line below the comment — the
+declaration it documents — so the critic settles most comments from the inventory
+and opens a scope file only for the ones it does not. The `Hunters:` header keeps its shape and its numbers now come
+from the counts table against the hunter receipts, so a hunter that reports fewer
+hits judged than the table counted renders `PARTIAL coverage` mechanically. The
+critic reads the bundle's `comments.txt` as its inventory and opens a scope file only
+to judge a comment in context. The report contract the graders read does not change.
 
 What this stage buys is measured in two places. Tokens: on a scoped review the main
 thread is 75 to 85 percent of the bill and the step 1 dump alone is about 10k tokens
@@ -432,6 +446,43 @@ every review case's graders, the whole-repository recall in the S5 band, the
 report-header and cluster graders, the clean-tree controls. Proof: review tier,
 the whole-repository review three times and Cases A, B and F twice, about $25,
 against the S7 runs.
+
+Measured, on this machine, the whole-repository review four times and Cases A, B and
+F twice on the rewired plugin, against the S7 and S9 runs for the whole repository
+and against Cases A, B and F run twice on the scripts-only head (the S8a commit,
+whose skill was the S9 one) for the scoped cases. A branch review before the proof
+found five gaps between the scripts and the review's real invocations — a file named
+on a clean tree gave the critic no comments, a directory argument printed "nothing to
+review", the current-PR rung was handed as a file list, a question whose hits were
+all judgment lost its rule, and a capped question's overflow had no reader — and the
+first proof round found two more: the Go R8 lead for a test that mutates a global
+carried a typo and never fired, and the parent rendered a refuted extraction as its
+Polish alternative alone. Gate 1 holds: 106, 107, 109 and 107 of 114 graders on the
+whole repository (the band is the S5 one at 111 graders, three added since),
+Case A 13 and 11 of 13 against 11 and 11, Case F 14 and 14 of 14 against 14 and 14,
+Case B 14 and 14 of 15 against 15 and 15 — the one grader is a regex for `dial(` and
+the report names the same finding with `dial` in backticks; the cluster graders miss
+as they did in S7 and S9. The mechanism is gone: no hunter ran a detection command in
+any run, two to twelve tool calls each; the critic's tool output on the whole
+repository was 45k, 38k and 47k tokens with the plain inventory and 29k once each
+comment line carried its declaration, 5k to 12k on the scoped cases, against S7's
+51k and 54k. Two things the pre-filter used to skip now run: every scoped review
+spawns the critic (the scripts-only arm skipped it on both Case A runs and one Case
+B run, on a clean tree) and the documentation hunter, because the R9 gate's rows are
+repository-wide. Billed tokens: Case A 1.37M and 1.30M against 1.77M and 1.61M, Case
+F 2.43M and 1.95M against 2.57M and 3.45M, both clearing worst-against-best; Case B
+1.33M and 1.23M against 2.04M and 1.23M, the worst run 8 percent above the best; the
+three cases together 9.6M against 12.7M, down 24 percent. The whole-repository review
+billed 4.75M, 4.37M, 4.85M and 4.34M against S7's 5.48M, 4.06M and 5.07M and S9's
+4.97M, 4.16M and 5.86M: the mean down 6 and 8 percent, the worst run above the best
+of either, so per case the gate does not clear at these run counts. A third round
+after the gate rows were scoped to the review's own files ran Cases A, B and F
+twice more: 11 and 11, 14 and 15, 14 and 14 graders — the `dial(` grader back, the
+skeptic's data-clump grader flipping once — with one hunter on Case A where two had
+run, and 1.23M, 1.00M, 1.37M, 1.49M, 2.51M and 1.78M tokens, 9.4M for the three
+against the reference's 12.7M, down 26 percent; Case B alone still does not clear
+worst-against-best, its best reference run having skipped the critic. The proof
+cost about $57 with the three rounds.
 
 Risks: a detect pattern wider than its prose floods the hits table, so hits are
 capped per question and the overflow count is itself a lead; a question marked
@@ -583,7 +634,7 @@ diet, since nothing in the diet can change them.
 | S5 | hunter fan-out | 8.45M best to 4.63M worst, recall in band | none |
 | S6 | grep pre-filter, mechanical hunters | enables S1 and S5 | enables CI use |
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
-| S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A to F 10 to 15 percent each; whole-repository 5 to 10 percent; counts table identical across runs | none |
+| S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A, B and F together 12.7M to 9.6M; whole-repository mean 4.9M to 4.6M, worst run not below the best; no hunter detection call; critic tool output 51k to 29k | none |
 | S9 | critic reads the scope twice, writes every KEEP | double read gone, tool output 51k to 54k down to 34k to 48k; turns, report and bill unmoved, main-thread calls up to 19 to 24 | documentation skill, small |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier

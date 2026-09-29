@@ -4,15 +4,17 @@
 range at the moment it needs it, never the file whole and never before that step. The
 sections, in the order the steps use them: Hunt focus · Waiting for agents · Hunter
 output · Skeptic verdicts · Critic verdicts · The merged report · Report example. The
-first five are printed by the Bash calls steps 1 and 2 already make, so they cost no
-round trip; the last two are read once, before the report is written.
+first is printed by the Bash call step 1 already makes and the next four by step 2's,
+so they cost no round trip; the last two are read once, before the report is written.
 
 ## Hunt focus
 
-What each hunter is after — the pre-filter's map of the rules. Four hunters, one per
-family with hits, each given the rows of its family that had hits: **types** (R1, R2,
-R11, R12), **structure** (R3, R4, R5), **tests and dependencies** (R6, R7, R8, R10)
-and **documentation** (R9, beside the comment critic):
+What each hunter is after — the detection pass's map of the rules. The counts table
+step 1 printed says which families had hits; four hunters at most, one per family
+with a hit, each given every rule file of its family and the family's rows of the
+hits table: **types** (R1, R2, R11, R12), **structure** (R3, R4, R5), **tests and
+dependencies** (R6, R7, R8, R10) and **documentation** (R9, beside the comment
+critic):
 
 | Rule | Family | File | Hunt focus |
 |------|--------|------|------------|
@@ -31,7 +33,7 @@ and **documentation** (R9, beside the comment critic):
 
 ## Waiting for agents
 
-For every rule family with pre-filter hits, spawn one `linter-driven-development:rule-hunter` agent —
+For every rule family with hits in the counts table, spawn one `linter-driven-development:rule-hunter` agent —
 four at most — as **foreground** `Agent` calls (`run_in_background: false`) issued
 together in one message, so the hunters run in parallel and every result comes back in
 that same message. A foreground call
@@ -50,18 +52,23 @@ hand.
 
 Each hunter returns one block per finding:
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
-plus one receipt line per falsifying question of each rule it was given (`R<N> Q<n>:
-<hits> hit(s) → <findings> finding(s)`, in rule order) and one tally line per rule
-(`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a types hunter given R1, R2
-and R11 returns three tallies. A rule file that did not read has `R<N>: rule unreadable
-at <path>` in its tally's place, and the hunter hunts the rest; that line is part of the
-report shape, never dropped and never a tally. The receipts are how a whole-repository
-hunt is read: a question with no receipt was not run over the scope, and the leads were
-never the scope. A hunter that spends the tool-call budget its agent definition states returns
-the same shape plus one `not reached: …` line for the hunter, naming the files or
-directories it did not read to judge — its detection commands still ran over the whole
-scope, so its receipts are whole — and the report header renders that line verbatim
-beside the tallies of the rules it hunted (step 4), never as a clean verdict.
+plus one receipt line per falsifying question of each rule it was given, in rule
+order — `R<N> Q<n>: <hits> hit(s) → <findings> finding(s)` with the counts table's
+number for that question, `R<N> Q<n>: judgment → <findings> finding(s)` for a question
+the table marks `judgment`, and `R<N> Q<n>: <judged> of <hits> hit(s) judged →
+<findings> finding(s)` when its budget ended before every counted hit was read — and
+one tally line per rule (`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a
+types hunter given R1, R2 and R11 returns three tallies. A rule file that did not read
+has `R<N>: rule unreadable at <path>` in its tally's place, and the hunter hunts the
+rest; that line is part of the report shape, never dropped and never a tally. The
+receipts are how a hunt is read against the table: the hunter ran no pattern of its
+own (a capped question's remaining hits it read from `hits-all.tsv`), so a receipt's
+number is the table's and the reconciliation in step 4 is mechanical — a question with
+no receipt was not run, a receipt below the table's count is ground not covered. A hunter that spends the tool-call budget its agent definition
+states returns the same shape plus one `not reached: …` line for the hunter, naming
+the files or directories it did not read to judge, and the report header renders that
+line verbatim beside the tallies of the rules it hunted (step 4), never as a clean
+verdict.
 
 **The report cap.** A hunter's report is its finding blocks, its receipts, its tallies
 (or a rule's `rule unreadable` line in a tally's place) and its `not reached:` line —
@@ -107,8 +114,8 @@ ships as the hunter proposed it, and the verdict is not a refutation.
 
 ## Critic verdicts
 
-It judges every comment in the diff (doc comment, in-body, test) against the three-test
-standard and returns one block per non-KEEP verdict (`TRIM / REWRITE / DELETE`, or
+It judges every comment line of the bundle's `comments.txt` (doc comment, in-body,
+test) against the three-test standard and returns one block per non-KEEP verdict (`TRIM / REWRITE / DELETE`, or
 `DELETE → route R3` for in-body extraction candidates) with evidence and proposed
 replacement text, and a tally whose KEEP count is the only trace of the comments it
 passed — a KEEP is never a block, and the parent keeps nothing of the report but the
@@ -208,7 +215,10 @@ finding on those lines and takes that finding's effort), as the report example b
   suppression directive — the cell quotes that text, not its line number alone:
   `R3 Q3: three section comments name unextracted blocks — "# parse the line" (101),
   "# look up or create device" (129), "# transitions" (149)`. The quoted comment is
-  the evidence and the name of the function to extract.
+  the evidence and the name of the function to extract. The same for a function, a
+  signature or a call the finding is about: the cell quotes it as the code writes it
+  — `dial(host string, port int, tls bool)`, `dial(c.host, c.port, c.tls)` — never the
+  bare name, so a reader can grep the report for the call.
 - The fix cell names the move exactly as the rule's **Fix pattern** section spells it
   (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
   `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
@@ -232,7 +242,14 @@ number of its anchors rendered below (own line or shared-shape line alike) —
 every rule before the report is emitted; a rendered count below the tally means a
 finding was dropped in the merge, and the fix is to render it, never to adjust the
 tally. A finding the skeptic refuted still counts as rendered when its
-cheaper alternative is on the page. A hunter, the skeptic or the critic that returned
+cheaper alternative is on the page. The receipts are reconciled the same way, against
+the counts table step 1 printed: for every rule a hunter was given, each question
+with a pattern has a receipt carrying the table's number, and each `judgment` row a
+`judgment` receipt. A receipt that reads `<judged> of <hits> hit(s) judged`, a receipt
+below the table's count, or a question with no receipt is coverage the review did
+not have: the header renders it beside that rule's tally — `R1 8/8 (Q1: 40 of 44
+judged)` — and the Scope line reads `PARTIAL coverage`, whatever the hunter's own
+`not reached:` line says. A hunter, the skeptic or the critic that returned
 a `not reached:` line has it rendered verbatim in the header beside its tally — a
 family hunter's beside the tallies of the rules it hunted —
 `R9 12/12 (not reached: internal/store, internal/api)`, `Skeptic: 3 CONFIRMED · 1 not
@@ -249,7 +266,7 @@ Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as fi
 ends the review — never written to a file, never attached, never replaced by a summary
 that points at a file or at "the report I sent". Length is no reason: a
 whole-repository report of thirty kilobytes is the normal size and goes in the message
-whole, under its categories. Besides the scope bundle, this skill has
+whole, under its categories. Besides the scope bundle the scripts write, this skill has
 nothing to write to disk; a Write call during a review is the report leaving the page.
 
 ## Report example

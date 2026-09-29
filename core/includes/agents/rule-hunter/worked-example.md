@@ -1,6 +1,6 @@
 **Worked example (analysis style only — your rule file governs the substance):**
 ```
-Lead (pre-filter): user/service{{.SrcExt}}:14 matched inline check on a domain primitive.
+Lead (hits.tsv, R<N> Q1): user/service{{.SrcExt}}:14 matched inline check on a domain primitive.
 Q1 (rule): validated inline instead of via a constructor?
   Read user/service{{.SrcExt}}:10-16 → an inline "email contains @" check that fails the request
   → YES: domain concept checked in a service method, no ParseX/NewX owns it.

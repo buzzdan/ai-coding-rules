@@ -33,25 +33,44 @@ mid-implementation net; this pass is the verification net on finished work.
 </timing>
 
 <inputs>
-- **Diff scope**: the caller's resolved file list or diff range — an explicit argument,
-  else the working tree's changes against `HEAD` (`git diff --name-only HEAD --
-  '*.py'` plus untracked files), else the branch against its base, and the whole
-  repository only when asked for explicitly. Never widened here; an empty scope is
-  reported as "nothing to review", never as a clean verdict.
+- **Diff scope**: the caller's resolved rung — explicit files or directories, else
+  the working tree's changes against `HEAD` plus untracked files, else the branch
+  against its base as a range (`--base <merge-base>`), and the whole repository
+  (`--all`) only when asked for explicitly. Step 1 hands that rung to `ldd-scope.sh`,
+  which resolves it; the scope is never widened here, and an empty scope is reported
+  as "nothing to review", never as a clean verdict.
 - **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes; needs the previous
   report's findings).
 </inputs>
 
 <protocol>
 
-<step_1_grep_prefilter>
-In-context, cheap, no agents yet. One Bash command prints the **Falsifying questions**
-section of every rule file, and this skill's hunt-focus table beside it —
-`for f in <rules dir>/R*.md; do echo "==> $f <=="; sed -n '/^## Falsifying questions/,$p' "$f"; done; sed -n '/^## Hunt focus/,/^## Waiting for agents/p' <this skill dir>/reference.md`
-— that section only, never a whole rule and never twelve Read calls; then run the
-detection commands there against the diff scope (changed files only). The commands
-live in the rule files (`../../rules/R1-…` to `R12-….md`); never restate them. A rule
-with zero hits is skipped — no hunter for it.
+<step_1_detection_pass>
+In-context, cheap, no agents yet. One Bash command resolves the scope, writes the scope
+bundle and runs the detection pass over it — the plugin's two review scripts, never a
+recipe or a grep composed here in their place:
+`S=<this skill dir>/../../scripts; out=$(bash "$S/ldd-scope.sh" <rung>); echo "$out"; case "$out" in *'nothing to review') ;; *) B=${out##* }; bash "$S/ldd-detect.sh" "$B" && sed -n '/^## Hunt focus/,/^## Waiting for agents/p' <this skill dir>/reference.md ;; esac`
+`<rung>` is the scope from `<inputs>` as `ldd-scope.sh` takes it: the explicit files
+or directories as arguments (a directory stands for the source files under it),
+`--base <ref>` for the branch against its base, `--all` for the whole repository,
+nothing for the working tree against `HEAD` with untracked files. The scope script
+prints one summary line — files bundled, files listed with a not-bundled reason, the
+diff's size, the comment lines found — whose last word is the bundle path `B`; when
+it prints `ldd-scope: nothing to review` instead, the review ends with that report.
+The detection script runs every falsifying question's detect line over the scope,
+writes `hits.tsv`, `hits-all.tsv` and `counts.tsv` into the bundle, and prints the
+**counts table** — one row per question, `rule q kind hits`, a `judgment` row for a
+question only a hunter's reading answers — then one line per rule family. That
+table, about 300 tokens, is the pre-filter: the parent prints no rule file, composes
+no detection command, and never reads a Falsifying-questions section. On a scoped review the R9
+gate's rows are the scope's own files' — an orphan doc or an unwired root is the
+repository's state, for a `--all` review or BROADER CONTEXT, never this diff's
+finding. When the
+detection script exits 2 instead — a pattern its grep rejects, the R9 gate failing to
+run — the review did not run: report its message, spawn nothing, and never render a
+rule as `skipped` or compose the pass by hand. A rule family none of whose rules has
+a hit — `0` on every row of theirs that is not `judgment` — is skipped: no hunter for
+it.
 
 Also in-context: a new `# noqa`, `# type: ignore`, or `# ty: ignore` in the diff, or a new
 `ignore`/`per-file-ignores` entry under `[tool.ruff.lint]` or a new
@@ -61,35 +80,30 @@ directives are suppressions: a `# ty: ignore[invalid-return-type]` or a
 `# type: ignore[return-value]` on a `return None` silences R1 Q4 as surely as a
 `# noqa: PLW0603` silences R8.
 
+The table's `SUPPRESS` row is that check for the directive: it counts the suppression
+directives on the diff's added lines (over every scope file when the bundle has no
+diff), and a count above zero is one finding per `SUPPRESS` row of `hits-all.tsv` —
+the uncapped table, so no directive hides behind an overflow row — anchored at that
+row's `file:line`. A new exclusion in the linter's configuration file is still read
+from the diff.
+
 Also in-context — the **when-in-Rome check**: anything the diff introduces that the
 repo does not already use (a new test mechanism, a dependency in `pyproject.toml`,
 a tool or config file, a convention-file edit bundled into a feature diff, a layout
 unlike its siblings) is a 🟠 finding when a grep of the repo *outside* the diff shows
 zero prior use; the fix is a discussion or a separate PR, never silent inclusion.
-</step_1_grep_prefilter>
+</step_1_detection_pass>
 
 <step_2_spawn_hunters>
-**Write the scope bundle first**, only when the scope is not empty, in one Bash
-command into `B=$(mktemp -d)`:
-
-- `files.txt` — the scope, one path per line. A file left out of `scope/` keeps its
-  line with the reason: `(not bundled: deleted)`, `(not bundled: binary)` (`grep -Il .
-  -- "$f"` prints nothing), `(not bundled: <n> lines)` over about 2000, `(not bundled:
-  generated)` by the repository's markers. Hunters read those as ground their commands
-  cover and nothing reads whole. Nothing else is filtered.
-- `diff.patch` — on a scoped review, `git diff <range> -- '*.py'`; untracked
-  files have no diff and appear only under `scope/`; `--all` has no diff.
-- `scope/<path>.txt` — one per bundled file, at its source path, a `==> <path> <==`
-  header then the text with its own line numbers, so a finding read from the bundle
-  anchors like a `grep -n` hit:
-  `while IFS= read -r f; do mkdir -p "$B/scope/$(dirname "$f")"; { printf '==> %s <==\n' "$f"; cat -n -- "$f"; } > "$B/scope/$f.txt"; done < bundled.txt`
-- `dirs.txt` — on `--all`, the source directories with file and line counts, for the
-  hunters' reading orders.
-
-The same Bash call prints `sed -n '/^## Waiting for agents/,/^## The merged report/p'
+The bundle exists (step 1 wrote it: `files.txt`, `diff.patch` on a scoped review,
+`scope/<path>.txt` per bundled file with the file's own line numbers, `dirs.txt` on
+`--all`, `comments.txt`, `hits.tsv`, `hits-all.tsv`, `counts.tsv`); nothing is
+written here. One Bash
+command, only when the scope is not empty, lists every rule path the prompts will
+carry and prints `sed -n '/^## Waiting for agents/,/^## The merged report/p'
 <this skill dir>/reference.md` — how agents are waited for, what each returns and what
 their verdicts do — so steps 2, 3 and 3b cost no read of their own. The bundle is the
-only file this review writes; hunters and the critic get its path, the skeptic does
+only thing this review writes; hunters and the critic get its path, the skeptic does
 not.
 
 Spawn **one rule-hunter per rule family with hits** — four at most, never one per
@@ -106,17 +120,34 @@ families:
 | tests and dependencies | R6, R7, R8, R10 | tests, globals, dependency injection, dependencies |
 | documentation | R9 | comments and the documentation network — runs beside the comment-critic (step 3b) |
 
-A family none of whose rules had a hit gets no hunter. Each spawn prompt MUST contain:
+A family none of whose rules had a hit gets no hunter — its `judgment` rows alone
+spawn nothing; step 1's four family lines say which families did. A family with a
+hit gets one hunter carrying **every rule file of the family**, the hitless ones
+included: their `judgment` questions are read on the ground the family's hits name,
+and their mechanical questions receipt `0 hit(s)`. Each spawn prompt MUST contain:
 
-1. **The absolute paths of this family's rule files with hits** — the hunter's whole
-   rulebook, each read whole in its first turn. Never the text pasted; never a rule of
-   the family that had no hit; never two families in one hunter; the parent reads no
-   rule to build a prompt (step 1 printed only the questions).
+1. **The absolute paths of every rule file of this family** — the hunter's whole
+   rulebook, each read whole in its first turn. Never the text pasted; never two
+   families in one hunter; the parent reads no rule to build a prompt (step 1
+   printed only the counts).
 2. **The bundle's absolute path** and the diff scope it holds. On `--all`, also this
-   hunter's **reading order**: `dirs.txt` with the family's combined pre-filter hits
-   first, most hits first, ties by line count ascending, then the rest — no two
-   hunters truncate at the same tail.
-3. **The family's pre-filter hits, per rule**, as starting leads, never a limit.
+   hunter's **reading order**: `dirs.txt` with the directories the family's `hits.tsv`
+   rows name first, most rows first, ties by line count ascending, then the rest — no
+   two hunters truncate at the same tail.
+3. **The family's rows of the hits table**, as the one command the hunter runs in its
+   first turn beside its rule files — `awk -F'\t' '$1 ~ /^(R1|R2|R11|R12)$/' <bundle>/hits.tsv`
+   with the family's rule ids — and every row of the counts table for the family's
+   rules, pasted from step 1's print (about two dozen lines for a four-rule family).
+   The counts are the hunter's receipts: it judges every hit the table counted, runs
+   each `judgment` question as its rule's prose says, and returns one receipt per
+   question carrying the table's number.
+4. **The overflow rows**, when the family has any: a row whose file is `-` and whose
+   excerpt reads `+N more hit(s) not listed` is a question capped in `hits.tsv`. The
+   prompt names each (`R9 Q4: 55 more hits than listed`) and says where the rest are:
+   the same `awk` over `<bundle>/hits-all.tsv`, the uncapped table, filtered to that
+   rule and question — `awk -F'\t' '$1 == "R9" && $2 == "4"' <bundle>/hits-all.tsv` —
+   read in a later call and judged like the rest, so the receipt still carries the
+   table's count. The hunter runs no pattern of its own.
 
 Every path is absolute (the hunter runs in the reviewed project's cwd): resolve
 `../../rules/R<N>-….md` and any case file the rule cites from this skill's own
@@ -124,12 +155,14 @@ location, then `ls` every resolved path before spawning — listing is not readi
 path that does not list is fixed here, never handed to a hunter. Each hunter returns
 finding blocks (`rule | file:line | evidence | fix pattern | effort`), one receipt per
 falsifying question of each rule it was given (`R<N> Q<n>: <hits> hit(s) → <findings>
-finding(s)`), one tally per rule — or, for a rule file that did not read, `R<N>: rule
-unreadable at <path>` in the tally's place — and, when its budget ended the hunt, one
-`not reached:` line — receipts stay whole because the detection commands ran over the
-whole scope. A question with no receipt was not run. Findings, receipts, tallies (or
-unreadable lines) and that line are the whole report, about 3k tokens; a hunter returns
-no narrative ("Hunter output", read above).
+finding(s)` with the counts table's number; `R<N> Q<n>: judgment → <findings>
+finding(s)` for a judgment question; `R<N> Q<n>: <judged> of <hits> hit(s) judged →
+<findings> finding(s)` when its budget ended before every hit was read), one tally
+per rule — or, for a rule file that did not read, `R<N>: rule unreadable at <path>`
+in the tally's place — and, when its budget ended the hunt, one `not reached:` line.
+A question with no receipt was not run. Findings, receipts, tallies (or unreadable
+lines) and that line are the whole report, about 3k tokens; a hunter returns no
+narrative ("Hunter output", read above).
 </step_2_spawn_hunters>
 
 <step_3_skeptic_pass>
@@ -169,12 +202,15 @@ read in step 2.
 </step_3_skeptic_pass>
 
 <step_3b_comment_critic>
-When the diff contains comment lines — prefilter:
-`git diff --cached -- '*.py' | grep -E '^\+.*(#|""")' | grep -vE '#\s*(noqa|type:|pragma|fmt:|pylint:|ruff:|isort:)|>>>'`
-(any hit qualifies; directives don't count) — spawn one comment-critic in the same
-hunter-free message as the skeptic (alone when no skeptic runs), foreground; its sweep
-is the longest pass of the review and is waited for only by the call returning. Its
-spawn prompt MUST contain:
+When the scope carries comment lines — step 1's summary line says how many, and
+`comments.txt` in the bundle holds them as `file:line:text ⏎ code`, the code being the
+declaration or statement below the comment: the diff's added comment lines on a
+scoped review plus every comment line of a bundled file the diff does not touch,
+every comment line of the bundled files on `--all`, minus directives; one line
+qualifies, none and the critic is not spawned — spawn one
+comment-critic in the same hunter-free message as the skeptic (alone when no skeptic
+runs), foreground; it is waited for only by the call returning. Its spawn prompt MUST
+contain:
 
 1. The absolute path of `../../rules/R9-repo-brain.md` and the range of its **Comment
    policy** section: `sed -n '/^### Comment policy/,/^### Edge conventions/p'`.
@@ -183,14 +219,15 @@ spawn prompt MUST contain:
    `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`.
    Neither file is read whole.
 3. The absolute path of `../../examples/private-comment-noise.md`.
-4. The diff scope and the bundle's absolute path — when this review wrote one; a caller
-   without a bundle omits it, and the critic builds its scope in its first turn.
-5. The count of in-scope files that carry comments — the prefilter's files on a
-   scoped diff, `files.txt` grepped on `--all` — and the budget in one line: `N files
-   carry comments — budget: the first turn, then the scope in at most K calls of
-   several files each (every tool counts; never one dump of the scope), then the
-   verdicts. Report non-KEEP verdicts and the tally.` K is four on a scoped diff, six
-   on `--all`.
+4. The diff scope and the bundle's absolute path: the critic reads
+   `<bundle>/comments.txt` in its first turn and opens a numbered `scope/` file only
+   to judge a comment in its context. A caller without a bundle omits the path, and
+   the critic builds its scope in its first turn.
+5. The count of comment lines from step 1's summary line and the budget in one line:
+   `N comment lines in comments.txt — budget: the first turn, then at most K calls
+   that open scope files for context, several files each (every tool counts; never a
+   sweep of the scope), then the verdicts. Report non-KEEP verdicts and the tally.` K
+   is four on a scoped diff, six on `--all`.
 
 It returns one block per non-KEEP verdict (`TRIM / REWRITE / DELETE`, `DELETE → route
 R3`) with evidence and replacement text, and a tally that counts the KEEPs; non-KEEP
@@ -224,15 +261,23 @@ once, now. The contract it spells out, kept whatever the scope:
   the pass is not done until each anchor two rules converged on has its entry, and a
   whole-repository review commonly has six or more. Members still render under their
   categories, each tagged `[cluster: <anchor>]`.
+- **The first line is `📊 CODE REVIEW REPORT`**, then the `Scope:`, `Hunters:`,
+  `Skeptic:` and `Critic:` lines as the example shows — before any cluster, never
+  under a title of the review's own.
 - **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
   R9, the critic's non-KEEP verdicts) · 🟢 Polish (the skeptic's cheaper alternatives).
 - **One line per finding**: `file:line | R<N> Q<n>: evidence in the question's own
-  words | the move as the rule's Fix pattern spells it | S/M/L`. The fix cell names the
+  words | the move as the rule's Fix pattern spells it | S/M/L`. Evidence about a
+  function, a signature or a call quotes it as the code writes it —
+  `dial(host string, port int, tls bool)` — never the bare name. The fix cell names the
   move exactly as the Fix pattern section spells it — `Introduce Parameter Object`,
   `Name enum strings`, `Extract Leaf Type` — and the skeptic's verdict and score follow
   the move in the same cell: `Introduce Parameter Object: Endpoint — skeptic REFUTED
   (score 1) → rename dial to Client.dial`. A verdict never replaces the move name with
-  its alternative; a refuted type's alternative also ships as its own 🟢 Polish line. A
+  its alternative, and a REFUTED finding keeps its own line under its category — the
+  hunter's evidence in the question's words, the move, the verdict — while its
+  cheaper alternative ships as a second line under 🟢 Polish; a Polish line alone is
+  a finding dropped, and the `Hunters:` count does not count it. A
   count is never a finding — `R9 (46 findings)` is forbidden; findings of one shape may
   share one line naming every anchor. Anchors rendered equal findings returned.
 - **One physical line, never wrapped.** A finding line and a cluster title line are
@@ -259,10 +304,11 @@ once, now. The contract it spells out, kept whatever the scope:
 </protocol>
 
 <modes>
-**FULL:** pre-filter all twelve rules over the whole scope; report every surviving
-finding. **INCREMENTAL:** scope = the files changed since the last review; run steps
-1–3 on it and report the delta against the previous findings — ✅ Fixed (its detection
-command re-run confirms), ⚠️ Remaining, 🆕 New.
+**FULL:** the detection pass over the whole scope, all twelve rules; report every
+surviving finding. **INCREMENTAL:** scope = the files changed since the last review;
+run steps 1–3 on it and report the delta against the previous findings — ✅ Fixed (its
+question's row in the new counts table is clear, or the hunter's re-judgment confirms),
+⚠️ Remaining, 🆕 New.
 </modes>
 
 <constraints>
@@ -272,6 +318,8 @@ This skill MUST NOT:
   writes, and an empty scope writes none
 - Run the linter or tests, or block a commit — every finding is advisory
 - Restate or paste rule content — spawn prompts name rules by absolute path and range
+- Compose a detection command or a bundle recipe in place of `ldd-scope.sh` and
+  `ldd-detect.sh` — the scripts are the pre-filter and the bundle
 - Spawn anything but the three agents in `<objective>`, or wait for one by polling,
   monitoring, scheduling or re-spawning
 </constraints>
