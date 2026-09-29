@@ -48,7 +48,7 @@
    yields the loop once is scheduling, not synchronization, and stays.
 
 7. **Does a mutant survive a leaf type's tests?**
-   Detect: judgment
+   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*len\b)|\blen\([^)]*\) *(<=?|>=?|==|!=)`
    Detection: for each new or changed leaf package, with `paths_to_mutate` under
    `[tool.mutmut]` naming that package only, `mutmut run` then `mutmut results`;
    skip orchestrators, the top rung and any module that does I/O. `mutmut` not

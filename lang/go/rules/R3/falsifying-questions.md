@@ -23,7 +23,7 @@
    comment's text with its line: the comment is the evidence and the function's name.
 
 4. **Do boolean flags track state across a loop?**
-   Detect-grep: `:= (false|true)$|^\s*var [a-z][A-Za-z0-9]* bool$`
+   Detect-grep: `:= *(false|true)(, *(false|true))*$|^\s*var [a-z][A-Za-z0-9]* bool$`
    Detection: hits near `for` loops;
    look for flags set inside the loop and read after it.
    Violation: flag-driven loops — a collection/domain type should absorb the loop

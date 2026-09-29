@@ -39,7 +39,7 @@
    Violation: any hit — replace with channels/wait groups.
 
 7. **Does a mutant survive a leaf type's tests?**
-   Detect: judgment
+   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*[Ll]en\b)|\b[Ll]en\([^)]*\) *(<=?|>=?|==|!=)`
    Detection: for each new or changed leaf package,
    `gremlins unleash ./path/to/leaf | grep -E '^\s*LIVED'`; skip orchestrators, the
    top rung and any package that does I/O. `gremlins` not on `PATH`: propose the

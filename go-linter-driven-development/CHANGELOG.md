@@ -20,6 +20,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   their own fixture matrix, `scripts/ldd-detect_test.sh`. What each question asks is
   unchanged.
 
+- **Two leads the baseline showed missing.** The R3 flag-loop lead matches the tuple
+  form (`primaryFound, secondaryFound := false, false`), and R7's mutation question
+  carries a lead instead of `judgment`: a boundary comparison in production code — a
+  `<=`, `>=` or length check against a literal or a length — the hand check's own
+  starting point, so the tests hunter is spawned and reads the leaf's table wherever
+  such a comparison is in scope.
+
 - **The review runs on the scripts.** The pre-commit review's first step is one Bash
   call that runs `ldd-scope.sh` for the caller's scope rung and `ldd-detect.sh` over
   the bundle it wrote, and reads the counts table it prints — about 300 tokens in

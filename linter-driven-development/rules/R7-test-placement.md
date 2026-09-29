@@ -199,7 +199,7 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    timeout.
 
 7. **Does a mutant survive a leaf type's tests?**
-   Detect: judgment
+   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+)|\b[Ll]en\([^)]*\) *(<=?|>=?|==|!=)`
    Detection: for each new or changed leaf type, run the repository's mutation
    testing tool over that leaf's package only (the mechanics bullet names the tool
    and the command) and read its list of survivors; skip orchestrators, the top
