@@ -195,9 +195,14 @@ mk_repo; run_detect
 expect_exit 0 && expect_count R5 1 '>=1' && ok
 finish
 
-begin "a planted gate hit fires (R9 Q1: an orphan doc)"
-mk_repo; run_detect
+begin "a planted gate hit fires on a whole-repository bundle (R9 Q1: an orphan doc)"
+mk_repo; : > "$BUNDLE/dirs.txt"; run_detect
 expect_exit 0 && expect_count R9 1 '>=1' && ok
+finish
+
+begin "a scoped bundle keeps only the gate lines about its own files"
+mk_repo; run_detect
+expect_exit 0 && expect_count R9 1 0 && ok
 finish
 
 begin "a judgment question renders as a judgment row"

@@ -62,7 +62,10 @@ writes `hits.tsv`, `hits-all.tsv` and `counts.tsv` into the bundle, and prints t
 **counts table** — one row per question, `rule q kind hits`, a `judgment` row for a
 question only a hunter's reading answers — then one line per rule family. That
 table, about 300 tokens, is the pre-filter: the parent prints no rule file, composes
-no detection command, and never reads a Falsifying-questions section. When the
+no detection command, and never reads a Falsifying-questions section. On a scoped review the R9
+gate's rows are the scope's own files' — an orphan doc or an unwired root is the
+repository's state, for a `--all` review or BROADER CONTEXT, never this diff's
+finding. When the
 detection script exits 2 instead — a pattern its grep rejects, the R9 gate failing to
 run — the review did not run: report its message, spawn nothing, and never render a
 rule as `skipped` or compose the pass by hand. A rule family none of whose rules has
@@ -258,7 +261,9 @@ once, now. The contract it spells out, kept whatever the scope:
 - **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
   R9, the critic's non-KEEP verdicts) · 🟢 Polish (the skeptic's cheaper alternatives).
 - **One line per finding**: `file:line | R<N> Q<n>: evidence in the question's own
-  words | the move as the rule's Fix pattern spells it | S/M/L`. The fix cell names the
+  words | the move as the rule's Fix pattern spells it | S/M/L`. Evidence about a
+  function, a signature or a call quotes it as the code writes it —
+  `dial(host string, port int, tls bool)` — never the bare name. The fix cell names the
   move exactly as the Fix pattern section spells it — `Introduce Parameter Object`,
   `Name enum strings`, `Extract Leaf Type` — and the skeptic's verdict and score follow
   the move in the same cell: `Introduce Parameter Object: Endpoint — skeptic REFUTED

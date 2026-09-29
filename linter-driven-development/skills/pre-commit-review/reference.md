@@ -215,7 +215,10 @@ finding on those lines and takes that finding's effort), as the report example b
   suppression directive — the cell quotes that text, not its line number alone:
   `R3 Q3: three section comments name unextracted blocks — "# parse the line" (101),
   "# look up or create device" (129), "# transitions" (149)`. The quoted comment is
-  the evidence and the name of the function to extract.
+  the evidence and the name of the function to extract. The same for a function, a
+  signature or a call the finding is about: the cell quotes it as the code writes it
+  — `dial(host string, port int, tls bool)`, `dial(c.host, c.port, c.tls)` — never the
+  bare name, so a reader can grep the report for the call.
 - The fix cell names the move exactly as the rule's **Fix pattern** section spells it
   (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
   `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in

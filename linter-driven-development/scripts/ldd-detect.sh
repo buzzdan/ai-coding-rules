@@ -30,7 +30,10 @@
 #   Detect-path: `<ERE>`   over the scope's relative paths (layer directories,
 #                role-named packages); a hit's line is 0
 #   Detect-gate: Q<n>      the R9 gate's [Q<n>] report lines, from one run of
-#                check-repo-brain.sh beside this script over --root
+#                check-repo-brain.sh beside this script over --root; on a
+#                scoped bundle (no dirs.txt) only the lines whose file is in
+#                the scope — the gate's repository-wide findings belong to
+#                a whole-repository review
 #   Detect: judgment       no mechanical lead; the hunter runs the prose
 # A question with no detect line, two of them, or a malformed one is an error:
 # the generator's lint-core keeps the rule files honest, and this script refuses
@@ -415,6 +418,15 @@ run_gate() { # <rule> <q> <Qn>
         if (match(loc, /:[0-9]+$/)) { file = substr(loc, 1, RSTART - 1); line = substr(loc, RSTART + 1) + 0 }
         print file "\t" line "\t" rest
       }' > "$raw"
+  # A scoped review owns only the gate lines about its own files: an orphan
+  # doc, an unwired root or another file's broken edge is the repository's
+  # state, not the diff's, and is not a lead for this review's hunter.
+  if [[ ! -f "$BUNDLE/dirs.txt" ]] && [[ -s "$raw" ]]; then
+    scoped=$(mktemp); scope_list=$(mktemp)
+    printf '%s\n' ${ALL_FILES[@]+"${ALL_FILES[@]}"} > "$scope_list"
+    awk -F'\t' 'NR == FNR { in_scope[$0] = 1; next } ($1 in in_scope)' "$scope_list" "$raw" > "$scoped"
+    mv "$scoped" "$raw"; rm -f "$scope_list"
+  fi
   record "$rule" "$q" gate "$raw" 0
   rm -f "$raw"
 }

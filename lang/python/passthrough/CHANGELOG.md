@@ -39,7 +39,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the critic; the review command hands the current-PR rung as `--base
   <merge-base>`. The Go R9 rule's WHAT-comment lead also matches methods, and the Go
   R8 rule's test-mutates-a-global lead matches any assignment to a package's
-  exported name in a test. The comment critic reads the
+  exported name in a test. On a scoped review the R9 gate's rows are limited to the
+  scope's own files: an orphan doc or an unwired root is a whole-repository finding,
+  not the diff's. The comment critic reads the
   bundle's `comments.txt` as its inventory — each line carrying the code line below
   the comment, the declaration it documents — and opens a scope file only for a
   comment that line does not settle; nothing sweeps the scope for comments. The
