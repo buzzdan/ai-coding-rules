@@ -475,8 +475,14 @@ F 2.43M and 1.95M against 2.57M and 3.45M, both clearing worst-against-best; Cas
 three cases together 9.6M against 12.7M, down 24 percent. The whole-repository review
 billed 4.75M, 4.37M, 4.85M and 4.34M against S7's 5.48M, 4.06M and 5.07M and S9's
 4.97M, 4.16M and 5.86M: the mean down 6 and 8 percent, the worst run above the best
-of either, so per case the gate does not clear at these run counts. The proof cost
-about $46 with the two fix rounds.
+of either, so per case the gate does not clear at these run counts. A third round
+after the gate rows were scoped to the review's own files ran Cases A, B and F
+twice more: 11 and 11, 14 and 15, 14 and 14 graders — the `dial(` grader back, the
+skeptic's data-clump grader flipping once — with one hunter on Case A where two had
+run, and 1.23M, 1.00M, 1.37M, 1.49M, 2.51M and 1.78M tokens, 9.4M for the three
+against the reference's 12.7M, down 26 percent; Case B alone still does not clear
+worst-against-best, its best reference run having skipped the critic. The proof
+cost about $57 with the three rounds.
 
 Risks: a detect pattern wider than its prose floods the hits table, so hits are
 capped per question and the overflow count is itself a lead; a question marked
