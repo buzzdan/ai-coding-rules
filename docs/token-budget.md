@@ -142,8 +142,8 @@ Expected: the 20M-token class of run disappears; the red-lint quickfix returns t
 the 2M to 3M its main thread costs.
 Measured, on the baseline recorded at b56f79b (`go-2.13.2-b56f79b` in the evals
 repository), against 2.11.0: the red-lint quickfix billed 24.3M tokens against 22.5M,
-its work moved from three agents into the parent, which made 207 calls at a mean
-context of 181k tokens and ran out of turns; the refactor cases that spawned no agent
+its work moved from three agents into the parent, which made 120 calls at a mean
+context of 190k tokens and ran out of turns; the refactor cases that spawned no agent
 on 2.11.0 now run the review pass inside their fix loop, sometimes three times
 (case D: 0 agents to 7, 0.8M to 5.3M; the centerpiece: 1 to 7, 4.7M to 14.4M; case F:
 5.1M to 16.3M with 57 edits by the parent). The 20M class did not disappear; it
@@ -624,9 +624,9 @@ move, five files), the attempts (three), the stall exit and the receipt, and a w
 that ends on one of them ends with a receipt the parent can act on. Nothing changes in
 the review tier: the hunters, the skeptic, the critic and the scripts are S8's.
 
-Expected: the parent's main-thread calls on the four movers (quickfix, case F, the
-centerpiece, case D) fall from 120, 121, 81 and 49 to under 40; its mean context
-stays under 120k; the medium tier falls under 65.9M over the ten comparable runs,
+Expected: the parent's API calls on the four movers (quickfix, case F, the
+centerpiece, case D) fall from 120, 109, 74 and 42 to under 40; its mean context
+falls from 190k, 145k, 164k and 103k to under 120k; the medium tier falls under 65.9M over the ten comparable runs,
 toward the program's 35M; verdicts hold (case B, E, prepare-sms, wire-repo-brain
 unchanged; C, D, F and the centerpiece inside the three-grader swing; `stop-check`
 rendered). Proof: the medium tier once more at b56f79b for the noise floor, then the
