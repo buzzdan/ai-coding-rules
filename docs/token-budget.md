@@ -394,9 +394,9 @@ The classification the pass produced, per binding:
 
 | Binding | grep | path | gate | judgment |
 |---|---:|---:|---:|---:|
-| Go | 35 | 2 | 4 | 29 |
-| Python | 36 | 2 | 4 | 28 |
-| generic (core defaults) | 16 | 2 | 4 | 48 |
+| Go | 36 | 2 | 4 | 28 |
+| Python | 37 | 2 | 4 | 27 |
+| generic (core defaults) | 17 | 2 | 4 | 47 |
 
 The review skill runs on the two scripts (the stage shipped in two halves: the
 scripts first with the skill unchanged, so no eval behavior moved before the rewiring
@@ -482,7 +482,15 @@ skeptic's data-clump grader flipping once — with one hunter on Case A where tw
 run, and 1.23M, 1.00M, 1.37M, 1.49M, 2.51M and 1.78M tokens, 9.4M for the three
 against the reference's 12.7M, down 26 percent; Case B alone still does not clear
 worst-against-best, its best reference run having skipped the critic. The proof
-cost about $57 with the three rounds.
+cost about $57 with the three rounds. The baseline recorded on the merged head
+(`go-2.13.2-b56f79b` in the evals repository) then showed the class the branch review
+had named, twice: a judgment question is read only where its family has a mechanical
+hit, so Case C's flag loop was missed when R3's lead did not match the tuple form
+`:= false, false`, and the mutation review never reached R7 Q7, `judgment` in every
+binding, because the tests family had no hit over the leaf files. Both got a lead: the
+tuple form for R3, and for R7 Q7 a boundary comparison in production code — a `<=`,
+`>=` or length check against a literal or a length — the hand check's own starting
+point.
 
 Risks: a detect pattern wider than its prose floods the hits table, so hits are
 capped per question and the overflow count is itself a lead; a question marked
