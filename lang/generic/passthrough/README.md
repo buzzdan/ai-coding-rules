@@ -67,7 +67,7 @@ linter-driven-development/
 ├── rules/        R1-primitive-obsession … R12-mutation-discipline   (single source of truth)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
 │                 pre-commit-review · testing · documentation   (thin directional views)
-├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer
+├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer · move-implementer
 ├── commands/     ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Go for demonstration)
