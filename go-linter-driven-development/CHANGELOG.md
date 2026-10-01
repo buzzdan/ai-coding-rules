@@ -80,6 +80,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The refactoring skill delegates its moves.** It composes slices — one move over at
+  most five files — and spawns one move-implementer per slice, which commits the slice
+  when it is green; the skill reads receipts and applies no move itself. Its detection
+  re-run is the review's detection script over the touched files, and its comment
+  critic runs once per session, or not at all when the workflow's review follows. The
+  `Stop check` block opens with a `0 slices` line.
+
 - **The critic reads the scope in chunks and reports what changes.** On a
   whole-repository sweep the comment critic reads the numbered scope files that carry
   comments several per call, in the bundle's directory order, each call sized to come
