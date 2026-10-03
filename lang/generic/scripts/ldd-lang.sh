@@ -15,6 +15,11 @@
 #   LANG_GENERATED_RE   ERE: a marker in a file's head that says it is generated
 #   lang_configure      reads OPT_GLOB / OPT_TEST_RE (set by --glob / --test-re)
 #   lang_is_test <path> exit 0 iff the path is a test file
+#   LANG_LINT_CONFIG_RE ERE over a relative path: a linter's configuration file,
+#                       which no refactoring slice may touch (every language's
+#                       forms, since a repository may carry several)
+LANG_LINT_CONFIG_RE='(^|/)(\.golangci\.ya?ml|pyproject\.toml|setup\.cfg|ruff\.toml|\.flake8)$'
+
 detect_language() {
   if [[ -f go.mod ]]; then printf 'go\n'; return; fi
   if [[ -f pyproject.toml || -f setup.cfg || -f setup.py ]]; then printf 'python\n'; return; fi

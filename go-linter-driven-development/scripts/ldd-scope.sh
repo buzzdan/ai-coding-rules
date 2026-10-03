@@ -114,12 +114,17 @@ cd "$ROOT" || exit 2
 #   LANG_GENERATED_RE   ERE: a marker in a file's head that says it is generated
 #   lang_configure      reads OPT_GLOB / OPT_TEST_RE (set by --glob / --test-re)
 #   lang_is_test <path> exit 0 iff the path is a test file
+#   LANG_LINT_CONFIG_RE ERE over a relative path: a linter's configuration file,
+#                       which no refactoring slice may touch (every language's
+#                       forms, since a repository may carry several)
 LANG_SRC_GLOB='*.go'
 LANG_EXCLUDE_RE='(^|/)(vendor|\.git|testdata)/'
 LANG_SUPPRESS_RE='//nolint'
 LANG_COMMENT_RE='//'
 LANG_DIRECTIVE_RE='//(go:|nolint| Output:|line |export |extern )'
 LANG_GENERATED_RE='Code generated .* DO NOT EDIT|DO NOT EDIT|@generated'
+
+LANG_LINT_CONFIG_RE='(^|/)(\.golangci\.ya?ml|pyproject\.toml|setup\.cfg|ruff\.toml|\.flake8)$'
 
 lang_configure() {
   [[ -n "${OPT_GLOB:-}" ]] && LANG_SRC_GLOB="$OPT_GLOB"

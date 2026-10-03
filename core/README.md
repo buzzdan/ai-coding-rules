@@ -182,11 +182,11 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (115 lines):
+Soft residue by token (116 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
-| interface | 85 | 24 |
+| interface | 86 | 25 |
 | Go code fence | 12 | 1 |
 | Go (the word) | 6 | 4 |
 | struct | 6 | 4 |
@@ -195,7 +195,7 @@ Soft residue by token (115 lines):
 | func | 1 | 1 |
 | sync. | 1 | 1 |
 
-Soft residue by file (115 lines):
+Soft residue by file (116 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -230,5 +230,6 @@ Soft residue by file (115 lines):
 | `rules/R10-concurrency-safety.md` | 1 | 1 |
 | `rules/R2-self-validating-types.md` | 1 | 1 |
 | `rules/R7-test-placement.md` | 1 | 1 |
+| `scripts/ldd-slices.sh` | 1 | 1 |
 | `skills/linter-driven-development/SKILL.md` | 1 | 1 |
 <!-- residue:end -->

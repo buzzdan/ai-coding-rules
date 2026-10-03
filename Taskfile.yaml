@@ -31,7 +31,7 @@ tasks:
           || { echo "lint-core - the Residue section of core/README.md was rewritten; commit it"; exit 1; }
 
   test-gate:
-    desc: Run the fixture matrices of the generated scripts — the repo-brain gate and the review's detection pass — for every plugin
+    desc: Run the fixture matrices of the generated scripts — the repo-brain gate, the review's detection pass and the refactoring skill's slicing step — for every plugin
     cmds:
       - bash go-linter-driven-development/scripts/check-repo-brain_test.sh
       - bash linter-driven-development/scripts/check-repo-brain_test.sh
@@ -39,6 +39,9 @@ tasks:
       - bash go-linter-driven-development/scripts/ldd-detect_test.sh
       - bash linter-driven-development/scripts/ldd-detect_test.sh
       - bash python-linter-driven-development/scripts/ldd-detect_test.sh
+      - bash go-linter-driven-development/scripts/ldd-slices_test.sh
+      - bash linter-driven-development/scripts/ldd-slices_test.sh
+      - bash python-linter-driven-development/scripts/ldd-slices_test.sh
 
   test-gen:
     desc: Unit tests and lint for the generator

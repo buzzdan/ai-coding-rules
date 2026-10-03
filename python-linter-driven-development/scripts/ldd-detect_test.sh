@@ -121,6 +121,7 @@ questions_in_rules() {
 #   FX_SRC_FILE        the production file under a layer directory: two sleep
 #                      calls and one suppression directive
 #   FX_SUPPRESS_LINE   the suppression directive's line, as the diff adds it
+#   FX_LINT_CONFIG     the linter's configuration file, which no slice may touch
 #   fx_write_marker <dir> <module>   write the project marker for a (sub-)project
 #   fx_write_code                    write $FX_SRC_FILE and a test file with a sleep
 FX_ROWS="python"
@@ -129,6 +130,7 @@ use_row() {
   FX_GLOB='*.py'
   FX_SRC_FILE="services/worker.py"
   FX_SUPPRESS_LINE='CACHE: dict[str, str] = {}  # noqa: PLW0603'
+  FX_LINT_CONFIG='pyproject.toml'
 }
 
 fx_write_marker() { # <dir> <module>
