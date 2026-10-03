@@ -98,6 +98,19 @@ def analyze(trace_path):
     agents = {}
     task_desc = {}
     total = cost = spawned = None
+    saw_stream = False
+    seen_messages = set()
+
+    def record_context(usage):
+        """One main-thread call: its context, and the attribution of what filled it."""
+        ctx = usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0) + usage.get("cache_creation_input_tokens", 0)
+        contexts.append(ctx)
+        base = contexts[0]
+        billed[FIXED] += base
+        for cat, n in cumulative.items():
+            billed[cat] += n
+        billed[UNATTRIBUTED] += max(0, ctx - base - sum(cumulative.values()))
+
     for line in open(trace_path, encoding="utf-8", errors="ignore"):
         try:
             ev = json.loads(line)
@@ -112,18 +125,20 @@ def analyze(trace_path):
                 toks(ev.get("prompt", "")),
             )
         elif kind == "stream_event" and ev["event"].get("type") == "message_start" and parent is None:
-            usage = ev["event"]["message"]["usage"]
-            ctx = usage["input_tokens"] + usage["cache_read_input_tokens"] + usage["cache_creation_input_tokens"]
-            contexts.append(ctx)
-            base = contexts[0]
-            billed[FIXED] += base
-            for cat, n in cumulative.items():
-                billed[cat] += n
-            billed[UNATTRIBUTED] += max(0, ctx - base - sum(cumulative.values()))
+            saw_stream = True
+            record_context(ev["event"]["message"]["usage"])
         elif kind == "assistant":
             agent = agents.setdefault(parent, dict(turns=0, tools=collections.Counter(), result_tokens=collections.Counter())) if parent else None
             if agent:
                 agent["turns"] += 1
+            # Traces from Claude Code 2.1.259 on carry no stream events; the
+            # main thread's usage sits on the assistant event itself, repeated
+            # once per content block of the same API call, so one message id
+            # is one call.
+            msg_id = ev["message"].get("id")
+            if parent is None and not saw_stream and ev["message"].get("usage") and msg_id not in seen_messages:
+                seen_messages.add(msg_id)
+                record_context(ev["message"]["usage"])
             for block in ev["message"].get("content", []):
                 if block.get("type") == "tool_use":
                     pending[block["id"]] = (block["name"], block.get("input", {}), parent)

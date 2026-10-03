@@ -140,6 +140,15 @@ grow. The spend report's per-agent turn column is the check.
 
 Expected: the 20M-token class of run disappears; the red-lint quickfix returns to
 the 2M to 3M its main thread costs.
+Measured, on the baseline recorded at b56f79b (`go-2.13.2-b56f79b` in the evals
+repository), against 2.11.0: the red-lint quickfix billed 24.3M tokens against 22.5M,
+its work moved from three agents into the parent, which made 120 calls at a mean
+context of 190k tokens and ran out of turns; the refactor cases that spawned no agent
+on 2.11.0 now run the review pass inside their fix loop, sometimes three times
+(case D: 0 agents to 7, 0.8M to 5.3M; the centerpiece: 1 to 7, 4.7M to 14.4M; case F:
+5.1M to 16.3M with 57 edits by the parent). The 20M class did not disappear; it
+changed hands. The diagnosis stands — an unbounded agent is expensive — and the cure
+was wrong: the parent is the most expensive context there is. S10 is the cure.
 
 ### S4 — skill text on a diet
 
@@ -557,6 +566,115 @@ context each. Each spawn prompt S7 and S9 ask the parent to compose, numbering t
 findings, counting the files, stating a budget, is parent work at that context, and
 it is the parent's turns, not another agent's, that S8's scripts are for.
 
+### S10 — the refactor loop's worker
+
+The refactor tier is where the parent works hardest: it routes a finding or a lint
+escalation to a rule's Fix-pattern move and then applies the move itself, dozens of
+Edit calls at a context that reaches 180k to 265k tokens, re-reading rule ranges and
+source files between them, and running the review pass again after every fix round.
+Every call re-sends the whole context, so the bill is calls times context, and on the
+2.13.2 baseline that product was 24.3M tokens for the red-lint quickfix, 16.3M for
+case F, 14.4M for the centerpiece — 94.8M over the ten medium runs 2.11.0 did in 65.9M.
+
+No agent framework runs an edit loop that way. Anthropic's guidance, superpowers and
+GSD agree on the shape: the orchestrator plans and reads receipts, a fresh-context
+worker edits and tests, a broad review runs once after the work lands, and a fix round
+gets a scoped check, never a second broad review. They differ on whether the parent
+may ever edit; none gives a worker a token cap, and none measures inline against
+delegated edits — the proof below does. S3 removed the workers this plugin had because
+they were unbounded; S10 puts one back with bounds that are structural, not numeric.
+
+**The worker.** One `move-implementer` agent per slice. A slice is one Fix-pattern
+move over at most five files — a finding, a cluster's mini plan, or a lint escalation
+with its route; same-shaped moves over different files share one slice when they fit
+in five. The spawn prompt carries the move by name, the absolute path of the rule file
+and the `sed` range of its Fix pattern section, the file list, the BASE commit, the
+test and lint commands, and the report path. The worker reads the range and the files
+once, applies the move, runs the focused tests while it iterates and the full suite
+once at the end, keeps every test and lint output in a file under the report path and
+reads only its tail, and never spawns an agent. Its exits: green, and the receipt;
+three attempts at green and still red, and the receipt says `DEFERRED` with the failing
+tail; five reads with no edit, or a range that prints nothing, and the receipt says
+`NEEDS_CONTEXT` with what it looked for; a sixth file needed, and the receipt says
+`PARTIAL` with the files it did not touch. A failure outside the slice is logged
+`OUTSIDE`, never fixed. Its delivery is a tested and linted commit: a `GREEN` worker
+commits the slice itself, one commit with the move's name as the subject; every other
+exit writes the attempt as a patch under the report path and restores the slice's files
+to the base commit, so the parent's tree is never left red. The receipt is at most
+fifteen lines: `STATUS`, the move, the commit, the files touched with `git diff --stat`,
+one test line, one lint line, `OUTSIDE` and `DEFERRED` lines, the report path.
+
+**The parent.** The refactoring skill keeps its routing table and its stopping
+criteria and stops applying moves: it composes slices, spawns one worker per slice
+(several in one message when they share no file), and reads receipts — the commits
+are the workers'. Its
+detection re-run is `ldd-detect.sh` over the touched files; its comment critic runs
+once per session over the touched files, and not at all when the workflow's Phase 4
+review will run it. The workflow's Phase 3 routes escalations to the refactoring skill
+as before; Phase 4 runs the review FULL once per slice, fixes through the skill, then
+runs one INCREMENTAL pass over the fixed files: `ldd-scope.sh` on those files,
+`ldd-detect.sh`, and the counts table compared with the FULL pass's `counts.tsv` —
+hunters only for the families whose rows changed, the critic only when the delta's
+`comments.txt` has a line — and what that pass still reports is listed under
+`REVIEW: findings deferred` in the ship summary. There is no "until clean" loop. The
+quickfix command runs at most three Phase 3 to Phase 4 rounds and lists what is left.
+
+**What it does not do.** No token budget, no turn cap: the bounds are the slice (one
+move, five files), the attempts (three), the stall exit and the receipt, and a worker
+that ends on one of them ends with a receipt the parent can act on. Nothing changes in
+the review tier: the hunters, the skeptic, the critic and the scripts are S8's.
+
+Expected: the parent's API calls on the four movers (quickfix, case F, the
+centerpiece, case D) fall from 120, 109, 74 and 42 to under 40; its mean context
+falls from 190k, 145k, 164k and 103k to under 120k; the medium tier falls under 65.9M over the ten comparable runs,
+toward the program's 35M; verdicts hold (case B, E, prepare-sms, wire-repo-brain
+unchanged; C, D, F and the centerpiece inside the three-grader swing; `stop-check`
+rendered). Proof: the medium tier once more at b56f79b for the noise floor, then the
+four movers twice per arm in three arms — as is, S3's ban reverted with no other
+change, and S10 — then the medium tier once on S10. About $150.
+
+Risks: a worker that fixes outside its slice hides a regression under a green suite —
+the `OUTSIDE` line and the per-slice `git diff --stat` in the receipt are the check; a
+parent that pastes rule text or source into the spawn prompt rebuilds the context it
+was meant to shed — the prompt carries paths, ranges and the BASE commit only, and the
+spend report's spawn-prompt tokens column is the check; an INCREMENTAL pass that reads
+`counts.tsv` from the wrong bundle compares apples with oranges — the FULL pass's
+bundle path is carried in the parent's Phase 4 line.
+
+Measured, three arms on the medium tier, about $190 in all. Arm A, the b56f79b
+plugin run again, twice over by a mistake in the case pattern, so every mover has
+three or four same-text runs: case F 15.5M and 14.8M billed (two more runs at $6.60
+and $4.48, traces lost), the centerpiece 4.4M and 7.9M (two more at $1.74 and $6.17),
+quickfix 23.7M and 24.9M (two more at $11.19 and $7.26), and the light cases swinging
+too — case B 2.4M passing and a lost run at $3.28 failing, case E 2.4M passing and a
+lost run at $3.22 failing. A claim has to clear the best of the same-text runs, not
+the mean, and a single run of a light case says little. Arm B, S3's ban deleted and
+nothing else: quickfix 26.1M and 24.1M at 120 and 119 parent calls with 53 and 57
+edits by the parent, case F 12.2M and 13.2M with 34 and 36 — the baseline's shape.
+Being allowed to delegate changes nothing; the parent delegates only when a skill
+tells it to spawn a named worker. Arm C, this stage: where the parent obeyed, its own
+spend fell — quickfix's parent made 36 and 51 calls instead of 120 and no edit at
+all, 4.7M and 8.2M of its own against 22.9M; case F's second run billed 8.55M with
+six workers and seven parent edits against 14.8M to 16.3M — and four things did not
+hold. The parent did not always obey: case F's first run spawned no worker and made
+31 edits itself, and after the comment critic the centerpiece's parent made ten edits
+at 155k to 162k of context. Most `DEFERRED` exits were green moves judged red by code
+outside the slice — a package-wide lint seeing another file's issues, a race test red
+at the base commit too — because the exit rule read the exit code of the whole
+command, and each deferral bought a retry: quickfix spawned four workers in one
+message and then eight more one at a time, twelve in all, nine of them retries and
+later rounds. The hour went to those rounds and to the review pass, about twenty
+minutes of it, and both quickfix runs hit the runner's timeout at 16.3M and 16.9M
+billed, unfinished. The three-attempt bound did not bound: the long workers (35 to 52
+turns) spent their turns on reads, lint and build runs, not on test runs. Cases B and
+E lost graders (5/5 to 2/5, 9/10 to 5/10) at 4.9M and 7.2M, but the same text also
+failed both in arm A's lost runs, so what is the design's is the mechanism the traces
+show — the Null Object move split across seven partial and four deferred worker
+exits — not the totals. The stage as written does not ship. What it proved: the
+parent's own cost falls three to five times when it delegates, and parallel spawns in
+one message do happen. What it did not: that a worker judged on a whole-package exit
+code can finish, or that the parent stops editing on its own.
+
 ## Proving it
 
 Every stage passes two gates on the same run, or it does not ship.
@@ -644,6 +762,7 @@ diet, since nothing in the diet can change them.
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
 | S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A, B and F together 12.7M to 9.6M; whole-repository mean 4.9M to 4.6M, worst run not below the best; no hunter detection call; critic tool output 51k to 29k | none |
 | S9 | critic reads the scope twice, writes every KEEP | double read gone, tool output 51k to 54k down to 34k to 48k; turns, report and bill unmoved, main-thread calls up to 19 to 24 | documentation skill, small |
+| S10 | edit loop in the parent, review inside the fix loop | none | not shipped: parent calls 120 to 36–51 and parent spend 22.9M to 4.7–8.2M on quickfix where it delegated, but whole-package verdicts deferred green moves, retries and the review pass ran the hour out, and the parent still edited on its own at times (see the measured paragraph) |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number
