@@ -54,9 +54,10 @@ tasks:
       - golangci-lint run
 
   test-scripts:
-    desc: Unit tests for the repository's own scripts (the spend report)
+    desc: Unit tests for the repository's own scripts (the spend report, the trace check)
     cmds:
       - python3 scripts/spend-report_test.py
+      - python3 scripts/parent-edits_test.py
 
   docs:check:
     desc: Run the repo-brain documentation gate over this repository (pass --fix after --)
