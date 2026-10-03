@@ -52,6 +52,8 @@ class ParentEdits(unittest.TestCase):
             tool_use("Bash", {"command": "bash /p/scripts/ldd-attempt.sh /tmp/r move-1 lint -- golangci-lint run"}, "w2", parent="a1"),
             tool_use("Bash", {"command": "bash /p/scripts/ldd-attempt.sh /tmp/r 1 build -- go build ./..."}, "w3", parent="a1"),
             tool_use("Bash", {"command": "bash /p/scripts/ldd-attempt.sh /tmp/r move-2 test -- go test ./..."}, "w4", parent="a1"),
+            tool_use("Bash", {"command": "bash /p/scripts/ldd-attempt.sh /tmp/r move-1 test -- go test ./..."}, "w6", parent="a1"),
+            tool_result("w6", "BOUND: move 1 has had three runs — defer it", parent="a1"),
             tool_use("Bash", {"command": "git status"}, "w5", parent="a2"),
             tool_result("a1", RECEIPT),
             tool_result("a2", RECEIPT),

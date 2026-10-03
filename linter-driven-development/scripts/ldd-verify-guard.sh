@@ -14,7 +14,7 @@
 #   {"matcher": "Bash", "hooks": [{"type": "command",
 #    "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/ldd-verify-guard.sh\""}]}
 #
-# Uses only POSIX-portable tools: sed, grep, tr.
+# Uses only POSIX-portable tools: sed, grep, awk.
 
 set -u
 
@@ -57,7 +57,7 @@ command=$(printf '%s' "$INPUT" | sed -E -n 's/.*"command":"(([^"\\]|\\.)*)".*/\1
 #   LANG_LINT_CONFIG_RE ERE over a relative path: a linter's configuration file,
 #                       which no refactoring slice may touch (every language's
 #                       forms, since a repository may carry several)
-LANG_VERIFY_RE='(^|[^A-Za-z0-9_./-])(go (test|vet|build)|golangci-lint|staticcheck|gofmt|pytest|python[0-9.]* -m (pytest|unittest|ruff|mypy|pyright|flake8|pylint)|ruff (check|format)|mypy|pyright|flake8|pylint|tox|nox|npm (test|run (test|lint|build))|yarn (test|lint|build)|pnpm (test|lint|build)|cargo (test|build|clippy|check)|mvn (test|verify|compile)|gradle (test|build|check)|dotnet (test|build)|task (test|lint|build)|make (test|lint|build))([^A-Za-z0-9_-]|$)'
+LANG_VERIFY_RE='(^|[^A-Za-z0-9_./-])((\S*/)?(go\s+(-C\s+\S+\s+)?(test|vet|build)|golangci-lint|staticcheck|gofmt|pytest|python[0-9.]*\s+-m\s+(pytest|unittest|ruff|mypy|pyright|flake8|pylint)|ruff\s+(check|format)|mypy|pyright|flake8|pylint|tox|nox|npm\s+(test|run\s+(test|lint|build))|yarn\s+(test|lint|build)|pnpm\s+(test|lint|build)|cargo\s+(test|build|clippy|check)|mvn\s+(test|verify|compile)|gradle\s+(test|build|check)|dotnet\s+(test|build))|task\s+\S*(test|lint|build|check|vet)\S*|make\s+(-[A-Za-z]\s+\S+\s+)*\S*(test|lint|build|check|vet)\S*)([^A-Za-z0-9_-]|$)'
 LANG_LINT_CONFIG_RE='(^|/)(\.golangci\.ya?ml|pyproject\.toml|setup\.cfg|ruff\.toml|\.flake8)$'
 
 detect_language() {
@@ -144,12 +144,16 @@ lang_lint_delta() {
 }
 # ================== end language block: detected ==================
 
-# Allowed: the part before the first " -- " names the wrapper.
-before=${command%% -- *}
-case "$before" in *ldd-attempt.sh*) exit 0 ;; esac
-
-if printf '%s\n' "$command" | grep -qE -- "$LANG_VERIFY_RE"; then
-  echo "use ldd-attempt.sh for test, lint and build runs: bash <plugin>/scripts/ldd-attempt.sh <REPORT> move-<n> <test|lint|build> -- <command>. Denied: $command" >&2
-  exit 2
-fi
+# The command is judged segment by segment — split at &&, ||, ; and | and at
+# line ends — so a run chained behind a wrapper call is still seen. A segment
+# that calls the wrapper (ldd-attempt.sh before its --) is the allowed form;
+# any other segment that runs a test, lint, build or vet form is denied.
+while IFS= read -r segment; do
+  [[ -n "$segment" ]] || continue
+  case "$segment" in *ldd-attempt.sh*' -- '*) continue ;; esac
+  if printf '%s\n' "$segment" | grep -qE -- "$LANG_VERIFY_RE"; then
+    echo "use ldd-attempt.sh for test, lint and build runs: bash <WRAPPER> <REPORT> move-<n> <test|lint|build> -- <command>. Denied: $segment" >&2
+    exit 2
+  fi
+done < <(printf '%s\n' "$command" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }')
 exit 0

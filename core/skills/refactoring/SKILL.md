@@ -63,16 +63,19 @@ the lines that share a file, orders a slice's moves as the multi-rule procedures
 sequence them, assigns waves so that no two slices of one wave touch the same package,
 and prints one block per slice (`MOVE n:` lines, `FILES:`, `PKGS:`, `RULE:`); a move
 name that is not the rule's spelling is refused with the valid keys. Before the first
-wave, run `TEST:` once and record the names of the tests that fail as `BASE-RED:` (or
-`none`). Then, wave by wave: spawn every slice of the wave **in one message** — one
+wave: the tree is clean — `git status --porcelain` prints nothing; when it does, commit
+the tree first (the step's own message), because a worker restores its files to `BASE:`
+on a deferral and commits them whole when green, and uncommitted work in those files
+would be lost or swept into a move's commit. Then run `TEST:` once and record the names
+of the tests that fail as `BASE-RED:` (or `none`). Then, wave by wave: spawn every slice of the wave **in one message** — one
 `{{.Plugin}}:move-implementer` per slice, Agent tool, foreground — with the slice's
 block and these lines appended, and no pasted rule text or source:
 `BASE: <git rev-parse HEAD>` · `BASE-RED: <names, or none>` · `TEST: <the project's test command>` · `LINT: <the line bash "$S/ldd-attempt.sh" --lint-delta <BASE> <the slice's FILES> prints>` · `BUILD: <the project's build command, or none>` · `WRAPPER: <absolute path of $S/ldd-attempt.sh>` · `REPORT: <mktemp -d>`.
 Read the receipts, not the tree, and append one line per slice and status to
 `<dir>/slices.log` as they arrive, so a compacted parent re-dispatches nothing. Before
 the next wave, spot-check every `COMMIT:` with `git show --name-only <sha>`: a commit
-that touches a file outside its slice's `FILES:` is a `Stop check` line, never
-silently kept. `DEFERRED-NEEDS: <files>` → one re-spawn in the next wave, the files
+that touches a file outside its slice's `FILES:` — a new file inside one of its `PKGS:`
+excepted — is a `Stop check` line, never silently kept. `DEFERRED-NEEDS: <files>` → one re-spawn in the next wave, the files
 appended to the slice's line in `slices.tsv` and the script run again; a second
 `DEFERRED-NEEDS` is final. `DEFERRED` and `NEEDS_CONTEXT` are lines of the `Stop check`
 block and the ship summary, never a reason for the parent to apply the move by hand.

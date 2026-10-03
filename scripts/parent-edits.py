@@ -15,7 +15,8 @@ parent's assistant events that carry a worker spawn: several spawns in one messa
 share one id. "waves" counts the "-- wave <n>" lines the slicing script printed in the
 parent's Bash results; a parent that spawns a wave in one message has at most as
 many messages as waves. "max runs per move" reads the worker's Bash commands that go
-through ldd-attempt.sh (the report path, then move-<n> or <n>) and counts per move.
+through ldd-attempt.sh (the report path, then move-<n> or <n>) and counts per move; a
+call the wrapper refused ("BOUND:") is not a run.
 "direct verification runs" are the worker's Bash commands that run a test, lint,
 build or vet form without the wrapper and were not denied by the hook; the denied
 attempts are counted beside them. "re-spawns per move" counts how many spawn prompts
@@ -68,6 +69,7 @@ def check(trace_path, case="?", run="?"):
     waves = 0
     parent_bash = set()
     direct_calls = {}  # bash tool_use id -> denied?
+    wrapper_calls = {}  # bash tool_use id -> (worker id, move)
     for line in open(trace_path, encoding="utf-8", errors="ignore"):
         try:
             ev = json.loads(line)
@@ -95,6 +97,7 @@ def check(trace_path, case="?", run="?"):
                         for move in WRAPPER_RUN.findall(command):
                             runs = workers[parent]["runs"]
                             runs[move] = runs.get(move, 0) + 1
+                            wrapper_calls[block["id"]] = (parent, move)
                     elif VERIFY.search(command):
                         direct_calls[block["id"]] = False
             elif kind == "user" and block.get("type") == "tool_result":
@@ -106,6 +109,9 @@ def check(trace_path, case="?", run="?"):
                     waves += len(WAVE_LINE.findall(text))
                 elif tid in direct_calls and (block.get("is_error") or DENIED.search(text)):
                     direct_calls[tid] = True
+                elif tid in wrapper_calls and "BOUND:" in text:
+                    worker, move = wrapper_calls[tid]
+                    workers[worker]["runs"][move] -= 1  # refused by the wrapper: not a run
     max_runs = max((n for w in workers.values() for n in w["runs"].values()), default=0)
     denied = sum(1 for d in direct_calls.values() if d)
     direct = len(direct_calls) - denied

@@ -86,8 +86,12 @@ half-edits in their test runs), and prints one block per slice under its wave:
 `MOVE n:` lines, `FILES:` (one sorted line), `PKGS:`, `RULE:` (one per rule). A move
 name that is not the rule's spelling is refused with the valid keys printed.
 
-**The base.** Before the first wave, run `TEST:` once and write down the names of the
-tests that fail — `BASE-RED:` — or `none`. A worker judges its move by the delta
+**The base.** Before the first wave the tree is clean: `git status --porcelain` prints
+nothing, or the parent commits the tree first with the step's own message. A worker
+restores its files to the base commit on a deferral and commits them whole when green;
+uncommitted work in those files would be lost or swept into a move's commit, and the
+lint over the delta would judge it as the move's. Then run `TEST:` once and write down
+the names of the tests that fail — `BASE-RED:` — or `none`. A worker judges its move by the delta
 against the base commit: a test in `BASE-RED:` is not its failure, a lint line in a
 file outside its slice is `OUTSIDE:` and logged, and only what the move itself turned
 red defers it.
@@ -120,9 +124,9 @@ the receipts before the next wave — never the tree.
   `NEEDS_CONTEXT` is a line in the block.
 
 **The spot-check.** Before the next wave, `git show --name-only <sha>` for every
-`COMMIT:` of the wave: a commit that touches a file outside its slice's `FILES:` is a
-`Stop check` line (`BROADER CONTEXT`, with the hash and the file), never silently
-kept.
+`COMMIT:` of the wave: a commit that touches a file outside its slice's `FILES:` — a
+new file inside one of its `PKGS:` excepted, which the receipt lists — is a `Stop check`
+line (`BROADER CONTEXT`, with the hash and the file), never silently kept.
 
 **The ledger.** Append one line per slice and status to `<dir>/slices.log` as the
 receipts arrive, so a parent whose context was compacted re-dispatches nothing.

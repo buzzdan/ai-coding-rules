@@ -66,7 +66,7 @@ LANG_COMMENT_RE='//'
 LANG_DIRECTIVE_RE='//(go:|nolint| Output:|line |export |extern )'
 LANG_GENERATED_RE='Code generated .* DO NOT EDIT|DO NOT EDIT|@generated'
 
-LANG_VERIFY_RE='(^|[^A-Za-z0-9_./-])(go (test|vet|build)|golangci-lint|staticcheck|gofmt|task (test|lint|build)|make (test|lint|build))([^A-Za-z0-9_-]|$)'
+LANG_VERIFY_RE='(^|[^A-Za-z0-9_./-])((\S*/)?(go\s+(-C\s+\S+\s+)?(test|vet|build)|golangci-lint|staticcheck|gofmt)|task\s+\S*(test|lint|build|check|vet)\S*|make\s+(-[A-Za-z]\s+\S+\s+)*\S*(test|lint|build|check|vet)\S*)([^A-Za-z0-9_-]|$)'
 LANG_LINT_CONFIG_RE='(^|/)(\.golangci\.ya?ml|pyproject\.toml|setup\.cfg|ruff\.toml|\.flake8)$'
 
 lang_configure() {

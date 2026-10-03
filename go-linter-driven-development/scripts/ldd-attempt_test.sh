@@ -187,7 +187,24 @@ guard_allows "$WORKER" "bash /x/scripts/ldd-attempt.sh /tmp/r move-1 test -- $fi
 finish
 
 begin "6d the guard denies the task-runner forms for the worker"
-guard_denies "task test" && guard_denies "make lint" && guard_denies "cd pkg && task build" && ok
+guard_denies "task test" && guard_denies "make lint" && guard_denies "cd pkg && task build" \
+  && guard_denies "task test:race" && guard_denies "task test-unit" && guard_denies "make -C internal test" && guard_denies "make check" && ok
+finish
+
+begin "6f a verification run chained behind a wrapper call is still denied"
+first=$(fx_verify_commands | sed -n 1p)
+guard_denies "bash /p/scripts/ldd-attempt.sh /r move-1 test -- true && $first" \
+  && guard_denies "bash /p/scripts/ldd-attempt.sh /r move-1 test -- true; $first" \
+  && guard_denies "echo ldd-attempt.sh; $first" \
+  && guard_denies "cat scripts/ldd-attempt.sh && $first" \
+  && guard_allows "$WORKER" "bash /p/scripts/ldd-attempt.sh /r move-1 test -- $first && echo done" && ok
+finish
+
+begin "6g the guard sees through a tool path, extra spaces and a -C flag"
+tool=$(fx_verify_commands | sed -n 3p | cut -d' ' -f1)
+guard_denies "/usr/local/bin/$(fx_verify_commands | sed -n 3p)" \
+  && guard_denies "$(fx_verify_commands | sed -n 1p | sed 's/ /   /')" \
+  && guard_denies "$(fx_verify_commands | sed -n 1p | sed 's/^\([a-z0-9]*\) /\1 -C internal /')" && ok
 finish
 
 for ROW in $FX_ROWS; do

@@ -119,7 +119,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`rule-hunter`](agents/rule-hunter.md) | `@pre-commit-review` (one per rule family with hits, four at most, in parallel) | the family's `rules/R*.md` files with hits + the scope bundle | No (read-only) |
 | [`overabstraction-skeptic`](agents/overabstraction-skeptic.md) | `@pre-commit-review` (after hunters report) | R1's juiciness scorecard + `examples/overabstraction-cidr.md` (no bundle: it greps the whole repository) | No (read-only) |
 | [`lint-fixer`](agents/lint-fixer.md) | `@linter-driven-development` (Phase 3) | routing table (linter failure → rule) | Yes (mechanical only; escalates design) |
-| [`move-implementer`](agents/move-implementer.md) | `@refactoring` (one per slice) | one Fix-pattern move over at most five files, in a fresh context; commits when green, restores the files otherwise; returns a receipt | Yes (the slice's files only) |
+| [`move-implementer`](agents/move-implementer.md) | `@refactoring` (one per slice, a wave in one message) | the moves of one slice in order, in a fresh context, judged by the delta against the base commit; verifies only through the counting wrapper; commits each green move, restores the files otherwise; returns a receipt | Yes (the slice's files only) |
 
 ## Slash Commands
 

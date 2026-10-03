@@ -126,20 +126,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
-- **The review runs once per slice.** The workflow's Phase 4 runs the review FULL once,
-  fixes through the refactoring skill, then one INCREMENTAL pass over the fixed files
-  whose hunters are the families whose counts table changed and whose critic runs only
-  when the delta carries comment lines; what remains is listed as deferred. Phase 5
-  commits what the workers did not and lists every hash. The quickfix command runs at
-  most three rounds.
-
-- **The refactoring skill delegates its moves.** It composes slices — one move over at
-  most five files — and spawns one move-implementer per slice, which commits the slice
-  when it is green; the skill reads receipts and applies no move itself. Its detection
-  re-run is the review's detection script over the touched files, and its comment
-  critic runs once per session, or not at all when the workflow's review follows. The
-  `Stop check` block opens with a `0 slices` line.
-
 - **The critic reads the scope in chunks and reports what changes.** On a
   whole-repository sweep the comment critic reads the numbered scope files that carry
   comments several per call, in the bundle's directory order, each call sized to come

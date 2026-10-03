@@ -688,8 +688,8 @@ assigns waves so that no two slices of one wave touch the same package, and prin
 the spawn blocks; the parent spawns a wave in one message and reads its receipts
 before the next. Every test, lint and build run goes through `ldd-attempt.sh`, which
 writes the output to a numbered file under the report path, counts per move and
-refuses the fourth run; a hook in the worker's own definition denies any such command
-that does not go through the wrapper, so the count is a bound and not a promise. And
+refuses the fourth run; the plugin's hook denies the worker any such command that does
+not go through the wrapper, so the count is a bound and not a promise. And
 the parent edits nothing: the comment critic's verdicts and R9's doc fixes become
 slices too. A move that needs a file outside its slice is re-spawned once with the
 file added; a second time it is deferred for good. There is no inline gate and no
