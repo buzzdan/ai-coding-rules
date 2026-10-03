@@ -5,7 +5,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-03
+
 ### Added
+
+- **`coding-rules/python.md`, the Python coding-rules handbook.** The twelve
+  rules with Python examples and the binding's positions as `In Python` asides,
+  the shared house rules H1–H2 (suppressions, errors) with their Python spelling,
+  the Python house rules P1–P5 (keyword-only booleans, defaults as names, consumer
+  imports in tests, fixtures never hide the input, annotations as the contract), a
+  self-review checklist and the mechanics; generated from `core/handbook/` and
+  `lang/python/handbook/`.
 
 - **The review's detection pass and scope bundle are scripts.** Every falsifying
   question in `rules/R1` to `R12` now carries a detect line beside its prose — a
@@ -201,15 +211,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   unless `[tool.mypy]` names files, and each type checker runs only where its table
   exists; the pre-flight and the handbook's mechanics name them separately.
 
-### Added
-
-- **`coding-rules/python.md`, the Python coding-rules handbook.** The twelve
-  rules with Python examples and the binding's positions as `In Python` asides,
-  the shared house rules H1–H2 (suppressions, errors) with their Python spelling,
-  the Python house rules P1–P5 (keyword-only booleans, defaults as names, consumer
-  imports in tests, fixtures never hide the input, annotations as the contract), a
-  self-review checklist and the mechanics; generated from `core/handbook/` and
-  `lang/python/handbook/`.
 
 ## [0.2.0] - 2026-09-19
 
