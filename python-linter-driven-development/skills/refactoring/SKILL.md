@@ -27,9 +27,12 @@ exit — never the file whole and never a call of its own. Forward counterpart:
 <skill_invocation>
 "Invoke @skill-name" means call the **Skill tool** — `Skill(python-linter-driven-development:code-designing)`,
 `Skill(python-linter-driven-development:testing)`, `Skill(python-linter-driven-development:pre-commit-review)` — never just mention
-it. This skill runs in the thread that invoked it: its moves are never delegated to a
-general-purpose or any other subagent; the one agent it spawns is the comment critic
-of step 4 below.
+it. This skill runs in the thread that invoked it and applies no move itself: every
+move goes to one `python-linter-driven-development:move-implementer` per slice (`<slices>` below), spawned
+by that name with the Agent tool, foreground; the only other agent it spawns is the
+comment critic of step 4, and never a general-purpose one. The parent routes, composes
+slices, reads receipts and lists the workers' commits — it does not Edit a source
+file.
 </skill_invocation>
 
 <routing_table>
@@ -70,6 +73,23 @@ several rules are routed on one function,
 `sed -n '/^## Multi-rule procedures/,$p'` (sequencing, god-object and package decomposition).
 </pattern_index>
 
+<slices>
+A slice is one move over at most five files: one finding, one cluster's mini plan, or
+one lint escalation with its route; same-shaped moves over different files share a
+slice when they fit in five, and a move that needs a sixth file is two slices. Spawn
+one `python-linter-driven-development:move-implementer` per slice — several in one message when their
+slices share no file, so they run in parallel — with a prompt of these lines and no
+pasted rule text or source:
+`MOVE: <the move as the Fix pattern spells it>` · `RULE: <absolute path of ../../rules/R<N>-….md>` · `RANGE: <the sed -n range of that rule's Fix pattern section>` · `FILES: <the slice's files>` · `BASE: <git rev-parse HEAD>` · `TEST: <the project's test command>` · `LINT: <the project's lint command>` · `REPORT: <a mktemp -d>`.
+Read the receipt, not the tree: `GREEN` carries the slice's commit and moves on;
+`PARTIAL` spawns one more worker over the files it names; `DEFERRED` and
+`NEEDS_CONTEXT` are lines of the `Stop check` block and the ship summary, never a
+reason for the parent to apply the move by hand or to spawn a third worker on the same
+slice. The long form — what a slice is, what the receipt lines mean, what the parent
+does with each — rides in the loop's opening Bash call with the pattern index
+(`sed -n '/^## Slices and receipts/,/^## File and package routing/p'`).
+</slices>
+
 <preparatory_mode>
 Fowler's preparatory refactoring — reshape code an approved plan is about to touch,
 before the first RED, so the feature lands add-only. Invoked by @linter-driven-development
@@ -88,10 +108,14 @@ mode is the one invoked, before any move: `sed -n '/^## Preparatory mode/,/^## S
    call the ranges `<pattern_index>` names: the pattern index always; file and package
    routing with its procedure when such a failure is routed; preparatory mode when
    that is the mode. This is the one read of `reference.md` the loop makes.
-3. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
-   least-invasive move first (sequencing: "Multi-rule procedures", `<pattern_index>`).
-4. Re-run the linter immediately — no user confirmation.
-5. Still failing → next move in the sequence. Repeat until green.
+3. Route each failure via `<routing_table>` to the owning rule's Fix-pattern move,
+   least-invasive move first (sequencing: "Multi-rule procedures", `<pattern_index>`);
+   compose the slices and spawn the implementers (`<slices>`).
+4. Read the receipts — `GREEN` slices are committed — then re-run the linter once over
+   the scope, immediately, no user confirmation.
+5. Still failing → next move in the sequence, as a new slice with a new worker. Repeat
+   until green. A slice that came back `DEFERRED` or `NEEDS_CONTEXT` is not spawned
+   again on the same move; it is a line in the block.
 6. **Escalation**: complexity failures that keep recurring mean a new type or design
    is needed — invoke @code-designing. Patterns exhausted → report what was tried and
    escalate to the user, framed in maxim vocabulary (`../../maxims.md`): name *why*
@@ -151,20 +175,17 @@ they govern steps 2 to 6.
 
 1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
    packages. Line `1 gates`: the four measurements.
-2. **Detection re-run.** Re-run the detection commands of every rule routed this
-   session over the touched files (R8: the touched packages). A hit in a function or
-   type this session changed, or an R8 declaration in a touched package, is **fixed** —
-   routed again, "pre-existing" is no verdict; a hit anywhere else in a touched file, or
-   of a rule never routed, is **reported** as one `BROADER CONTEXT` line (`file:line —
-   rule and question — what stands`). Line `2 re-run`: per routed rule, `0 hits`, the
-   anchor routed again, or `n reported`.
+2. **Detection re-run.** One Bash call: `S=<this skill dir>/../../scripts; out=$(bash "$S/ldd-scope.sh" <the touched files>); echo "$out"; case "$out" in *'nothing to review') ;; *) bash "$S/ldd-detect.sh" "${out##* }" ;; esac` — the counts table over the touched files (R8: every file of the touched packages). A hit of a rule routed this session, in a function or type this session changed, or an R8 declaration in a touched package, is **fixed** — a new slice, routed again, "pre-existing" is no verdict; a hit anywhere else in a touched file, or of a rule never routed, is **reported** as one `BROADER CONTEXT` line (`file:line — rule and question — what stands`). Line `2 re-run`: per routed rule, `0 hits`, the anchor routed again, or `n reported`.
 3. **The noun check.** For each concept the touched code handles: does it have a named
    box? A slice walked with flags is a collection type over it (R1); an optional
    collaborator is a Null Object default; a value parsed twice has one constructor; a
    repeated predicate is a method. Score each with R1's scorecard: ≥4 apply; 2–3 apply
    or record the judgment call; 0–1 leave. Line `3 nouns`: each candidate with score
    and verdict — `none scored ≥2` when nothing qualified, never a blank.
-4. **The comment critic.** Spawn one `python-linter-driven-development:comment-critic` (Agent tool,
+4. **The comment critic.** Inside the workflow, when Phase 4's review follows this
+   session, skip this step — the review's critic covers the touched files once — and
+   write `4 critic: Phase 4`. Standalone, or when no review follows: spawn one
+   `python-linter-driven-development:comment-critic` (Agent tool,
    foreground) over the touched files, its spawn prompt carrying, as absolute paths,
    `../../rules/R9-repo-brain.md` with `sed -n '/^### Comment policy/,/^### Edge conventions/p'`,
    `../documentation/reference.md` with `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`,
@@ -174,11 +195,11 @@ they govern steps 2 to 6.
 5. **STOP**, reading the over-engineering signs as a check on step 3: a one-method type
    that merely unwraps, a function that only calls another, more layers than concepts
    — undo that move. Line `5 STOP`: none of the signs, or the move undone.
-6. **Commit.** Tests and lint green and the tree dirty → `git commit` with the STATUS
-   summary — one commit per green step when deployable steps were asked for (R8: one
-   island and its caller per commit). Inside the workflow, Phase 5 commits the slice; a
-   standalone invocation commits here, before the report. Line `6 commit`: the hash and
-   message, `Phase 5 commits the slice`, or `tree clean, nothing to commit`.
+6. **Commits.** The workers committed each green slice; list them. When the parent's
+   own tree is dirty and green (a BROADER CONTEXT edit, a doc), commit that separately,
+   with the STATUS summary. Inside the workflow, Phase 5 commits nothing for the slices
+   and lists these hashes. Line `6 commit`: one `<sha> <subject>` per slice, the
+   parent's own hash when there is one, or `tree clean, nothing to commit`.
 
 The six lines are the block, and the block goes in the message that ends the turn,
 whichever path invoked this skill; a caller that summarises this work carries it and
@@ -200,12 +221,13 @@ Metrics: cyclomatic [before]→[after], LOC [before]→[after], nesting [before]
 Files Modified: [file] (+X, -Y)
 
 Stop check:
+0 slices     [n] spawned — [n] GREEN · [n] PARTIAL · [n] DEFERRED · [n] NEEDS_CONTEXT
 1 gates      lint 0 · tests green · max LOC [n] · max nesting [n]
 2 re-run     [R3, R1, R8]: [0 hits / file.py:NN still — routed again]
 3 nouns      [Region (score 5) → Replace Primitive with Domain Type applied; Tags (score 2) → recorded]
 4 critic     [n] verdicts applied · [n] DELETE → routed R3
 5 STOP       [none of the over-engineering signs / undone: <move>]
-6 commit     [abc1234 "<message>" / Phase 5 commits the slice / tree clean, nothing to commit]
+6 commit     [abc1234 "Extract Leaf Type: …" · def5678 "…" / tree clean, nothing to commit]
 
 BROADER CONTEXT
   [file.py:NN — R3 Q1 — # noqa on an eight-linter function this session never opened / none]
@@ -213,7 +235,7 @@ BROADER CONTEXT
 STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
 Every `Stop check` line renders, in this order, opening with its number and keyword
-exactly as shown — `1 gates` … `6 commit` — with its result on the same line; a missing
+exactly as shown — `0 slices` … `6 commit` — with its result on the same line; a missing
 line means the step did not run and the STATUS is not final. `BROADER CONTEXT` lists
 every hit step 2 reported rather than fixed, or `none`. Who invokes this skill and what
 it invokes: `sed -n '/^## Integration/,/^## Multi-rule procedures/p' <this skill dir>/reference.md`.

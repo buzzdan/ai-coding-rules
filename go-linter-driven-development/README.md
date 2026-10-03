@@ -22,7 +22,7 @@ go-linter-driven-development/
 │                 anti-if-dispatch · switch-to-polymorphism   (case law)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
 │                 pre-commit-review · testing · documentation   (thin directional views)
-├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
+├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer · move-implementer   (isolated workers)
 ├── commands/     go-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
 ├── scripts/      check-repo-brain.sh — repo-brain conformance gate, installed into target repos by /wire-repo-brain
 │                 ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
@@ -119,6 +119,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`rule-hunter`](agents/rule-hunter.md) | `@pre-commit-review` (one per rule family with hits, four at most, in parallel) | the family's `rules/R*.md` files with hits + the scope bundle | No (read-only) |
 | [`overabstraction-skeptic`](agents/overabstraction-skeptic.md) | `@pre-commit-review` (after hunters report) | R1's juiciness scorecard + `examples/overabstraction-cidr.md` (no bundle: it greps the whole repository) | No (read-only) |
 | [`lint-fixer`](agents/lint-fixer.md) | `@linter-driven-development` (Phase 3) | routing table (linter failure → rule) | Yes (mechanical only; escalates design) |
+| [`move-implementer`](agents/move-implementer.md) | `@refactoring` (one per slice) | one Fix-pattern move over at most five files, in a fresh context; commits when green, restores the files otherwise; returns a receipt | Yes (the slice's files only) |
 
 ## Slash Commands
 
