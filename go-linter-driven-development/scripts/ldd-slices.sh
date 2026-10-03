@@ -126,12 +126,13 @@ lang_is_test() {
   [[ "$1" == *_test.go ]]
 }
 # lang_lint_delta <base> <files...> — the Go linter over the changes since the
-# base commit, in the packages of the given files.
+# base commit, in the packages of the given files; parallel runners allowed, so
+# the workers of one wave do not wait on each other's lock.
 lang_lint_delta() {
   local base="$1"; shift
   local pkgs
   pkgs=$(for f in "$@"; do d=$(dirname "$f"); printf './%s\n' "${d#./}"; done | LC_ALL=C sort -u | tr '\n' ' ')
-  printf 'golangci-lint run --new-from-rev=%s %s\n' "$base" "${pkgs% }"
+  printf 'golangci-lint run --allow-parallel-runners --new-from-rev=%s %s\n' "$base" "${pkgs% }"
 }
 # ===================== end language block: go =====================
 

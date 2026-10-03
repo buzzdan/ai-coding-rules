@@ -7,11 +7,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Added
 
-- **A worker for the refactoring skill's moves.** `agents/move-implementer.md` applies
-  one Fix-pattern move to one slice of at most five files in its own context, tests it
-  there, commits the slice when it is green, and returns a receipt of at most fifteen
-  lines; any other exit restores the files and leaves the attempt as a patch. It never
-  designs, widens or spawns.
+- **A worker for the refactoring skill's moves.** `agents/move-implementer.md` takes
+  one slice — the moves that share a file, in sequence — and applies them in its own
+  context. Its verdict is the delta against the base commit: lint over the slice's
+  changes only, a test that was already red at the base commit ignored and listed, so
+  a package's other issues never defer a green move. Every test, lint and build run
+  goes through `scripts/ldd-attempt.sh`, which keeps the output under the report path
+  and counts three runs per move; the plugin's `PreToolUse` hook
+  (`scripts/ldd-verify-guard.sh`, wired in `hooks/hooks.json`) denies the worker any
+  such run that does not go through the wrapper. Each green move is its own commit of
+  the slice's files and no other; a move that needs a file outside the slice ends
+  `DEFERRED-NEEDS` with the attempt saved as a patch and the files restored. The
+  receipt is at most fifteen lines. It never designs, widens or spawns.
+
+- **The slicing step is a script.** `scripts/ldd-slices.sh` reads one line per routed
+  finding or lint escalation — rule, move, files, anchor — groups the lines that share
+  a file into slices, orders a slice's moves as the multi-rule procedures sequence
+  them, assigns the slices to waves so that no two slices of one wave touch the same
+  package, and prints the spawn blocks. A move name that is not the rule's spelling,
+  a rule without a file, or a lint configuration file in a slice is refused. Its
+  matrix is `scripts/ldd-slices_test.sh`; the wrapper and the hook have
+  `scripts/ldd-attempt_test.sh`.
 
 ## [0.3.0] - 2026-10-03
 

@@ -132,7 +132,7 @@ fx_verify_commands() {
 }
 # fx_lint_delta_expected <base> <files...> — the lint-over-the-delta command for the row
 fx_lint_delta_expected() {
-  printf 'golangci-lint run --new-from-rev=%s ./internal/models ./internal/services\n' "$1"
+  printf 'golangci-lint run --allow-parallel-runners --new-from-rev=%s ./internal/models ./internal/services\n' "$1"
 }
 
 # ========================= cases =========================

@@ -187,7 +187,7 @@ lang_lint_delta() {
     go)
       local pkgs
       pkgs=$(for f in "$@"; do d=$(dirname "$f"); printf './%s\n' "${d#./}"; done | LC_ALL=C sort -u | tr '\n' ' ')
-      printf 'golangci-lint run --new-from-rev=%s %s\n' "$base" "${pkgs% }" ;;
+      printf 'golangci-lint run --allow-parallel-runners --new-from-rev=%s %s\n' "$base" "${pkgs% }" ;;
     python)
       printf 'ruff check %s\n' "$(printf '%s\n' "$@" | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')" ;;
     *)
