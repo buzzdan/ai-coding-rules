@@ -77,11 +77,13 @@ isolated context, spawned with the package list)
 - 🔗 CLUSTER entries (≥2 rules converging on one anchor) are fixed design-first:
   @code-designing (cluster-scoped) produces one mini plan, @refactoring implements it —
   never member-by-member
-- Fix bugs and user-accepted singleton findings via @refactoring, then one INCREMENTAL
-  pass over the fixed files; what it still reports is deferred, listed in the summary
+- Fix bugs and user-accepted singleton findings via @refactoring — every edit through
+  a `move-implementer` slice, none by this thread — then, only when a slice changed
+  something, one INCREMENTAL pass over the fixed files; otherwise `REVIEW: nothing to
+  fix`; what the pass still reports is deferred, listed in the summary
 
-**Phase 5 — SHIP**: the refactoring slices are already committed by their
-move-implementers; tests and lint green and the rest of the tree dirty → commit it,
+**Phase 5 — SHIP**: the slices' commits are the workers'; this phase commits only
+what no slice owns — tests and lint green and that part of the tree dirty → commit it —
 then the ship summary with every hash, the scope line, the lint-fixer's `FIXED:` /
 `ESCALATED:` tallies, the `REVIEW: findings deferred` lines and — when @refactoring
 ran — its `Stop check` block verbatim, seven labelled lines; without the block the

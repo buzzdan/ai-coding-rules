@@ -40,6 +40,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   R9's doc fixes are slices too. Line `0 slices` of the `Stop check` block counts
   slices, waves, statuses, re-spawns and spot-checked commits.
 
+- **The review runs once after a change, and every edit goes through a slice.** The
+  workflow's Phase 4 runs its INCREMENTAL pass only when a slice changed something and
+  writes `REVIEW: nothing to fix` otherwise; accepted R9 findings go to the
+  documentation skill, which hands its comment edits to a `move-implementer` slice as
+  well. Phase 5 and the quickfix command commit only what no slice owns and list every
+  hash, the workers' and their own.
+
 ## [0.3.0] - 2026-10-03
 
 ### Added

@@ -116,9 +116,15 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    line: `N added comment lines, no bundle — budget: the first turn, then at most
    four calls that open touched files for context, several files each (every tool
    counts; never a sweep of the repository), then the verdicts. Report non-KEEP
-   verdicts and the tally.` Apply every
-   non-KEEP verdict (this skill is the rung-1 fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
-   `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the
+   verdicts and the tally.` Every
+   non-KEEP verdict is applied through one `go-linter-driven-development:move-implementer` slice (Agent
+   tool, foreground; the block: `MOVE 1: Apply comment verdicts — R9 — <path of the
+   saved verdict text>`, `FILES:` the files the verdicts name, `PKGS:`, `RULE:` the
+   absolute path of `../../rules/R9-repo-brain.md`, then `BASE:`, `BASE-RED: none`,
+   `TEST:`, `LINT:`, `BUILD:`, `WRAPPER:` and `REPORT:` as @refactoring's `<slices>`
+   spells them), never by this thread: DELETE and TRIM as returned; REWRITE using the
+   critic's proposal;
+   `DELETE → route R3` verdicts are reported as R3 leads for the
    caller — never fixed here (extraction is @refactoring's move). Then re-spawn
    the critic ONCE to confirm clean; a still-dirty re-critique is reported as-is,
    never looped further.

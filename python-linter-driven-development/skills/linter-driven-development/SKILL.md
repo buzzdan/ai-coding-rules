@@ -232,8 +232,11 @@ mid-implementation net; this pass is the verification net.
 
 Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all
 advisory. Fix bugs and user-accepted findings via @refactoring — except accepted R9
-(documentation-network) findings, whose fixer is @documentation. Then **one**
-INCREMENTAL pass over the fixed files, and no more: invoke @pre-commit-review in
+(documentation-network) findings, whose fixer is @documentation, which hands its
+edits to a `move-implementer` slice too; this thread edits no source file. Then,
+only when a slice changed something, **one** INCREMENTAL pass over the fixed files,
+and no more — when no slice changed anything, write `REVIEW: nothing to fix` in the
+ship summary and skip the pass: invoke @pre-commit-review in
 INCREMENTAL mode with the fixed files and the FULL pass's bundle path; it runs the
 scope and detection scripts over those files, compares the counts table with the FULL
 pass's `counts.tsv`, spawns hunters only for the families whose rows changed and the
@@ -257,12 +260,13 @@ before.
    documentation network (index line, edges both directions, root import), plus its
    R9 self-check over the diff and its comment-critic critique loop (the critic
    reviews every comment in the diff against R9's three-test standard;
-   @documentation applies the verdicts and re-critiques once — R3 routes from the
+   @documentation hands the verdicts to a slice and re-critiques once — R3 routes from the
    critic go back through @refactoring like any R3 finding).
-2. Commit what the workers did not. Refactoring slices are committed by their
-   move-implementers (their hashes are in @refactoring's `6 commit` line); when tests
-   (`pytest`) and lint (Phase 3) are green and the rest of the tree is dirty
-   — Phase 2's behaviors, the docs — commit that with the ship summary as the message.
+2. Commit what no slice owns. The slices' commits are the workers' (their hashes are
+   in @refactoring's `6 commit` line); this phase commits only what no slice owns —
+   Phase 2's behaviors, the docs — when tests (`pytest`) and lint (Phase 3)
+   are green and that part of the tree is dirty, with the ship summary as the
+   message, and lists every hash, the workers' and its own.
    A green tree left uncommitted "for the user" is the one state this workflow never
    ends in: the user can amend, split or revert a commit; an uncommitted tree
    evaporates with the session. Prep commits (Phase 1.5) stay separate.
