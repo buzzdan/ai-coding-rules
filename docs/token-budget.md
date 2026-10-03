@@ -675,6 +675,33 @@ parent's own cost falls three to five times when it delegates, and parallel spaw
 one message do happen. What it did not: that a worker judged on a whole-package exit
 code can finish, or that the parent stops editing on its own.
 
+**The second design.** The grain stays: one worker per move, or per few moves that
+share a file — a fresh context of fifty thousand tokens is cheaper than one long
+worker whose context grows with every turn. Four things change. The verdict is the
+delta against the base commit: lint over the slice's changes only, tests judged
+against the failures the base commit already had, so a package's other issues and a
+race that was red before the move never defer a green move. The choreography is
+computed: `ldd-slices.sh` (`scripts/` in every plugin) takes one line per routed
+finding or escalation — rule, move, files, anchor — groups the lines that share a
+file into slices, orders a slice's moves as the multi-rule procedures sequence them,
+assigns waves so that no two slices of one wave touch the same package, and prints
+the spawn blocks; the parent spawns a wave in one message and reads its receipts
+before the next. Every test, lint and build run goes through `ldd-attempt.sh`, which
+writes the output to a numbered file under the report path, counts per move and
+refuses the fourth run; a hook in the worker's own definition denies any such command
+that does not go through the wrapper, so the count is a bound and not a promise. And
+the parent edits nothing: the comment critic's verdicts and R9's doc fixes become
+slices too. A move that needs a file outside its slice is re-spawned once with the
+file added; a second time it is deferred for good. There is no inline gate and no
+token or turn budget.
+
+Expected: quickfix finishes inside the hour with its parent under 50 calls and no
+edit of its own, billing under the best same-text run (23.7M); case F under 14.8M on
+both runs; the centerpiece's outcome graders inside the same-text set; cases B and E
+with zero parent edits and their outcome graders holding. Proof: quickfix ×2, case F
+×2, the centerpiece ×1, B and E ×1, about $40, against the pooled same-text runs
+(the baseline and arm A).
+
 ## Proving it
 
 Every stage passes two gates on the same run, or it does not ship.
@@ -762,7 +789,7 @@ diet, since nothing in the diet can change them.
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
 | S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A, B and F together 12.7M to 9.6M; whole-repository mean 4.9M to 4.6M, worst run not below the best; no hunter detection call; critic tool output 51k to 29k | none |
 | S9 | critic reads the scope twice, writes every KEEP | double read gone, tool output 51k to 54k down to 34k to 48k; turns, report and bill unmoved, main-thread calls up to 19 to 24 | documentation skill, small |
-| S10 | edit loop in the parent, review inside the fix loop | none | not shipped: parent calls 120 to 36–51 and parent spend 22.9M to 4.7–8.2M on quickfix where it delegated, but whole-package verdicts deferred green moves, retries and the review pass ran the hour out, and the parent still edited on its own at times (see the measured paragraph) |
+| S10 | edit loop in the parent, review inside the fix loop | none | S10 not shipped (measured paragraph); S10b: quickfix and case F worst run under the best same-text run, outcome graders hold on B, E and the centerpiece, parent edits zero |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number
