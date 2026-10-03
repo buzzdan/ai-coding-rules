@@ -161,6 +161,22 @@ PY
   esac
 }
 
+# fx_verify_commands — the row's test, lint, build and vet forms, one per line:
+# the commands the worker's hook must send through the wrapper
+fx_verify_commands() {
+  case "$ROW" in
+    go)     printf '%s\n' "go test ./..." "go test -run TestX ./internal/..." "golangci-lint run" "golangci-lint run ./..." "go build ./..." "go vet ./..." ;;
+    python) printf '%s\n' "pytest" "pytest -k smoke tests/" "python -m pytest" "ruff check ." "ruff format --check ." "mypy src/" "python3 -m mypy ." ;;
+  esac
+}
+# fx_lint_delta_expected <base> <files...> — the lint-over-the-delta command for the row
+fx_lint_delta_expected() {
+  case "$ROW" in
+    go)     printf 'golangci-lint run --new-from-rev=%s ./internal/models ./internal/services\n' "$1" ;;
+    python) printf 'ruff check internal/models/t.py internal/services/x.py internal/services/y.py\n' ;;
+  esac
+}
+
 for ROW in $FX_ROWS; do use_row "$ROW"; break; done
 ROW=""
 

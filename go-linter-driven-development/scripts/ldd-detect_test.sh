@@ -168,6 +168,16 @@ func TestRun(t *testing.T) {
 GO
 }
 
+# fx_verify_commands — the row's test, lint, build and vet forms, one per line:
+# the commands the worker's hook must send through the wrapper
+fx_verify_commands() {
+  printf '%s\n' "go test ./..." "go test -run TestX ./internal/..." "golangci-lint run" "golangci-lint run ./..." "go build ./..." "go vet ./..."
+}
+# fx_lint_delta_expected <base> <files...> — the lint-over-the-delta command for the row
+fx_lint_delta_expected() {
+  printf 'golangci-lint run --new-from-rev=%s ./internal/models ./internal/services\n' "$1"
+}
+
 # ========================= cases =========================
 run_row_cases() { # runs every case against the current row
 

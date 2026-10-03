@@ -114,6 +114,16 @@ def test_run() -> None:
 PY
 }
 
+# fx_verify_commands — the row's test, lint, build and vet forms, one per line:
+# the commands the worker's hook must send through the wrapper
+fx_verify_commands() {
+  printf '%s\n' "pytest" "pytest -k smoke tests/" "python -m pytest" "ruff check ." "ruff format --check ." "mypy src/" "python3 -m mypy ."
+}
+# fx_lint_delta_expected <base> <files...> — the lint-over-the-delta command for the row
+fx_lint_delta_expected() {
+  printf 'ruff check internal/models/t.py internal/services/x.py internal/services/y.py\n'
+}
+
 for ROW in $FX_ROWS; do use_row "$ROW"; break; done
 ROW=""
 
