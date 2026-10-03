@@ -303,10 +303,9 @@ once, now. The contract it spells out, kept whatever the scope:
 
 <modes>
 **FULL:** the detection pass over the whole scope, all twelve rules; report every
-surviving finding. **INCREMENTAL:** scope = the files changed since the last review;
-run steps 1–3 on it and report the delta against the previous findings — ✅ Fixed (its
-question's row in the new counts table is clear, or the hunter's re-judgment confirms),
-⚠️ Remaining, 🆕 New.
+surviving finding. **INCREMENTAL:** scope = the files the caller fixed since the FULL pass, and the FULL
+pass's bundle path. Step 1 runs the scripts on those files; then one Bash call compares
+the two counts tables — `join -t"$(printf '\t')" -j1 <(awk -F'\t' '{print $1"/"$2"\t"$4}' <full>/counts.tsv | sort) <(awk -F'\t' '{print $1"/"$2"\t"$4}' <new>/counts.tsv | sort) | awk -F'\t' '$2 != $3'` — and step 2 spawns a hunter only for a family with a changed row; step 3b spawns the critic only when the new `comments.txt` has a line. The report is the delta against the previous findings — ✅ Fixed (its question's row is clear, or the hunter's re-judgment confirms), ⚠️ Remaining, 🆕 New — and it runs once per slice; what it still reports the caller lists as deferred.
 </modes>
 
 <constraints>

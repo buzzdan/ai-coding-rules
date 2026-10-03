@@ -7,6 +7,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Added
 
+- **A worker for the refactoring skill's moves.** `agents/move-implementer.md` applies
+  one Fix-pattern move to one slice of at most five files in its own context, tests it
+  there, commits the slice when it is green, and returns a receipt of at most fifteen
+  lines; any other exit restores the files and leaves the attempt as a patch. It never
+  designs, widens or spawns.
+
 - **The review's detection pass and scope bundle are scripts.** Every falsifying
   question in `rules/R1` to `R12` now carries a detect line beside its prose — a
   `grep` pattern over the scope's source files, a `path` pattern over their paths, a
@@ -74,6 +80,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   and asks before installing; a run that did not execute is never a pass.
 
 ### Changed
+
+- **The review runs once per slice.** The workflow's Phase 4 runs the review FULL once,
+  fixes through the refactoring skill, then one INCREMENTAL pass over the fixed files
+  whose hunters are the families whose counts table changed and whose critic runs only
+  when the delta carries comment lines; what remains is listed as deferred. Phase 5
+  commits what the workers did not and lists every hash. The quickfix command runs at
+  most three rounds.
+
+- **The refactoring skill delegates its moves.** It composes slices — one move over at
+  most five files — and spawns one move-implementer per slice, which commits the slice
+  when it is green; the skill reads receipts and applies no move itself. Its detection
+  re-run is the review's detection script over the touched files, and its comment
+  critic runs once per session, or not at all when the workflow's review follows. The
+  `Stop check` block opens with a `0 slices` line.
 
 - **The critic reads the scope in chunks and reports what changes.** On a
   whole-repository sweep the comment critic reads the numbered scope files that carry
