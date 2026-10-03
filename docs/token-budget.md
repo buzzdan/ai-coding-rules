@@ -642,30 +642,38 @@ spend report's spawn-prompt tokens column is the check; an INCREMENTAL pass that
 bundle path is carried in the parent's Phase 4 line.
 
 Measured, three arms on the medium tier, about $190 in all. Arm A, the b56f79b
-plugin once more: the refactor tier at one head swings two to one — case F 158 and
-123 turns, the centerpiece 28 and 121, quickfix 23.7M and 24.9M tokens — so a claim
-has to clear the best run per case, not the mean. Arm B, S3's ban deleted and nothing
-else: quickfix 26.1M and 24.1M at 120 and 119 parent calls with 53 and 57 edits by the
-parent, case F 12.2M and 13.2M with 34 and 36 — the same shape as the baseline. Being
-allowed to delegate changes nothing; the parent delegates only when a skill tells it
-to spawn a named worker. Arm C, this stage: the mechanism moves where the parent
-obeys — quickfix's parent made 36 and 51 calls instead of 120 and no edit at all, its
-own spend 4.7M and 8.2M against 22.9M; case F's second run 8.2M against 15.5M and
-14.8M, six workers, seven parent edits — and three things did not hold. The parent did
-not always obey: case F's first run spawned no worker and made 31 edits itself. The
-workers were spawned one per message, never in parallel, and ran 3 to 52 turns each
-with 4 of 9 and 5 of 11 ending `DEFERRED`, so quickfix spawned 12 and 9 workers in
-sequence and both runs hit the runner's one-hour timeout at an estimated 16M to 17M
-tokens, unfinished; the three-attempt bound did not bound a worker that re-runs tests
-inside each attempt. And the light cases got worse on both gates: case B 5/5 to 2/5
-and 4.9M against 2.4M, case E 9/10 to 5/10 and 7.2M against 2.4M, ten and eight agents
-where one or two ran before — a fresh worker per one-file move, the review FULL plus
-INCREMENTAL, and `DEFERRED` exits that left the move undone. The stage as written does
-not ship. What it proved: the parent's own cost falls three to five times when it
-delegates; what it did not: that the workers cost less than the parent they replace,
-or finish in time. The next design starts from the four runs where it worked — few
-workers, each with a whole file group, spawned together — and from a worker exit that
-holds.
+plugin run again, twice over by a mistake in the case pattern, so every mover has
+three or four same-text runs: case F 15.5M and 14.8M billed (two more runs at $6.60
+and $4.48, traces lost), the centerpiece 4.4M and 7.9M (two more at $1.74 and $6.17),
+quickfix 23.7M and 24.9M (two more at $11.19 and $7.26), and the light cases swinging
+too — case B 2.4M passing and a lost run at $3.28 failing, case E 2.4M passing and a
+lost run at $3.22 failing. A claim has to clear the best of the same-text runs, not
+the mean, and a single run of a light case says little. Arm B, S3's ban deleted and
+nothing else: quickfix 26.1M and 24.1M at 120 and 119 parent calls with 53 and 57
+edits by the parent, case F 12.2M and 13.2M with 34 and 36 — the baseline's shape.
+Being allowed to delegate changes nothing; the parent delegates only when a skill
+tells it to spawn a named worker. Arm C, this stage: where the parent obeyed, its own
+spend fell — quickfix's parent made 36 and 51 calls instead of 120 and no edit at
+all, 4.7M and 8.2M of its own against 22.9M; case F's second run billed 8.55M with
+six workers and seven parent edits against 14.8M to 16.3M — and four things did not
+hold. The parent did not always obey: case F's first run spawned no worker and made
+31 edits itself, and after the comment critic the centerpiece's parent made ten edits
+at 155k to 162k of context. Most `DEFERRED` exits were green moves judged red by code
+outside the slice — a package-wide lint seeing another file's issues, a race test red
+at the base commit too — because the exit rule read the exit code of the whole
+command, and each deferral bought a retry: quickfix spawned four workers in one
+message and then eight more one at a time, twelve in all, nine of them retries and
+later rounds. The hour went to those rounds and to the review pass, about twenty
+minutes of it, and both quickfix runs hit the runner's timeout at 16.3M and 16.9M
+billed, unfinished. The three-attempt bound did not bound: the long workers (35 to 52
+turns) spent their turns on reads, lint and build runs, not on test runs. Cases B and
+E lost graders (5/5 to 2/5, 9/10 to 5/10) at 4.9M and 7.2M, but the same text also
+failed both in arm A's lost runs, so what is the design's is the mechanism the traces
+show — the Null Object move split across seven partial and four deferred worker
+exits — not the totals. The stage as written does not ship. What it proved: the
+parent's own cost falls three to five times when it delegates, and parallel spawns in
+one message do happen. What it did not: that a worker judged on a whole-package exit
+code can finish, or that the parent stops editing on its own.
 
 ## Proving it
 
@@ -754,7 +762,7 @@ diet, since nothing in the diet can change them.
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
 | S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A, B and F together 12.7M to 9.6M; whole-repository mean 4.9M to 4.6M, worst run not below the best; no hunter detection call; critic tool output 51k to 29k | none |
 | S9 | critic reads the scope twice, writes every KEEP | double read gone, tool output 51k to 54k down to 34k to 48k; turns, report and bill unmoved, main-thread calls up to 19 to 24 | documentation skill, small |
-| S10 | edit loop in the parent, review inside the fix loop | none | not shipped: parent calls 120 to 36–51 and parent spend 22.9M to 4.7–8.2M on quickfix where it delegated, but serial workers of up to 52 turns timed the run out, delegation held in 4 of 6 mover runs, and cases B and E lost graders and doubled in tokens |
+| S10 | edit loop in the parent, review inside the fix loop | none | not shipped: parent calls 120 to 36–51 and parent spend 22.9M to 4.7–8.2M on quickfix where it delegated, but whole-package verdicts deferred green moves, retries and the review pass ran the hour out, and the parent still edited on its own at times (see the measured paragraph) |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number
