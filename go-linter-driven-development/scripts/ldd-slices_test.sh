@@ -243,6 +243,7 @@ run_slices --order
 missing=""
 while IFS= read -r key; do
   [[ -n "$key" ]] || continue
+  [[ "$key" == "apply comment verdicts" ]] && continue  # the skill's own step, not a rule's move
   grep -hi '^- \*\*' "$RULES"/R*.md | grep -qiF -- "$key" || missing="$missing [$key]"
 done <<< "$OUT"
 expect_exit 0 && { [[ -z "$missing" ]] || bad "keys with no bullet:$missing"; } && [[ -z "$missing" ]] && ok
@@ -305,6 +306,15 @@ begin "23 PKGS: lists the directories of the slice's files, sorted and once each
 line R3 "Extract Function" "internal/services/x$E internal/services/x_test$E internal/models/t$E" "internal/services/x$E:1"
 run_slices
 expect_exit 0 && expect_has "PKGS: internal/models internal/services" && ok
+finish
+
+begin "24 Apply comment verdicts sorts after every other move, a placement move included"
+line R9 "Apply comment verdicts" "a/one$E" "/tmp/verdicts-1.txt"
+line R4 "Demote (rung 1)" "a/one$E" "a/one$E:5"
+line R3 "Extract Function" "a/one$E" "a/one$E:10"
+run_slices
+expect_exit 0 && { [[ "$(move_line 3)" == MOVE\ 3:\ Apply\ comment\ verdicts* ]] || bad "MOVE 3 is '$(move_line 3)'"; } \
+  && [[ "$(move_line 2)" == MOVE\ 2:\ Demote* ]] && ok
 finish
 
 # ========================= summary =========================

@@ -37,7 +37,8 @@
 # Order inside a slice: each move takes the rank of the first sequencing key
 # (--order) that is a case-insensitive substring of its name; a move that
 # matches no key but is a move bullet of its rule's file ranks after every
-# keyed move and before the placement moves (demote, promote, move method);
+# keyed move and before the placement moves (demote, promote, move method) and
+# the comment critic's verdicts (apply comment verdicts), which come last;
 # ties keep input order. A move name that is neither is refused with the keys
 # printed: the parent's spelling has to be the rule's.
 #
@@ -58,10 +59,11 @@ ORDER=0
 TABLE=""
 TAB=$'\t'
 
-# The sequencing keys, in rank order; the last three are the placement moves.
+# The sequencing keys, in rank order; the last four are the placement moves and
+# the comment critic's verdicts, which the refactoring skill hands to a slice last.
 # (one line; awk takes the list as a string, and the macOS awk rejects a newline in it)
-ORDER_KEYS='extract function named|early return|extract function|split phase|extract leaf type|extract collection type|replace primitive|introduce parameter object|name enum|add validating constructor|introduce null object|extract clean island|push the global|replace import-time|replace duplicated switch|interface dispatch|strategy map|keep the single|demote|promote|move method'
-PLACEMENT_KEYS=3
+ORDER_KEYS='extract function named|early return|extract function|split phase|extract leaf type|extract collection type|replace primitive|introduce parameter object|name enum|add validating constructor|introduce null object|extract clean island|push the global|replace import-time|replace duplicated switch|interface dispatch|strategy map|keep the single|demote|promote|move method|apply comment verdicts'
+PLACEMENT_KEYS=4
 
 usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 die() { echo "$SCRIPT_NAME: $*" >&2; exit 2; }

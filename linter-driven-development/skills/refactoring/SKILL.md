@@ -27,12 +27,12 @@ exit — never the file whole and never a call of its own. Forward counterpart:
 <skill_invocation>
 "Invoke @skill-name" means call the **Skill tool** — `Skill(linter-driven-development:code-designing)`,
 `Skill(linter-driven-development:testing)`, `Skill(linter-driven-development:pre-commit-review)` — never just mention
-it. This skill runs in the thread that invoked it and applies no move itself: every
-move goes to one `linter-driven-development:move-implementer` per slice (`<slices>` below), spawned
-by that name with the Agent tool, foreground; the only other agent it spawns is the
-comment critic of step 4, and never a general-purpose one. The parent routes, composes
-slices, reads receipts and lists the workers' commits — it does not Edit a source
-file.
+it. This skill runs in the thread that invoked it and applies no move itself and
+edits no source file: the moves, the comment critic's verdicts and R9's doc fixes all
+go to `linter-driven-development:move-implementer` slices (`<slices>` below), spawned by that name
+with the Agent tool, foreground; the only other agent it spawns is the comment critic
+of step 4, and never a general-purpose one. The parent routes, writes the slices table,
+runs the slicing script, reads receipts and lists the workers' commits.
 </skill_invocation>
 
 <routing_table>
@@ -72,20 +72,35 @@ several rules are routed on one function,
 </pattern_index>
 
 <slices>
-A slice is one move over at most five files: one finding, one cluster's mini plan, or
-one lint escalation with its route; same-shaped moves over different files share a
-slice when they fit in five, and a move that needs a sixth file is two slices. Spawn
-one `linter-driven-development:move-implementer` per slice — several in one message when their
-slices share no file, so they run in parallel — with a prompt of these lines and no
-pasted rule text or source:
-`MOVE: <the move as the Fix pattern spells it>` · `RULE: <absolute path of ../../rules/R<N>-….md>` · `RANGE: <the sed -n range of that rule's Fix pattern section>` · `FILES: <the slice's files>` · `BASE: <git rev-parse HEAD>` · `TEST: <the project's test command>` · `LINT: <the project's lint command>` · `REPORT: <a mktemp -d>`.
-Read the receipt, not the tree: `GREEN` carries the slice's commit and moves on;
-`PARTIAL` spawns one more worker over the files it names; `DEFERRED` and
-`NEEDS_CONTEXT` are lines of the `Stop check` block and the ship summary, never a
-reason for the parent to apply the move by hand or to spawn a third worker on the same
-slice. The long form — what a slice is, what the receipt lines mean, what the parent
-does with each — rides in the loop's opening Bash call with the pattern index
-(`sed -n '/^## Slices and receipts/,/^## File and package routing/p'`).
+A slice is the moves that share a file, in sequence, over those files; the script
+below composes it, never the parent. Write `slices.tsv` under a fresh `mktemp -d`
+(`<dir>`): one line per routed finding or lint escalation, four tab-separated fields —
+`R<n>`, the move as the rule's Fix pattern spells it (a combined name is two lines),
+the files (relative paths, space-separated), the finding's `file:line`. Run
+`S=<this skill dir>/../../scripts; bash "$S/ldd-slices.sh" <dir>/slices.tsv`: it groups
+the lines that share a file, orders a slice's moves as the multi-rule procedures
+sequence them, assigns waves so that no two slices of one wave touch the same package,
+and prints one block per slice (`MOVE n:` lines, `FILES:`, `PKGS:`, `RULE:`); a move
+name that is not the rule's spelling is refused with the valid keys. Before the first
+wave, run `TEST:` once and record the names of the tests that fail as `BASE-RED:` (or
+`none`). Then, wave by wave: spawn every slice of the wave **in one message** — one
+`linter-driven-development:move-implementer` per slice, Agent tool, foreground — with the slice's
+block and these lines appended, and no pasted rule text or source:
+`BASE: <git rev-parse HEAD>` · `BASE-RED: <names, or none>` · `TEST: <the project's test command>` · `LINT: <the line bash "$S/ldd-attempt.sh" --lint-delta <BASE> <the slice's FILES> prints>` · `BUILD: <the project's build command, or none>` · `WRAPPER: <absolute path of $S/ldd-attempt.sh>` · `REPORT: <mktemp -d>`.
+Read the receipts, not the tree, and append one line per slice and status to
+`<dir>/slices.log` as they arrive, so a compacted parent re-dispatches nothing. Before
+the next wave, spot-check every `COMMIT:` with `git show --name-only <sha>`: a commit
+that touches a file outside its slice's `FILES:` is a `Stop check` line, never
+silently kept. `DEFERRED-NEEDS: <files>` → one re-spawn in the next wave, the files
+appended to the slice's line in `slices.tsv` and the script run again; a second
+`DEFERRED-NEEDS` is final. `DEFERRED` and `NEEDS_CONTEXT` are lines of the `Stop check`
+block and the ship summary, never a reason for the parent to apply the move by hand.
+The comment critic's verdicts (step 4) and R9's doc fixes are slices too: save the
+verdict text to `<dir>/verdicts-<n>.txt` and add the line `R9` · `Apply comment
+verdicts` · the files · that path, which the script orders last. The long form —
+the table, the script, waves, BASE-RED, the wrapper, the re-spawn rule, the
+spot-check, the ledger, the receipt statuses — rides in the loop's opening Bash call
+with the pattern index (`sed -n '/^## Slices and receipts/,/^## File and package routing/p'`).
 </slices>
 
 <preparatory_mode>
@@ -108,12 +123,13 @@ mode is the one invoked, before any move: `sed -n '/^## Preparatory mode/,/^## S
    that is the mode. This is the one read of `reference.md` the loop makes.
 3. Route each failure via `<routing_table>` to the owning rule's Fix-pattern move,
    least-invasive move first (sequencing: "Multi-rule procedures", `<pattern_index>`);
-   compose the slices and spawn the implementers (`<slices>`).
-4. Read the receipts — `GREEN` slices are committed — then re-run the linter once over
-   the scope, immediately, no user confirmation.
-5. Still failing → next move in the sequence, as a new slice with a new worker. Repeat
-   until green. A slice that came back `DEFERRED` or `NEEDS_CONTEXT` is not spawned
-   again on the same move; it is a line in the block.
+   write the slices table, run the slicing script, spawn the waves (`<slices>`).
+4. Read the receipts wave by wave — green moves are committed — and after the last
+   wave re-run the linter once over the scope, immediately, no user confirmation.
+5. Still failing → the next move in the sequence: a new table with the next move per
+   anchor, the script again, new workers. Repeat until green. A move deferred twice
+   (`DEFERRED-NEEDS` re-spawned once and deferred again, or `DEFERRED`) is not routed
+   again; it is a line in the block.
 6. **Escalation**: complexity failures that keep recurring mean a new type or design
    is needed — invoke @code-designing. Patterns exhausted → report what was tried and
    escalate to the user, framed in maxim vocabulary (`../../maxims.md`): name *why*
@@ -188,16 +204,16 @@ they govern steps 2 to 6.
    `../../rules/R9-repo-brain.md` with `sed -n '/^### Comment policy/,/^### Edge conventions/p'`,
    `../documentation/reference.md` with `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`,
    and `../../examples/private-comment-noise.md`, and the scope stated as *every
-   comment in each touched file*. Apply its TRIM / REWRITE / DELETE verdicts; route
-   `DELETE → route R3` back to step 3. Line `4 critic`: verdicts applied and routed.
+   comment in each touched file*. Its TRIM / REWRITE / DELETE verdicts go to one
+   `Apply comment verdicts` slice (`<slices>`), never applied by this thread; route
+   `DELETE → route R3` back to step 3. Line `4 critic`: verdicts to the slice and routed.
 5. **STOP**, reading the over-engineering signs as a check on step 3: a one-method type
    that merely unwraps, a function that only calls another, more layers than concepts
    — undo that move. Line `5 STOP`: none of the signs, or the move undone.
-6. **Commits.** The workers committed each green slice; list them. When the parent's
-   own tree is dirty and green (a BROADER CONTEXT edit, a doc), commit that separately,
-   with the STATUS summary. Inside the workflow, Phase 5 commits nothing for the slices
-   and lists these hashes. Line `6 commit`: one `<sha> <subject>` per slice, the
-   parent's own hash when there is one, or `tree clean, nothing to commit`.
+6. **Commits.** The workers committed each green move; list every hash. The parent's
+   tree is clean: it edited nothing. Inside the workflow, Phase 5 commits nothing for
+   the slices and lists these hashes. Line `6 commit`: one `<sha> <subject>` per green
+   move, or `no green move`.
 
 The six lines are the block, and the block goes in the message that ends the turn,
 whichever path invoked this skill; a caller that summarises this work carries it and
@@ -219,13 +235,13 @@ Metrics: cyclomatic [before]→[after], LOC [before]→[after], nesting [before]
 Files Modified: [file] (+X, -Y)
 
 Stop check:
-0 slices     [n] spawned — [n] GREEN · [n] PARTIAL · [n] DEFERRED · [n] NEEDS_CONTEXT
+0 slices     [k] slices in [w] waves — [n] GREEN · [n] PARTIAL-GREEN · [n] DEFERRED · [n] NEEDS_CONTEXT · [n] re-spawned · [n] commits spot-checked
 1 gates      lint 0 · tests green · max LOC [n] · max nesting [n]
 2 re-run     [R3, R1, R8]: [0 hits / file.<ext>:NN still — routed again]
 3 nouns      [Region (score 5) → Replace Primitive with Domain Type applied; Tags (score 2) → recorded]
-4 critic     [n] verdicts applied · [n] DELETE → routed R3
+4 critic     [n] verdicts to a slice · [n] DELETE → routed R3
 5 STOP       [none of the over-engineering signs / undone: <move>]
-6 commit     [abc1234 "Extract Leaf Type: …" · def5678 "…" / tree clean, nothing to commit]
+6 commit     [abc1234 "Extract Leaf Type: …" · def5678 "…" / no green move]
 
 BROADER CONTEXT
   [file.<ext>:NN — R3 Q1 — lint-suppression on an eight-linter function this session never opened / none]

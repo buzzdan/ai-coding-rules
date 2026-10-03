@@ -65,43 +65,80 @@ decomposition): "Multi-rule procedures", below.
 
 ## Slices and receipts
 
-A slice is the unit of work this skill hands out: one move, as the owning rule's Fix
-pattern spells it, over at most five files. One finding is a slice; a cluster's mini
-plan is a slice when its files fit in five, two when they do not; a lint escalation
-with its route is a slice; same-shaped moves over different files — the same sentinel
-removed from three functions — share one slice. The parent composes slices from the
-routing and never applies one itself: a parent editing at a context of a hundred
+A slice is the unit of work this skill hands out: the moves that share a file, in the
+order the multi-rule procedures sequence them, over those files. The parent composes
+no slice by hand and applies none itself: a parent editing at a context of a hundred
 thousand tokens is the most expensive worker there is, and every edit it makes is
-re-billed on every later call.
+re-billed on every later call. It writes a table and runs a script.
 
-Each slice goes to one `go-linter-driven-development:move-implementer`, spawned with the Agent tool,
-foreground; slices that share no file are spawned in one message and run in parallel.
-The spawn prompt is eight lines and carries paths, never text: `MOVE:` the move's name;
-`RULE:` the rule file's absolute path; `RANGE:` the `sed -n` range of its Fix pattern
-section (`/^## Fix pattern/,/^## Falsifying questions/p`); `FILES:` the slice's files;
-`BASE:` the current commit; `TEST:` and `LINT:` the project's commands as the pre-flight
-discovered them; `REPORT:` a fresh `mktemp -d`. Nothing else goes in: no pasted rule
-text, no source, no history of the session.
+**The table.** `slices.tsv`, one line per routed finding or lint escalation, four
+tab-separated fields: the rule (`R<n>`); the move as the rule's Fix pattern spells it
+(a combined name such as Extract Clean Island + Push the Global Up One Level is two
+lines); the files, relative to the repository, space-separated; the finding's anchor,
+`file:line`. A lint configuration file in the files is refused — changing lint
+configuration is suppression by another route.
 
-The worker returns a receipt of at most fifteen lines and the parent acts on its first
-line, never on a reading of the tree:
-- `STATUS: GREEN` — the slice is committed (`COMMIT:` carries the hash and subject).
-  Move on; the hash goes in the `6 commit` line.
-- `STATUS: PARTIAL` — the move needed a file outside the five. The files are restored,
-  the attempt is a patch under `REPORT:`. Spawn one more worker over the files the
-  `PARTIAL:` line names, with the patch path in `FILES:`' place of context; never
-  widen the first worker.
-- `STATUS: DEFERRED` — three attempts and still red, or a failure outside the slice
-  (`OUTSIDE:` lines). Files restored, patch saved. It is a line in the `Stop check`
-  block and the ship summary; the parent does not finish the move by hand and does not
-  spawn a third worker on the same move.
-- `STATUS: NEEDS_CONTEXT` — the worker could not resolve an input or read without
-  editing five times. Fix the input the receipt names (a range that printed nothing,
-  a file that does not exist) and spawn once more; a second `NEEDS_CONTEXT` is a line
-  in the block.
+**The script.** `bash <this skill dir>/../../scripts/ldd-slices.sh slices.tsv` groups the
+lines that share a file into slices (a chain of shared files is one slice, whatever its
+size; over five files it is marked `large` and stays whole), orders each slice's moves
+by the sequencing keys (`--order` prints them: storify before early returns before
+extract function, extract type after, placement moves last, the comment critic's
+verdicts after everything), assigns the slices to waves so that no two slices of one
+wave touch the same package (two workers in one package would see each other's
+half-edits in their test runs), and prints one block per slice under its wave:
+`MOVE n:` lines, `FILES:` (one sorted line), `PKGS:`, `RULE:` (one per rule). A move
+name that is not the rule's spelling is refused with the valid keys printed.
 
-Line `0 slices` of the `Stop check` block counts them: `<n> spawned — <n> GREEN · <n>
-PARTIAL · <n> DEFERRED · <n> NEEDS_CONTEXT`.
+**The base.** Before the first wave, run `TEST:` once and write down the names of the
+tests that fail — `BASE-RED:` — or `none`. A worker judges its move by the delta
+against the base commit: a test in `BASE-RED:` is not its failure, a lint line in a
+file outside its slice is `OUTSIDE:` and logged, and only what the move itself turned
+red defers it.
+
+**The waves.** Spawn every slice of a wave in one message — one
+`go-linter-driven-development:move-implementer` per slice, Agent tool, foreground — with the slice's
+block and seven lines appended, paths and commands only, never pasted rule text or
+source: `BASE:` the current commit; `BASE-RED:`; `TEST:` the project's test command;
+`LINT:` the line `bash <scripts>/ldd-attempt.sh --lint-delta <BASE> <the slice's FILES>`
+prints — the linter over the slice's changes only; `BUILD:` the project's build
+command, or `none`; `WRAPPER:` the absolute path of `scripts/ldd-attempt.sh`;
+`REPORT:` a fresh `mktemp -d`. Every test, lint and build run of the worker goes
+through that wrapper, which keeps the output under the report path and counts three
+runs per move; the plugin's hook denies the worker any such run that does not. Read
+the receipts before the next wave — never the tree.
+
+**The receipt** is at most fifteen lines, and its first line decides:
+- `STATUS: GREEN` — every move committed, one commit each (`COMMIT:` lines, the
+  move's name first in the subject). The hashes go in the `6 commit` line.
+- `STATUS: PARTIAL-GREEN` — some moves committed; the rest `DEFERRED`, `DEFERRED-NEEDS`
+  or `SKIPPED` (a later move on a deferred move's anchor).
+- `STATUS: DEFERRED` — no move committed. The attempt is a patch under `REPORT:`, the
+  files are restored. A `DEFERRED-NEEDS: <files>` line names files outside the slice
+  the move needed: re-spawn once, in the next wave, with those files appended to the
+  slice's line in the table and the script run again; a second `DEFERRED-NEEDS` is
+  final. Any other deferral is final at once: the parent does not finish the move by
+  hand and does not spawn a third worker on it.
+- `STATUS: NEEDS_CONTEXT` — an input did not resolve, or the worker read five times
+  without editing. Fix the input the receipt names and spawn once more; a second
+  `NEEDS_CONTEXT` is a line in the block.
+
+**The spot-check.** Before the next wave, `git show --name-only <sha>` for every
+`COMMIT:` of the wave: a commit that touches a file outside its slice's `FILES:` is a
+`Stop check` line (`BROADER CONTEXT`, with the hash and the file), never silently
+kept.
+
+**The ledger.** Append one line per slice and status to `<dir>/slices.log` as the
+receipts arrive, so a parent whose context was compacted re-dispatches nothing.
+
+**Verdicts and doc fixes are slices.** The comment critic's TRIM / REWRITE / DELETE
+verdicts (step 4 of the stopping criteria) and R9's doc fixes are not applied by the
+parent: the verdict text goes to `<dir>/verdicts-<n>.txt`, the table gets the line
+`R9` · `Apply comment verdicts` · the files · that path, and the script orders that
+slice last.
+
+Line `0 slices` of the `Stop check` block counts them: `<k> slices in <w> waves — <n>
+GREEN · <n> PARTIAL-GREEN · <n> DEFERRED · <n> NEEDS_CONTEXT · <n> re-spawned · <n>
+commits spot-checked`.
 
 ## File and package routing
 
@@ -163,8 +200,8 @@ Linter green is where stopping begins, not where it ends. The exit is six action
 the code this session touched, run in order; each action ends by writing its line of
 the `Stop check` block (SKILL.md `<output_format>`). The line is the receipt: an action with no
 line has not run, and the line is written when the action finishes, never from memory
-at the end. Line `0 slices` precedes them: the workers spawned and how each one ended
-("Slices and receipts" above).
+at the end. Line `0 slices` precedes them: the slices and waves the script printed and
+how each worker ended ("Slices and receipts" above).
 
 1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
    packages. Line `1 gates`: the four measurements.
@@ -218,26 +255,25 @@ at the end. Line `0 slices` precedes them: the workers spawned and how each one 
    the touched files with the doctrine paths @pre-commit-review step 3b names, and state the
    scope in the spawn prompt as *every comment in each touched file*, not the changed
    lines — the `Sink is where events are written.` godoc beside the code just
-   reshaped restates its name whether or not this session wrote it. Apply its
-   TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
-   `DELETE → route R3` verdicts back to step 3. Line `4 critic`: the verdict counts
-   applied and routed.
+   reshaped restates its name whether or not this session wrote it. Its
+   TRIM / REWRITE / DELETE verdicts go to one `Apply comment verdicts` slice — a
+   comment edit is small, and the parent still makes none — and its
+   `DELETE → route R3` verdicts go back to step 3. Line `4 critic`: the verdict counts
+   handed to the slice and routed.
 5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
    reason to skip it: a one-method type that merely unwraps, a function that only
    calls another, more layers than concepts — undo that move. Line `5 STOP`: none of
    the signs, or the move undone.
-6. **Commits.** Every green slice is already a commit: the worker that made it green
-   committed it, one commit per slice, the move's name first in the subject — and for
-   R8 a slice is one island and its caller (Extract Clean Island, then Push the Global
-   Up One Level, one level per slice), never every caller threaded at once — so the
-   green tree outlives the session. The parent lists those hashes here. When the
-   parent's own tree is dirty and green — a BROADER CONTEXT edit, a doc — it commits
-   that now, with the STATUS block's summary as the message, before the report. Inside
-   the workflow, Phase 5 commits nothing for the slices and carries these hashes into
-   the ship summary. A report that ends with "let me know if you'd like me to commit"
-   or "your call" is the failure this step exists to prevent: there is no next turn.
-   Line `6 commit`: one `<sha> <subject>` per slice, the parent's own hash when there
-   is one, or `tree clean, nothing to commit`.
+6. **Commits.** Every green move is already a commit: the worker that made it green
+   committed it, the move's name first in the subject and the slice's files alone in
+   it — and for R8 a slice is one island and its caller (Extract Clean Island, then
+   Push the Global Up One Level, one level per move), never every caller threaded at
+   once — so the green tree outlives the session. The parent lists those hashes here;
+   its own tree is clean, because it edited nothing. Inside the workflow, Phase 5
+   commits nothing for the slices and carries these hashes into the ship summary. A
+   report that ends with "let me know if you'd like me to commit" or "your call" is
+   the failure this step exists to prevent: there is no next turn. Line `6 commit`:
+   one `<sha> <subject>` per green move, or `no green move`.
 
 The six lines are the block, and the block goes where the user reads: the message
 that ends the turn, whichever path invoked this skill — a standalone invocation's

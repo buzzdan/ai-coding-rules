@@ -29,6 +29,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   matrix is `scripts/ldd-slices_test.sh`; the wrapper and the hook have
   `scripts/ldd-attempt_test.sh`.
 
+### Changed
+
+- **The refactoring skill composes no slice and edits nothing.** It writes a table of
+  routed moves, runs `scripts/ldd-slices.sh`, spawns every slice of a wave in one
+  message with the base commit, the tests already red there and the test, lint and
+  build commands appended, and reads the receipts; it spot-checks every worker commit
+  against its slice's files, re-spawns a move that needed a file outside its slice
+  once, and keeps a ledger of slices and statuses. The comment critic's verdicts and
+  R9's doc fixes are slices too. Line `0 slices` of the `Stop check` block counts
+  slices, waves, statuses, re-spawns and spot-checked commits.
+
 ## [0.3.0] - 2026-10-03
 
 ### Added
