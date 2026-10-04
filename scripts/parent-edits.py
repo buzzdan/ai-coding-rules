@@ -8,7 +8,9 @@ per run:
   waves <w>, max runs per move <n>, direct verification runs <n> (denied <n>),
   re-spawns per move max <n>, receipts over 15 lines <n>, GREEN without COMMIT <n>
 
-"parent" is the main thread (events with no parent_tool_use_id). A worker is an
+"parent" is the main thread (events with no parent_tool_use_id); its Edit and Write
+calls are counted except the refactoring skill's own table files (slices.tsv,
+slices.log, verdicts-<n>.txt). A worker is an
 Agent call whose subagent_type ends in "move-implementer"; its receipt is the Agent
 call's tool_result. Spawns "in <m> message(s)" counts the distinct message ids of the
 parent's assistant events that carry a worker spawn: several spawns in one message
@@ -16,7 +18,7 @@ share one id. "waves" counts the "-- wave <n>" lines the slicing script printed 
 parent's Bash results; a parent that spawns a wave in one message has at most as
 many messages as waves. "max runs per move" reads the worker's Bash commands that go
 through ldd-attempt.sh (the report path, then move-<n> or <n>) and counts per move; a
-call the wrapper refused ("BOUND:") is not a run.
+call the wrapper refused ("BOUND:") or the hook denied is not a run.
 "direct verification runs" are the worker's Bash commands that run a test, lint,
 build or vet form without the wrapper and were not denied by the hook; the denied
 attempts are counted beside them. "re-spawns per move" counts how many spawn prompts
@@ -43,6 +45,7 @@ VERIFY = re.compile(
 MOVE_LINE = re.compile(r"^MOVE \d+: (.+)$", re.M)
 WAVE_LINE = re.compile(r"^-- wave \d+$", re.M)
 DENIED = re.compile(r"hook error|use ldd-attempt\.sh")
+TABLE_FILE = re.compile(r"(^|/)(slices\.tsv|slices\.log|verdicts-\d+\.txt)$")  # the refactoring skill's own files, not source
 
 
 def _text(block):
@@ -82,7 +85,7 @@ def check(trace_path, case="?", run="?"):
             if kind == "assistant" and block.get("type") == "tool_use":
                 name = block.get("name")
                 inp = block.get("input", {})
-                if parent is None and name in parent_edits:
+                if parent is None and name in parent_edits and not TABLE_FILE.search(str(inp.get("file_path", ""))):
                     parent_edits[name] += 1
                 if parent is None and name == "Bash":
                     parent_bash.add(block["id"])
@@ -109,9 +112,9 @@ def check(trace_path, case="?", run="?"):
                     waves += len(WAVE_LINE.findall(text))
                 elif tid in direct_calls and (block.get("is_error") or DENIED.search(text)):
                     direct_calls[tid] = True
-                elif tid in wrapper_calls and "BOUND:" in text:
+                elif tid in wrapper_calls and ("BOUND:" in text or block.get("is_error") or DENIED.search(text)):
                     worker, move = wrapper_calls[tid]
-                    workers[worker]["runs"][move] -= 1  # refused by the wrapper: not a run
+                    workers[worker]["runs"][move] -= 1  # refused by the wrapper or denied by the hook: not a run
     max_runs = max((n for w in workers.values() for n in w["runs"].values()), default=0)
     denied = sum(1 for d in direct_calls.values() if d)
     direct = len(direct_calls) - denied

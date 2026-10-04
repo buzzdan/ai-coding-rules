@@ -33,10 +33,29 @@ command=$(printf '%s' "$INPUT" | sed -E -n 's/.*"command":"(([^"\\]|\\.)*)".*/\1
 
 {{include "scripts/ldd-lang.sh"}}
 
-# The command is judged segment by segment — split at &&, ||, ; and | and at
-# line ends — so a run chained behind a wrapper call is still seen. A segment
-# that calls the wrapper (ldd-attempt.sh before its --) is the allowed form;
-# any other segment that runs a test, lint, build or vet form is denied.
+# The command is judged segment by segment — split at &&, ||, ; and | outside
+# quotes, and at line ends — so a run chained behind a wrapper call is still
+# seen, while a quoted compound command handed to the wrapper (`-- sh -c "a && b"`)
+# stays one segment. A segment that calls the wrapper (ldd-attempt.sh before its
+# --) is the allowed form; any other segment that runs a test, lint, build or vet
+# form is denied.
+split_segments() {
+  awk '{
+    s = $0; out = ""; sq = 0; dq = 0; n = length(s)
+    for (i = 1; i <= n; i++) {
+      c = substr(s, i, 1); nx = substr(s, i + 1, 1)
+      if (sq) { out = out c; if (c == "\047") sq = 0; continue }
+      if (dq) { out = out c; if (c == "\\") { out = out nx; i++; continue } if (c == "\"") dq = 0; continue }
+      if (c == "\047") { sq = 1; out = out c; continue }
+      if (c == "\"") { dq = 1; out = out c; continue }
+      if (c == "&" && nx == "&") { out = out "\n"; i++; continue }
+      if (c == "|" && nx == "|") { out = out "\n"; i++; continue }
+      if (c == ";" || c == "|") { out = out "\n"; continue }
+      out = out c
+    }
+    print out
+  }'
+}
 while IFS= read -r segment; do
   [[ -n "$segment" ]] || continue
   case "$segment" in *ldd-attempt.sh*' -- '*) continue ;; esac
@@ -44,5 +63,5 @@ while IFS= read -r segment; do
     echo "use ldd-attempt.sh for test, lint and build runs: bash <WRAPPER> <REPORT> move-<n> <test|lint|build> -- <command>. Denied: $segment" >&2
     exit 2
   fi
-done < <(printf '%s\n' "$command" | awk '{ gsub(/&&|\|\||;|\|/, "\n"); print }')
+done < <(printf '%s\n' "$command" | split_segments)
 exit 0

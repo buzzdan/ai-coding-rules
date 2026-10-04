@@ -44,6 +44,9 @@ class ParentEdits(unittest.TestCase):
     def test_counts_parent_edits_spawns_per_message_and_runs_per_move(self):
         events = [
             tool_use("Edit", {"file_path": "x.go"}, "e1"),
+            tool_use("Write", {"file_path": "/tmp/t.X/slices.tsv"}, "e0"),
+            tool_use("Write", {"file_path": "/tmp/t.X/verdicts-1.txt"}, "e00"),
+            tool_use("Write", {"file_path": "/tmp/t.X/slices.log"}, "e000"),
             tool_use("Bash", {"command": "bash s/ldd-slices.sh slices.tsv"}, "b0"),
             tool_result("b0", "ldd-slices: 2 lines → 2 slices in 2 waves (0 large, 0 duplicate lines dropped)\n-- wave 1\n== slice 1 (wave 1) 1 file, 1 move\n-- wave 2\n== slice 2 (wave 2) 1 file, 1 move"),
             tool_use("Agent", {"subagent_type": WORKER, "prompt": SLICE}, "a1", mid="m1"),
@@ -54,6 +57,8 @@ class ParentEdits(unittest.TestCase):
             tool_use("Bash", {"command": "bash /p/scripts/ldd-attempt.sh /tmp/r move-2 test -- go test ./..."}, "w4", parent="a1"),
             tool_use("Bash", {"command": "bash /p/scripts/ldd-attempt.sh /tmp/r move-1 test -- go test ./..."}, "w6", parent="a1"),
             tool_result("w6", "BOUND: move 1 has had three runs — defer it", parent="a1"),
+            tool_use("Bash", {"command": "bash /p/scripts/ldd-attempt.sh /tmp/r move-1 build -- go build ./... && go build -o bin/x ./cmd/x"}, "w7", parent="a1"),
+            tool_result("w7", "PreToolUse:Bash hook error: use ldd-attempt.sh for test, lint and build runs", parent="a1", is_error=True),
             tool_use("Bash", {"command": "git status"}, "w5", parent="a2"),
             tool_result("a1", RECEIPT),
             tool_result("a2", RECEIPT),

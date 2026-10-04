@@ -194,6 +194,14 @@ guard_denies "bash /p/scripts/ldd-attempt.sh /r move-1 test -- true && $first" \
   && guard_allows "$WORKER" "bash /p/scripts/ldd-attempt.sh /r move-1 test -- $first && echo done" && ok
 finish
 
+begin "6h a quoted compound command after the wrapper's -- is one wrapper run and allowed; unquoted it is not"
+first=$(fx_verify_commands | sed -n 1p); build=$(fx_verify_commands | sed -n 5p)
+guard_allows "$WORKER" "bash /p/scripts/ldd-attempt.sh /r move-1 build -- sh -c \"$build && $build -o bin/svc ./cmd/svc\"" \
+  && guard_allows "$WORKER" "bash /p/scripts/ldd-attempt.sh /r move-1 build -- \"$build && $first\"" \
+  && guard_allows "$WORKER" "bash /p/scripts/ldd-attempt.sh /r move-1 test -- bash -c '$first; $first -run TestX ./...'" \
+  && guard_denies "bash /p/scripts/ldd-attempt.sh /r move-1 build -- $build && $build -o bin/svc ./cmd/svc" && ok
+finish
+
 begin "6g the guard sees through a tool path, extra spaces and a -C flag"
 tool=$(fx_verify_commands | sed -n 3p | cut -d' ' -f1)
 guard_denies "/usr/local/bin/$(fx_verify_commands | sed -n 3p)" \
