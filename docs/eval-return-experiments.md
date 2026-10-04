@@ -138,14 +138,14 @@ alongside the cases and reused verbatim by experiment 9.
 | No rules (control) | first, the plugin cell's anchor | later | first, the model-upgrade reading |
 | Handbook | second, if a Fable cell is clean | later | first, the cell that decides it |
 | Handbook + lint gates | second, with the handbook cell | later | later |
-| Handbook + loop, self-refereed | second, if the rule-check-refereed loop comes close | later | later |
-| Handbook + loop, rule-check-refereed | first, beside the slim plugin cell | later | later |
-| Handbook + loop, plugin review as referee | second, if the rule-check-refereed loop comes close | later | later |
-| Handbook + loop, a separate Opus as reviewer | second, first of the second wave | later | later |
-| Handbook + loop, a separate Sonnet as reviewer (control) | second, with the Opus row | later | later |
+| Handbook + loop, self-refereed | second, if the rule-check-refereed loop comes close | skip | skip |
+| Handbook + loop, rule-check-refereed | first, beside the slim plugin cell | skip | skip |
+| Handbook + loop, plugin review as referee | second, if the rule-check-refereed loop comes close | skip | skip |
+| Handbook + loop, a separate Opus as reviewer | second, first of the second wave | skip | skip |
+| Handbook + loop, a separate Sonnet as reviewer (control) | second, with the Opus row | skip | skip |
 | Full plugin | first, the baseline | skip | skip |
 
-Fifteen cells in the full grid, three features, five runs each. The plain row is the
+Fifteen cells in the full grid, three features, five runs each. The five referee rows run on Sonnet only: the implementer is fixed by design, and the referee's model, where it has one, is part of the row, not a column. The plain row is the
 baseline each rules-file cell is read against: without it a clean Fable result
 cannot be credited to the file or to the model. The plugin column on the stronger
 models is the same skip as in experiment 8: the skills are a scaffold, and the
@@ -153,7 +153,7 @@ graders cap what a stronger model inside them can show. The rules file is the ha
 
 **The referee rows.** Between the handbook and the full plugin nothing on the grid
 iterates, and the plugin's value may be nothing more than *check against the rules
-and go again*. Five rows test that. Sonnet gets the spec and the handbook, implements, gets the project's tests and ordinary linters green, and only then hands the diff to a referee, which lists rule violations with file and line; Sonnet fixes them, gets tests and lint green again, and the loop repeats until a pass finds none, at most five referee passes, reporting the passes used. No skills, agents or commands. Tests and lint green is a precondition of every referee pass, not a rule of its own: a referee pass spent on broken code is wasted, and without it a loop could end on code that does not run. The loop is the same in all five rows; only the referee that ends it changes.
+and go again*. Five rows test that. Sonnet gets the spec and the handbook, implements, gets the project's tests and ordinary linters green, and only then hands the diff to a referee, which lists rule violations with file and line; Sonnet fixes them, gets tests and lint green again, and the loop repeats until a pass finds none, at most five referee passes, reporting the passes used. No skills, agents or commands for the implementing Sonnet; a referee row that names the plugin's review command or a separate reviewer invokes only that, outside the implementer's context. Tests and lint green is a precondition of every referee pass, not a rule of its own: a referee pass spent on broken code is wasted, and without it a loop could end on code that does not run. The loop is the same in all five rows; only the referee that ends it changes.
 
 | Referee | What ends the loop | What it isolates |
 |---|---|---|
@@ -182,8 +182,7 @@ whether the loop hit the cap. A loop that converges in two passes and one that h
 the cap at five tell different stories at the same final count, and a diff that
 grows every pass is the churn signal: a reviewer that over-flags and an implementer
 that over-abstracts to satisfy it, which the plugin's skeptic exists to stop and
-these loops have nothing for. A run that hits the cap with tests red is a layer A
-fail whatever the referee said. Loops multiply tokens, so a referee cell is about
+these loops have nothing for. The cap counts referee passes. The fifth pass's findings are applied like any other, the implementer returns to green, and the loop ends, so the graded artefact is always a tree with tests and lint green, reached after a clean pass or after the fifth remediation. Each remediation has an inner cap of three test-and-lint iterations; a run that exhausts it stops where it is, with tests red, and that is the one way a referee row fails layer A, whatever the referee said. Loops multiply tokens, so a referee cell is about
 $45 at five runs rather than $25 to $35, about $60 with Opus as reviewer. The
 rule-check-refereed row runs first, beside the slim plugin cell in gate 1, because
 it is the one arm that could replace the plugin outright; the Opus row leads the
