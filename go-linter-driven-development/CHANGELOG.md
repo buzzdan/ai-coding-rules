@@ -5,6 +5,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Changed
+
+- **The Go mutation mechanics name what gremlins cannot mutate.** An equality
+  operator and a literal constant are never mutated, so the tool cannot ask for the
+  row where an element sorts below the needle or the row on the far side of a limit;
+  Q7's hand check, a row at each boundary and one past it, is now stated to cover
+  those two on purpose. gremlins stays the Go binding's tool; the comparison with
+  mewt that confirmed it is recorded in the repository's docs.
+
 ## [2.14.0] - 2026-10-03
 
 ### Added

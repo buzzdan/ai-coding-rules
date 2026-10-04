@@ -9,4 +9,7 @@
   `gremlins unleash ./<leaf>`; with no task runner, propose that `go install` line for
   the developer to run. Ask first, never install silently, and never substitute a
   different invocation: a report whose mutants all timed out, with no `LIVED` and no
-  `KILLED` line, is a broken run, not a clean one.
+  `KILLED` line, is a broken run, not a clean one. gremlins never mutates an equality
+  (`==`, `!=`) or a literal constant, so it cannot ask for the row where an element
+  sorts below the needle or the row on the far side of a limit; the hand check's row
+  at each boundary and one past it covers those two on purpose, not by accident.
