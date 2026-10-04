@@ -31,7 +31,7 @@ tasks:
           || { echo "lint-core - the Residue section of core/README.md was rewritten; commit it"; exit 1; }
 
   test-gate:
-    desc: Run the fixture matrices of the generated scripts — the repo-brain gate and the review's detection pass — for every plugin
+    desc: Run the fixture matrices of the generated scripts — the repo-brain gate, the review's detection pass, the refactoring skill's slicing step and the move implementer's verification bound — for every plugin
     cmds:
       - bash go-linter-driven-development/scripts/check-repo-brain_test.sh
       - bash linter-driven-development/scripts/check-repo-brain_test.sh
@@ -39,6 +39,12 @@ tasks:
       - bash go-linter-driven-development/scripts/ldd-detect_test.sh
       - bash linter-driven-development/scripts/ldd-detect_test.sh
       - bash python-linter-driven-development/scripts/ldd-detect_test.sh
+      - bash go-linter-driven-development/scripts/ldd-slices_test.sh
+      - bash linter-driven-development/scripts/ldd-slices_test.sh
+      - bash python-linter-driven-development/scripts/ldd-slices_test.sh
+      - bash go-linter-driven-development/scripts/ldd-attempt_test.sh
+      - bash linter-driven-development/scripts/ldd-attempt_test.sh
+      - bash python-linter-driven-development/scripts/ldd-attempt_test.sh
 
   test-gen:
     desc: Unit tests and lint for the generator
@@ -48,9 +54,10 @@ tasks:
       - golangci-lint run
 
   test-scripts:
-    desc: Unit tests for the repository's own scripts (the spend report)
+    desc: Unit tests for the repository's own scripts (the spend report, the trace check)
     cmds:
       - python3 scripts/spend-report_test.py
+      - python3 scripts/parent-edits_test.py
 
   docs:check:
     desc: Run the repo-brain documentation gate over this repository (pass --fix after --)

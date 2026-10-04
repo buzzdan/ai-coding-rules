@@ -675,6 +675,66 @@ parent's own cost falls three to five times when it delegates, and parallel spaw
 one message do happen. What it did not: that a worker judged on a whole-package exit
 code can finish, or that the parent stops editing on its own.
 
+**The second design.** The grain stays: one worker per move, or per few moves that
+share a file — a fresh context of fifty thousand tokens is cheaper than one long
+worker whose context grows with every turn. Four things change. The verdict is the
+delta against the base commit: lint over the slice's changes only, tests judged
+against the failures the base commit already had, so a package's other issues and a
+race that was red before the move never defer a green move. The choreography is
+computed: `ldd-slices.sh` (`scripts/` in every plugin) takes one line per routed
+finding or escalation — rule, move, files, anchor — groups the lines that share a
+file into slices, orders a slice's moves as the multi-rule procedures sequence them,
+assigns waves so that no two slices of one wave touch the same package, and prints
+the spawn blocks; the parent spawns a wave in one message and reads its receipts
+before the next. Every test, lint and build run goes through `ldd-attempt.sh`, which
+writes the output to a numbered file under the report path, counts per move and
+refuses the fourth run; the plugin's hook denies the worker any such command that does
+not go through the wrapper, so the count is a bound and not a promise. And
+the parent edits nothing: the comment critic's verdicts and R9's doc fixes become
+slices too. A move that needs a file outside its slice is re-spawned once with the
+file added; a second time it is deferred for good. There is no inline gate and no
+token or turn budget.
+
+Expected: quickfix finishes inside the hour with its parent under 50 calls and no
+edit of its own, billing under the best same-text run (23.7M); case F under 14.8M on
+both runs; the centerpiece's outcome graders inside the same-text set; cases B and E
+with zero parent edits and their outcome graders holding. Proof: quickfix ×2, case F
+×2, the centerpiece ×1, B and E ×1, about $40, against the pooled same-text runs
+(the baseline and arm A).
+
+**Measured (S10b), seven runs on 2026-10-04, about $40, sequential, against the
+pooled same-text runs (the b56f79b baseline and arm A).** The mechanism holds where it
+is structural and fails where it is a promise. No worker ran a test, lint or build
+outside the wrapper in any of the seven runs; the hook denied one or two commands per
+run — a direct `go vet` and `go build`, which the worker then sent through the wrapper;
+a `gofmt` check, which the guard treats as a verification form; and wrapper calls
+carrying a compound build command (`go build ./... && go build -o bin/svc ./cmd/svc`),
+rightly when unquoted, since the shell would run the second half outside the wrapper,
+wrongly when quoted, a guard defect fixed after the runs. The wrapper's count was never
+exceeded: three runs per move, and the receipts report them. One re-spawn per move at most. The parent edited no source file on the
+quickfix, case F and case E runs; on case B and the centerpiece it wrote a
+characterization test itself before the first wave, which the testing integration
+asks for and no slice owns. Waves held one slice each in nearly every round, because
+go-mini's routed moves sit in one or two packages, so spawning a wave in one message
+never ran two workers side by side. The spend did not fall. Quickfix run 1 billed
+18.5M in 56 minutes with 67 parent calls at a mean context of 151k (the same-text
+runs: 23.7M to 24.9M, 112 to 120 calls at 190k to 198k); run 2 hit the runner's hour
+with 93 parent calls, a full review pass and a second fix round behind it, and no
+result — the hunters' and workers' wall time are each about 20 minutes, and the
+parent ran its own lint and tests twelve times each between waves. Case F billed 10.0M
+then 19.2M (the pool: 14.8M to 16.3M); its second run's workers took 11.5M of the
+19.2M. The centerpiece billed 24.8M (the pool: 4.4M to 14.4M) over seven rounds of one
+slice each, 93 parent calls at 188k, and four graders fail that pass in every same-text
+run (`gone-goto`, `gone-five-results`, `gone-region-byte-slice`, `stop-check`). Case B
+passes at 4.9M (the pool: 2.3M to 2.4M); case E bills 10.3M (the pool: 2.4M to 4.3M),
+its constructor and nil graders hold, its `Stop check` block is missing. Both gates
+fail: the quickfix worst run is the timeout and case F's is 19.2M, and the centerpiece
+is outside the same-text set. What the traces say the design still lacks: a slice for
+the characterization tests the parent writes before the first wave; a per-wave grain
+coarser than one move for a package where every move lands, since each round costs
+the parent a slicing call, a spawn, a receipt, a spot-check and its own lint and test
+run; and the review pass out of the hour, which no worker change shortens.
+
 ## Proving it
 
 Every stage passes two gates on the same run, or it does not ship.
@@ -762,7 +822,7 @@ diet, since nothing in the diet can change them.
 | S7 | skeptic whole-file reads | skeptic median 24 to 8 turns, Read 17 to 0; run total unmoved at three runs | PREPARE gate, small |
 | S8 | pre-filter dump, second detection run, critic sweep, bundle recipe as prose | Cases A, B and F together 12.7M to 9.6M; whole-repository mean 4.9M to 4.6M, worst run not below the best; no hunter detection call; critic tool output 51k to 29k | none |
 | S9 | critic reads the scope twice, writes every KEEP | double read gone, tool output 51k to 54k down to 34k to 48k; turns, report and bill unmoved, main-thread calls up to 19 to 24 | documentation skill, small |
-| S10 | edit loop in the parent, review inside the fix loop | none | not shipped: parent calls 120 to 36–51 and parent spend 22.9M to 4.7–8.2M on quickfix where it delegated, but whole-package verdicts deferred green moves, retries and the review pass ran the hour out, and the parent still edited on its own at times (see the measured paragraph) |
+| S10 | edit loop in the parent, review inside the fix loop | none | S10 not shipped (measured paragraph); S10b not shipped: the parent's own edits are gone on quickfix, case F and case E and no verification ran outside the wrapper, but quickfix run 2 hit the hour, case F's worst run is 19.2M against 14.8M, and the centerpiece is 24.8M with graders outside the same-text set (measured paragraph) |
 
 The program's target: the review tier at or under 25M tokens and the refactor tier
 at or under 35M, both with Gate 1 clean, against 65.6M and 65.9M today. Each number

@@ -43,11 +43,11 @@ never read its file directly.
 The `linter-driven-development:lint-fixer` agent is spawned with the **Agent tool**:
 `subagent_type: "linter-driven-development:lint-fixer"`. This skill spawns two agents and no others:
 the lint-fixer here, and the over-abstraction skeptic in PREPARE gate 4. The review
-agents belong to the skills that own them — @pre-commit-review's hunters, skeptic and
-critic, @refactoring's comment critic. Refactoring itself is a skill invoked in this
-thread, never handed to a general-purpose or any other subagent, however many
-escalations there are: a subagent applying refactorings runs unbounded in a context
-nobody reads, and is the single most expensive thing this workflow can do.
+agents belong to @pre-commit-review, and the move-implementer belongs to @refactoring,
+which spawns one per slice from this thread: refactoring is invoked here, never handed
+to a general-purpose subagent, and it never applies a move in this thread either — a
+parent editing at a context of a hundred thousand tokens, or an unbounded agent nobody
+reads, are the two most expensive things this workflow can do.
 </skill_invocation>
 
 <flow>
@@ -63,7 +63,7 @@ nobody reads, and is the single most expensive thing this workflow can do.
      └── next behavior until all done
 3 FULL LINT   ONE run via `linter-driven-development:lint-fixer` agent (Agent tool)
      mechanical → FIXED · design → ESCALATED → back to 2's REFACTOR
-4 REVIEW   per completed slice: @pre-commit-review → fix → INCREMENTAL re-run
+4 REVIEW   per completed slice: @pre-commit-review FULL → fix (@refactoring slices) → one INCREMENTAL → deferred list
 5 SHIP     @documentation → commit (tests and lint green, tree dirty) → ship summary
 
 Refactor-only request (no new behavior): 1.5 via @refactoring → 3 → 4 → 5
@@ -224,8 +224,8 @@ unresolved mechanical lint with no rule route: Phase 3 stops there, and the ship
 summary lists each `file:line` under `LINT STATUS: escalations pending` — never handed
 to @refactoring, which has no rule for it, never to a subagent. Route every design
 escalation back through the Phase 2 REFACTOR step — invoke @refactoring, in this
-thread, with the routes; **never auto-redesign here, and never delegate the
-escalations to a subagent** (`<skill_invocation>`). Package-size escalations follow
+thread, with the routes; it slices them and spawns its move-implementers
+(`<skill_invocation>`); **never auto-redesign here**. Package-size escalations follow
 `<package_decomposition>` in @refactoring's `reference.md`
 (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`; decomposition
 lands in its own commit). Repeat Phase 3 until the agent reports `LINT STATUS: green`,
@@ -244,8 +244,17 @@ mid-implementation net; this pass is the verification net.
 
 Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all
 advisory. Fix bugs and user-accepted findings via @refactoring — except accepted R9
-(documentation-network) findings, whose fixer is @documentation — then re-invoke
-@pre-commit-review in INCREMENTAL mode until the delta reports clean.
+(documentation-network) findings, whose fixer is @documentation, which hands its
+edits to a `move-implementer` slice too; this thread edits no source file. Then,
+only when a slice changed something, **one** INCREMENTAL pass over the fixed files,
+and no more — when no slice changed anything, write `REVIEW: nothing to fix` in the
+ship summary and skip the pass: invoke @pre-commit-review in
+INCREMENTAL mode with the fixed files and the FULL pass's bundle path; it runs the
+scope and detection scripts over those files, compares the counts table with the FULL
+pass's `counts.tsv`, spawns hunters only for the families whose rows changed and the
+critic only when the delta's `comments.txt` has a line, and reports the delta. What it
+still reports goes to the ship summary under `REVIEW: findings deferred`, one line
+each; there is no second INCREMENTAL, and no FULL review of a slice runs twice.
 
 **Cluster routing**: report entries marked 🔗 CLUSTER (≥2 hunters converging on one
 anchor) are fixed design-first, never member-by-member — partial fixes undo each
@@ -263,18 +272,22 @@ before.
    documentation network (index line, edges both directions, root import), plus its
    R9 self-check over the diff and its comment-critic critique loop (the critic
    reviews every comment in the diff against R9's three-test standard;
-   @documentation applies the verdicts and re-critiques once — R3 routes from the
+   @documentation hands the verdicts to a slice and re-critiques once — R3 routes from the
    critic go back through @refactoring like any R3 finding).
-2. Commit. When tests (`the repository's test command`) and lint (Phase 3) are green and the tree
-   is dirty, commit the slice with the ship summary as the message. A green slice left
-   uncommitted "for the user" is the one state this workflow never ends in: the user
-   can amend, split or revert a commit; an uncommitted tree evaporates with the
-   session. Prep commits (Phase 1.5) stay separate.
-3. Present the ship summary: the commit hash, tests green, lint green, review delta
-   (Phase 4), files changed, and — when @refactoring ran in this session — its
-   `Stop check` block verbatim: the six labelled lines (`1 gates` … `6 commit`), not
+2. Commit what no slice owns. The slices' commits are the workers' (their hashes are
+   in @refactoring's `6 commit` line); this phase commits only what no slice owns —
+   Phase 2's behaviors, the docs — when tests (`the repository's test command`) and lint (Phase 3)
+   are green and that part of the tree is dirty, with the ship summary as the
+   message, and lists every hash, the workers' and its own.
+   A green tree left uncommitted "for the user" is the one state this workflow never
+   ends in: the user can amend, split or revert a commit; an uncommitted tree
+   evaporates with the session. Prep commits (Phase 1.5) stay separate.
+3. Present the ship summary: every commit hash (the workers' and this phase's), tests
+   green, lint green, review delta (Phase 4) with its `REVIEW: findings deferred`
+   lines, files changed, and — when @refactoring ran in this session — its
+   `Stop check` block verbatim: the seven labelled lines (`0 slices` … `6 commit`), not
    a prose account of them. The block is a precondition of the summary, not an
-   ornament: no block, or fewer than six lines, means the refactoring did not finish —
+   ornament: no block, or fewer than seven lines, means the refactoring did not finish —
    run its `<stopping_criteria>` now, render the block, then present. User decides
    only about the deferred advisory findings: fix them now or later.
 </phase_5_ship>
@@ -286,7 +299,7 @@ before.
 - [ ] Every behavior completed a RED → GREEN → REFACTOR cycle
 - [ ] Package-scoped lint + rule greps clean after each cycle
 - [ ] lint-fixer reported `LINT STATUS: green`; all escalations resolved via @refactoring
-- [ ] @pre-commit-review INCREMENTAL delta clean, or findings explicitly deferred by user
+- [ ] @pre-commit-review INCREMENTAL delta clean, or its findings listed under REVIEW: findings deferred
 - [ ] @documentation (FEATURE mode) done — docs wired into the network, R9 self-check
       clean, comment-critic critique loop applied and confirmed clean (or remainder
       reported); the green slice committed and the ship summary presented with its

@@ -121,6 +121,7 @@ questions_in_rules() {
 #   FX_SRC_FILE        the production file under a layer directory: two sleep
 #                      calls and one suppression directive
 #   FX_SUPPRESS_LINE   the suppression directive's line, as the diff adds it
+#   FX_LINT_CONFIG     the linter's configuration file, which no slice may touch
 #   fx_write_marker <dir> <module>   write the project marker for a (sub-)project
 #   fx_write_code                    write $FX_SRC_FILE and a test file with a sleep
 FX_ROWS="go python"
@@ -131,11 +132,13 @@ use_row() {
       FX_GLOB='*.go'
       FX_SRC_FILE="services/worker.go"
       FX_SUPPRESS_LINE='var cache = map[string]string{} //nolint:gochecknoglobals // TODO'
+      FX_LINT_CONFIG='.golangci.yaml'
       ;;
     python)
       FX_GLOB='*.py'
       FX_SRC_FILE="services/worker.py"
       FX_SUPPRESS_LINE='CACHE: dict[str, str] = {}  # noqa: PLW0603'
+      FX_LINT_CONFIG='pyproject.toml'
       ;;
   esac
 }
@@ -203,6 +206,22 @@ def test_run() -> None:
     time.sleep(0.01)
 PY
       ;;
+  esac
+}
+
+# fx_verify_commands — the row's test, lint, build and vet forms, one per line:
+# the commands the worker's hook must send through the wrapper
+fx_verify_commands() {
+  case "$FX_GLOB" in
+    *.go)   printf '%s\n' "go test ./..." "go test -run TestX ./internal/..." "golangci-lint run" "golangci-lint run ./..." "go build ./..." "go vet ./..." ;;
+    *.py)   printf '%s\n' "pytest" "pytest -k smoke tests/" "python -m pytest" "ruff check ." "ruff format --check ." "mypy src/" "python3 -m mypy ." ;;
+  esac
+}
+# fx_lint_delta_expected <base> <files...> — the lint-over-the-delta command for the row
+fx_lint_delta_expected() {
+  case "$FX_GLOB" in
+    *.go)   printf 'golangci-lint run --allow-parallel-runners --new-from-rev=%s ./internal/models ./internal/services\n' "$1" ;;
+    *.py)   printf 'ruff check internal/models/t.py internal/services/x.py internal/services/y.py\n' ;;
   esac
 }
 

@@ -62,11 +62,10 @@ isolated context, spawned with the package list)
   `FIXED: none` on them; a `no progress` escalation is not respawned. What is left at
   either cutoff is unresolved mechanical lint with no rule route: Phase 3 stops, and
   the ship summary lists each `file:line` under `LINT STATUS: escalations pending` —
-  it never goes to @refactoring. Design escalations are never fixed by hand from this
-  command, and never by a subagent:
-  @refactoring runs in this thread, whether there are two escalations or twenty. A
-  general-purpose agent applying escalations is the failure this line exists to
-  prevent.
+  it never goes to @refactoring. Design escalations go to @refactoring, invoked in this
+  thread; it slices them and spawns one move-implementer per slice, and applies none
+  by hand. A general-purpose agent applying escalations is the failure this line
+  exists to prevent.
 - Repeat until the agent reports `LINT STATUS: green` for the scope, or until the
   respawn ceiling ends Phase 3 with that list
 
@@ -78,16 +77,22 @@ isolated context, spawned with the package list)
 - 🔗 CLUSTER entries (≥2 rules converging on one anchor) are fixed design-first:
   @code-designing (cluster-scoped) produces one mini plan, @refactoring implements it —
   never member-by-member
-- Fix bugs and user-accepted singleton findings via @refactoring, then re-invoke
-  @pre-commit-review in INCREMENTAL mode
+- Fix bugs and user-accepted singleton findings via @refactoring — every edit through
+  a `move-implementer` slice, none by this thread — then, only when a slice changed
+  something, one INCREMENTAL pass over the fixed files; otherwise `REVIEW: nothing to
+  fix`; what the pass still reports is deferred, listed in the summary
 
-**Phase 5 — SHIP**: tests and lint green and the tree dirty → commit, then the ship
-summary with the hash, the scope line, the lint-fixer's `FIXED:` / `ESCALATED:`
-tallies and — when @refactoring ran — its `Stop check` block verbatim, six labelled
-lines; without the block the refactoring did not finish and the summary is not final.
+**Phase 5 — SHIP**: the slices' commits are the workers'; this phase commits only
+what no slice owns — tests and lint green and that part of the tree dirty → commit it —
+then the ship summary with every hash, the scope line, the lint-fixer's `FIXED:` /
+`ESCALATED:` tallies, the `REVIEW: findings deferred` lines and — when @refactoring
+ran — its `Stop check` block verbatim, seven labelled lines; without the block the
+refactoring did not finish and the summary is not final.
 
-**Loop until**:
-✅ Tests pass | ✅ `LINT STATUS: green` over the scope | ✅ @pre-commit-review INCREMENTAL delta clean (or findings explicitly deferred)
+**Rounds**: a round is Phase 3 then Phase 4. At most three rounds per invocation; the
+third ends with what is left — `LINT STATUS: escalations pending` and `REVIEW: findings
+deferred` — in the summary, never a fourth round. Done when tests pass, `LINT STATUS:
+green` over the scope, and the INCREMENTAL delta is clean or listed as deferred.
 
 Use this when code is already written and needs to pass quality gates: your branch
 before a PR, a reviewer's findings, one package you name. It goes straight to fixing

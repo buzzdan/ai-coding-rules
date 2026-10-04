@@ -15,6 +15,18 @@
 #   LANG_GENERATED_RE   ERE: a marker in a file's head that says it is generated
 #   lang_configure      reads OPT_GLOB / OPT_TEST_RE (set by --glob / --test-re)
 #   lang_is_test <path> exit 0 iff the path is a test file
+#   LANG_VERIFY_RE      ERE: a shell command that runs the language's tests, lint,
+#                       build or vet, or a task runner's test/lint/build target —
+#                       the runs the move implementer must send through
+#                       ldd-attempt.sh
+#   lang_lint_delta <base> <files...>
+#                       prints the lint command over the slice's changes only
+#   LANG_LINT_CONFIG_RE ERE over a relative path: a linter's configuration file,
+#                       which no refactoring slice may touch (every language's
+#                       forms, since a repository may carry several)
+LANG_VERIFY_RE='(^|[^A-Za-z0-9_./-])((\S*/)?(go\s+(-C\s+\S+\s+)?(test|vet|build)|golangci-lint|staticcheck|gofmt|pytest|python[0-9.]*\s+-m\s+(pytest|unittest|ruff|mypy|pyright|flake8|pylint)|ruff\s+(check|format)|mypy|pyright|flake8|pylint|tox|nox|npm\s+(test|run\s+(test|lint|build))|yarn\s+(test|lint|build)|pnpm\s+(test|lint|build)|cargo\s+(test|build|clippy|check)|mvn\s+(test|verify|compile)|gradle\s+(test|build|check)|dotnet\s+(test|build))|task\s+\S*(test|lint|build|check|vet)\S*|make\s+(-[A-Za-z]\s+\S+\s+)*\S*(test|lint|build|check|vet)\S*)([^A-Za-z0-9_-]|$)'
+LANG_LINT_CONFIG_RE='(^|/)(\.golangci\.ya?ml|pyproject\.toml|setup\.cfg|ruff\.toml|\.flake8)$'
+
 detect_language() {
   if [[ -f go.mod ]]; then printf 'go\n'; return; fi
   if [[ -f pyproject.toml || -f setup.cfg || -f setup.py ]]; then printf 'python\n'; return; fi
@@ -79,6 +91,22 @@ lang_is_test() {
         *_test.*|*.test.*|*.spec.*|*Test.*|test_*|*/test_*|test/*|*/test/*|tests/*|*/tests/*|spec/*|*/spec/*|__tests__/*|*/__tests__/*) return 0 ;;
       esac
       return 1 ;;
+  esac
+}
+# lang_lint_delta <base> <files...> — the lint command over the slice's changes
+# for the language the repository's marker names; a repository with neither
+# marker gets a placeholder the parent replaces with the project's lint command.
+lang_lint_delta() {
+  local base="$1"; shift
+  case "$(detect_language)" in
+    go)
+      local pkgs
+      pkgs=$(for f in "$@"; do d=$(dirname "$f"); printf './%s\n' "${d#./}"; done | LC_ALL=C sort -u | tr '\n' ' ')
+      printf 'golangci-lint run --allow-parallel-runners --new-from-rev=%s %s\n' "$base" "${pkgs% }" ;;
+    python)
+      printf 'ruff check %s\n' "$(printf '%s\n' "$@" | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')" ;;
+    *)
+      printf '<the project'"'"'s lint command> %s\n' "$(printf '%s\n' "$@" | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//')" ;;
   esac
 }
 # ================== end language block: detected ==================
