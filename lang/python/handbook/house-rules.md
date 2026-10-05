@@ -44,7 +44,9 @@ see. Write that literal in the test.
 
 Every public function is fully annotated, and the type checker (ty or mypy) passes
 where the repository configures it. An unexplained `Any` on a public signature is a suppression spelled
-differently: narrow it, or name the `Protocol`. Annotations are what let `X | None`
-be a declared absence instead of a hope.
+differently: narrow it, or name the `Protocol`. `object` or `Any` as a container's
+key or value type (`dict[object, object]`, `dict[str, Any]`) is the same suppression
+one level down: name the mapping (R1, Name the Container). Annotations are what let
+`X | None` be a declared absence instead of a hope.
 
-**Review:** Does any public signature carry an unexplained `Any` or lack an annotation?
+**Review:** Does any public signature carry an unexplained `Any`, an `object`- or `Any`-valued container, or lack an annotation?

@@ -161,7 +161,8 @@ narrative ("Hunter output", read above).
 
 <step_3_skeptic_pass>
 Collect every finding whose fix is a new type or package — R1's Replace Primitive
-with Domain Type, Introduce Parameter Object and Name enum strings, R4's promotion to a
+with Domain Type, Introduce Parameter Object, Name the Container and Name enum
+strings, R4's promotion to a
 package, R10's Extract Synchronized Owner when it names the owner type, R11's
 Interface Dispatch and Strategy Map — and no other. Never an R2 construction
 mechanic (a validating constructor, {{.Unexported}} fields, an options type and its

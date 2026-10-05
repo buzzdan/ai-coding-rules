@@ -56,6 +56,17 @@ parsePort(name, number):          # the Port, or a failure naming the port and t
     return Port(name, number)
 Ports.firstNamed(name):           # the Port, or absent
 Ports.first():                    # the Port, or absent
+
+# ❌ a shape crosses the boundary; the caller pokes the method out of it
+bearerToken(headers):             # headers is a map from string to string
+    for each name, value in headers:
+        if name == "Authorization" and value starts with "Bearer ":
+            return value without the "Bearer " prefix
+    return absent
+
+# ✅ the container has a name, and the loop is its method
+Headers(raw):                     # copies the map in; any map is a valid one
+Headers.authToken():              # the token, or absent
 ```
 
 > **Spelling:** "the value or a failure" is an error result, an exception or a result
@@ -63,9 +74,11 @@ Ports.first():                    # the Port, or absent
 > found-flag pair, whichever the repository's language and its own code already use.
 > A `0`, `""` or `null` returned where the signature promises a `Port` is a
 > sentinel in every language. A wrapper whose only method unwraps the integer scores
-> zero on the scorecard: keep the integer.
+> zero on the scorecard: keep the integer. A map or list of primitives crossing a
+> function boundary is a shape, not a concept: read what the receivers do with it, and
+> name the type. A container inside a container is always a missing named type.
 
-**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object
+**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object · Name the Container
 
 ### R2 — Self-Validating Types
 
@@ -502,7 +515,7 @@ Before you ask for review, answer each with a file and line, not a feeling. The
 plugin's reviewers ask every rule question with a detection command behind it; these
 are the ones that catch the most. The house-rule questions are review questions only.
 
-- **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"?
+- **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"? · Does a flat container of primitives cross a function boundary?
 - **R2** Can the type exist in an invalid state? · Does anything return or accept the missing value as a value?
 - **R3** Does one body mix abstraction levels? · Do block comments narrate sections inside a function body?
 - **R4** Are internal helpers tested directly? · Does a new shared package have a role name?

@@ -79,6 +79,10 @@ once; ask them, don't restate them):
   zero)? Pick a family.
 - Every planned check → **Parse, don't validate**: does it return a more-typed value
   or a boolean someone must remember?
+- Every planned signature that returns or accepts a container of primitives →
+  **Tell, don't ask**: what will the receiver do with it? Each operation is a method
+  of a type that does not exist yet (`../../rules/R1-primitive-obsession.md`,
+  "Containers of primitives").
 - Every shared helper → **A little copying is better than a little dependency**: is
   the third strike actually here?
 
@@ -109,6 +113,7 @@ For each concept in the design, open the rule that owns the question and apply i
 Before presenting the plan, verify against the rules (cite, don't restate):
 
 - [ ] No primitive obsession; every proposed type scored, ceremony rejected (R1)
+- [ ] Every planned signature names its types: no nested container, no flat container of primitives crossing a function boundary that its receivers operate on; a product result has a name and field names (R1, Name the Container)
 - [ ] Types are self-validating; composed types trusted, never re-validated (R2)
 - [ ] Orchestration planned as a story; most logic pushed into leaf types (R3, R7)
 - [ ] **Placement decided** for every helper and type via the ladder — unexported helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
@@ -131,6 +136,7 @@ Feature: [Feature Name]
 
 Core Domain Types (leaf):
 - [Type] ([underlying]) — invariant it owns; juiciness verdict (R1)
+- [Type] — the container it names and the receiver operations that become its methods (R1, Name the Container)
 
 Orchestrating Types:
 - [Type] — dependencies (concrete unless R6-justified), methods

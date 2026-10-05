@@ -15,6 +15,17 @@ parsePort(name, number):          # the Port, or a failure naming the port and t
     return Port(name, number)
 Ports.firstNamed(name):           # the Port, or absent
 Ports.first():                    # the Port, or absent
+
+# ❌ a shape crosses the boundary; the caller pokes the method out of it
+bearerToken(headers):             # headers is a map from string to string
+    for each name, value in headers:
+        if name == "Authorization" and value starts with "Bearer ":
+            return value without the "Bearer " prefix
+    return absent
+
+# ✅ the container has a name, and the loop is its method
+Headers(raw):                     # copies the map in; any map is a valid one
+Headers.authToken():              # the token, or absent
 ```
 
 > **Spelling:** "the value or a failure" is an error result, an exception or a result
@@ -22,4 +33,6 @@ Ports.first():                    # the Port, or absent
 > found-flag pair, whichever the repository's language and its own code already use.
 > A `0`, `""` or `{{.Nil}}` returned where the signature promises a `Port` is a
 > sentinel in every language. A wrapper whose only method unwraps the integer scores
-> zero on the scorecard: keep the integer.
+> zero on the scorecard: keep the integer. A map or list of primitives crossing a
+> function boundary is a shape, not a concept: read what the receivers do with it, and
+> name the type. A container inside a container is always a missing named type.

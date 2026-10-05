@@ -37,6 +37,13 @@ should end up in those leaves; the story functions above them should be thin.
   `R4-helper-placement.md`. Storifying is how leaf types are discovered.
 - **Boolean flags tracking loop state** (`addrIP4Added`, `isClusterCIDRSet`) signal a
   collection or domain type waiting to absorb the loop.
+- **A loop that filters a container and extracts** — walk the entries, keep the one
+  whose key or value matches, pull a part out of it — is a method already written,
+  missing only its name and its owner. It belongs on the container's type:
+  `R1-primitive-obsession.md`, Name the Container. The same goes for an expression
+  built inline in a `return` or an argument (a join over a slice of the input): it
+  has a meaning, so it gets a name — a local, or a method on the type the result
+  belongs to.
 - **Honest naming.** A name must reveal side effects: `align`/`upsert`/`set` mutate;
   `parse`/`validate`/`is` must not. A `validateX` that mutates is a storifying bug
   even if the flow reads well.

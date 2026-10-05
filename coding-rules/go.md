@@ -59,14 +59,38 @@ func (s kubeService) managementPort() int32 {
 func ParsePort(name string, n int32) (Port, error) // the range check lives here, once
 func (ps Ports) FirstNamed(name string) (Port, bool)
 func (ps Ports) First() (Port, bool)
+
+// ❌ a shape crosses the boundary; the caller pokes the method out of it
+func bearerToken(headers map[string]string) (string, bool) {
+    for name, value := range headers {
+        if name == "Authorization" && strings.HasPrefix(value, "Bearer ") {
+            return strings.TrimPrefix(value, "Bearer "), true
+        }
+    }
+    return "", false
+}
+
+// ✅ the container has a name, and the loop is its method
+type Headers struct{ raw map[string]string } // the constructor copies the map in
+
+func (h Headers) AuthToken() (string, bool) {
+    value, ok := h.raw["Authorization"]
+    if !ok || !strings.HasPrefix(value, "Bearer ") {
+        return "", false
+    }
+    return strings.TrimPrefix(value, "Bearer "), true
+}
 ```
 
 > **In Go:** absence is comma-ok, `(Port, bool)`; failure is `(Port, error)`. A `0`,
 > `""` or `nil` returned from a plain result type is a sentinel and a finding. A
 > wrapper whose only method is `func (c ReplicaCount) Int() int` scores zero on the
-> scorecard: keep the `int`.
+> scorecard: keep the `int`. A `map[string]string` or `[]string` crossing a function
+> boundary is a shape, not a concept: read what the receivers do with it, and name the
+> type. A nested type (`map[string]map[string]int`, `map[string][]string`) is always a
+> missing named type; `[]byte` and `map[string]struct{}` are one level, not nesting.
 
-**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object
+**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object · Name the Container
 
 ### R2 — Self-Validating Types
 
@@ -538,7 +562,7 @@ Before you ask for review, answer each with a file and line, not a feeling. The
 plugin's reviewers ask every rule question with a detection command behind it; these
 are the ones that catch the most. The house-rule questions are review questions only.
 
-- **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"?
+- **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"? · Does a flat container of primitives cross a function boundary?
 - **R2** Can the type exist in an invalid state? · Does anything return or accept nil as a value?
 - **R3** Does one body mix abstraction levels? · Do block comments narrate sections inside a function body?
 - **R4** Are unexported helpers tested directly? · Does a new shared package have a role name?

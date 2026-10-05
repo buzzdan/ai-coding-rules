@@ -62,3 +62,31 @@
    Violation: Score 0-1, or the only method is `return str(self)` —
    over-abstraction; the finding must cite the cheaper alternative
    (`../examples/overabstraction-cidr.md`).
+
+7. **Does a nested container appear in a signature or a field?**
+   Detect-grep: `(dict|list|tuple|set|frozenset|Mapping|Sequence|Iterable)\[[^]]*(dict|list|tuple|set|frozenset|Mapping|Sequence)\[`
+   Detection: the pattern finds a container annotation whose parameter is itself a
+   container — `dict[str, list[str]]`, `tuple[dict[object, object], str]`,
+   `list[tuple[str, int]]` — in signatures, dataclass fields and module constants.
+   Read the hit: `tuple[X, ...]` is an immutable sequence of `X`, one level, and
+   `dict[Kind, Handler]` is a strategy map (R11); both are a single collection of a
+   named type and are not this question.
+   Violation: every remaining hit. The inner shape is a type with no name — Name the
+   Container: a `NamedTuple` or frozen dataclass whose fields are the elements, or a
+   class holding the mapping with the receivers' queries as methods (a nested
+   container is +3 on the scorecard).
+
+8. **Does a flat container of primitives cross a function boundary?**
+   Detect-grep: `-> (dict|list|set|frozenset|tuple|Mapping|Sequence|Iterable)\[|^\s*def .*: (dict|Mapping)\[`
+   Detection: the pattern finds a return annotation that is a container and a
+   parameter annotated as a mapping. For each hit whose parameters are primitives
+   (`dict[str, str]`, `tuple[str, str]`, `list[str]`), read every receiver and list
+   what it does with the value: `[key]`, `.get(`, `in`, `len(`, a write, a `for k, v
+   in …` loop that filters by key or value and extracts a part (grep the receivers
+   for `for [a-z_]+, [a-z_]+ in`). The filtering loop is the strongest lead: it is a
+   method already written. A hit already reported under Q7 belongs to Q7.
+   Violation: two or more such operations, or two or more receivers, and no type owns
+   them — a hidden abstraction; Name the Container (flat-crossing is +2 on the
+   scorecard, and each named operation earns the "noun the story needs" points). A
+   pass-through under a telling parameter name, or a container built and read inside
+   one function, is not a finding.

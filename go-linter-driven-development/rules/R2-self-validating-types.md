@@ -184,6 +184,11 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
 - **No defensive coding.** Check arguments in the constructor so that methods contain
   zero nil/emptiness checks on their own fields. A method validating its receiver is
   validation in the wrong place.
+- **A vocabulary type carries no checks.** A type that names a container and hangs
+  queries on it (`R1-primitive-obsession.md`, Name the Container) usually has no
+  invariant: any mapping is a valid one. Its constructor copies the container in
+  (`R12-mutation-discipline.md`) and checks nothing. Demanding a validation the type
+  has no rule for is ceremony, not self-validation.
 
 ## Fix pattern
 

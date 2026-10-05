@@ -148,7 +148,9 @@ they govern steps 2 to 6.
    rule and question — what stands`). Line `2 re-run`: per routed rule, `0 hits`, the
    anchor routed again, or `n reported`.
 3. **The noun check.** For each concept the touched code handles: does it have a named
-   box? A slice walked with flags is a collection type over it (R1); an optional
+   box? A slice walked with flags is a collection type over it (R1); a container of
+   primitives handed across a boundary and looked up or filtered by its receivers is
+   a type with no name (R1, Name the Container); an optional
    collaborator is a Null Object default; a value parsed twice has one constructor; a
    repeated predicate is a method. Score each with R1's scorecard: ≥4 apply; 2–3 apply
    or record the judgment call; 0–1 leave. Line `3 nouns`: each candidate with score

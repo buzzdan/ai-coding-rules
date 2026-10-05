@@ -5,6 +5,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+
+- **R1 catches containers of primitives.** A built-in container whose parameters
+  are primitives is a shape, not a concept. R1's design guidance now has three
+  tiers: a flat container inside one function under a telling name is fine; a flat
+  container that crosses a function boundary is judged by what its receivers do with
+  it (a lookup, a membership test, a loop that filters and extracts — each one a
+  method of a type that does not exist yet); a nested container is always a finding.
+  Two falsifying questions detect them (Q7 nested, Q8 flat across a boundary), the
+  scorecard pays +3 for a nested container and +2 for a flat one that crosses, and
+  the move is **Name the Container**. R3 names the filtering loop and the inline
+  expression in a `return` as methods and locals without names; R4's feature-envy
+  question counts index, lookup and loop accesses on a container parameter; R2 says
+  a vocabulary type that names a container carries no checks; the skeptic ships a
+  telling variable name as the cheaper alternative for tier one; the design skill,
+  the refactoring noun check and the lint-fixer's routing table carry the move.
+
 ### Changed
 
 - **The Go mutation mechanics name what gremlins cannot mutate.** An equality

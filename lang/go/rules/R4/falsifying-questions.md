@@ -39,7 +39,9 @@
    Detect: judgment
    Detection: for each changed function/method, count field/method accesses per
    value: `grep -o '<recv>\.[a-zA-Z]*' <func body> | sort | uniq -c` versus the same
-   count for its most-touched parameter or field.
+   count for its most-touched parameter or field. A parameter that is a map or
+   slice is accessed by `[`, comma-ok lookup, `len(` and `range` rather than by
+   field; count those the same way.
    Violation: accesses on one foreign value outnumber accesses on the receiver (or
    on all local data, for a free function) and the foreign type is yours to extend —
    Move Method to the Envied Type, then re-place via the ladder. A function that

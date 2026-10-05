@@ -17,7 +17,7 @@ from there, never from memory:
 | Move | Owner |
 |------|-------|
 | Extract Function (named after the comment), Early Returns, Honest Rename, Extract Leaf Type | `../../rules/R3-storifying.md` |
-| Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with Declared Absence, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
+| Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with Declared Absence, Name enum strings, Introduce Parameter Object, Name the Container, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
 | Add validating constructor, Hoist method checks, Delete re-validation, Separate Failure from Absence, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
 | Demote helper (rung 1), Promote to feature/domain package (rungs 2–3), Split policy from vocabulary | `../../rules/R4-helper-placement.md` |
 | Slice out a feature, Rename layer files by role, Split a generic package by owner | `../../rules/R5-vertical-slice.md` |
@@ -166,7 +166,9 @@ at the end.
    have a named box? A slice walked with flags is a collection type *over that slice*
    — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
    query methods on it — not an accumulator that stands beside the loop (that is the
-   flags renamed); an optional collaborator that may be absent is a Null Object
+   flags renamed); a container of primitives that crosses a function boundary and is
+   looked up, filtered or walked by its receivers is a type with no name — R1's Name
+   the Container, and the filtering loop becomes its method; an optional collaborator that may be absent is a Null Object
    default, never an optional field that may be absent, and an option handed None records the error for
    the constructor to return rather than storing it or substituting the default; a
    value parsed in two places has one constructor; a repeated predicate is a method.

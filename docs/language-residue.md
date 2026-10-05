@@ -1,6 +1,6 @@
 ---
 type: architecture
-description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's seven positions, and the Claude Code names a second plugin must not collide on
+description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's eight positions, and the Claude Code names a second plugin must not collide on
 ---
 # Language Residue Decisions
 
@@ -161,7 +161,7 @@ were choices rather than translations:
 Where a rule's Go text meets a Python idiom, the binding takes a position and the
 includes implement it; the handbook under `lang/python/handbook/` states each
 position to the reader as an `In Python` aside under its rule
-([handbook.md](handbook.md)). The seven positions:
+([handbook.md](handbook.md)). The eight positions:
 
 1. **Absence.** `None` is a declared absence, never an undeclared failure. A
    `-> X | None` signature is fine when absence is normal and every caller narrows
@@ -222,6 +222,16 @@ position to the reader as an `In Python` aside under its rule
    "manufactured cancellation root" is those last two plus `basicConfig` in a
    library module. A test that monkeypatches production configuration is evidence
    against the production code.
+8. **Containers.** A nested annotation — a container whose parameter is a container,
+   `dict[str, list[str]]`, `tuple[dict[object, object], str]` — is R1 Q7's finding
+   in every case; `tuple[X, ...]` is an immutable sequence of `X`, one level, and a
+   `dict[Kind, Handler]` strategy map is R11's, so neither is nesting. A flat
+   container of primitives in a return or parameter annotation is R1 Q8's lead, and
+   the verdict comes from the receivers: `[key]`, `.get(`, `in`, `len(` and a
+   `for k, v in …` loop that filters and extracts are the methods of the type that
+   should own it. The fix is a named tuple or frozen dataclass for a product, a
+   class holding the mapping for a queried map. An object- or Any-valued container
+   is house rule P5's suppression one level down.
 
 The binding also holds stances that are not Python community norms and says so
 under an "Opinionated" heading in its README: no `utils.py` or `common.py`, no
