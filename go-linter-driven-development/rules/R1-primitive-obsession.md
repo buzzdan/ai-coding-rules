@@ -413,7 +413,9 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    that filters by key or value and extracts a part (grep the receivers for
    `range <name>`). The filtering loop is the strongest lead: it is a method already
    written. A hit already reported under Q7 belongs to Q7; `args []string` at an
-   entry point and a `[]byte` are not this question.
+   entry point and a `[]byte` are not this question. Go has no tuple: a function
+   with several loose results is Q5's data clump (Introduce Parameter Object),
+   never this question.
    Violation: two or more such operations, or two or more receivers, and no type owns
    them — a hidden abstraction; Name the Container (flat-crossing is +2 on the
    scorecard, and each named operation earns the "noun the story needs" points). A
