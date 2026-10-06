@@ -33,6 +33,7 @@ Backward counterpart (fixing code that already fails lint/review): @refactoring.
   its message says):
   - too many parameters → design an options type (grouping data that travels together — score it per `../../rules/R1-primitive-obsession.md`)
   - too many return values → design a named result type (same R1 scoring)
+  - a tuple or pair result, or a map or list of primitives returned or accepted → the same named result type, with no linter to say so (R1, Name the Container)
   - file too long → split juicy types into their own files (juiciness per R1; file-per-type per `../../rules/R5-vertical-slice.md`); a single god type routes to @refactoring's god-object decomposition procedure first
   - a directory in the package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (`<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`))
 - A Phase 4 review CLUSTER (≥2 hunters converging on one anchor —
@@ -81,6 +82,10 @@ once; ask them, don't restate them):
   zero)? Pick a family.
 - Every planned check → **Parse, don't validate**: does it return a more-typed value
   or a boolean someone must remember?
+- Every planned signature that returns or accepts a container of primitives →
+  **Tell, don't ask**: what will the receiver do with it? Each operation is a method
+  of a type that does not exist yet (`../../rules/R1-primitive-obsession.md`,
+  "Containers of primitives").
 - Every shared helper → **A little copying is better than a little dependency**: is
   the third strike actually here?
 
@@ -111,6 +116,7 @@ For each concept in the design, open the rule that owns the question and apply i
 Before presenting the plan, verify against the rules (cite, don't restate):
 
 - [ ] No primitive obsession; every proposed type scored, ceremony rejected (R1)
+- [ ] Every planned signature names its types: no nested container, no flat container of primitives crossing a function boundary that its receivers operate on; a product result has a name and field names (R1, Name the Container)
 - [ ] Types are self-validating; composed types trusted, never re-validated (R2)
 - [ ] Orchestration planned as a story; most logic pushed into leaf types (R3, R7)
 - [ ] **Placement decided** for every helper and type via the ladder — internal helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
@@ -133,6 +139,7 @@ Feature: [Feature Name]
 
 Core Domain Types (leaf):
 - [Type] ([underlying]) — invariant it owns; juiciness verdict (R1)
+- [Type] — the container it names and the receiver operations that become its methods (R1, Name the Container)
 
 Orchestrating Types:
 - [Type] — dependencies (concrete unless R6-justified), methods

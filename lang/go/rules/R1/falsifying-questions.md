@@ -50,3 +50,31 @@
    Violation: Score 0-1, or the only method is `return <primitive>(x)` —
    over-abstraction; the finding must cite the cheaper alternative
    (`../examples/overabstraction-cidr.md`).
+
+7. **Does a nested container appear in a signature or a field?**
+   Detect-grep: `(map\[[^]]+\]|\[\])(map\[|\[\])`
+   Detection: the pattern finds a map or slice whose element is itself a map or
+   slice — `map[string]map[string]int`, `map[string][]string`, `[][]string`,
+   `[]map[string]any` — in signatures, struct fields and package-level declarations.
+   Read the hit: `[][]byte` is a list of blobs, and a `map[string]struct{}` is a set,
+   one level; neither is this question.
+   Violation: every remaining hit. The inner shape is a type with no name — Name the
+   Container: a named type that holds the container, with the receivers' lookups and
+   loops as its methods (a nested container is +3 on the scorecard).
+
+8. **Does a flat container of primitives cross a function boundary?**
+   Detect-grep: `^func .*(map\[(string|int[0-9]*)\](string|int[0-9]*|bool|any|interface\{\})|\[\](string|int[0-9]*|bool|float64))`
+   Detection: the pattern finds a signature that accepts or returns a map or slice of
+   primitives. For each hit, read every receiver and list what it does with the
+   value: an index, a comma-ok lookup, `len(`, a write, a `for k, v := range` loop
+   that filters by key or value and extracts a part (grep the receivers for
+   `range <name>`). The filtering loop is the strongest lead: it is a method already
+   written. A hit already reported under Q7 belongs to Q7; `args []string` at an
+   entry point and a `[]byte` are not this question. Go has no tuple: a function
+   with several loose results is Q5's data clump (Introduce Parameter Object),
+   never this question.
+   Violation: two or more such operations, or two or more receivers, and no type owns
+   them — a hidden abstraction; Name the Container (flat-crossing is +2 on the
+   scorecard, and each named operation earns the "noun the story needs" points). A
+   pass-through under a telling parameter name, or a container built and read inside
+   one function, is not a finding.

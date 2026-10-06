@@ -40,7 +40,9 @@ R4's feature-envy question are graduates of exactly this path.
 decision belong on the type that owns the value?
 
 **Compiled into:** `rules/R11-conditional-dispatch.md` (asking what a value *is*),
-`rules/R4-helper-placement.md` Q6 (feature envy — asking for data to decide with).
+`rules/R4-helper-placement.md` Q6 (feature envy — asking for data to decide with),
+`rules/R1-primitive-obsession.md` Q8 (what a receiver does with a container it was
+handed — each operation is a method of the type that should own it).
 
 ### Talk to your friends, not your friends' friends
 — The Law of Demeter (Karl Lieberherr)

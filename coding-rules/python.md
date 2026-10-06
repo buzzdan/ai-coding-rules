@@ -65,6 +65,26 @@ class Port:
 class Ports:
     def first_named(self, name: str) -> Port | None: ...
     def first(self) -> Port | None: ...
+
+
+# ❌ a shape crosses the boundary; the caller pokes the method out of it
+def bearer_token(headers: dict[str, str]) -> str | None:
+    for name, value in headers.items():
+        if name == "Authorization" and value.startswith("Bearer "):
+            return value.removeprefix("Bearer ")
+    return None
+
+
+# ✅ the container has a name, and the loop is its method
+class Headers:
+    def __init__(self, raw: Mapping[str, str]) -> None:
+        self._raw = dict(raw)
+
+    def auth_token(self) -> str | None:
+        value = self._raw.get("Authorization")
+        if value is None or not value.startswith("Bearer "):
+            return None
+        return value.removeprefix("Bearer ")
 ```
 
 > **In Python:** absence is a declared `-> Port | None` that every caller narrows,
@@ -73,9 +93,12 @@ class Ports:
 > `# ty: ignore[invalid-return-type]` (mypy: `# type: ignore[return-value]`) is its
 > silenced form. Never a `tuple[Port, bool]`.
 > `typing.NewType("PortNumber", int)` scores zero on the scorecard: it admits every
-> literal.
+> literal. A `dict[str, str]` or `tuple[str, str]` returned from a function is a shape,
+> not a concept: read what the receivers do with it, and name the type. A nested
+> annotation (`tuple[dict[object, object], str]`, `dict[str, list[str]]`) is always a
+> missing `NamedTuple` or frozen dataclass; `tuple[X, ...]` is one level, not nesting.
 
-**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object
+**Moves:** Replace Primitive with Domain Type · Extract Collection Type · Replace Sentinel with Declared Absence · Name enum strings · Introduce Parameter Object · Name the Container
 
 ### R2 — Self-Validating Types
 
@@ -584,10 +607,12 @@ see. Write that literal in the test.
 
 Every public function is fully annotated, and the type checker (ty or mypy) passes
 where the repository configures it. An unexplained `Any` on a public signature is a suppression spelled
-differently: narrow it, or name the `Protocol`. Annotations are what let `X | None`
-be a declared absence instead of a hope.
+differently: narrow it, or name the `Protocol`. `object` or `Any` as a container's
+key or value type (`dict[object, object]`, `dict[str, Any]`) is the same suppression
+one level down: name the mapping (R1, Name the Container). Annotations are what let
+`X | None` be a declared absence instead of a hope.
 
-**Review:** Does any public signature carry an unexplained `Any` or lack an annotation?
+**Review:** Does any public signature carry an unexplained `Any`, an `object`- or `Any`-valued container, or lack an annotation?
 
 ## 4. Self-review
 
@@ -595,7 +620,7 @@ Before you ask for review, answer each with a file and line, not a feeling. The
 plugin's reviewers ask every rule question with a detection command behind it; these
 are the ones that catch the most. The house-rule questions are review questions only.
 
-- **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"?
+- **R1** Does the diff validate a primitive inline instead of constructing a type? · Is the same predicate enforced in more than one place? · Does any function return a sentinel to mean "not found / invalid"? · Does a flat container of primitives cross a function boundary?
 - **R2** Can the type exist in an invalid state? · Does anything return or accept `None` as a value?
 - **R3** Does one body mix abstraction levels? · Do block comments narrate sections inside a function body?
 - **R4** Are `_private` helpers tested directly? · Does a new shared package have a role name?
@@ -607,7 +632,7 @@ are the ones that catch the most. The house-rule questions are review questions 
 - **R10** Does every thread or task started in the diff have a provable exit path? · Does production code sleep?
 - **R11** Is the same discriminator inspected in more than one place? · Does a `case _:` (or trailing `else`) handle "unknown kind" away from the boundary? · Does a boolean parameter select between behaviors?
 - **R12** Does a method return an internal list, dict or set by reference? · Can a validated type be mutated around its constructor?
-- **House rules** Did the diff add a `# noqa`, `# ty: ignore` or `# type: ignore`, or edit `[tool.ruff]`, `[tool.ty]` or `[tool.mypy]`? · Does any `except` catch `Exception`, `BaseException` or nothing at all away from the process boundary, re-raise without `from`, both log and raise, or inspect a message string? · Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Does any public signature carry an unexplained `Any` or lack an annotation?
+- **House rules** Did the diff add a `# noqa`, `# ty: ignore` or `# type: ignore`, or edit `[tool.ruff]`, `[tool.ty]` or `[tool.mypy]`? · Does any `except` catch `Exception`, `BaseException` or nothing at all away from the process boundary, re-raise without `from`, both log and raise, or inspect a message string? · Is any `bool` parameter positional? · Is any default a mutable literal or a call, or a `None` a method later guards? · Does any test import a `_private` name? · Does any fixture return the literal a test is about? · Does any public signature carry an unexplained `Any`, an `object`- or `Any`-valued container, or lack an annotation?
 
 ## 5. Mechanics
 

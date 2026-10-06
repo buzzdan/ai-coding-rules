@@ -8,8 +8,13 @@
    narrating.
 
 2. **Does one body mix abstraction levels?**
-   Detect: judgment
-   Detection: read each changed function and list its statements' altitudes: a named
+   Detect-grep: `^\s*return .*\(.*\), |^\s*return .*\[[^]]*:[^]]*\]`
+   Detection: the pattern is one lead, not the whole question: a `return` whose
+   elements are expressions rather than names — a call beside a call, a slice —
+   such as `return _load("".join(lines[1:i])), "".join(lines[i + 1 :])`. Each such
+   element has a meaning and no name: a local, or a method on the type the result
+   belongs to (`R1-primitive-obsession.md`, Name the Container). Then read each
+   changed function and list its statements' altitudes: a named
    method/function call is high; string slicing, `.split()`/`.partition()`, index
    arithmetic, `isinstance` checks, and protocol details (`json.loads`, header
    parsing) are low.

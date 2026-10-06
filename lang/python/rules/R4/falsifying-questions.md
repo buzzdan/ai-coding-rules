@@ -42,7 +42,9 @@
    Detect: judgment
    Detection: for each changed function/method, count attribute accesses per value:
    `grep -oE '\bself\.[a-zA-Z_]+' <func body> | sort | uniq -c` versus the same
-   count for its most-touched parameter (`grep -oE '\b<param>\.[a-zA-Z_]+'`).
+   count for its most-touched parameter (`grep -oE '\b<param>\.[a-zA-Z_]+'`). A
+   parameter that is a `dict`, `list` or `tuple` is accessed by `[`, `.get(`, `in`,
+   `len(` and `for … in` rather than by attribute; count those the same way.
    Violation: accesses on one foreign value outnumber accesses on `self` (or on all
    local data, for a free function) and the foreign type is yours to extend — Move
    Method to the Envied Type, then re-place via the ladder. A function that merely

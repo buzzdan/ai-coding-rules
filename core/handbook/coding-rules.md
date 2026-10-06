@@ -147,7 +147,7 @@ Before you ask for review, answer each with a file and line, not a feeling. The
 plugin's reviewers ask every rule question with a detection command behind it; these
 are the ones that catch the most. The house-rule questions are review questions only.
 
-- **R1** {{questions "rules/R1/falsifying-questions.md" 1 2 4}}
+- **R1** {{questions "rules/R1/falsifying-questions.md" 1 2 4 8}}
 - **R2** {{questions "rules/R2/falsifying-questions.md" 1 5}}
 - **R3** {{questions "rules/R3/falsifying-questions.md" 2 3}}
 - **R4** {{questions "rules/R4/falsifying-questions.md" 2 3}}

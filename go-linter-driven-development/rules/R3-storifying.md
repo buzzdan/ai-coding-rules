@@ -111,6 +111,13 @@ helpers were renamed `alignIPv4`/`alignIPv6` — "align" admits the side effect 
   `R4-helper-placement.md`. Storifying is how leaf types are discovered.
 - **Boolean flags tracking loop state** (`addrIP4Added`, `isClusterCIDRSet`) signal a
   collection or domain type waiting to absorb the loop.
+- **A loop that filters a container and extracts** — walk the entries, keep the one
+  whose key or value matches, pull a part out of it — is a method already written,
+  missing only its name and its owner. It belongs on the container's type:
+  `R1-primitive-obsession.md`, Name the Container. The same goes for an expression
+  built inline in a `return` or an argument (a join over a slice of the input): it
+  has a meaning, so it gets a name — a local, or a method on the type the result
+  belongs to.
 - **Honest naming.** A name must reveal side effects: `align`/`upsert`/`set` mutate;
   `parse`/`validate`/`is` must not. A `validateX` that mutates is a storifying bug
   even if the flow reads well.
@@ -153,8 +160,13 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    narrating.
 
 2. **Does one body mix abstraction levels?**
-   Detect: judgment
-   Detection: read each changed function and list its statements' altitudes: a named
+   Detect-grep: `^\s*return .*\(.*\), .*\(|^\s*return .*\[[^]]*:[^]]*\]`
+   Detection: the pattern is one lead, not the whole question: a `return` whose
+   elements are expressions rather than names — a call beside a call, a slice —
+   such as `return parse(strings.Join(lines[1:i], "")), strings.Join(lines[i+1:], "")`.
+   Each such element has a meaning and no name: a local, or a method on the type
+   the result belongs to (`R1-primitive-obsession.md`, Name the Container). Then
+   read each changed function and list its statements' altitudes: a named
    method/function call is high; string/index/slice manipulation, type assertions,
    and protocol details are low.
    Violation: both altitudes in the same body — e.g. `strings.SplitN` three lines

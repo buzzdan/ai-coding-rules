@@ -60,3 +60,28 @@ hits — a pattern finds candidates, the question decides.
    Violation: Score 0-1, or the only method is `return <primitive>(x)` —
    over-abstraction; the finding must cite the cheaper alternative (better naming, or
    private fields with accessors).
+
+7. **Does a nested container appear in a signature or a field?**
+   Detect: judgment
+   Detection: in the changed files, read every function signature and type field for
+   a container whose parameter is itself a container — a map of maps, a list of
+   lists, a list of pairs, a tuple that holds a mapping or a list — in the language's
+   own spelling.
+   Violation: every hit. The inner shape is a type with no name — Name the Container
+   (a nested container is +3 on the scorecard). A single collection of a domain type
+   (a list of ports, a strategy map of handlers keyed by an enum) is not nesting: its
+   element has a name.
+
+8. **Does a flat container of primitives cross a function boundary?**
+   Detect: judgment
+   Detection: in the changed files, find every function that returns or accepts a
+   map, list, set or tuple of primitives. For each, read every receiver and list what
+   it does with the value: a lookup by key, a membership test, a length check, a
+   write, a loop that filters by key or value and extracts a part. The filtering loop
+   is the strongest lead: it is a method already written, missing its name and its
+   owner. A hit already reported under Q7 belongs to Q7.
+   Violation: two or more such operations, or two or more receivers, and no type owns
+   them — a hidden abstraction; Name the Container (flat-crossing is +2 on the
+   scorecard, and each named operation earns the "noun the story needs" points). A
+   pass-through under a telling parameter name, or a container built and read inside
+   one function, is not a finding.

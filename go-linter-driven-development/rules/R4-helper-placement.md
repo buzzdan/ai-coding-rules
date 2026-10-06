@@ -111,8 +111,10 @@ vocabulary of one — fold it into the vocabulary it belongs to. A role name (`u
 - **Move Method to the Envied Type** (Fowler: Feature Envy → Move Function): a
   function that reads another type's data more than its own belongs on that type —
   move it there, then place the enriched type on the ladder as usual. If the envied
-  type is foreign (another module's DTO), wrap it first (`R1-primitive-obsession.md`)
-  and hang the behavior on the wrapper.
+  type is foreign (another module's DTO) or a built-in container (a map of strings
+  the function keeps looking things up in), wrap it first
+  (`R1-primitive-obsession.md`, Name the Container) and hang the behavior on the
+  wrapper.
 - **A message chain is a placement signal, not a wrapper order** (Fowler: Message
   Chains). Before "fixing" `order.Customer().Address().City()` by adding a
   `CustomerCity()` forwarder, ask what the caller *does* with the endpoint (Tell,
@@ -180,7 +182,9 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Detect: judgment
    Detection: for each changed function/method, count field/method accesses per
    value: `grep -o '<recv>\.[a-zA-Z]*' <func body> | sort | uniq -c` versus the same
-   count for its most-touched parameter or field.
+   count for its most-touched parameter or field. A parameter that is a map or
+   slice is accessed by `[`, comma-ok lookup, `len(` and `range` rather than by
+   field; count those the same way.
    Violation: accesses on one foreign value outnumber accesses on the receiver (or
    on all local data, for a free function) and the foreign type is yours to extend —
    Move Method to the Envied Type, then re-place via the ladder. A function that

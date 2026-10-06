@@ -63,6 +63,7 @@ this table:
 | Interface, protocol or abstract class with a single implementation; returning an interface | rules/R6-test-only-interfaces.md |
 | Data race; copied lock; unsynchronized shared state | rules/R10-concurrency-safety.md (via @refactoring) |
 | Repeated string constant that is enum-shaped | rules/R1-primitive-obsession.md ("Name enum strings" move) |
+| Too many return values; an unnamed result | rules/R1-primitive-obsession.md ("Name the Container" move) |
 | A finding no row above describes | Escalate to the rule its *message* describes, and name the linter it came from — never silence it, never guess |
 
 The rows name finding families, not one linter's check names: the repository's linter

@@ -5,7 +5,7 @@ okf_version: "0.2"
 
 - [conventions.md](conventions.md) — how to maintain this doc root (read before editing docs)
 - [generator.md](generator.md) — how the plugin directories are generated from core/ and one binding under lang/, and the checks that keep them honest
-- [language-residue.md](language-residue.md) — how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's seven positions, and the Claude Code names a second plugin must not collide on
+- [language-residue.md](language-residue.md) — how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's eight positions, and the Claude Code names a second plugin must not collide on
 - [handbook.md](handbook.md) — the coding-rules handbook — the standalone document a team reads without the plugin, how it is generated from the same rules, what a binding writes for it, and how to consume and measure it
 - [mutation-tooling.md](mutation-tooling.md) — why the Go binding's R7 runs gremlins and not mewt — the four requirements the rule puts on a mutation tool, both tools measured on the same leaf packages, the blind spots the hand check covers, and the three changes in mewt that would reopen the decision
 

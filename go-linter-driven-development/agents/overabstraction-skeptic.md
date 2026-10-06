@@ -85,7 +85,11 @@ extracts, not the constructor that guards it.
 **The refinement (mandatory):** a refutation is never a bare "no". Name the need the
 proposal was groping toward, then meet it more cheaply — better naming when the need
 is clarity; private fields + accessors when the real need is controlled mutation
-rather than validation or logic. The case file you read is the template for what a
+rather than validation or logic; a telling variable name when the proposal wraps a
+flat container of primitives that lives inside one function and crosses no boundary
+(R1, "Containers of primitives", tier 1). A nested container never takes that
+alternative: the inner shape is a type with no name, and a variable name cannot
+name it. The case file you read is the template for what a
 correct refutation looks like.
 
 **Verdict schema — one line per finding, the literal word first:**

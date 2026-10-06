@@ -220,8 +220,8 @@ finding on those lines and takes that finding's effort), as the report example b
   — `dial(host string, port int, tls bool)`, `dial(c.host, c.port, c.tls)` — never the
   bare name, so a reader can grep the report for the call.
 - The fix cell names the move exactly as the rule's **Fix pattern** section spells it
-  (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
-  `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
+  (`Introduce Parameter Object`, `Name the Container`, `Name enum strings`,
+  `Extract Leaf Type`, `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
   its place. The skeptic's verdict and score follow the move when one applies.
 - Effort carries over from the hunter (S/M/L).
 

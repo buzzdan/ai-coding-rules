@@ -43,7 +43,9 @@ directory, or whatever the repository uses).
    Detect: judgment
    Detection: for each changed function/method, count field/method accesses per
    value (occurrences of `<receiver>.` versus occurrences of `<parameter>.` in the
-   body), for the receiver and for its most-touched parameter or field.
+   body), for the receiver and for its most-touched parameter or field. A parameter
+   that is a built-in container is accessed by index, lookup, membership test and
+   loop rather than by field; count those the same way.
    Violation: accesses on one foreign value outnumber accesses on the receiver (or
    on all local data, for a free function) and the foreign type is yours to extend —
    Move Method to the Envied Type, then re-place via the ladder. A function that
