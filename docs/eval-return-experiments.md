@@ -36,7 +36,7 @@ Every budget on this page assumes five runs per cell.
 | 4 · Token accounting | Which rules pay for themselves? | Per-agent usage in existing traces, ablation | $0 then ~$50 |
 | 5 · Repositories not built for it | Does recall survive a real codebase? | Historical refactoring PRs as the oracle | ~$60 |
 | 6 · Acceptance rate | What does it do to your day? | Your accept / dismiss / wrong marks | $0 |
-| 7 · Writing features, rules × models | Does the machinery prevent problems, or does a strong model, plain or with the handbook, write clean code alone? | Hidden tests, then a review-full on the result counting new plants | ~$310 first four cells, ~$640 the grid |
+| 7 · Writing features, rules × models | Does the machinery prevent problems, or does a strong model, plain or with the handbook, write clean code alone? | Hidden tests, then a review-full on the result counting new plants | ~$310 first four cells, ~$885 the grid |
 | 8 · Rules without the machinery | Is it the rules or the plugin? And which model needs which? | Same graders, 3 rule deliveries × 3 models | ~$160 for the cells that can surprise |
 
 ### 1 · The no-plugin control on the existing suite
@@ -138,15 +138,64 @@ alongside the cases and reused verbatim by experiment 9.
 | No rules (control) | first, the plugin cell's anchor | later | first, the model-upgrade reading |
 | Handbook | second, if a Fable cell is clean | later | first, the cell that decides it |
 | Handbook + lint gates | second, with the handbook cell | later | later |
+| Handbook + loop, self-refereed | second, if the rule-check-refereed loop comes close | skip | skip |
+| Handbook + loop, rule-check-refereed | first, beside the slim plugin cell | skip | skip |
+| Handbook + loop, plugin review as referee | second, if the rule-check-refereed loop comes close | skip | skip |
+| Handbook + loop, a separate Opus as reviewer | second, first of the second wave | skip | skip |
+| Handbook + loop, a separate Sonnet as reviewer (control) | second, with the Opus row | skip | skip |
 | Full plugin | first, the baseline | skip | skip |
 
-Ten cells in the full grid, three features, five runs each. The plain row is the
+Fifteen cells in the full grid, three features, five runs each. The five referee rows run on Sonnet only: the implementer is fixed by design, and the referee's model, where it has one, is part of the row, not a column. The plain row is the
 baseline each rules-file cell is read against: without it a clean Fable result
 cannot be credited to the file or to the model. The plugin column on the stronger
 models is the same skip as in experiment 8: the skills are a scaffold, and the
 graders cap what a stronger model inside them can show. The rules file is the handbook, as in experiment 8, and the handbook plus lint gates row is the same token-free delivery.
 
-**Start with four cells, not ten.** Fable plain, Fable with the handbook,
+**The referee rows.** Between the handbook and the full plugin nothing on the grid
+iterates, and the plugin's value may be nothing more than *check against the rules
+and go again*. Five rows test that. Sonnet gets the spec and the handbook, implements, gets the project's tests and ordinary linters green, and only then hands the diff to a referee, which lists rule violations with file and line; Sonnet fixes them, gets tests and lint green again, and the loop repeats until a pass finds none, at most five referee passes, reporting the passes used. No skills, agents or commands for the implementing Sonnet; a referee row that names the plugin's review command or a separate reviewer invokes only that, outside the implementer's context. Tests and lint green is a precondition of every referee pass, not a rule of its own: a referee pass spent on broken code is wasted, and without it a loop could end on code that does not run. The loop is the same in all five rows; only the referee that ends it changes.
+
+| Referee | What ends the loop | What it isolates |
+|---|---|---|
+| the model itself | its own verdict that no rule is violated | whether self-review is enough |
+| the rule checks | the twelve rules' detection greps and the mechanical analyzer report clean; ordinary lint is already inside every loop | whether a deterministic signal is enough: the token-free delivery, in a loop |
+| the plugin's review command | the review reports no findings | whether the hunters and skeptic are a better referee than the first two, with the implementation ceremony removed |
+| a separate Opus instance, with the handbook, the diff and the touched files | it returns no findings | whether one strong reader beats the hunter fan-out as referee, with no machinery and no self-preference |
+| a separate Sonnet instance, same brief (control) | it returns no findings | splits a second pair of eyes from a stronger model; without it a win cannot be credited to Opus |
+
+The third row splits the plugin in two, review as referee against the design-first
+and TDD choreography, which nothing else on the page does. The fourth is the
+cheap-writer, expensive-judge shape the plugin cannot offer, since its hunters run
+on the implementing model; if it matches the plugin-refereed row, the hunter fan-out
+is not what makes the review work, and the slim plugin is the handbook plus a
+two-agent loop. For the two reviewer rows the orchestrator is dumb: pass the diff
+to the reviewer, pass the findings back, stop on no findings or the cap. The
+reviewer writes its findings in the review's report contract, file and line, rule
+number and falsifying question, so the recall graders read them; it is blind to
+who wrote the code and which pass it is on, sees the diff with comments stripped,
+and never edits. Pin the reviewer's model version in the run.
+
+Beyond the scorecard, record referee passes used, inner iterations (the test and
+lint fixes before each referee pass, which say something about the implementer
+rather than the referee), the plant count and the diff size after each pass, and
+whether the loop hit the cap. A loop that converges in two passes and one that hits
+the cap at five tell different stories at the same final count, and a diff that
+grows every pass is the churn signal: a reviewer that over-flags and an implementer
+that over-abstracts to satisfy it, which the plugin's skeptic exists to stop and
+these loops have nothing for. The cap counts referee passes. The fifth pass's findings are applied like any other, the implementer returns to green, and the loop ends, so the graded artefact is always a tree with tests and lint green, reached after a clean pass or after the fifth remediation. Each remediation has an inner cap of three test-and-lint iterations; a run that exhausts it stops where it is, with tests red, and that is the one way a referee row fails layer A, whatever the referee said. Loops multiply tokens, so a referee cell is about
+$45 at five runs rather than $25 to $35, about $60 with Opus as reviewer. The
+rule-check-refereed row runs first, beside the slim plugin cell in gate 1, because
+it is the one arm that could replace the plugin outright; the Opus row leads the
+second wave as the strongest challenger to the review machinery, with its control,
+and the other two follow. Written down before any of it runs: the rule-check loop
+should beat the self-refereed one, the Opus loop should land near the plugin-refereed
+one at lower cost, and the only thing that would save the hunter fan-out is a recall
+gap on the rules the rule checks cannot see, R1, R2, R6, R9, R10 and R12. One caution:
+in the self-refereed row the model also grades its own stopping point, so its pass
+or fail comes from the scorecard, never from its report that the rules are
+satisfied.
+
+**Start with four cells, not fifteen.** Fable plain, Fable with the handbook,
 Sonnet with the plugin, and Sonnet plain. The two Fable cells put the strongest
 model against the plugin directly. Sonnet plain is the cheapest cell on the grid
 and it anchors the plugin cell: without it a clean Sonnet-with-plugin result proves
@@ -166,6 +215,7 @@ nothing, since Sonnet alone might have written the feature clean.
 | Fable plain dirty, Fable with handbook clean | the rules matter on the strongest model; only the ceremony is on trial | Sonnet with handbook and Sonnet with handbook plus lint gates, ~$55 together |
 | Fable with handbook dirty, Sonnet with plugin clean | the design-first ceremony earns its cost even on the strongest model | none needed; the Opus column can wait indefinitely |
 | Sonnet plain as clean as Sonnet with plugin | the plugin cell shows nothing on these features; they are too easy or the review too coarse | harder features before any new cell |
+| Rule-check-refereed loop as clean as Sonnet with plugin, and cheaper | the plugin's value is the loop, and the referee can be deterministic | the other referee rows, Opus and its control first, ~$200, to find the cheapest referee that holds the result |
 
 Clean and dirty mean the scorecard below: the hidden tests first, then the
 structural deltas in ISO 25010 terms, then the plant count and the pairwise judge.
@@ -443,7 +493,7 @@ spent.
 |---|---|---|---|---|
 | 0 | the scorecard's structure script and pairwise judge, a noise-floor run, experiment 6 started | $0 | the yardstick exists and two identical arms land within a known distance | nothing runs until it does |
 | 0.5 | the mechanical token diet, stages S1 to S4 of [token-budget.md](token-budget.md), proven in two pairs; in parallel, gate 1's three plugin-free cells | ~$100 for the proofs, ~$275 for the three cells | both pairs pass the token budget's two gates: no grader moves beyond the noise floor and billed tokens fall beyond the run-to-run swing | the plugin stays as it is and gate 1 runs on it, where the cost bound fails for a reason the spend report already gave |
-| 1 | experiment 7's fourth cell, Sonnet with the slim plugin, against the three cells recorded at gate 0.5 | ~$35 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better, and cost per passing feature within a stated multiple of the Sonnet plain cell, 2× unless the case says otherwise | stop spending on evals; the plugin needs fixing, not measuring, and a quality win at 3× the cost is a fail on cost |
+| 1 | experiment 7's slim plugin cell and its rule-check-refereed loop cell, both Sonnet, against the three cells recorded at gate 0.5 | ~$80 | Sonnet with plugin beats Sonnet plain on the layer B deltas and the plant count by more than the noise floor, with hidden tests equal or better, and cost per passing feature within a stated multiple of the Sonnet plain cell, 2× unless the case says otherwise | stop spending on evals; the plugin needs fixing, not measuring, and a quality win at 3× the cost is a fail on cost |
 | 2 | experiment 8, Sonnet row, four cells | ~$110 | the plugin beats the handbook, with and without lint gates, on recall by more than the noise floor | the next work is tokens, not experiments; part two waits |
 | 3 | experiment 2, refactor A/B | ~$120 | more oracle passes per dollar than the plain fix prompt | the review is worth keeping, the refactor skill is not; experiment 3 is off |
 | 4 | part two: the ldd twin, then 11, then 9, then 12 only if 9 shows a gap | ~$60 for the twin, then $40, $80, $250 | comprehension tokens and regressions down on the ldd twin by more than the noise floor | the plugin's refactor is a review aid, not an investment |
@@ -490,7 +540,7 @@ five runs per cell the value experiments use rather than the baseline's counts,
 the first pair is about $115.
 
 Gate 1 has a partial pass. If Fable plain matches Sonnet with plugin, the plugin
-works but is competing with a model upgrade, so the sequence continues on the price question only, gate 2 and then 8's Opus summary cell, and part two waits. Gate 1's own cost is now the fourth cell alone, since the three plugin-free cells were recorded at gate 0.5.
+works but is competing with a model upgrade, so the sequence continues on the price question only, gate 2 and then 8's Opus summary cell, and part two waits. Gate 1's own cost is now two Sonnet cells, the slim plugin and the rule-check-refereed loop, since the three plugin-free cells were recorded at gate 0.5. If the loop cell matches the plugin cell on the scorecard at lower cost, the plugin's value is the loop and the other two referee rows run next to find the cheapest referee.
 Experiment 4's accounting is free, but its result matters only once the plugin has
 passed gate 1, so it sits in gate 5 rather than running alongside. Each gate's pass
 number is written into the case before its runs start, which is the
