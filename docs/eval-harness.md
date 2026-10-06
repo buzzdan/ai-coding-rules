@@ -14,8 +14,8 @@ has to be a measurement of what it does today.
 **Solution**: the [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)
 repository holds behavioral test cases in the `claude plugin eval` file format, one
 suite per language under `<lang>/`. Each case gives a fresh copy of a deliberately
-bad service (go-mini in Go, py-mini in Python: the same service, the same planted
-violations) to an agent that has the plugin installed, records everything the
+bad service (go-mini in Go, py-mini in Python, ts-react-mini as its React frontend:
+the same service, the same planted violations) to an agent that has the plugin installed, records everything the
 agent does, and grades the transcript and the resulting tree. A baseline recorded
 against a named plugin commit is the reference every later change is compared
 against.
@@ -50,13 +50,13 @@ baselines is in [eval-baseline.md](eval-baseline.md).
 | Path (in `ldd-evals`) | What |
 |---|---|
 | `runner/` | `ldd-eval`, the stop-gap runner, language-neutral; deleted the day the gate opens |
-| `<lang>/fixture/<lang>-mini/` | the fixture (`go/fixture/go-mini/`, `py/fixture/py-mini/`): a device-fleet service planted with every rule's violations and a control per rule; no hints in the tree |
-| `<lang>/violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it; the same 153 ids in both suites |
+| `<lang>/fixture/<lang>-mini/` | the fixture (`go/fixture/go-mini/`, `py/fixture/py-mini/`, `ts-react/fixture/ts-react-mini/`): a device-fleet service, and its frontend, planted with every rule's violations and a control per rule; no hints in the tree |
+| `<lang>/violations.yaml` | the answer key: every plant and control, anchored by file + regex, with what each mode must do about it; the same 156 ids in every suite, plus the ts-react suite's eight React-only ids |
 | `<lang>/check-manifest.sh` | keeps the manifest honest: anchors match, no hint words, every rule has plants and controls |
 | `go/gen-review-graders.sh` | generates the whole-repo review's recall, cluster and precision graders from either manifest |
-| `<lang>/scaffold/` | `default.sh` copies the fixture into a fresh git repo; `red-lint.sh` also strips every suppression (`//nolint`, or `# noqa`, `# type: ignore` and `# ty: ignore`) |
+| `<lang>/scaffold/` | `default.sh` copies the fixture into a fresh git repo (and installs its dependencies for ts-react-mini); `red-lint.sh` also strips every suppression (`//nolint`; `# noqa`, `# type: ignore` and `# ty: ignore`; `eslint-disable`, `@ts-expect-error` and the `/* eslint … */` configuration comment) |
 | `<lang>/cases/<case>/` | `prompt.md`, `graders/*.md`, `case.yaml`, optional `postcheck.sh`; `py/cases/suite.yaml` names the Python source and test globs |
-| `<lang>/postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite (a Go test for go-mini, pytest for py-mini, one shared recording) |
+| `<lang>/postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite (a Go test for go-mini, pytest for py-mini, a Vitest render test for ts-react-mini, one shared recording) |
 | `baselines/<lang>-<plugin version>-<plugin sha>/` | committed reference runs: verdicts, one `traces.tar.zst`, the plugin pin, the write-up |
 | `results/` | run output, ignored; a run is promoted to `baselines/` by hand |
 
@@ -116,4 +116,8 @@ findings drive the plugin's next changes, and the comparison procedure is in
 passes 21 of 29 cheap runs against the Go plugin's 22 with every scoped-review
 difference inside the noise floor. The Python suite has no baseline yet: its first
 run is the generic plugin over py-mini, and its README will carry the parity report,
-per rule, of recall on py-mini against recall on go-mini.
+per rule, of recall on py-mini against recall on go-mini. The TypeScript suite's
+first run is the comparison its `neutral` cases exist for: the hand-written 1.x
+plugin and the generated 2.0 plugin on the same fixture, graded only by anchors and
+the generated recall and precision graders, since the 1.x plugin has no commands
+and no report contract.
