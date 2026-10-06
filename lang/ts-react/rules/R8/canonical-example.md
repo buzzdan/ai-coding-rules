@@ -66,11 +66,11 @@ iteration, from 20 scattered accesses down to 2 in the composition root. Full wo
 case — the dependency map, the island-by-island progression, and the test payoff:
 `../examples/dependency-rejection.md`.
 
-What stays at module level, in any module: constants, `as const` enums, types, pure
-functions, the `createContext` object (a key; the value lives in a provider), style
-imports. What is allowed only in the composition root (`main.tsx` / `App.tsx`): `new
-QueryClient()`, the router, the provider tree, `import.meta.env` and
-`window.__RUNTIME_ENV__` read once into an `AppConfig`, a registry filled by hand.
-Reported anywhere else: a module-level `let`, `new ApiClient()` at import, a
-`QueryClient` stashed in a module, a registry filled at import time, `import.meta.env`
-inside a hook or service, `localStorage` read at module scope, a lazy singleton getter.
+Silent at module level, in any module: constants, `as const` enums, types, pure
+functions, the `createContext` key (the value lives in a provider), style imports.
+Silent only in the composition root (`main.tsx` / `App.tsx`): `new QueryClient()`, the
+router, the provider tree, `import.meta.env` and `window.__RUNTIME_ENV__` read once
+into an `AppConfig`, a registry filled by hand. Reported anywhere else: a module-level
+`let`, `new ApiClient()` at import, a `QueryClient` stashed in a module, a registry
+filled at import time, `import.meta.env` in a hook or service, `localStorage` read at
+module scope, a lazy singleton behind a getter.
