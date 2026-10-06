@@ -5,6 +5,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-06
+
 ### Added
 
 - **R1 catches containers of primitives.** A built-in container whose parameters

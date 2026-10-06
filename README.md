@@ -6,9 +6,9 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 
 | | Plugin | Version | For |
 |---|--------|---------|-----|
-| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.14.0 | Go |
-| 🐍 | [`python-linter-driven-development`](python-linter-driven-development/README.md) | 0.3.0 | Python |
-| 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.3.0 | Any language without a binding — detects the language at run time |
+| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.15.0 | Go |
+| 🐍 | [`python-linter-driven-development`](python-linter-driven-development/README.md) | 0.4.0 | Python |
+| 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.4.0 | Any language without a binding — detects the language at run time |
 | ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.2.0 | TypeScript + React |
 
 Plus the coding rules as a single document, for a project that does not use the plugin:
