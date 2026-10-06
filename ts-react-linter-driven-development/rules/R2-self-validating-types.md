@@ -102,7 +102,7 @@ validation.
 - **Constructors are the only entry.** `ParseX(raw)` for values built from
   unstructured input, `NewX(deps)` for composed objects, each returning the value or an
   error (constructors may carry other names — any public function returning the type
-  qualifies). Fields stay unexported: building the value directly, bypassing the
+  qualifies). Fields stay internal: building the value directly, bypassing the
   constructor, is a hole in the type.
 
 - **Validation ownership.** A type never relies on upstream validation. "The handler
@@ -233,10 +233,15 @@ validation.
 - **No defensive coding.** Check arguments in the constructor so that methods contain
   zero undefined/emptiness checks on their own fields. A method validating its receiver is
   validation in the wrong place.
+- **A vocabulary type carries no checks.** A type that names a container and hangs
+  queries on it (`R1-primitive-obsession.md`, Name the Container) usually has no
+  invariant: any mapping is a valid one. Its constructor copies the container in
+  (`R12-mutation-discipline.md`) and checks nothing. Demanding a validation the type
+  has no rule for is ceremony, not self-validation.
 
 ## Fix pattern
 
-- **Add validating constructor**: make fields unexported, add `NewX`/`ParseX`
+- **Add validating constructor**: make fields internal, add `NewX`/`ParseX`
   returning the value or an error, migrate every literal-construction site through it.
 - **Hoist method checks into the constructor**: collect the field checks scattered
   across methods, run them once at construction, delete them from the methods. For a
@@ -264,6 +269,7 @@ validation.
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Can the type exist in an invalid state?**
+   Detect: judgment
    Detection: for each new/changed type with invariants, read its declaration: an
    `interface` or `type` whose fields are not `readonly`, a class whose constructor
    assigns without checking, or (where the repository has a schema library) a schema
@@ -281,10 +287,11 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    whose `T` is a domain type — each gives callers a path around the constructor.
 
 2. **Do methods re-check what the constructor should guarantee?**
-   Detection: `grep -nE 'if \(!?this\.[a-zA-Z_]+( (===|!==) (undefined|null))?\)|if \(this\.[a-zA-Z_]+\.length === 0\)|this\.[a-zA-Z_]+\?\.' <changed files>`
-   inside method bodies (not the constructor); in a hook or component the instance
-   is its props and state, so `if (!cluster)` and `cluster?.name` on a required prop
-   are the same hits.
+   Detect-grep: `if \(!this\.[a-zA-Z_]+\)|this\.[a-zA-Z_]+ (===|!==) (undefined|null)|this\.[a-zA-Z_]+\?\.|if \(this\.[a-zA-Z_]+\.length === 0\)`
+   Detection: hits inside method bodies (not the constructor). The pattern reads
+   `this.`; in a hook or component the instance is its props and state, so grep the
+   body for each required prop's name — `if (!cluster)` and `cluster?.name` on a
+   required prop are the same hits.
    Violation: a method validating its own instance's fields — the check belongs in
    the constructor. Decide which fix by asking whether the field is required or
    optional: a required collaborator is rejected in the constructor (Hoist method
@@ -296,24 +303,28 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    character.
 
 3. **Does a constructor re-validate a composed self-validating type?**
+   Detect: judgment
    Detection: read each `parseX`/`createX` factory and class constructor in the
    diff; for every parameter whose type has its own factory or type guard, grep the
    body for checks on that parameter.
    Violation: re-validating a value that could only ever exist valid.
 
 4. **Does the type rely on upstream validation?**
-   Detection: `grep -rn 'caller must\|assumes valid\|already validated' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .`;
-   also flag mutable fields consumed by logic in a module that defines no factory or
-   type guard for the type, and a bare `type DeviceId = string` or a brand with no
-   validating constructor standing in for a validated value (both are erased; the
-   alias admits every literal and the brand every cast).
+   Detect-grep: `[Cc]aller must|[Aa]ssumes valid|[Aa]lready validated|[Dd]efensive|[Rr]e-?check` files=all
+   Detection: also flag mutable fields consumed by logic in a module that defines no
+   factory or type guard for the type, and a bare `type DeviceId = string` or a
+   brand with no validating constructor standing in for a validated value (both are
+   erased; the alias admits every literal and the brand every cast).
    Violation: any invariant enforced — or merely documented — outside the type
-   itself.
+   itself; a value re-validated after the point that validated it (a "defensive
+   re-check" — a component checking what its prop type promises, a service
+   re-parsing what `parseDevice` returned) is the same finding, the invariant living
+   in two places and in neither type.
 
 5. **Does anything return or accept `undefined` or `null` as a value?**
-   Detection: `grep -nE 'return (undefined|null)\s*(//.*)?$|^\s+return$' <changed files>`
-   (a bare `return` in a function with a return type counts), then read each hit's
-   signature and the branch it sits in. Three verdicts:
+   Detect-grep: `return (undefined|null)\s*(//.*)?$|^\s+return$`
+   Detection: a bare `return` in a function with a return type counts; read each
+   hit's signature and the branch it sits in. Three verdicts:
    - the signature says `: X` and the body returns `null` or `undefined`: `tsc`
      rejects it under `strict`, so the hit arrives silenced — `as X`, a `!`, a
      `@ts-expect-error` — or as `-1`/`''`/`0`: R1 Q4's sentinel, cite it there;
@@ -337,11 +348,11 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    `undefined` instead of the value being guaranteed by construction and by its type.
 
 6. **Does any call site pass `undefined` or `null` as a non-error argument?**
-   Detection: `grep -nE '\((undefined|null)[,)]|, (undefined|null)[,)]|: (undefined|null)[,} ]' <changed files>`
-   — exempt comparisons (`=== undefined`, `!== null`), and platform idioms where the
-   value is the documented "no value" (`JSON.stringify(v, null, 2)`, `useRef<T>(null)`
-   for a DOM ref, `createContext<T | undefined>(undefined)` for the key whose `useX()`
-   throws outside its provider).
+   Detect-grep: `\((undefined|null)[,)]|, (undefined|null)[,)]|: (undefined|null)[,} ]`
+   Detection: exempt comparisons (`=== undefined`, `!== null`), and platform idioms
+   where the value is the documented "no value" (`JSON.stringify(v, null, 2)`,
+   `useRef<T>(null)` for a DOM ref, `createContext<T | undefined>(undefined)` for
+   the key whose `useX()` throws outside its provider).
    Violation: `undefined` or `null` passed where a value is expected — `useX(undefined)`,
    `new Reporter(sink, undefined)`. Q5 catches the return side and Q2 catches the
    callee that defends; this catches the caller when the callee does neither and

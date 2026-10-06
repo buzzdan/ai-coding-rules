@@ -44,7 +44,7 @@ function bearerToken(headers: Record<string, string>): string | undefined {
 }
 
 // ✅ the container has a name, and the loop is its method
-export class Headers {
+export class RequestHeaders {
   private readonly raw: ReadonlyMap<string, string>
   constructor(raw: Iterable<readonly [string, string]>) {
     this.raw = new Map(raw)

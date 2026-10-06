@@ -8,10 +8,11 @@ This Claude Code plugin is built from the same core as
 design rules stated once as data, thin skills that sequence design, TDD, refactoring,
 testing, review and documentation, and an evidence-based review run by fresh-context
 agents. What differs is the language-shaped part: every canonical example is
-TypeScript in a React repository, every detection command greps `.ts` and `.tsx`
+TypeScript in a React repository, every detect line runs over `.ts` and `.tsx`
 files, the linter routing is keyed by ESLint rule ids — typescript-eslint, SonarJS,
 react-hooks — with `tsc` and Prettier beside them, and the testing skill speaks
-Vitest, React Testing Library and MSW.
+Vitest, React Testing Library and MSW. The same rules are rendered once more as
+`coding-rules/ts-react.md`, the handbook a team reads without the plugin.
 
 Install it for a React repository: a TypeScript single-page application whose
 `package.json` depends on `react`. A repository in a language without a binding
@@ -160,17 +161,24 @@ ts-react-linter-driven-development/
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in TypeScript)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with the TypeScript adapter
+                  ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
+coding-rules/ts-react.md   the handbook — the same rules as one document, outside the plugin
 ```
 
-- **[`rules/`](rules/)** — R1–R12, each a self-contained hunter payload: Principle,
+- **[`rules/`](rules/)** — R1–R12, each a self-contained hunter rulebook: Principle,
   Why, a canonical before/after in TypeScript, Design guidance, a Fix pattern, and
-  Falsifying questions with grep commands over `.ts` and `.tsx` files.
+  Falsifying questions, each with a detect line the detection script runs over
+  `.ts`/`.tsx` files — a grep or path pattern, an R9 gate question, or `judgment`.
 - **[`skills/`](skills/)** — thin directional views that sequence and route into the
   rules. They never restate rule content. The testing skill's
   [reference](skills/testing/reference.md) is a short Vitest, Testing Library and
   MSW harness catalogue.
 - **[`agents/`](agents/)** — read-only or mechanical workers spawned in isolated
-  contexts with the relevant rule pasted into the prompt.
+  contexts, pointed by path at the relevant rule files — a hunter gets its rule
+  family's, four hunters at most — and, for hunters and the critic, at the scope
+  bundle the review scripts wrote — a hunter gets its family's rows of the detection
+  pass's hits table, the critic the bundle's comment lines — which they read in their
+  first turn.
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the repo-brain
   gate. Its TypeScript adapter resolves backticked symbols against functions,
   variables, classes and their members, interfaces, types and enums in `.ts` and
@@ -184,6 +192,13 @@ ts-react-linter-driven-development/
   one `AppConfig`, and the nine non-exported JSDoc comments of a reply decoder
   judged one by one. The verdicts and decision questions are the same as the Go
   plugin's; the code is this plugin's.
+- **`coding-rules/ts-react.md`** — at the repository root, outside the plugin: the
+  TypeScript + React coding-rules handbook, the twelve rules with TypeScript
+  examples and the binding's positions as asides, the house rules with their
+  TypeScript spelling, a self-review checklist and the mechanics. Generated from
+  `core/handbook/` and `lang/ts-react/handbook/` in the same run as this plugin,
+  so it cannot drift from the rules; it stands alone, with no agents and no
+  detect lines.
 
 ## The Five-Phase Flow
 
@@ -251,8 +266,9 @@ user:
   to invoke the orchestrator for every change; the orchestrator skill now
   auto-triggers on its own (see How Auto-Detection Works above).
 - **New:** twelve rules under `rules/` as the single source of truth, the
-  hunter/skeptic/critic review, seven slash commands, and the repo-brain gate with
-  `/wire-repo-brain`.
+  hunter/skeptic/critic review, seven slash commands, the repo-brain gate with
+  `/wire-repo-brain`, the two review scripts under `scripts/`, and the handbook
+  `coding-rules/ts-react.md`.
 - **Accessibility** is enforced through the repository's `jsx-a11y` configuration in
   the linter phase — the lint-fixer adds the `alt`, the `htmlFor`, the role — not by
   a review checklist. **Storybook** stories are no longer generated as a

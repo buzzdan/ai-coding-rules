@@ -115,6 +115,13 @@ study, including the leaf type and the test payoff:
   `R4-helper-placement.md`. Storifying is how leaf types are discovered.
 - **Boolean flags tracking loop state** (`addrIP4Added`, `isClusterCIDRSet`) signal a
   collection or domain type waiting to absorb the loop.
+- **A loop that filters a container and extracts** — walk the entries, keep the one
+  whose key or value matches, pull a part out of it — is a method already written,
+  missing only its name and its owner. It belongs on the container's type:
+  `R1-primitive-obsession.md`, Name the Container. The same goes for an expression
+  built inline in a `return` or an argument (a join over a slice of the input): it
+  has a meaning, so it gets a name — a local, or a method on the type the result
+  belongs to.
 - **Honest naming.** A name must reveal side effects: `align`/`upsert`/`set` mutate;
   `parse`/`validate`/`is` must not. A `validateX` that mutates is a storifying bug
   even if the flow reads well.
@@ -149,6 +156,7 @@ study, including the leaf type and the test payoff:
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Does any changed function exceed the size/shape limits?**
+   Detect: judgment
    Detection: run the complexity rules (`sonarjs/cognitive-complexity`,
    `sonarjs/cyclomatic-complexity`, `sonarjs/max-lines-per-function`,
    `sonarjs/nested-control-flow`; `react/no-unstable-nested-components` for a
@@ -161,10 +169,16 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    narrating.
 
 2. **Does one body mix abstraction levels?**
-   Detection: read each changed function and list its statements' altitudes: a named
-   function/hook call is high; string slicing, `.split()`, index arithmetic,
-   `typeof`/`in` checks, and protocol details (`response.json()`, header parsing,
-   `URLSearchParams` decoding) are low.
+   Detect-grep: `^\s*return .*\(.*\), |^\s*return .*\.slice\(|^\s*return \[.*\(.*\)`
+   Detection: the pattern is one lead, not the whole question: a `return` whose
+   elements are expressions rather than names — a call beside a call, a slice, an
+   array literal of calls — such as `return [parseHeader(lines.slice(0, i)),
+   lines.slice(i + 1).join('\n')]`. Each such element has a meaning and no name: a
+   local, or a method on the type the result belongs to
+   (`R1-primitive-obsession.md`, Name the Container). Then read each changed
+   function and list its statements' altitudes: a named function/hook call is high;
+   string slicing, `.split()`, index arithmetic, `typeof`/`in` checks, and protocol
+   details (`response.json()`, header parsing, `URLSearchParams` decoding) are low.
    Violation: both altitudes in the same body — e.g. `line.split(',', 2)` three
    lines from a business decision, or a date-format call beside a JSX branch. Cite
    the two lines. An IIFE inside a function body or a render tree
@@ -173,27 +187,32 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    the body is a `switch` (`R11-conditional-dispatch.md`).
 
 3. **Do block comments narrate sections inside a function body?**
-   Detection: `grep -nE '^\s+// |\{/\* ' <file>` within function and component
-   bodies (not the JSDoc above a declaration, not an `eslint-disable` or
-   `@ts-expect-error` directive); `// --- filters ---` and `{/* header */}` in a
-   render tree count.
+   Detect-grep: `^\s*// |\{/\* `
+   Detection: hits within function and component bodies (not the JSDoc above a
+   declaration, not a comment above a top-level declaration, not an
+   `eslint-disable`, `@ts-expect-error` or `prettier-ignore` directive — the hunter
+   skips those); `// --- filters ---` and `{/* header */}` in a render tree count.
    Violation: a comment naming what the next block does — each is a candidate
    extraction point; the fix is a function, or in a render tree a component, named
-   after the comment (placed per `R4-helper-placement.md`).
+   after the comment (placed per `R4-helper-placement.md`). Quote each comment's
+   text with its line: the comment is the evidence and the function's name.
 
 4. **Do boolean flags track state across a loop?**
-   Detection: `grep -nE '^\s+let [a-zA-Z_]+ = (false|true)$' <changed files>` near
-   `for`, `while` and `.forEach` loops; look for flags set inside the loop and read
-   after it, and for a `return` inside a `forEach` callback meant as a `break` — it
-   is not one, and the flag it sets is the loop state in disguise.
+   Detect-grep: `^\s+let [a-zA-Z_]+(: boolean)? = (false|true)(,|$)`
+   Detection: hits near `for`, `while` and `.forEach` loops; look for flags set
+   inside the loop and read after it, and for a `return` inside a `forEach` callback
+   meant as a `break` — it is not one, and the flag it sets is the loop state in
+   disguise.
    Violation: flag-driven loops — a collection/domain type (or a `find`/`some`/
    `reduce` on it) should absorb the loop (see
    `../examples/storify-leaf-type.md`).
 
 5. **Does any function name lie about side effects?**
-   Detection: for each `parse*`/`validate*`/`is*`/`get*` function in the diff,
-   check the body for assignments to a parameter's properties, a `.push()`/
-   `.splice()`/`.sort()` on an argument, a state-setter call, or a `ref.current =` write.
+   Detect-grep: `^\s*(export )?(async )?function (parse|validate|is|get)[A-Z][a-zA-Z]*\(|^\s*(export )?const (parse|validate|is|get)[A-Z][a-zA-Z]* = |^\s+get [a-zA-Z_]+\(\)`
+   Detection: for each `parse*`/`validate*`/`is*`/`get*` function and each `get`
+   accessor the pattern lists in the diff, check the body for assignments to a
+   parameter's properties, a `.push()`/`.splice()`/`.sort()` on an argument, a
+   state-setter call, or a `ref.current =` write.
    Violation: a read-sounding name that mutates — rename to a mutating verb or split
    the query from the mutation; a `getX` that calls a state setter is the same
    finding with a worse disguise.

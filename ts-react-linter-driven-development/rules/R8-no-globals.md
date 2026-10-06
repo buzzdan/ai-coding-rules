@@ -6,8 +6,8 @@ Dependencies are passed down from the caller, never reached sideways: no
 package-level mutable state, no import-time initialization writing state, no
 singletons fetched from inside business logic, no library code that manufactures its
 own root cancellation — cancellation flows from caller to callee. Globals are
-acceptable only at entry points (`main`, handler setup, application wiring), where
-they are read once and injected downward.
+acceptable only at the composition root — the program's entry point, handler setup,
+application wiring — where they are read once and injected downward.
 
 ## Why
 
@@ -156,8 +156,8 @@ test files; "composition root" means `main.tsx`, `App.tsx`, a `providers.tsx` or
 the repository uses to wire the application.
 
 1. **Does any module declare mutable state at module level?**
-   Detection: `grep -rnE '^(export )?(let|var) |^(export )?const [a-zA-Z_]+(: [^=]+)? *= *(new [A-Z]|\[\]|\{\}$)' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules . | grep -v '\.test\.'` —
-   then sort the hits into three lists:
+   Detect-grep: `^(export )?(let|var) |^(export )?const [a-zA-Z_]+ = new [A-Z]|^(export )?const [a-zA-Z_]+(: [A-Za-z<>\[\], ]+)? = (new Map|new Set|\[\]|\{\})`
+   Detection: sort the hits into three lists:
    - silent everywhere: an `UPPER_CASE` constant bound to a literal, an `as const`
      object or an `enum`, a do-nothing instance used as a constant (`NULL_SINK`), a
      `type`/`interface`/`class` declaration, a pure function, the `createContext(…)`
@@ -174,20 +174,23 @@ the repository uses to wire the application.
    configuration/state — reject it into a constructor argument or a provider value.
 
 2. **Does any import-time code write state?**
-   Detection: `grep -rnE '^(if |for |try|window\.|document\.|localStorage\.|sessionStorage\.|axios\.defaults|[a-zA-Z_.]+\.(register|set|add|push|use|configure|setDefault[A-Za-z]*)\()' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules . | grep -v '\.test\.'` —
-   a statement at column 0 that is not a declaration, an import/export or the
-   binding of a literal runs when the module is evaluated; read each for writes to
-   module state or registrations with side effects (`register(…)` calls under the
-   declarations, a `localStorage.getItem` at module scope, `axios.defaults.baseURL =
+   Detect-grep: `^(if |for |try|window\.|document\.|localStorage\.|sessionStorage\.|axios\.defaults|[a-zA-Z_.]+\.(register|set|add|push|use|configure|setDefault[A-Za-z]*)\()|^import '[./]`
+   Detection: a statement at column 0 that is not a declaration, an import/export or
+   the binding of a literal runs when the module is evaluated; read each for writes
+   to module state or registrations with side effects (`register(…)` calls under
+   the declarations, a `localStorage.getItem` at module scope, `axios.defaults.baseURL =
    …`, `window.addEventListener` outside an effect). A side-effect import
-   (`import './registerWidgets'`) is the same code with the call hidden.
+   (`import './registerWidgets'`, the last alternative) is the same code with the
+   call hidden; a stylesheet import (`import './App.scss'`) is the one such import
+   that is silent.
    Violation: import-time code mutating module state — replace with an explicit
    constructor or factory called from the composition root (Replace Import-Time
    Initialization with a Constructor).
 
 3. **Does library code manufacture its own cancellation root?**
-   Detection: `grep -rnE 'new QueryClient\(|window\.location\b|document\.(title|cookie|getElementById)|import \{[^}]*\bqueryClient\b' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules . | grep -v '\.test\.' | grep -vE 'main\.tsx|App\.tsx|providers?\.tsx'`
-   and `grep -rnE 'new AbortController\(' --include='*.ts' --exclude-dir=node_modules src/services src/utils`.
+   Detect-grep: `new QueryClient\(|window\.location\b|document\.(title|cookie|getElementById)|import \{[^}]*\bqueryClient\b|new AbortController\(` exclude-path=(^|/)main\.tsx?$,(^|/)App\.tsx$,(^|/)providers?\.tsx$
+   Detection: an `AbortController` built inside the effect that owns its fetch is
+   the owner and not this hit; one built inside a service or a utility is.
    Violation: any hit outside the composition root. A hook takes its client from
    `useQueryClient()` and invalidates through it, never through a client a module
    imported; a service takes the `signal` from its caller (`queryFn({ signal })`, the
@@ -196,8 +199,8 @@ the repository uses to wire the application.
    never from `window.location` inside a hook or a service.
 
 4. **Is a singleton reached sideways?**
-   Detection: `grep -rnE '^let _?[a-zA-Z]+(: [A-Za-z<>|, ]+)?( *= *(undefined|null))?$|\?\?= new [A-Z]|if \(!_?[a-zA-Z]+\) _?[a-zA-Z]+ = new |export function get[A-Z][A-Za-z]*\(\)' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .` —
-   a module-level `let instance` with a `getClient()` that fills it
+   Detect-grep: `^let _?[a-zA-Z]+(: [A-Za-z<>|, ]+)?( *= *(undefined|null))?$|\?\?= new [A-Z]|if \(!_?[a-zA-Z]+\) _?[a-zA-Z]+ = new |export function get[A-Z][A-Za-z]*\(\)` files=all
+   Detection: a module-level `let instance` with a `getClient()` that fills it
    (`instance ??= new ApiClient()`), a memoized zero-argument getter that builds a
    service; check whether hooks or services call the getter.
    Violation: `getX()`-style access from inside logic — construct in the composition
@@ -205,7 +208,10 @@ the repository uses to wire the application.
    function of its arguments — `useMemo`, a cached formatter — is not this.)
 
 5. **Does deep code read a global config?**
-   Detection: `grep -rnE 'import\.meta\.env|process\.env|window\.__RUNTIME_ENV__|from .*config/env' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules . | grep -v '\.test\.' | grep -vE 'main\.tsx|App\.tsx|config/env\.ts|vite\.config|vite-env\.d\.ts'`
+   Detect-grep: `import\.meta\.env|process\.env|window\.__[A-Z_]+__|localStorage\.(get|set)Item\(|from '[^']*config/env'` exclude-path=(^|/)main\.tsx?$,(^|/)App\.tsx$,(^|/)config/env\.ts$,(^|/)vite\.config\.[cm]?[jt]s$,(^|/)vite-env\.d\.ts$,(^|/)test-utils/
+   Detection: a `localStorage` read inside the one hook that owns that key is a
+   client-state boundary; the same read at module scope or inside a service is
+   config reached sideways.
    Violation: config reads outside the composition root — each is a dependency to
    reject upward (`../examples/dependency-rejection.md`). The one module that builds
    the `AppConfig` from `import.meta.env` and `window.__RUNTIME_ENV__` belongs to the
@@ -215,7 +221,9 @@ the repository uses to wire the application.
    mechanical.
 
 6. **Do tests mutate globals to run?**
-   Detection: `grep -rnE "vi\.stubEnv\(|vi\.stubGlobal\(|vi\.mock\(['\"][^'\"]*(config|env)['\"]|window\.__RUNTIME_ENV__ *=|import\.meta\.env\.[A-Z_]+ *=|Object\.defineProperty\(window" --include='*.test.ts' --include='*.test.tsx' --include='setup.ts' --exclude-dir=node_modules .`
+   Detect-grep: `vi\.stubEnv\(|vi\.stubGlobal\(|vi\.mock\(['"][^'"]*(config|env)['"]|window\.__[A-Z_]+__ *=|import\.meta\.env\.[A-Z_]+ *=|Object\.defineProperty\(window` files=test
+   Detection: `src/test-utils/setup.ts` is read by hand when the scope lists it as
+   source rather than test.
    Violation: a test writing shared state to inject a value — a `vi.stubEnv`, a
    `vi.mock('../config/env')`, an assignment to `window.__RUNTIME_ENV__` to reach the
    code under test — is evidence against the production code, which has a hidden

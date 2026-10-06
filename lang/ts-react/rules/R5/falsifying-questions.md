@@ -1,5 +1,5 @@
 1. **Is any directory named after a layer or role?**
-   Detect-path: `(^|/)(util[^/]*|helpers|common|shared|misc|lib|models|store|repositories)/|(^|/)src/(components|hooks|services|types)/`
+   Detect-path: `(^|/)(util[^/]*|helpers|common|shared|misc|lib|models|store|repositories)/|(^|/)(src/)?(components|hooks|services|types)/`
    Detection: any scope path under a role-named directory (the first form) or
    under a top-level layer directory (the second). A top-level layer may hold what
    two pages share, so for the second form count importers per file —

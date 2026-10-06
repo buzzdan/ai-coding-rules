@@ -34,13 +34,15 @@ default_lint_fix: npx tsc --noEmit && npx eslint . --fix && npx prettier --write
 # the hazards are ordering and leaks, never a data race), the documentation comment
 # form, the source-file suffix (`.ts` for modules; components are `.tsx`) and the
 # visibility of a non-public symbol (a module's non-exported declaration; the value
-# starts with a vowel so "an {{.Unexported}} symbol" reads).
+# starts with a vowel so "an {{.Unexported}} symbol" reads — and it is `internal`,
+# not the literal word "unexported", because that word is a residue token the
+# handbook gate rejects, as the generic binding found).
 nil: undefined
 task: async task
 doc_form: JSDoc
 doc_comment: JSDoc comment
 src_ext: .ts
-unexported: unexported
+unexported: internal
 # The standalone coding-rules document rendered from core/handbook/ with this
 # binding's files under handbook/, written outside the plugin directory.
 handbook: coding-rules/ts-react.md

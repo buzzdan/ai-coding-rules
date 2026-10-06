@@ -145,7 +145,7 @@ rejection counter-case: `../examples/anti-if-dispatch.md`.
   asking to live on the interface (`../examples/switch-to-polymorphism.md`).
 - **Dispatch requires owning the output.** An interface method can only be written
   in the package that declares the interface, and it cannot reference another
-  package's unexported types. When the switch's output format belongs to a consumer
+  package's internal types. When the switch's output format belongs to a consumer
   (a private wire request in a client package) and the variants live in a shared API
   package, the move is unavailable — and forcing it (exporting the wire type,
   per-consumer `fill<X>Request` methods on domain types) inverts the dependency.
@@ -155,8 +155,8 @@ rejection counter-case: `../examples/anti-if-dispatch.md`.
   `../examples/switch-to-polymorphism.md`.
 - **Interface vs strategy map.** Variants with several behaviors or state → interface
   with one type per variant. Variants that differ by a single function → a map
-  (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
-  comma-ok check is a dispatch, not a conditional. Either way the decision has one
+  from kind to function — a map lookup whose missing-key case is a declared absence
+  is a dispatch, not a conditional. Either way the decision has one
   owner.
 - **Null object over undefined-checks.** A scattered "if the logger is set, log" is
   the same disease with two variants. Construct a do-nothing value once; delete every
@@ -194,8 +194,9 @@ rejection counter-case: `../examples/anti-if-dispatch.md`.
   the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
   the caller owns the shared fields, each variant fills its own
   (`../examples/switch-to-polymorphism.md`).
-- **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
-  `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
+- **Replace If-Chain with Strategy Map**: single-behavior variance → a package-level
+  map from kind to function (or a field), the missing-key case handled at the
+  boundary only.
 - **Introduce Null Object**: absent-collaborator undefined-checks → a do-nothing value
   substituted by the constructor when none is given; delete the guards. A no-op
   implementation when an interface already exists, otherwise a value of the concrete
@@ -219,17 +220,15 @@ rejection counter-case: `../examples/anti-if-dispatch.md`.
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Is the same discriminator inspected in more than one place?**
-   Detection: list discriminators in the diff —
-   `grep -nE 'switch \([a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level)\)' $(git diff --name-only -- '*.ts' '*.tsx')`
-   and if-chain forms `grep -nE "if \([a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level) === '" ...`;
-   then count each across the repository: `grep -rnE "switch \(.*\.<field>\)|\.<field> === '" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules . | wc -l`.
+   Detect-grep: `switch \([a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level|variant)\)|\.(type|kind|status|mode|channel|format|level|variant) === '|\(\(\) => \{`
+   Detection: the hits list the diff's discriminators — `switch` forms, if-chain
+   and ternary forms, and the IIFE in a render tree; then count each across the repository: `grep -rnE "switch \(.*\.<field>\)|\.<field> === '" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules . | wc -l`.
    A `Record<Kind, …>` of handlers or components keyed by the field is a dispatch
    site too — the healthy one when it is the only one; a `MAP[kind] ?? fallback`
    deep in logic is Q3's default arm in another spelling. An IIFE in a render tree
    — `{(() => { switch (alert.kind) { … } })()}` — is a switch site in parentheses:
-   `grep -rnE '\{\(\(\) => \{' --include='*.tsx' --exclude-dir=node_modules .`
-   lists them, each counts toward the discriminator's site total, and the fix is
-   the `Record<Kind, …>` lookup or a named component.
+   the last alternative lists them, each counts toward the discriminator's site
+   total, and the fix is the `Record<Kind, …>` lookup or a named component.
    Violation: ≥2 sites inspecting one discriminator — the decision has no single
    owner. Route first to Strategy Map (a `Record<Kind, Handler>` — for rendering, a
    `Record<Kind, ComponentType<…>>` — filled once at the boundary), then to
@@ -237,8 +236,8 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    carry state or several behaviours, and to a class hierarchy last.
 
 2. **Does a type switch dispatch on concrete types outside a boundary?**
-   Detection: `grep -rnE "instanceof [A-Z]|'[a-zA-Z]+' in [a-zA-Z_.]+\)|typeof [a-zA-Z_.]+ === '(string|number|object)'" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .` —
-   an `instanceof` chain, an `in` chain or a `typeof` chain; for each hit, is it in
+   Detect-grep: `instanceof [A-Z]|'[a-zA-Z]+' in [a-zA-Z_.]+\)|typeof [a-zA-Z_.]+ === '(string|number|object)'`
+   Detection: an `instanceof` chain, an `in` chain or a `typeof` chain; for each hit, is it in
    a `parse*`/type-guard/boundary adapter, or in business logic or a render?
    Violation: a type switch in domain logic whose cases call variant-specific
    behavior or unpack the variants' fields — the behavior belongs on the variants.
@@ -254,6 +253,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    `instanceof` on a dependency's classes are not this pattern.
 
 3. **Does a `default:` (or trailing `else`) handle "unknown kind" away from the boundary?**
+   Detect: judgment
    Detection: for each `switch` found in Q1, read the `default` arm; for each
    if-chain, the trailing `return`; for each `Record` lookup, any `?? fallback`.
    Violation: a `default: return null` in a render switch, a `default: throw new
@@ -267,9 +267,9 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    missing arm is itself a finding under Keep the Single Exhaustive Switch.
 
 4. **Does a boolean parameter select between behaviors?**
-   Detection: `grep -nE '\b(is|has|show|hide|use|with|enable|skip|as)[A-Z][A-Za-z]*\??: boolean' $(git diff --name-only -- '*.ts' '*.tsx')`
-   for props and options typed `boolean`, and `grep -nE 'function [a-zA-Z]+\([^)]*: boolean' ...`
-   for positional flags; check whether the function or component branches on the
+   Detect-grep: `\b(is|has|show|hide|use|with|enable|skip|as)[A-Z][A-Za-z]*\??: boolean|function [a-zA-Z]+\([^)]*: boolean`
+   Detection: the first alternative finds props and options typed `boolean`, the
+   second positional flags; check whether the function or component branches on the
    flag near the top.
    Violation: a positional boolean parameter is the finding; no ESLint rule flags it,
    so it is review-only and routes to @refactoring — Split Flag Argument into two
@@ -280,6 +280,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    two components, or a `status`/`variant` union when the flags exclude each other.
 
 5. **Inverse — is a NEW dispatch abstraction in the diff unearned?**
+   Detect: judgment
    Detection: for each new interface with several implementations, class
    hierarchy, `Record` map or context introduced "for dispatch" in the diff, count
    production implementations/entries and the number of sites the old conditional
