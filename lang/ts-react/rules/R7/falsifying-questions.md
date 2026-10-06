@@ -58,16 +58,19 @@
 7. **Does a mutant survive a leaf type's tests?**
    Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*\.length\b)|\.length *(<=?|>=?|===|!==)`
    Detection: for each new or changed leaf module, `npx stryker run` with a
-   `stryker.config.mjs` (or `stryker.conf.json`) whose `mutate` lists that module
-   only, `--incremental` where the repository configures it; skip orchestrators,
-   components, the top rung and any module that does I/O. Stryker not installed
-   (`@stryker-mutator/core` absent from `devDependencies`): propose the install the
-   mechanics bullet describes before hunting; no survivors from a run that did not
-   execute is not a pass. In a read-only review, where no tests may run, take the
-   hand check instead: list the leaf's comparisons and boolean conditions, check the
-   `it.each` table for a row at each boundary value and on each side of each
-   condition, and name the row that is missing.
+   `stryker.config.mjs` whose `mutate` lists that module only (`.ts` leaves —
+   parsers, reducers, a pure hook's helpers — never `.tsx` components, whose mutants
+   die only through slow render tests), `--incremental` between fixes; Stryker runs
+   each mutant in a sandbox copy under `.stryker-tmp/`, never in the checkout. Read
+   the `clear-text` reporter: a `Survived` line carries the file, the line and the
+   replacement, and a `CompileError` line is a mutant the types rejected, not a
+   kill. Skip orchestrators, the top rung and any module that does I/O. Stryker
+   not installed (`@stryker-mutator/core` absent from `devDependencies`): propose
+   the install the mechanics bullet describes before hunting; no survivors from a
+   run that did not execute is not a pass. In a read-only review, where no tests
+   may run, take the hand check instead: list the leaf's comparisons and boolean
+   conditions, check the `it.each` table for a row at each boundary value and on
+   each side of each condition, and name the row that is missing.
    Violation: any surviving mutant on a leaf module that is not recorded as
-   equivalent — a missing `it.each` row or dead logic; name the mutant (the
-   report's file, line and mutator — `Survived` in the console reporter) and the row
-   that would kill it.
+   equivalent — a missing `it.each` row or dead logic; name the mutant (file, line,
+   replacement from the `Survived` line) and the row that would kill it.
