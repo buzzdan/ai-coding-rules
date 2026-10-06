@@ -13,6 +13,6 @@
    whose only second implementer is a test double). TypeScript cannot seal a
    structural interface — any object with a `kind` and a `fillUpdate` is a `Patch` —
    so the closed set is recorded instead: `kind` is typed `ExportType`, so no factory
-   can invent a destination, and `PATCH_FACTORIES = { splunk: splunkPatch, s3:
-   s3Patch, kafka: kafkaPatch, syslog: syslogPatch } satisfies Record<ExportType,
-   unknown>` fails to compile the moment an `ExportType` member has no factory.
+   can invent a destination, and `PATCH_FACTORIES`, the object of the four factories
+   declared `satisfies Record<ExportType, unknown>`, fails to compile the moment an
+   `ExportType` member has no factory.

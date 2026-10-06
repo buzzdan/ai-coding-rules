@@ -11,11 +11,12 @@ export interface Patch {
 }
 ```
 
-In the before, the four shapes implemented this interface only structurally — `{
-readonly kind: ExportType }` was the member they shared, never written down. Writing
-it down and adding `fillUpdate` to it is the move; the union goes, because nothing
-narrows on `kind` any more. The implementations are objects made by a factory, not
-classes: a patch has no identity and no state beyond the fields it closes over.
+In the before, the four shapes implemented this interface only structurally —
+`{ readonly kind: ExportType }` was the member they shared, never written down.
+Writing it down and adding `fillUpdate` to it is the move; the union goes, because
+nothing narrows on `kind` any more. The implementations are objects made by a
+factory, not classes: a patch has no identity and no state beyond the fields it
+closes over.
 
 The orchestrator collapses to a three-beat story (R3): identity, payload, TLS.
 
