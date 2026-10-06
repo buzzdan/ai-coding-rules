@@ -6,7 +6,8 @@ fetch — in an effect, a custom hook, an event handler or a service.
    Detect-grep: `setInterval\(|setTimeout\(|addEventListener\(|\.subscribe\(|new WebSocket\(|new EventSource\(|\.observe\(` context=8
    Detection: the pattern catches timers, DOM and store subscriptions, observers
    and long-lived connections, with the eight lines that follow each so the
-   cleanup, when there is one, is in the excerpt. For each hit inside a `useEffect` or a custom hook, read the effect:
+   cleanup, when there is one, is in the excerpt. For each hit inside a `useEffect`
+   or a custom hook, read the effect:
    it must return a cleanup that calls the matching `clearInterval`/`clearTimeout`/
    `removeEventListener`/`unsubscribe()`/`disconnect()`/`close()`, or the work must
    be provably bounded (a one-shot `setTimeout` whose callback touches no state).
@@ -52,7 +53,8 @@ fetch — in an effect, a custom hook, an event handler or a service.
 4. **Does each guard live next to the data it guards, and is the guard checked on
    every access?**
    Detect-grep: `(inFlight|InFlight|isFetching|isLoading|pending|Pending)[A-Za-z]*(Ref)?(\.current)?|if \([a-zA-Z_]+\.current\) return` context=5
-   Detection: for each flag or ref used as a guard (`if (inFlightRef.current) return`), check
+   Detection: for each flag or ref used as a guard (`if (inFlightRef.current)
+   return`), check
    that the test and the write it protects sit in the same synchronous span: no
    `await` between them, both in the same hook or module, every writer going
    through the same check.

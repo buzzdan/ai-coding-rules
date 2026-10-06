@@ -43,7 +43,8 @@
    Detect-grep: `^\s+set [a-zA-Z_]+\(|set[A-Z][a-zA-Z]*\(\(?[a-z]+\)? => \{|\.sort\(|\.reverse\(|\.splice\(`
    Detection: the hits are setters, state updaters with a block body, and in-place
    sorts and splices (a `.sort(` on data the function did not build — query data, a
-   prop — is the one to read; `toSorted` is not a hit); for each class or type with a validating `parse` check whether
+   prop — is the one to read; `toSorted` is not a hit); for each class or type with
+   a validating `parse` check whether
    its fields are `readonly` (`sonarjs/prefer-read-only-props` is the same check for
    component props); for each hit, does the type validate in its factory, and does
    the setter re-check? In state: `setState((d) => { d.status = x; return d })`
