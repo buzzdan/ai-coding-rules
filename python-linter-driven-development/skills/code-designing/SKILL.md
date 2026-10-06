@@ -32,7 +32,7 @@ Backward counterpart (fixing code that already fails lint/review): @refactoring.
   - `PLR0913` (too many arguments) → design a frozen dataclass of the parameters that travel together (score it per `../../rules/R1-primitive-obsession.md`); a keyword-only `*` marker tidies the call sites but leaves the clump
   - `PLR0911` (too many returns), or a tuple return carrying a `bool` or an error member → design a named result type, or raise (same R1 scoring)
   - a module over ~450 lines (ruff has no file-length rule — count) → split juicy types into their own modules (juiciness per R1; module-per-type per `../../rules/R5-vertical-slice.md`); a single god class routes to @refactoring's god-object decomposition procedure first
-  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (@refactoring `<package_decomposition>`)
+  - Package-size yellow/red zone → re-model with sub-packages *before* the zone escalates (`<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`))
 - A Phase 4 review CLUSTER (≥2 hunters converging on one anchor —
   @linter-driven-development routes it here) → **cluster-scoped mode**: skip
   `<architecture_scan>` and the user-OK step (acceptance was inherited when the
@@ -80,6 +80,10 @@ once; ask them, don't restate them):
   zero)? Pick a family.
 - Every planned check → **Parse, don't validate**: does it return a more-typed value
   or a boolean someone must remember?
+- Every planned signature that returns or accepts a container of primitives →
+  **Tell, don't ask**: what will the receiver do with it? Each operation is a method
+  of a type that does not exist yet (`../../rules/R1-primitive-obsession.md`,
+  "Containers of primitives").
 - Every shared helper → **A little copying is better than a little dependency**: is
   the third strike actually here?
 
@@ -99,7 +103,7 @@ For each concept in the design, open the rule that owns the question and apply i
 | `../../rules/R4-helper-placement.md` | WHERE each helper/type lands — the placement ladder (underscore-prefixed → feature sub-package → shared domain package). |
 | `../../rules/R5-vertical-slice.md` | Package structure and naming: feature slices with roles inside, flatcase domain vocabulary, migration template. |
 | `../../rules/R6-test-only-interfaces.md` | Default dependencies to concrete types; an interface must be earned by a second production implementation or a grep-verified import cycle. |
-| `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors; orchestrators integration-tested over real collaborators. |
+| `../../rules/R7-test-placement.md` | The test plan per type: leaf types 100% unit coverage via public constructors, checked by a mutation run over the leaf's package; orchestrators integration-tested over real collaborators, never mutated. |
 | `../../rules/R8-no-globals.md` | Dependencies injected via constructors, cancellation passed down from callers, globals only at entry points. |
 | `../../rules/R10-concurrency-safety.md` | Every planned concurrent task gets an owner (stop + wait) and an exit path at construction time; shared state designed with its guard on one type — or designed away via handoff/confinement. |
 | `../../rules/R11-conditional-dispatch.md` | How each kind/variant family dispatches: behavior-heavy or open set → interface chosen once at the boundary; single-behavior variance → strategy map; single-site closed enum → one exhaustive switch (named enum per R1). |
@@ -110,12 +114,13 @@ For each concept in the design, open the rule that owns the question and apply i
 Before presenting the plan, verify against the rules (cite, don't restate):
 
 - [ ] No primitive obsession; every proposed type scored, ceremony rejected (R1)
+- [ ] Every planned signature names its types: no nested container, no flat container of primitives crossing a function boundary that its receivers operate on; a product result has a name and field names (R1, Name the Container)
 - [ ] Types are self-validating; composed types trusted, never re-validated (R2)
 - [ ] Orchestration planned as a story; most logic pushed into leaf types (R3, R7)
 - [ ] **Placement decided** for every helper and type via the ladder — underscore-prefixed helper vs feature sub-package vs domain package (`../../rules/R4-helper-placement.md`)
 - [ ] Vertical slice structure; package names are flatcase domain vocabulary, never roles/containers (R5)
 - [ ] No test-only interfaces: every interface has a second production implementation OR breaks a real import cycle, verified by grepping the import direction (detection command in `../../rules/R6-test-only-interfaces.md`); otherwise depend on the concrete type
-- [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in @refactoring `<package_decomposition>`)
+- [ ] Import direction strictly downward: leaf types ← sub-packages ← parent ← cmd/ (cycle-breaking move in `<package_decomposition>` in @refactoring's `reference.md` (`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`))
 - [ ] Dependencies constructor-injected and validated; cancellation flows down; no new globals (R8, R2)
 - [ ] Every concurrent task has an owner and exit path; shared state guarded where it lives, or confined (R10)
 - [ ] Every kind/variant family has ONE dispatch owner — interface, strategy map, or a single exhaustive switch; no discriminator inspected in two places (R11)
@@ -132,6 +137,7 @@ Feature: [Feature Name]
 
 Core Domain Types (leaf):
 - [Type] ([underlying]) — invariant it owns; juiciness verdict (R1)
+- [Type] — the container it names and the receiver operations that become its methods (R1, Name the Container)
 
 Orchestrating Types:
 - [Type] — dependencies (concrete unless R6-justified), methods

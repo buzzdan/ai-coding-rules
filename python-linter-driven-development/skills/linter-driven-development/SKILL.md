@@ -41,7 +41,13 @@ never read its file directly.
 | @documentation | `Skill(python-linter-driven-development:documentation)` |
 
 The `python-linter-driven-development:lint-fixer` agent is spawned with the **Agent tool**:
-`subagent_type: "python-linter-driven-development:lint-fixer"`.
+`subagent_type: "python-linter-driven-development:lint-fixer"`. This skill spawns two agents and no others:
+the lint-fixer here, and the over-abstraction skeptic in PREPARE gate 4. The review
+agents belong to the skills that own them — @pre-commit-review's hunters, skeptic and
+critic, @refactoring's comment critic. Refactoring itself is a skill invoked in this
+thread, never handed to a general-purpose or any other subagent, however many
+escalations there are: a subagent applying refactorings runs unbounded in a context
+nobody reads, and is the single most expensive thing this workflow can do.
 </skill_invocation>
 
 <flow>
@@ -70,10 +76,12 @@ Refactor-only request (no new behavior): 1.5 via @refactoring → 3 → 4 → 5
    `asyncio.TaskGroup` and `queue.shutdown()` each have a floor.
 2. **Discover commands** (README.md, CLAUDE.md, Makefile, Taskfile.yaml, the `[tool.*]`
    tables in `pyproject.toml`, `tox.ini`/`noxfile.py`, the CI workflow, in that
-   order): test + lint commands, and which checkers the repository runs — ruff alone,
-   ruff plus mypy, or pyright/flake8/pylint. Fallbacks: `pytest`,
-   `ruff check --fix . && ruff format .`; add `mypy` only when a `[tool.mypy]` table or
-   `mypy.ini` exists. Never bring a checker the repository does not configure.
+   order): test + lint commands, the mutation target when one exists (`mutate`,
+   `mutmut`), and which checkers the repository runs — ruff alone,
+   ruff plus a type checker (ty or mypy), or pyright/flake8/pylint. Fallbacks: `pytest`,
+   `ruff check --fix . && ruff format .`; add `ty check` only when a `[tool.ty]` table or
+   `ty.toml` exists, `mypy` only when a `[tool.mypy]` table or `mypy.ini` exists. Never
+   bring a checker the repository does not configure.
 3. **List the behaviors** this change delivers — each becomes one Phase 2 TDD cycle.
    No plan or unclear scope → Phase 1 produces the plan; unclear intent → ask.
 4. **A request that delivers no behavior is a refactor**, and this skill never
@@ -122,7 +130,7 @@ and can still be hostile to the plan.
    as `PREP-DEFERRED`, UNLESS gate 2 showed the feature cannot be tested at all
    without it — then it is not preparation but a design-plan gap: return to Phase 1.
 4. **SKEPTICIZED** — any prep move that creates a type/interface/package is judged by
-   the `python-linter-driven-development:overabstraction-skeptic` (Agent tool; payload per @pre-commit-review step 3), with
+   the `python-linter-driven-development:overabstraction-skeptic` (Agent tool; spawn prompt per @pre-commit-review step 3), with
    one sharpening in the spawn prompt: the justification is the approved plan in
    hand, not an imagined future — score the extraction as if the feature already
    existed. REFUTED → apply the cheaper alternative or defer. R2's construction
@@ -173,8 +181,8 @@ then route through REFACTOR → @refactoring → its escalation to @code-designi
 Design revision is a deliberate checkpoint, never a mid-GREEN detour.
 
 **REFACTOR (linter-driven)** — on the code just written:
-1. Package-scoped lint (fast): `ruff check <pkg>/` plus `mypy <pkg>/` where the
-   repository configures mypy
+1. Package-scoped lint (fast): `ruff check <pkg>/` plus `ty check <pkg>/` or `mypy <pkg>/`,
+   whichever the repository configures
 2. Cheap rule greps: run the detection commands from the **Falsifying questions**
    sections of the `../../rules/R*.md` files relevant to what was written.
 Any hit → invoke @refactoring: its `<routing_table>` routes each failure to the
@@ -195,11 +203,21 @@ the entry was a scoped command (`/py-ldd-quickfix` names the rung and the files)
 Name the scope in the agent's spawn prompt; it lints nothing wider.
 
 The agent returns `FIXED` (mechanical — done) and `ESCALATED` (design-level, each
-with a rule route from its embedded routing table). Route every escalation back
-through the Phase 2 REFACTOR step — invoke @refactoring with the routes; **never
-auto-redesign here**. Package-size escalations follow @refactoring
-`<package_decomposition>` (decomposition lands in its own commit). Repeat Phase 3
-until the agent reports `LINT STATUS: green`.
+with a rule route from its embedded routing table). An `ESCALATED: … → mechanical,
+budget spent` line is mechanical work the agent's budget did not reach, not design:
+spawn the lint-fixer again, fresh, over the packages it names — at most three times
+per scope, and never after a fresh lint-fixer reports `FIXED: none` over the same
+packages. What is left at that cutoff, and every `mechanical, no progress` line, is
+unresolved mechanical lint with no rule route: Phase 3 stops there, and the ship
+summary lists each `file:line` under `LINT STATUS: escalations pending` — never handed
+to @refactoring, which has no rule for it, never to a subagent. Route every design
+escalation back through the Phase 2 REFACTOR step — invoke @refactoring, in this
+thread, with the routes; **never auto-redesign here, and never delegate the
+escalations to a subagent** (`<skill_invocation>`). Package-size escalations follow
+`<package_decomposition>` in @refactoring's `reference.md`
+(`sed -n '/^<package_decomposition>/,/^<\/package_decomposition>/p; /^### Package decomposition/,$p'`; decomposition
+lands in its own commit). Repeat Phase 3 until the agent reports `LINT STATUS: green`,
+or until the respawn ceiling ends it with that list.
 </phase_3_full_lint>
 
 <phase_4_review>

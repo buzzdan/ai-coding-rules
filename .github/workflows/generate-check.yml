@@ -28,6 +28,8 @@ jobs:
         run: task test-gate
       - name: Documentation gate
         run: task docs:check
+      - name: Script tests
+        run: task test-scripts
       - name: Generator tests
         working-directory: tools/ldd-gen
         run: go test ./...

@@ -87,7 +87,7 @@ The three switches are gone — call sites read `a.channel.send(a)`,
 unrepresentable past the boundary. Adding SMS is one new class plus one entry in
 `CHANNELS` — existing modules untouched, and each channel's behaviour unit-tests as a
 leaf with literals. Where one switch legitimately stays — a single site over a closed
-enum — it is a `match` whose last arm is `case _: assert_never(x)`, so mypy fails the
+enum — it is a `match` whose last arm is `case _: assert_never(x)`, so ty fails the
 build when a variant is added but not handled; that arm is the completeness proof,
 not an "unknown kind" default. Full worked study including the strategy-map variant
 and the rejection counter-case: `../examples/anti-if-dispatch.md`.

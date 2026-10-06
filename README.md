@@ -6,15 +6,22 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 
 | | Plugin | Version | For |
 |---|--------|---------|-----|
-| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.13.0 | Go |
-| 🐍 | [`python-linter-driven-development`](python-linter-driven-development/README.md) | 0.2.0 | Python |
-| 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.1.0 | Any language without a binding — detects the language at run time |
+| 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.15.0 | Go |
+| 🐍 | [`python-linter-driven-development`](python-linter-driven-development/README.md) | 0.4.0 | Python |
+| 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.4.0 | Any language without a binding — detects the language at run time |
 | ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 2.0.0 | TypeScript + React |
 
-Plus the standalone rule documents the plugins grew out of:
+Plus the coding rules as a single document, for a project that does not use the plugin:
 
-- [`coding_rules.md`](coding_rules.md) — Go coding principles (types, testing, refactoring, anti-patterns)
-- [`coding_rules_ts_react.md`](coding_rules_ts_react.md) — TypeScript + React principles
+- [`coding-rules/go.md`](coding-rules/go.md) — the Go coding rules: the twelve rules with Go examples, the shared house rules H1–H2 and the Go house rules G1–G6, a self-review checklist and the mechanics.
+- [`coding-rules/python.md`](coding-rules/python.md) — the same twelve rules with Python examples and the Python binding's positions, the shared house rules and the Python house rules P1–P5, a self-review checklist and the mechanics.
+- [`coding-rules/ts-react.md`](coding-rules/ts-react.md) — the same twelve rules with TypeScript and React examples and the ts-react binding's positions, the shared house rules and the TypeScript house rules T1–T5, a self-review checklist and the mechanics.
+- [`coding-rules/generic.md`](coding-rules/generic.md) — the same twelve rules for any other language: pseudocode examples, each with a note on how the language spells it, the shared house rules and the two any-language house rules A1–A2, a self-review checklist and the mechanics.
+
+All four are generated from the same sources as the plugins, so they never drift from them; import one from your `CLAUDE.md` or `AGENTS.md`, or read it before your first PR. How they are built: [docs/handbook.md](docs/handbook.md).
+
+And the hand-written testing strategy the TS/React plugin grew out of:
+
 - [`testing_rules_ts_react.md`](testing_rules_ts_react.md) — TypeScript + React testing strategy (Vitest, RTL, MSW)
 
 ### Go plugin (v2 — rules as data)
@@ -30,7 +37,7 @@ Full architecture, workflow, and usage: [plugin README](go-linter-driven-develop
 
 ### Python plugin
 
-The same core rendered with Python knowledge: every canonical example is Python, every detection command greps `.py` files, the linter routing is keyed by ruff codes and mypy, and the testing skill speaks pytest. Where a Go idiom has no Python twin the plugin takes a position — `None` as declared absence, Null Object constants, frozen dataclasses, `match` closed by `assert_never`, `Event.wait` over `time.sleep` — recorded in [docs/language-residue.md](docs/language-residue.md). Details and the opinionated stances: [plugin README](python-linter-driven-development/README.md).
+The same core rendered with Python knowledge: every canonical example is Python, every detection command greps `.py` files, the linter routing is keyed by ruff codes and ty, and the testing skill speaks pytest. Where a Go idiom has no Python twin the plugin takes a position — `None` as declared absence, Null Object constants, frozen dataclasses, `match` closed by `assert_never`, `Event.wait` over `time.sleep` — recorded in [docs/language-residue.md](docs/language-residue.md). Details and the opinionated stances: [plugin README](python-linter-driven-development/README.md).
 
 ### Generic plugin
 
@@ -38,7 +45,7 @@ The same core rendered for repositories without a language binding. It detects t
 
 ### TS/React plugin
 
-The same core rendered for a React single-page application in TypeScript: every canonical example is TypeScript or TSX, every detection command greps `.ts` and `.tsx` files, the linter routing is keyed by ESLint rule ids (SonarJS, react-hooks, typescript-eslint), and the testing skill speaks Vitest, React Testing Library and MSW. Where a Go idiom has no TypeScript twin the plugin takes a position — `undefined` as declared absence, parse at the API boundary, discriminated unions closed by `assertNever`, effects that return their cleanup, context providers over module singletons, MSW over `vi.mock` — recorded in [docs/language-residue.md](docs/language-residue.md). Version 2 replaces the hand-written six-skill plugin; the upgrade notes are in the [plugin README](ts-react-linter-driven-development/README.md).
+The same core rendered for a React single-page application in TypeScript: every canonical example is TypeScript or TSX, every detect line runs over `.ts` and `.tsx` files, the linter routing is keyed by ESLint rule ids (SonarJS, react-hooks, typescript-eslint), and the testing skill speaks Vitest, React Testing Library and MSW. Where a Go idiom has no TypeScript twin the plugin takes a position — `undefined` as declared absence, parse at the API boundary, discriminated unions closed by `assertNever`, effects that return their cleanup, context providers over module singletons, MSW over `vi.mock` — recorded in [docs/language-residue.md](docs/language-residue.md). Version 2 replaces the hand-written six-skill plugin; the upgrade notes are in the [plugin README](ts-react-linter-driven-development/README.md).
 
 ## Installation
 
@@ -78,7 +85,7 @@ Team members then install with the same `/plugin install` commands above.
 
 ## Developing the Plugins
 
-1. Clone the repo. All four plugin directories are generated: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/`, `lang/ts-react/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python`, `task generate BINDING=ts-react` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory drifts from its sources. How the pieces fit: [core/README.md](core/README.md) and [docs/generator.md](docs/generator.md).
+1. Clone the repo. All four plugin directories are generated, and so are `coding-rules/go.md`, `coding-rules/python.md`, `coding-rules/ts-react.md` and `coding-rules/generic.md`: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/`, `lang/ts-react/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python`, `task generate BINDING=ts-react` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory or a handbook drifts from its sources. How the pieces fit: [core/README.md](core/README.md), [docs/generator.md](docs/generator.md) and [docs/handbook.md](docs/handbook.md).
 2. Test locally by adding the checkout as a marketplace:
    ```
    /plugin marketplace add ./ai-coding-rules

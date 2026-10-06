@@ -92,6 +92,33 @@ func SoftTokens() []Token {
 	}
 }
 
+// asideTokens are the soft tokens docs/language-residue.md keeps as the
+// general term in every language ("interface" for a seam, "struct" for a
+// shape). They stay in core prose by decision, so a handbook may carry them.
+func asideTokens() map[string]bool {
+	return map[string]bool{"interface": true, "struct": true}
+}
+
+// ScanHandbook scans a rendered coding-rules handbook for a binding other than
+// Go and returns every hit of a hard or soft token that is not a decided
+// aside. The plugin shows each Principle beside a same-language example, which
+// hides a Go spelling; the handbook shows the Principle alone, so a hit there is
+// a sentence that still reasons from Go and wants a neutral rewrite in core.
+func ScanHandbook(path, text string) []Hit {
+	var tokens []Token
+	for _, t := range append(HardTokens(), SoftTokens()...) {
+		if !asideTokens()[t.Name] {
+			tokens = append(tokens, t)
+		}
+	}
+	var hits []Hit
+	for i, line := range strings.Split(text, "\n") {
+		hits = append(hits, hitsOn(tokens, path, i+1, line)...)
+	}
+	sortHits(hits)
+	return hits
+}
+
 // Hit is one token found on one line of one core file.
 type Hit struct {
 	Path  string

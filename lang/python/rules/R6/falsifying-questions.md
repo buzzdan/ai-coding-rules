@@ -1,4 +1,5 @@
 1. **How many production implementations does each new/changed interface have?**
+   Detect-grep: `^class [A-Za-z_][A-Za-z0-9_]*\((.*\b)?(Protocol|ABC)\b`
    Detection: for each `Protocol` or `ABC` in the diff, list its method names, then
    `grep -rnE '^\s+def <method>\(' --include='*.py' . | grep -v 'test_\|_test.py\|conftest'`
    — the implementing classes. A Protocol is structural, so an implementer never
@@ -9,10 +10,11 @@
    smell; proceed to Q2.
 
 2. **Is the only other implementer a test double?**
+   Detect-grep: `mock\.patch|patch\(|monkeypatch\.setattr|MagicMock|create_autospec` files=test
    Detection: `grep -rnE '^\s+def <method>\(' --include='test_*.py' --include='*_test.py' --include='conftest.py' .`
    plus the same grep over test-support packages (`fakes/`, `mocks/`, `testing/`);
-   then `grep -rnE 'mock\.patch|patch\(|monkeypatch\.setattr|MagicMock|create_autospec' --include='test_*.py' --include='*_test.py' .`
-   and read what each patch targets — a patch on a concrete collaborator is a seam
+   the detect line finds every patch and mock in the test files — read what each
+   patch targets — a patch on a concrete collaborator is a seam
    that exists only so the test can substitute a double, the same smell without the
    Protocol.
    Violation: yes — one production implementation + a double (a fake class, a
@@ -22,6 +24,7 @@
    socket, the wall clock, `os.environ` in an entry-point test) is not this finding.
 
 3. **Would depending on the concrete type cause a REAL import cycle?**
+   Detect: judgment
    Detection — do not trust a "cycle" comment; check the import direction:
    ```bash
    # a real cycle exists only if the dependency module imports the consumer back:
@@ -35,12 +38,14 @@
 
 4. **Does a consumer take an interface while every production call site passes the
    same concrete type?**
+   Detect: judgment
    Detection: `grep -rn '<Consumer>(' --include='*.py' . | grep -v 'test_\|_test.py\|conftest'` —
    inspect the argument's type at each production call site.
    Violation: one concrete type at every production call site — the interface
    parameter is a seam for doubles; take the concrete type.
 
 5. **Does the diff justify a new interface with "for testing" or "import cycle"?**
-   Detection: `grep -rn -B3 -E 'class \w+\((Protocol|ABC)\)' <changed files> | grep -iE 'for test|import cycle|mock|patch'`
+   Detect-grep: `#.*\b([Ff]or test|[Ii]mport cycle|[Mm]ock|[Pp]atch)`
+   Detection: read the lines below each hit for the `Protocol` or `ABC` it justifies.
    Violation: any hit — the comment is itself a finding; verify with Q1–Q3 and
    expect deletion.

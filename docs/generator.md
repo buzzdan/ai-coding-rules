@@ -5,12 +5,11 @@ description: how the plugin directories are generated from core/ and one binding
 # Plugin Generator
 
 The directories the marketplace serves, `go-linter-driven-development/`,
-`python-linter-driven-development/`, `ts-react-linter-driven-development/` and
-`linter-driven-development/`, are not edited by hand. `tools/ldd-gen` renders each
-from two sources: `core/`, the language-neutral text of the rules, skills, agents,
-commands and the repo-brain gate, and one binding under `lang/` — `lang/go/` for the
-Go plugin, `lang/python/` for the Python plugin, `lang/ts-react/` for the TypeScript +
-React plugin, `lang/generic/` for the plugin that detects the language at run time. The
+`python-linter-driven-development/` and `linter-driven-development/`, are not edited
+by hand. `tools/ldd-gen` renders each from two sources: `core/`, the language-neutral
+text of the rules, skills, agents, commands and the repo-brain gate, and one binding
+under `lang/` — `lang/go/` for the Go plugin, `lang/python/` for the Python plugin,
+`lang/generic/` for the plugin that detects the language at run time. The
 templating contract (the scalars, the include construct and its `core/includes/`
 defaults, overrides, file-name templating) and the residue backlog live in
 [core/README.md](../core/README.md); how a Go idiom in core prose is rendered for a
@@ -26,22 +25,27 @@ second language is decided in [language-residue.md](language-residue.md).
    `include_fallback` in its profile to read another binding's includes under one
    path prefix; the generic binding reads the Go case-study sections this way.
 2. Run `task generate` for the Go plugin, `task generate BINDING=python` for the
-   Python one, `task generate BINDING=ts-react` for the TypeScript + React one and
-   `task generate BINDING=generic` for the generic one. Each renders
+   Python one and `task generate BINDING=generic` for the generic one. Each renders
    its binding over its plugin directory: every file the generator owns is
-   rewritten, and files it no longer produces are removed.
+   rewritten, and files it no longer produces are removed. A binding whose profile
+   names a `handbook:` path also renders the standalone coding-rules document to
+   that path, outside the plugin directory ([handbook.md](handbook.md)).
 3. Commit the sources and the generated directories together. A binding without its
    rendered directory turns CI red for everyone, because `task check` renders every
    directory under `lang/`.
 
 `task check` renders every binding to memory and compares it with the plugin
-directory on disk; any missing, extra or changed file, or a changed executable bit,
-fails, and changed files print a unified diff. CI runs it on every pull request,
-together with `task lint-core` (no hard residue in `core/`, and the Residue section of
-its README is current), `task docs:check`, `task test-gate` (each generated gate passes
-its own fixture matrix — the Go, Python and TypeScript gates on their own row, the
-generic gate once per language its adapter detects), and the generator's unit tests
-and linter. The fixture matrix uses
+directory on disk, and the handbook with the file at its path; any missing, extra or
+changed file, or a changed executable bit, fails, and changed files print a unified
+diff. CI runs it on every pull request,
+together with `task lint-core` (no hard residue in `core/`, the Residue section of
+its README is current, and every falsifying question in `core/includes/rules/` and
+`lang/*/rules/` carries exactly one well-formed detect line — the machine-readable
+lead the review's detection script runs; the kinds and their shape are in
+[token-budget.md](token-budget.md), "S8"), `task docs:check`, `task test-gate` (each
+generated script passes its own fixture matrix — the repo-brain gate and the review's
+detection pass, the Go and Python plugins on their own row, the generic plugin once
+per language its block detects), and the generator's unit tests and linter. The fixture matrix uses
 GNU `sed`, so on macOS two of its cases fail while the same run passes on Linux.
 Paths listed under `ignore` in the profile, such as eval cases copied under the
 plugin's `evals/` directory at run time, are left alone by both `check` and

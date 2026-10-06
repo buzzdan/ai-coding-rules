@@ -1,8 +1,8 @@
   **The Python shape.** A do-nothing object is stateless, so it can be a real default
   value: `NULL_SINK = NullSink()` at module level (a name, not a call — ruff's `B008`
   flags a call in a default), the parameter keyword-only and typed `Sink`, never
-  `Sink | None`. mypy then rejects `Reporter(sink=None)` before it runs, and the
-  constructor rejects it at run time for callers mypy never saw. `sink: Sink | None =
+  `Sink | None`. ty then rejects `Reporter(sink=None)` before it runs, and the
+  constructor rejects it at run time for callers ty never saw. `sink: Sink | None =
   None` with `self._sink = sink or NullSink()` inside the constructor keeps `None`
   legal and merely moves the check; it is allowed only when the default is genuinely
   mutable or expensive to build, and even then the attribute is typed without `None`

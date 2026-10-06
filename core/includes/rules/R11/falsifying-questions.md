@@ -1,6 +1,7 @@
 Build each search over the language's source files (`{{.SrcGlob}}`).
 
 1. **Is the same discriminator inspected in more than one place?**
+   Detect-grep: `\b(switch|match) [a-zA-Z_.]+\.([Tt]ype|[Kk]ind|[Ss]tatus|[Mm]ode|[Cc]hannel|[Ff]ormat|[Ll]evel)\b|\bif [a-zA-Z_.]+\.([Tt]ype|[Kk]ind|[Ss]tatus|[Mm]ode|[Cc]hannel|[Ff]ormat|[Ll]evel) ==`
    Detection: list discriminators in the diff — switch, match or if-chain statements
    on a field named like `type`, `kind`, `status`, `mode`, `channel`, `format` or
    `level` (`switch x.Kind`, `match self.kind`, `if alert.channel ==`); then count
@@ -9,6 +10,7 @@ Build each search over the language's source files (`{{.SrcGlob}}`).
    owner; route to Interface Dispatch or Strategy Map.
 
 2. **Does a type switch dispatch on concrete types outside a boundary?**
+   Detect-grep: `\bisinstance\(|\binstanceof |\.\(type\)|\bcase [A-Z][A-Za-z]*\(`
    Detection: search for the language's runtime type test in a branching position
    (a type switch, `isinstance` chains, `instanceof` chains, `match` on a class) —
    for each hit, is it in a `ParseX`/decoder/boundary adapter, or in business
@@ -24,18 +26,21 @@ Build each search over the language's source files (`{{.SrcGlob}}`).
    decode/unmarshal of foreign types are not this pattern.
 
 3. **Does a default branch (or trailing `else`) handle "unknown kind" away from the boundary?**
+   Detect: judgment
    Detection: for each switch found in Q1, check the default arm for an error or
    exception carrying an unknown-kind message.
    Violation: unknown-kind errors deep in the call graph — the maybe-unknown concept
    leaked past construction; dispatch should have been chosen at `ParseX`.
 
 4. **Does a boolean parameter select between behaviors?**
+   Detect-grep: `\b(is|use|with|enable|skip)[A-Za-z_]*:? (bool|boolean)\b|\b(bool|boolean) (is|use|with|enable|skip)[A-Za-z_]*\b`
    Detection: in the changed files, find function signatures with a boolean
    parameter named like `is*`, `use*`, `with*`, `enable*`, `skip*`; check whether
    the function branches on it near the top.
    Violation: a flag argument whose branches share little code — Split Flag Argument.
 
 5. **Inverse — is a NEW dispatch abstraction in the diff unearned?**
+   Detect: judgment
    Detection: for each new interface/strategy map in the diff, count production
    implementations/entries and the number of sites the old conditional occupied
    (`git log -p` or the pre-diff file).

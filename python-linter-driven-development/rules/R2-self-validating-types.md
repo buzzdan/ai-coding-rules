@@ -61,7 +61,7 @@ class UserService:
 # ✅ constructor validates once; methods trust the instance
 class UserService:
     def __init__(self, repo: Repository) -> None:
-        if repo is None:  # only an untyped caller can get here; mypy rejects it first
+        if repo is None:  # only an untyped caller can get here; ty rejects it first
             raise TypeError("UserService: repo is required")
         self._repo = repo
 
@@ -170,8 +170,8 @@ validators is the same type; inside the domain the dataclass is enough, and
   **The Python shape.** A do-nothing object is stateless, so it can be a real default
   value: `NULL_SINK = NullSink()` at module level (a name, not a call — ruff's `B008`
   flags a call in a default), the parameter keyword-only and typed `Sink`, never
-  `Sink | None`. mypy then rejects `Reporter(sink=None)` before it runs, and the
-  constructor rejects it at run time for callers mypy never saw. `sink: Sink | None =
+  `Sink | None`. ty then rejects `Reporter(sink=None)` before it runs, and the
+  constructor rejects it at run time for callers ty never saw. `sink: Sink | None =
   None` with `self._sink = sink or NullSink()` inside the constructor keeps `None`
   legal and merely moves the check; it is allowed only when the default is genuinely
   mutable or expensive to build, and even then the attribute is typed without `None`
@@ -208,6 +208,11 @@ validators is the same type; inside the domain the dataclass is enough, and
 - **No defensive coding.** Check arguments in the constructor so that methods contain
   zero None/emptiness checks on their own fields. A method validating its receiver is
   validation in the wrong place.
+- **A vocabulary type carries no checks.** A type that names a container and hangs
+  queries on it (`R1-primitive-obsession.md`, Name the Container) usually has no
+  invariant: any mapping is a valid one. Its constructor copies the container in
+  (`R12-mutation-discipline.md`) and checks nothing. Demanding a validation the type
+  has no rule for is ceremony, not self-validation.
 
 ## Fix pattern
 
@@ -239,6 +244,7 @@ validators is the same type; inside the domain the dataclass is enough, and
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Can the type exist in an invalid state?**
+   Detect: judgment
    Detection: for each new/changed type with invariants, read its declaration: a
    `@dataclass` without `frozen=True` and without a `__post_init__`, a plain class
    whose `__init__` assigns without checking, or a pydantic model with no validator
@@ -255,8 +261,8 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    constructor.
 
 2. **Do methods re-check what the constructor should guarantee?**
-   Detection: `grep -nE 'if self\.[a-zA-Z_]+ is (not )?None|if not self\.[a-zA-Z_]+:|if len\(self\.[a-zA-Z_]+\) == 0' <changed files>`
-   inside method bodies (not `__init__` or `__post_init__`).
+   Detect-grep: `if self\.[a-zA-Z_]+ is (not )?None|if not self\.[a-zA-Z_]+:|if len\(self\.[a-zA-Z_]+\) == 0`
+   Detection: hits inside method bodies (not `__init__` or `__post_init__`).
    Violation: a method validating its own instance's fields — the check belongs in
    the constructor. Decide which fix by asking whether the field is required or
    optional: a required collaborator is rejected in `__init__` (Hoist method
@@ -267,30 +273,33 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    method, whether or not each method spells the guard.
 
 3. **Does a constructor re-validate a composed self-validating type?**
+   Detect: judgment
    Detection: read each `__post_init__`, `__init__` and `parse` classmethod in the
    diff; for every parameter whose type has its own `__post_init__` or validator,
    grep the body for checks on that parameter.
    Violation: re-validating a value that could only ever exist valid.
 
 4. **Does the type rely on upstream validation?**
-   Detection: `grep -rn 'caller must\|assumes valid\|already validated' --include='*.py' .`;
-   also flag public fields consumed by logic in a module that defines no
+   Detect-grep: `[Cc]aller must|[Aa]ssumes valid|[Aa]lready validated|[Dd]efensive|[Rr]e-?check` files=all
+   Detection: also flag public fields consumed by logic in a module that defines no
    `__post_init__`, `parse` or validator for the type, and a `NewType` standing in
    for a validated value (it is erased at run time and admits every literal).
    Violation: any invariant enforced — or merely documented — outside the type
-   itself.
+   itself; a value re-validated after the point that validated it (a "defensive
+   re-check") is the same finding, the invariant living in two places and in neither
+   type.
 
 5. **Does anything return or accept `None` as a value?**
-   Detection: `grep -nE 'return None\s*(#.*)?$|^\s+return$' <changed files>` (a bare
-   `return` in a function that returns a value counts), then read each hit's
-   signature and the branch it sits in. Three verdicts:
+   Detect-grep: `return None\s*(#.*)?$|^\s+return$`
+   Detection: a bare `return` in a function that returns a value counts; read each
+   hit's signature and the branch it sits in. Three verdicts:
    - the signature says `-> X` and the body returns `None`: R1 Q4's sentinel, cite
      it there;
    - the signature says `-> X | None` and the `None` branch is a normal absence a
      caller expects — a lookup by key, the first match of a filter, a blank line in
      a parser — and every caller narrows it: not a finding. `dict.get` versus
      `dict[k]` is the model; `X | None` is Python's declared absence, checked by
-     mypy at each call site;
+     ty at each call site;
    - the signature says `-> X | None` and the `None` branch is a failure —
      malformed input, a broken invariant, an `except ...: return None` that turns an
      I/O error into "not found" — or callers stack `is None` guards because the
@@ -304,7 +313,8 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    being guaranteed by construction and by its annotation.
 
 6. **Does any call site pass `None` as a non-error argument?**
-   Detection: `grep -nE '\(None[,)]|, None[,)]|=None[,)]' <changed files>` — exempt
+   Detect-grep: `\(None[,)]|, None[,)]|=None[,)]`
+   Detection: exempt
    comparisons (`is None`, `is not None`), and standard-library idioms where `None`
    is the documented "no value" (`dict.get(k, None)`, `logging.getLogger(None)`,
    `subprocess.run(..., input=None)`).
@@ -317,7 +327,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    to pass `None` (`Reporter(sink, None, None)` is the smell; R11). `param: X | None
    = None` with the substitution inside `__init__` is allowed only for a default
    that is genuinely mutable or expensive to build, and even then the attribute is
-   typed `X` and no method guards it. mypy makes the typed half of this question
-   mechanical: `None` passed to an `X` parameter fails `arg-type`, so the finding
-   survives only where the parameter is typed `X | None` or the code is not
-   type-checked.
+   typed `X` and no method guards it. The type checker makes the typed half of this
+   question mechanical: `None` passed to an `X` parameter fails ty's
+   `invalid-argument-type` (mypy's `arg-type`), so the finding survives only where
+   the parameter is typed `X | None` or the code is not type-checked.

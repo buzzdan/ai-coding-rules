@@ -7,7 +7,10 @@ it: rung 0 is pure leaf types (unit tests with literal inputs, 100% coverage, pu
 API only, imported as a consumer would); each rung above adds exactly one real production
 layer; only the true external boundary is ever faked. Orchestrating types get
 integration-style tests that cover the seams between their real collaborators — some
-overlap with leaf coverage is fine; leaf behavior tested *only* from above is not.
+overlap with leaf coverage is fine; leaf behavior tested *only* from above is not. On
+a leaf type, coverage is the floor and the mutation score is the claim: a leaf's
+tests must fail when its logic is changed, and a mutant that survives them is a
+missing row or dead logic.
 
 ## Why
 
@@ -20,7 +23,15 @@ tested with literals, the logic is trapped in an orchestrator and R1/R3 extracti
 is owed (`R1-primitive-obsession.md` Stage 3 shows the payoff — a K8s fixture test
 collapsing into a slice-literal test). Discipline inside the tests matters for the
 same reason: a conditional inside a table case means one case is really two, and a test
-asserting on a fake's internals verifies the double, not the system. The full
+asserting on a fake's internals verifies the double, not the system. Line coverage
+cannot tell either of those apart from a real test: a table that runs every line and
+asserts nothing scores 100%. Mutation testing checks the claim coverage only
+implies — flip a comparison, negate a branch, drop a statement, and rerun the suite;
+a mutant the suite lets live marks logic no test pins down. It is worth its
+runtime exactly where the logic is: rung 0, where the tests are literal tables and
+the suite is fast. Orchestrators are not mutated; their seams are covered by wiring,
+and a mutation run over them pays the harness cost per mutant for findings that
+belong to a leaf anyway. The full
 composition ladder and harness patterns live in @testing; this rule is the placement
 and review contract.
 
@@ -75,6 +86,28 @@ private-function test.
   constructors; inputs are literals; imported as a consumer would, so privates are
   unreachable.
   Most of the codebase's logic should live here (`R1-primitive-obsession.md`).
+- **Mutation score on leaf types only**: once a leaf's tests cover it, run the
+  mutation tool over that leaf's package — never over orchestrators, the top rung or
+  the whole module — and triage every survivor: a *missing row* (add the literal that
+  tells the mutant from the original), *dead logic* (the mutant is unreachable —
+  delete the code, not the mutant), or an *equivalent mutant* (the change is
+  behavior-preserving — note it in the test file, once, with the reason). No survivor
+  is left untriaged; scope the run to the leaf packages the change touched so it
+  stays as fast as the tables it checks.
+- **Mutation mechanics**: the repository's mutation testing tool, configured once
+  and pointed at leaf packages only; run it after the leaf's tests are green and
+  after each fix that kills a survivor; a threshold in CI, where the repository has
+  one, is set per leaf package, never module-wide. The tool is installed the way the
+  repository installs its other tools: when it is not on the machine, propose a
+  target in the task runner the repository already has (Taskfile, Makefile) that
+  installs a pinned version and runs it over one leaf package, and where there is no
+  task runner propose the local install command for the developer to run; ask before
+  installing, never install silently, and never read a run that did not execute as a
+  pass. When the language has no maintained mutation tool, the check is done by hand and stays cheap because a
+  leaf is small: for every comparison in the leaf the table holds a row at the
+  boundary value and one just past it, for every boolean condition a row on each
+  side, and a suspected gap is confirmed by flipping the operator, running the
+  leaf's tests, and putting it back — green tests mean a survivor.
 - **Orchestrating types**: integration-style tests wiring real collaborators — real
   store over an embedded DB, real client against an in-process HTTP server — never
   interface-injected doubles (`R6-test-only-interfaces.md`). They cover the seams;
@@ -101,6 +134,9 @@ private-function test.
   first (`../examples/storify-leaf-type.md` shows the pair).
 - **Split Success and Error Tables**: one function asserting values, one asserting
   errors — complexity 1 in both.
+- **Kill the surviving mutant**: add the table row whose literal input distinguishes
+  the mutant from the original; when no input can, the mutated code was dead — delete
+  it; when the mutant is provably equivalent, record why beside the tests.
 - **Replace doubles with real collaborators**: delete the mock, wire the real
   dependency over fake data (`R6-test-only-interfaces.md`; @testing for harnesses).
 - **Replace sleep with synchronization**: an event, channel or wait primitive with a
@@ -116,6 +152,7 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
 `tests/` directory, or whatever the repository uses); build each search over them.
 
 1. **Does any test case body contain a conditional?**
+   Detect-grep: `\b[Ww]ant_?[Ee]rr(or)?\b|\b[Ee]xpect_?[Ee]rr(or)?\b|\b[Ss]hould_?[Ff]ail\b` files=test
    Detection: search the test files for `if`/`switch`/`match` inside a test function
    or a parametrized case, and for a success-or-error flag in a case table
    (`expectError`, `shouldFail`, `raises` as a boolean column).
@@ -123,13 +160,15 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    success and error cases are fused; split the functions.
 
 2. **Does any test reach past the public surface?**
+   Detect: judgment
    Detection: find test files that import or declare themselves inside the package
    under test rather than importing it as a consumer would (an in-package test, an
-   import of a private module or an unexported name).
+   import of a private module or an internal name).
    Violation: a test that can reach privates — move it to the consumer's side and
    test the public API.
 
 3. **Does a test construct a big object to exercise a leaf behavior?**
+   Detect: judgment
    Detection: read each new/changed test — compare the setup (fixtures, services,
    servers) against the assertion's subject; count setup lines vs. the one predicate
    actually checked.
@@ -137,12 +176,14 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    owns (or should own) — move the test down a rung, extracting the leaf if needed.
 
 4. **Does a new behavior's test sit above the lowest rung that contains it?**
+   Detect: judgment
    Detection: for each new public method on a leaf type, search the test files for
    its name — is it exercised directly, or only through an orchestrator's test?
    Violation: leaf behavior reached only from above — add the rung-0 test; the
    orchestrator test keeps only the seam.
 
 5. **Does a test assert on a fake's internals rather than observable behavior?**
+   Detect-grep: `[Aa]ssert(_?[Cc]alled|_?[Ee]xpectations|_?[Aa]ny_?[Cc]all|_?[Hh]as_?[Cc]alls)|\.call_count|\.mock_calls|\.calls\b` files=test
    Detection: search the test files for the mocking library's verification calls
    (`assertExpectations`, `assertCalled`, `assert_called_with`, `.calls`); also flag
    assertions reading fields of a test double instead of querying the system under
@@ -151,7 +192,23 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    (and the double itself is likely an R6 finding).
 
 6. **Does any test sleep to synchronize?**
+   Detect-grep: `\b[Ss]leep\(` files=test
    Detection: search the test files for the language's sleep call (`time.Sleep`,
    `time.sleep`, `setTimeout`, `Thread.sleep`).
    Violation: any hit — replace with an event, channel or wait primitive with a
    timeout.
+
+7. **Does a mutant survive a leaf type's tests?**
+   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+)|\b[Ll]en\([^)]*\) *(<=?|>=?|==|!=)`
+   Detection: for each new or changed leaf type, run the repository's mutation
+   testing tool over that leaf's package only (the mechanics bullet names the tool
+   and the command) and read its list of survivors; skip orchestrators, the top
+   rung and any package that does I/O. A tool the language has but the machine
+   lacks is proposed for install as the mechanics bullet says, never skipped and
+   never counted as a pass. Without any tool, list the leaf's comparisons
+   and boolean conditions, check the table for a row at each boundary value and on
+   each side of each condition, and hand-flip any operator whose rows are missing
+   (`<` to `<=`, `>` to `>=`, a condition negated), run the leaf's tests, revert.
+   Violation: any survivor on a leaf type that is not recorded as equivalent — a
+   missing table row or dead logic; name the mutant (file, line, operator) and the
+   row that would kill it.

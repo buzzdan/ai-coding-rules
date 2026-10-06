@@ -78,7 +78,7 @@ a real database. The abstraction, its indirection, and the double are all delete
   consumer's package), keep it small and cohesive, and expect every implementation
   to be production code. The worked case of an *earned* interface — multiple
   production implementations replacing a growing type switch, sealed by an
-  unexported method: `../examples/switch-to-polymorphism.md` (dispatch discipline:
+  internal method: `../examples/switch-to-polymorphism.md` (dispatch discipline:
   `R11-conditional-dispatch.md`).
 
 ## Fix pattern
@@ -103,6 +103,7 @@ Build each search over the language's source files (`detected-language source`);
 the ones the repository's test runner picks up.
 
 1. **How many production implementations does each new/changed interface have?**
+   Detect: judgment
    Detection: for each method of the interface (protocol, abstract base class, trait),
    search the non-test source files for definitions of that method name — list the
    implementing types.
@@ -110,6 +111,7 @@ the ones the repository's test runner picks up.
    smell; proceed to Q2.
 
 2. **Is the only other implementer a test double?**
+   Detect: judgment
    Detection: search the test files for definitions of the same method names, plus
    the same search over test-support directories (`fakes/`, `mocks/`, `testutil*`,
    `conftest`); in a patching language, search the test files for a patch or
@@ -118,6 +120,7 @@ the ones the repository's test runner picks up.
    delete it and test the real type.
 
 3. **Would depending on the concrete type cause a REAL import cycle?**
+   Detect: judgment
    Detection — do not trust a "cycle" comment; check the import direction: a real
    cycle exists only if the dependency's package imports the consumer's package
    back. Search the dependency's source files for an import of the consumer.
@@ -126,12 +129,14 @@ the ones the repository's test runner picks up.
 
 4. **Does a consumer take an interface while every production call site passes the
    same concrete type?**
+   Detect: judgment
    Detection: search the non-test source files for calls to the consumer's
    constructor — inspect the argument's type at each production call site.
    Violation: one concrete type at every production call site — the interface
    parameter is a seam for doubles; take the concrete type.
 
 5. **Does the diff justify a new interface with "for testing" or "import cycle"?**
+   Detect-grep: `(//|#|--|/\*).*\b([Ff]or test|[Ii]mport cycle|[Mm]ock)`
    Detection: in the changed files, read the comment lines above each new interface,
    protocol or abstract class for `for test`, `import cycle`, `mock`.
    Violation: any hit — the comment is itself a finding; verify with Q1–Q3 and

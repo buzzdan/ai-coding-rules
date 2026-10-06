@@ -41,7 +41,10 @@ Ground rules, all enforced:
   strips the directives first: 51 real findings across 13 linters in go-mini, 61
   ruff findings across 21 rules plus 3 mypy errors in py-mini, which is what the
   quickfix case exercises. In py-mini every remaining `# noqa` is live: ruff's
-  unused-noqa rule is on.
+  unused-noqa rule is on. The Python scaffold and the suite's suppression graders
+  also know ty's `# ty: ignore[<rule>]`, the plugin's first-named type checker, so
+  a ty plant needs no scaffold change and an agent cannot hide a finding behind
+  the ty spelling; the fixture itself still runs mypy.
 - **House style is plain.** Standard-library testing and logging (pytest in
   Python), a Taskfile, no assertion library. Anything the agent introduces beyond
   that is a when-in-Rome finding it must raise on itself.
@@ -52,7 +55,7 @@ Ground rules, all enforced:
 
 ## The manifest
 `go/violations.yaml`, beside the fixture, is the answer key, kept outside the scaffolded tree. One
-entry per plant or control, 149 in total. `py/violations.yaml` carries the same 149
+entry per plant or control, 156 in total. `py/violations.yaml` carries the same 156
 ids in the same order with Python files and anchors; where a plant's disease had
 to change with the language, a comment on the entry says so, and `expect.lint`
 names the ruff rule that fires (or `"-"` where ruff has no rule for the plant, such
@@ -86,7 +89,12 @@ The manifest has three consumers, so a fact lives once:
    segment alone; a plant may carry `cluster_match` when reports spell the cluster
    in more than one way), and one precision grader per control (the report must not
    mention the control's `symbol`, unless `mention_ok: true` says a correct report
-   legitimately names it). Never hand-edit the generated files; edit the manifest
+   legitimately names it, or `precision: finding` moves the line: the symbol may be
+   named, and the grader fails only when one of the control's files is cited as a
+   finding location, `file:line`, in a row that names the control's rule; a control
+   that correct reports cite as the fix route takes this mode, and a row that leaves
+   its rule id to the section header escapes it, so the mode is lenient by design).
+   Never hand-edit the generated files; edit the manifest
    and regenerate. The evals repository's pull-request check fails when the
    committed graders differ from the manifest.
 2. **The refactor cases' oracles.** The `gone` patterns become file graders with

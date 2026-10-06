@@ -30,6 +30,17 @@ slice).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
    show no progress, stop and escalate what's left — do not thrash.
 
+**Budget:** twelve turns per spawn — about six lint runs and forty edits — the first
+run included; every turn re-bills your whole context, so a long loop costs more than
+the fixes are worth. Batch: one Read of a file, then every mechanical fix in it in one
+multi-edit turn. When the budget is spent, stop and report — the mechanical issues
+still open become escalations of their own kind, `ESCALATED: <linter> → mechanical,
+budget spent — respawn lint-fixer at <file:line>`, one per issue; the caller spawns a
+fresh lint-fixer over those packages, and a fresh context finishes them cheaper than
+yours would. Leftovers of the two-run no-progress stop above are a different kind and
+never `budget spent`: `ESCALATED: <linter> → mechanical, no progress at <file:line>`,
+which the caller does not respawn. Never run past the budget to get to green.
+
 **Escalation contract (the core of this job):** mechanical issues you fix —
 formatting (`ruff format`), import ordering (`I`), unused imports/variables/arguments
 (`F401`, `F841`, `ARG`), exception chaining (`B904`: `raise X(...) from err`),
@@ -37,8 +48,9 @@ narrowing a bare or broad `except` (`E722`, `BLE001`), magic values (`PLR2004` �
 mechanical ONLY when the repeated value is not an enum-shaped domain concept;
 enum-shaped hits like `== "READY"` status strings escalate, see the table), return
 style (`RET`), simplifications (`SIM`), a positional boolean made keyword-only
-(`FBT001`), mypy `arg-type`/`assignment` mismatches fixed at the call or the
-annotation (never with `# type: ignore`). Complexity and design failures you do NOT redesign — refactoring is
+(`FBT001`), type-checker mismatches — ty `invalid-argument-type`/`invalid-assignment`,
+mypy `arg-type`/`assignment` — fixed at the call or the annotation (never with
+`# ty: ignore` or `# type: ignore`). Complexity and design failures you do NOT redesign — refactoring is
 a design act that belongs to the main context. Return them as escalations routed by
 this table:
 
@@ -53,12 +65,13 @@ this table:
 | `PLW0603` (`global` statement) | rules/R8-no-globals.md |
 | `B006` / `B008` (mutable or call default) | rules/R12-mutation-discipline.md; a `None`-able collaborator default → rules/R11-conditional-dispatch.md ("Introduce Null Object") |
 | `PLR2004` on an enum-shaped string | rules/R1-primitive-obsession.md ("Name enum strings" move) |
-| mypy `return-value` on a `return None` from a `-> X` function | rules/R1-primitive-obsession.md (Q4 — a sentinel, never a `# type: ignore`) |
-| mypy `arg-type` for `None` passed to an `X` parameter | rules/R2-self-validating-types.md (Q6 — fix the caller or introduce a Null Object; never widen the parameter to `X \| None`) |
+| ty `invalid-return-type` / mypy `return-value` on a `return None` from a `-> X` function | rules/R1-primitive-obsession.md (Q4 — a sentinel, never a `# ty: ignore` or `# type: ignore`) |
+| ty `invalid-argument-type` / mypy `arg-type` for `None` passed to an `X` parameter | rules/R2-self-validating-types.md (Q6 — fix the caller or introduce a Null Object; never widen the parameter to `X \| None`) |
 
 **Hard limits:**
-- Never add `# noqa` or `# type: ignore` — not even for issues you escalate.
-- Never edit `[tool.ruff]`, `[tool.mypy]`, `ruff.toml` or `mypy.ini` — no new
+- Never add `# noqa`, `# type: ignore`, or `# ty: ignore` — not even for issues you escalate.
+- Never edit `[tool.ruff]`, `[tool.ty]`, `[tool.mypy]`, `ruff.toml`, `ty.toml` or
+  `mypy.ini` — no new
   `ignore`, `per-file-ignores` or `overrides` entry.
 - Never touch test semantics: you may fix lint inside `test_*.py`/`*_test.py` files,
   but never weaken, remove, or reorder assertions.
@@ -74,7 +87,8 @@ LINT STATUS: green | escalations pending (<N>)
 ```
 One `ESCALATED:` line per failure, each carrying its own `file:line` and its route from
 the table above (`<linter> → rules/R3-storifying.md (via @refactoring) at
-<path>:<line>`). A `FIXED:` line lists every linter whose
+<path>:<line>`) — except the `mechanical, budget spent` and `mechanical, no progress`
+lines, whose route is the respawn or its refusal, not a rule. A `FIXED:` line lists every linter whose
 issues are gone; nothing fixed → `FIXED: none`.
 
 FIXED counts every issue resolved since the first run — including those the

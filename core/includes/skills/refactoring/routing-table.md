@@ -12,7 +12,7 @@ lint-fixer agent embeds a compact copy of this table in `../../agents/lint-fixer
 | Maintainability index too low | `../../rules/R3-storifying.md` + `../../rules/R1-primitive-obsession.md` |
 | Duplicated code | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated blocks that switch on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
 | Non-exhaustive switch or match (missing enum cases) | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site; a second switch appearing is the R11 violation itself |
-| File too long; a directory in the package-size red zone | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
+| File too long; a directory in the package-size red zone | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>`, `sed -n '/^## File and package routing/,/^## Preparatory mode/p'` over this skill's `reference.md` |
 | Mutable global variable; import-time side effect | `../../rules/R8-no-globals.md` |
 | Interface, protocol or abstract class with a single implementation; returning an interface | `../../rules/R6-test-only-interfaces.md` |
 | Data race; copied lock; unsynchronized shared state | `../../rules/R10-concurrency-safety.md` |

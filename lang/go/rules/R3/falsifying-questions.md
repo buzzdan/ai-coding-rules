@@ -1,4 +1,5 @@
 1. **Does any changed function exceed the size/shape limits?**
+   Detect: judgment
    Detection: run the complexity linters (`gocyclo`, `gocognit` via
    `golangci-lint run`) on the changed files; or count —
    `awk '/^func /,/^}/' <file>` per function for LOC, eyeball nesting depth.
@@ -6,25 +7,35 @@
    narrating.
 
 2. **Does one body mix abstraction levels?**
-   Detection: read each changed function and list its statements' altitudes: a named
+   Detect-grep: `^\s*return .*\(.*\), .*\(|^\s*return .*\[[^]]*:[^]]*\]`
+   Detection: the pattern is one lead, not the whole question: a `return` whose
+   elements are expressions rather than names — a call beside a call, a slice —
+   such as `return parse(strings.Join(lines[1:i], "")), strings.Join(lines[i+1:], "")`.
+   Each such element has a meaning and no name: a local, or a method on the type
+   the result belongs to (`R1-primitive-obsession.md`, Name the Container). Then
+   read each changed function and list its statements' altitudes: a named
    method/function call is high; string/index/slice manipulation, type assertions,
    and protocol details are low.
    Violation: both altitudes in the same body — e.g. `strings.SplitN` three lines
    from a business decision. Cite the two lines.
 
 3. **Do block comments narrate sections inside a function body?**
-   Detection: `grep -n '^\s*//' <file>` within function bodies (not doc comments
-   above declarations).
+   Detect-grep: `^\s+//`
+   Detection: indented comment lines within function bodies (not doc comments above
+   declarations, not struct-field comments).
    Violation: a comment naming what the next block does — each is a candidate
-   extraction point; the fix is a function named after the comment.
+   extraction point; the fix is a function named after the comment. Quote each
+   comment's text with its line: the comment is the evidence and the function's name.
 
 4. **Do boolean flags track state across a loop?**
-   Detection: `grep -nE 'var \(|:= false|:= true' <changed files>` near `for` loops;
+   Detect-grep: `:= *(false|true)(, *(false|true))*$|^\s*var [a-z][A-Za-z0-9]* bool$`
+   Detection: hits near `for` loops;
    look for flags set inside the loop and read after it.
    Violation: flag-driven loops — a collection/domain type should absorb the loop
    (see `../examples/storify-leaf-type.md`).
 
 5. **Does any function name lie about side effects?**
+   Detect-grep: `^func (\([^)]*\) )?([Pp]arse|[Vv]alidate|[Ii]s|[Gg]et)[A-Z][A-Za-z0-9]*\(`
    Detection: for each `parse*`/`validate*`/`is*`/`get*` function in the diff, check
    the body for assignments to receiver fields or parameters.
    Violation: a read-sounding name that mutates — rename to a mutating verb or split

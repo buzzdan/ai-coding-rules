@@ -7,7 +7,10 @@ it: rung 0 is pure leaf types (unit tests with literal inputs, 100% coverage, pu
 API only, imported as a consumer would); each rung above adds exactly one real production
 layer; only the true external boundary is ever faked. Orchestrating types get
 integration-style tests that cover the seams between their real collaborators — some
-overlap with leaf coverage is fine; leaf behavior tested *only* from above is not.
+overlap with leaf coverage is fine; leaf behavior tested *only* from above is not. On
+a leaf type, coverage is the floor and the mutation score is the claim: a leaf's
+tests must fail when its logic is changed, and a mutant that survives them is a
+missing row or dead logic.
 
 ## Why
 
@@ -20,7 +23,15 @@ tested with literals, the logic is trapped in an orchestrator and R1/R3 extracti
 is owed (`R1-primitive-obsession.md` Stage 3 shows the payoff — a K8s fixture test
 collapsing into a slice-literal test). Discipline inside the tests matters for the
 same reason: a conditional inside a table case means one case is really two, and a test
-asserting on a fake's internals verifies the double, not the system. The full
+asserting on a fake's internals verifies the double, not the system. Line coverage
+cannot tell either of those apart from a real test: a table that runs every line and
+asserts nothing scores 100%. Mutation testing checks the claim coverage only
+implies — flip a comparison, negate a branch, drop a statement, and rerun the suite;
+a mutant the suite lets live marks logic no test pins down. It is worth its
+runtime exactly where the logic is: rung 0, where the tests are literal tables and
+the suite is fast. Orchestrators are not mutated; their seams are covered by wiring,
+and a mutation run over them pays the harness cost per mutant for findings that
+belong to a leaf anyway. The full
 composition ladder and harness patterns live in @testing; this rule is the placement
 and review contract.
 
@@ -94,6 +105,29 @@ private-function test.
   constructors; inputs are literals; imported as a consumer would, so privates are
   unreachable.
   Most of the codebase's logic should live here (`R1-primitive-obsession.md`).
+- **Mutation score on leaf types only**: once a leaf's tests cover it, run the
+  mutation tool over that leaf's package — never over orchestrators, the top rung or
+  the whole module — and triage every survivor: a *missing row* (add the literal that
+  tells the mutant from the original), *dead logic* (the mutant is unreachable —
+  delete the code, not the mutant), or an *equivalent mutant* (the change is
+  behavior-preserving — note it in the test file, once, with the reason). No survivor
+  is left untriaged; scope the run to the leaf packages the change touched so it
+  stays as fast as the tables it checks.
+- **Mutation mechanics**: `gremlins unleash ./path/to/leaf` (go-gremlins, a Go mutation
+  tester that swaps comparison operators, negates conditions, flips arithmetic and
+  removes statements) over the leaf package, after `go test` is green there and after
+  each fix; its report's `LIVED` lines are the survivors to triage, `KILLED` the rows
+  that hold. In CI, `--threshold-efficacy` on that package only, never on `./...`, so
+  orchestrator packages are not mutated. When `gremlins` is not on `PATH`, propose a
+  `mutate` target beside `test` and `lint` in the repository's Taskfile or Makefile
+  that runs `go install github.com/go-gremlins/gremlins/cmd/gremlins@latest` and then
+  `gremlins unleash ./<leaf>`; with no task runner, propose that `go install` line for
+  the developer to run. Ask first, never install silently, and never substitute a
+  different invocation: a report whose mutants all timed out, with no `LIVED` and no
+  `KILLED` line, is a broken run, not a clean one. gremlins never mutates an equality
+  (`==`, `!=`) or a literal constant, so it cannot ask for the row where an element
+  sorts below the needle or the row on the far side of a limit; the hand check's row
+  at each boundary and one past it covers those two on purpose, not by accident.
 - **Orchestrating types**: integration-style tests wiring real collaborators — real
   store over an embedded DB, real client against an in-process HTTP server — never
   interface-injected doubles (`R6-test-only-interfaces.md`). They cover the seams;
@@ -122,6 +156,9 @@ private-function test.
   first (`../examples/storify-leaf-type.md` shows the pair).
 - **Split Success and Error Tables**: one function asserting values, one asserting
   errors — complexity 1 in both.
+- **Kill the surviving mutant**: add the table row whose literal input distinguishes
+  the mutant from the original; when no input can, the mutated code was dead — delete
+  it; when the mutant is provably equivalent, record why beside the tests.
 - **Replace doubles with real collaborators**: delete the mock, wire the real
   dependency over fake data (`R6-test-only-interfaces.md`; @testing for harnesses).
 - **Replace sleep with synchronization**: an event, channel or wait primitive with a
@@ -134,17 +171,20 @@ private-function test.
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Does any `t.Run` body contain a conditional?**
-   Detection: `grep -rn -A6 't.Run(' --include='*_test.go' . | grep -nE 'if |switch '`
-   and `grep -rn 'wantErr' --include='*_test.go' .`
+   Detect-grep: `\bwantErr\b|^\s*(} else )?if (tt|tc|c|tst|test)\.|^\s*switch (tt|tc|c|test)\.` files=test
+   Detection: a `wantErr` field, or a conditional on the table case inside a `t.Run`
+   body.
    Violation: any conditional inside a case, or a `wantErr bool` field — success and
    error cases are fused; split the functions.
 
 2. **Is any test in the internal package?**
-   Detection: `grep -rn '^package ' --include='*_test.go' . | grep -v '_test$'`
+   Detect-grep: `^package [a-z][a-z0-9]*$` files=test
+   Detection: a test file's `package` line without the `_test` suffix.
    Violation: a test package without the `_test` suffix — it can reach privates;
    move to `pkg_test` and test the public API.
 
 3. **Does a test construct a big object to exercise a leaf behavior?**
+   Detect: judgment
    Detection: read each new/changed test — compare the setup (fixtures, services,
    servers) against the assertion's subject; count setup lines vs. the one predicate
    actually checked.
@@ -152,6 +192,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    owns (or should own) — move the test down a rung, extracting the leaf if needed.
 
 4. **Does a new behavior's test sit above the lowest rung that contains it?**
+   Detect: judgment
    Detection: for each new public method on a leaf type,
    `grep -rn '<Method>' --include='*_test.go' .` — is it exercised directly, or only
    through an orchestrator's test?
@@ -159,12 +200,27 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    orchestrator test keeps only the seam.
 
 5. **Does a test assert on a fake's internals rather than observable behavior?**
-   Detection: `grep -rn 'AssertExpectations\|AssertCalled\|\.calls\b' --include='*_test.go' .`;
-   also flag assertions reading fields of a test double instead of querying the
+   Detect-grep: `AssertExpectations|AssertCalled|\.calls\b` files=test
+   Detection: also flag assertions reading fields of a test double instead of querying the
    system under test.
    Violation: the test verifies the double — assert on real state via the public API
    (and the double itself is likely an R6 finding).
 
 6. **Does any test sleep to synchronize?**
-   Detection: `grep -rn 'time.Sleep' --include='*_test.go' .`
+   Detect-grep: `time\.Sleep` files=test
    Violation: any hit — replace with channels/wait groups.
+
+7. **Does a mutant survive a leaf type's tests?**
+   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*[Ll]en\b)|\b[Ll]en\([^)]*\) *(<=?|>=?|==|!=)`
+   Detection: for each new or changed leaf package,
+   `gremlins unleash ./path/to/leaf | grep -E '^\s*LIVED'`; skip orchestrators, the
+   top rung and any package that does I/O. `gremlins` not on `PATH`: propose the
+   install the mechanics bullet describes before hunting; an empty `LIVED` list from
+   a run that did not execute, or whose mutants all timed out, is not a pass. In a
+   read-only review, where no tests may run, take the hand check instead: list the
+   leaf's comparisons and boolean conditions, check the table for a row at each
+   boundary value and on each side of each condition, and name the row that is
+   missing.
+   Violation: any `LIVED` line on a leaf package that is not recorded as an
+   equivalent mutant — a missing table row or dead logic; name the mutant (file,
+   line, mutation) and the row that would kill it.

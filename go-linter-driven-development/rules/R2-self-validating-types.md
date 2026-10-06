@@ -184,6 +184,11 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
 - **No defensive coding.** Check arguments in the constructor so that methods contain
   zero nil/emptiness checks on their own fields. A method validating its receiver is
   validation in the wrong place.
+- **A vocabulary type carries no checks.** A type that names a container and hangs
+  queries on it (`R1-primitive-obsession.md`, Name the Container) usually has no
+  invariant: any mapping is a valid one. Its constructor copies the container in
+  (`R12-mutation-discipline.md`) and checks nothing. Demanding a validation the type
+  has no rule for is ceremony, not self-validation.
 
 ## Fix pattern
 
@@ -215,6 +220,7 @@ func (s *UserService) CreateUser(ctx context.Context, u User) error {
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Can the type exist in an invalid state?**
+   Detect: judgment
    Detection: for each new/changed type with invariants,
    `grep -rn '<Type>{' --include='*.go' . | grep -v _test.go` for literal
    construction outside its own file; check whether invariant-bearing fields are
@@ -223,8 +229,8 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    gives callers a path around the constructor.
 
 2. **Do methods re-check what the constructor should guarantee?**
-   Detection: `grep -nE 'if [a-z][a-zA-Z]*\.[a-zA-Z]+ == nil|if len\([a-z][a-zA-Z]*\.[a-zA-Z]+\) == 0' <changed files>`
-   inside method bodies.
+   Detect-grep: `if [a-z][a-zA-Z]*\.[a-zA-Z]+ == nil|if len\([a-z][a-zA-Z]*\.[a-zA-Z]+\) == 0`
+   Detection: hits inside method bodies.
    Violation: a method validating its own receiver's fields — the check belongs in
    the constructor. Decide which fix by asking whether the field is required or
    optional: a required collaborator is rejected in the constructor (Hoist method
@@ -233,25 +239,29 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    finding when the code does not say which the field is.
 
 3. **Does a constructor re-validate a composed self-validating type?**
+   Detect: judgment
    Detection: read each `NewX`/`ParseX` in the diff; for every parameter whose type
    has its own constructor, grep the body for checks on that parameter.
    Violation: re-validating a value that could only ever exist valid.
 
 4. **Does the type rely on upstream validation?**
-   Detection: `grep -rn 'caller must\|assumes valid\|already validated' --include='*.go' .`;
-   also flag exported fields consumed by logic in a package that defines no
+   Detect-grep: `[Cc]aller must|[Aa]ssumes valid|[Aa]lready validated|[Dd]efensive|[Rr]e-?check` files=all
+   Detection: also flag exported fields consumed by logic in a package that defines no
    constructor for the type.
    Violation: any invariant enforced — or merely documented — outside the type
-   itself.
+   itself; a value re-validated after the point that validated it (a "defensive
+   re-check") is the same finding, the invariant living in two places and in neither
+   type.
 
 5. **Does anything return or accept nil as a value?**
-   Detection: `grep -nE 'return nil$|return nil, nil' <changed files>` — exempt
-   `return nil, err` and `return val, nil`.
+   Detect-grep: `return nil$|return nil, nil`
+   Detection: exempt `return nil, err` and `return val, nil`.
    Violation: nil returned for a non-error value, or a function nil-checking a
    parameter instead of the value being guaranteed by construction.
 
 6. **Does any call site pass a nil literal as a non-error argument?**
-   Detection: `grep -nE '\(nil[,)]|, nil[,)]' <changed files>` — exempt error
+   Detect-grep: `\(nil[,)]|, nil[,)]`
+   Detection: exempt error
    positions (`return X, nil`), comparisons (`== nil`, `!= nil`), and stdlib
    idioms where nil is the documented sentinel (`http.NewRequest(..., nil)` for
    a bodyless request, marshaling a nil slice/map).

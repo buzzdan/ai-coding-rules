@@ -2,7 +2,7 @@
 
 ## Principle
 
-Domain concepts must not travel as raw `string`/`int`/`bool`/`[]T`. When a primitive
+Domain concepts must not travel as raw strings, numbers, booleans or lists. When a primitive
 carries validation rules, behavior, or a domain name, it becomes a type with a
 validating constructor and named methods. The inverse binds equally: a wrapper that
 adds no validation, no logic, and no invariant is over-abstraction — score before you wrap.
@@ -191,7 +191,9 @@ restate it.
 - Parsing unstructured data into fields: +3
 - Grouping related data that travels together: +2
 - Making implicit structure explicit: +2
-- Replacing an untyped map: +2
+- Replacing a flat container of primitives that crosses a function boundary: +2
+- Replacing a nested container (a container inside a container, a tuple holding more
+  than single primitives): +3
 
 **Usage (simplifies code):**
 - Used in 5+ places: +2
@@ -230,6 +232,43 @@ private fields with accessors beat a wrapper type. Deep worked case — the trie
 extraction, the rejection rationale, and the cheaper alternatives:
 `../examples/overabstraction-cidr.md`.
 
+### Containers of primitives
+
+Primitive obsession has a second form, one level up: a built-in container — a map, a
+list, a set, a tuple — whose parameters are primitives. A map from string to string,
+a pair of a mapping and a string. Such a value is a *shape*, not a concept: its type
+says how the data is stored and nothing about what the data means. Three tiers decide
+the verdict:
+
+1. **Flat, local, named.** One container of primitives, built and read inside one
+   function, under a telling name (`namesByUserID`, `header`). Not a finding. The
+   variable name carries the meaning, and no other code sees the shape. This is the
+   cheaper alternative the skeptic ships when a container type scores low.
+2. **Flat, crossing a boundary.** The same container returned from a function or
+   accepted as a parameter. A signature cannot carry the meaning the way a variable
+   name does, so read every receiver and list what it *does* with the value: a
+   lookup by key, a membership test, a length check, a write, a loop that filters by
+   key or value and pulls a part out. Each operation is a method of a type that does
+   not exist yet. The filtering loop is the strongest lead — "walk the headers, keep
+   the one named Authorization, strip the Bearer prefix" is `headers.authToken()`
+   already written, missing only its name and its owner. Two or more such operations,
+   or two or more receivers, and the container is a hidden abstraction (Tell, don't
+   ask — `../maxims.md`; the loop is also R3's "extracted steps want owners"). A
+   pure pass-through under a telling parameter name is not a finding.
+3. **Nested.** A container inside a container, or a tuple holding anything beyond
+   single primitives: a map of maps, a map from string to a list, a pair of a
+   mapping and a string. Always a finding, whatever the receivers do. The inner shape
+   already *is* a type; it only has no name. A single collection *of a domain type*
+   (a list of ports, a strategy map of handlers keyed by an enum —
+   `R11-conditional-dispatch.md`) is not nesting: its element has a name.
+
+The move is **Name the Container** (Fix pattern below). The new type is usually
+vocabulary, not a validated value: a wrapper around a mapping with named queries has
+no invariant to check, so `R2-self-validating-types.md` asks nothing of its
+constructor beyond copying the container in (`R12-mutation-discipline.md`). Score
+it like any type: the receivers' operations are its methods and earn the scorecard's
+"noun the story needs" points.
+
 ### Placement
 
 A juicy type must also land in the right package — feature-scoped versus
@@ -241,10 +280,11 @@ Stage 2 shows it applied.
 - **Replace Primitive with Domain Type**: introduce `ParseX(raw)`, returning the value
   or an error (`R2-self-validating-types.md`); migrate call sites so raw values cross into `X`
   exactly once, at the boundary.
-- **Extract Collection Type**: when logic loops over `[]primitive` or `[]DTO`, wrap
-  the slice (`type Ports []Port`) and move the loop into a named query method.
-- **Replace Sentinel with comma-ok**: `return 0` / `return ""` meaning
-  absence/invalidity → an explicit absence result, or an error.
+- **Extract Collection Type**: when logic loops over `[]primitive` or `[]DTO`, or
+  walks a map with a filter, wrap the container (`type Ports []Port`) and move the
+  loop into a named query method.
+- **Replace Sentinel with Declared Absence**: `return 0` / `return ""` meaning
+  absence/invalidity → a declared absence result, or an error.
 - **Name enum strings**: `if status == "READY"` → `type Status string` with
   `const StatusReady Status = "READY"`. The same move owns a string *assigned* from a
   fixed set of literals: `scheme := "http"; if tls { scheme = "https" }` written in two
@@ -257,6 +297,15 @@ Stage 2 shows it applied.
   type — that is the scorecard's "grouping related data that travels together" made
   concrete. Prefer passing the whole object over re-exploding its fields at the next
   call (Preserve Whole Object).
+- **Name the Container**: a nested container, or a flat container of primitives that
+  crosses a function boundary and is operated on by its receivers, becomes a named
+  type that holds the container, with the receivers' lookups, filters and loops as
+  its named methods (see "Containers of primitives" above for the three tiers). A
+  tuple result is this move in its smallest form: the pair gets a name and each
+  element gets a field name — Introduce Parameter Object applied to a result. Never a
+  bare alias of the container with no method: that is the over-abstraction trap, and
+  the cheaper alternative for a flat container inside one function is a telling
+  variable name.
 - **Over-abstraction found instead?** Apply the cheaper alternative — better naming,
   or private fields + accessors — per `../examples/overabstraction-cidr.md`.
 - Multi-rule refactoring procedure (sequencing extraction with storifying):
@@ -268,15 +317,16 @@ Stage 2 shows it applied.
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Does the diff validate a primitive inline instead of constructing a type?**
-   Detection: `grep -nE '^\s*(el)?if .*\b[a-zA-Z_.]+ (==|!=) ""|^\s*(el)?if .*\b[a-zA-Z_.]+ (<=?|>=?) [0-9]|^\s*(el)?if not [a-zA-Z_.]+:' $(git diff --name-only -- '*.py')`
-   — the check often sits second in a compound condition (`if failed or days <= 0
-   or days > 365`), so the pattern reads the whole `if` line, not its first clause;
-   `if not host:` is Python's emptiness check and counts.
+   Detect-grep: `^\s*(el)?if .*\b[a-zA-Z_.]+ (==|!=) ""|^\s*(el)?if .*\b[a-zA-Z_.]+ (<=?|>=?) [0-9]|^\s*(el)?if not [a-zA-Z_.]+:`
+   Detection: the check often sits second in a compound condition (`if failed or
+   days <= 0 or days > 365`), so the pattern reads the whole `if` line, not its first
+   clause; `if not host:` is Python's emptiness check and counts.
    Violation: an emptiness/range/format check on a parameter or DTO field that names
    a domain concept (port, id, email, path, addr), outside a `__post_init__`, a
    `parse` classmethod or a pydantic validator.
 
 2. **Is the same predicate enforced in more than one place?**
+   Detect: judgment
    Detection: for each predicate found above, grep its normalized form across the
    package, e.g. `grep -rn '0 < .* <= 65535' --include='*.py' .` — count hits (a
    chained comparison and its `and`-joined twin, `0 < p and p <= 65535`, are one
@@ -284,12 +334,12 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Violation: ≥2 hits — the rule has no single owner; a type is missing.
 
 3. **Does named behavior run on a bare primitive?** Loops/matches over `list[str]`,
+   Detect-grep: `== "[A-Z_]+"|case "[a-z_]+":|^\s*[a-z]\w* = "[a-z]+"$`
    string-literal status comparisons, format logic on a `str` field, a variable
    assigned one of a fixed set of literals under a flag.
-   Detection: `grep -rnE '== "[A-Z_]+"|case "[a-z_]+":' --include='*.py' .` for
-   enum-shaped comparisons and `match` arms on raw strings;
-   `grep -rnE '^\s*[a-z]\w* = "[a-z]+"$' --include='*.py' .` for a literal assigned
-   to a variable, then read whether the same variable takes a second literal under a
+   Detection: the first two alternatives find enum-shaped comparisons and `match`
+   arms on raw strings; the third a literal assigned to a variable, then read whether
+   the same variable takes a second literal under a
    condition (`scheme = "http"; if tls: scheme = "https"`) and whether that pair
    appears in more than one function; inspect the diff for loops whose body
    interprets a primitive. A `Literal["email", "slack"]` annotation names the set
@@ -298,10 +348,11 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    (a `StrEnum` with methods, a frozen dataclass) would carry it.
 
 4. **Does any function return a sentinel to mean "not found / invalid"?**
-   Detection: `grep -nE 'return (0|""|-1|None)\s*(#.*)?$' $(git diff --name-only -- '*.py')`,
-   then read each hit's signature: the hit is a sentinel when the return annotation
+   Detect-grep: `return (0|""|-1|None)\s*(#.*)?$`
+   Detection: read each hit's signature: the hit is a sentinel when the return annotation
    promises a real value (`-> Device`, `-> int`) and the body returns `None`, `0` or
-   `""` for the missing case. mypy reports that `None` as `return-value`, so a
+   `""` for the missing case. ty reports that `None` as `invalid-return-type` and mypy
+   as `return-value`, so a `# ty: ignore[invalid-return-type]` or a
    `# type: ignore[return-value]` on the line is the same hit, silenced. A
    `-> X | None` signature is a declared absence and is not this question, as long
    as the `None` means "not there" and never "it failed" (R2 Q5 owns that line). A
@@ -310,6 +361,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    or an exception for a failure; never `tuple[X, bool]`.
 
 5. **Do the same parameters travel together across signatures?**
+   Detect-grep: `^\s*def [A-Za-z_][A-Za-z0-9_]*\([^)]*,[^)]*,`
    Detection: for each changed function with ≥3 parameters, grep the package for the
    same parameter-name pair/trio in other signatures, e.g.
    `grep -rnE 'def .*host: str.*port: int' --include='*.py' .`; ruff `PLR0913`
@@ -319,6 +371,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    scorecard, plus its usage points).
 
 6. **Inverse — is a NEW type in the diff mere ceremony?**
+   Detect-grep: `^class [A-Z][A-Za-z0-9]*\((str|int|float)\):|^[A-Z][A-Za-z0-9]* = NewType\(`
    Detection: count its methods (`grep -cE '^    def ' <file>` between the `class`
    line and the next top-level statement) and check whether any method does more
    than unwrap or rename the primitive; score it with the scorecard above. A
@@ -327,3 +380,31 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Violation: Score 0-1, or the only method is `return str(self)` —
    over-abstraction; the finding must cite the cheaper alternative
    (`../examples/overabstraction-cidr.md`).
+
+7. **Does a nested container appear in a signature or a field?**
+   Detect-grep: `(dict|list|tuple|set|frozenset|Mapping|Sequence|Iterable)\[[^]]*(dict|list|tuple|set|frozenset|Mapping|Sequence)\[`
+   Detection: the pattern finds a container annotation whose parameter is itself a
+   container — `dict[str, list[str]]`, `tuple[dict[object, object], str]`,
+   `list[tuple[str, int]]` — in signatures, dataclass fields and module constants.
+   Read the hit: `tuple[X, ...]` is an immutable sequence of `X`, one level, and
+   `dict[Kind, Handler]` is a strategy map (R11); both are a single collection of a
+   named type and are not this question.
+   Violation: every remaining hit. The inner shape is a type with no name — Name the
+   Container: a `NamedTuple` or frozen dataclass whose fields are the elements, or a
+   class holding the mapping with the receivers' queries as methods (a nested
+   container is +3 on the scorecard).
+
+8. **Does a flat container of primitives cross a function boundary?**
+   Detect-grep: `-> (dict|list|set|frozenset|tuple|Mapping|Sequence|Iterable)\[|^\s*def .*: (dict|Mapping)\[`
+   Detection: the pattern finds a return annotation that is a container and a
+   parameter annotated as a mapping. For each hit whose parameters are primitives
+   (`dict[str, str]`, `tuple[str, str]`, `list[str]`), read every receiver and list
+   what it does with the value: `[key]`, `.get(`, `in`, `len(`, a write, a `for k, v
+   in …` loop that filters by key or value and extracts a part (grep the receivers
+   for `for [a-z_]+, [a-z_]+ in`). The filtering loop is the strongest lead: it is a
+   method already written. A hit already reported under Q7 belongs to Q7.
+   Violation: two or more such operations, or two or more receivers, and no type owns
+   them — a hidden abstraction; Name the Container (flat-crossing is +2 on the
+   scorecard, and each named operation earns the "noun the story needs" points). A
+   pass-through under a telling parameter name, or a container built and read inside
+   one function, is not a finding.

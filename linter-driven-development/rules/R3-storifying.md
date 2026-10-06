@@ -79,6 +79,13 @@ helpers were renamed `alignIPv4`/`alignIPv6` — "align" admits the side effect 
   `R4-helper-placement.md`. Storifying is how leaf types are discovered.
 - **Boolean flags tracking loop state** (`addrIP4Added`, `isClusterCIDRSet`) signal a
   collection or domain type waiting to absorb the loop.
+- **A loop that filters a container and extracts** — walk the entries, keep the one
+  whose key or value matches, pull a part out of it — is a method already written,
+  missing only its name and its owner. It belongs on the container's type:
+  `R1-primitive-obsession.md`, Name the Container. The same goes for an expression
+  built inline in a `return` or an argument (a join over a slice of the input): it
+  has a meaning, so it gets a name — a local, or a method on the type the result
+  belongs to.
 - **Honest naming.** A name must reveal side effects: `align`/`upsert`/`set` mutate;
   `parse`/`validate`/`is` must not. A `validateX` that mutates is a storifying bug
   even if the flow reads well.
@@ -113,6 +120,7 @@ helpers were renamed `alignIPv4`/`alignIPv6` — "align" admits the side effect 
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Does any changed function exceed the size/shape limits?**
+   Detect: judgment
    Detection: run the repository's complexity linters on the changed files where it
    has them (cyclomatic and cognitive complexity, function length); or count — lines
    per function from its declaration to its closing line, and eyeball nesting depth.
@@ -120,6 +128,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    narrating.
 
 2. **Does one body mix abstraction levels?**
+   Detect: judgment
    Detection: read each changed function and list its statements' altitudes: a named
    method/function call is high; string/index/slice manipulation, type checks, and
    protocol details are low.
@@ -127,19 +136,23 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    a business decision. Cite the two lines.
 
 3. **Do block comments narrate sections inside a function body?**
+   Detect: judgment
    Detection: find comment lines inside function bodies (the language's comment
    marker at the start of an indented line, not the doc comment above a
    declaration).
    Violation: a comment naming what the next block does — each is a candidate
-   extraction point; the fix is a function named after the comment.
+   extraction point; the fix is a function named after the comment. Quote each
+   comment's text with its line: the comment is the evidence and the function's name.
 
 4. **Do boolean flags track state across a loop?**
+   Detect-grep: `= (false|true|False|True)$`
    Detection: in the changed files, find variables initialized to `false`/`true`
    near loops; look for flags set inside the loop and read after it.
    Violation: flag-driven loops — a collection/domain type should absorb the loop
    (the Extract Leaf Type move below).
 
 5. **Does any function name lie about side effects?**
+   Detect: judgment
    Detection: for each `parse*`/`validate*`/`is*`/`get*` function in the diff, check
    the body for assignments to receiver fields or parameters.
    Violation: a read-sounding name that mutates — rename to a mutating verb or split

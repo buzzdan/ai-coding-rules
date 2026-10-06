@@ -115,7 +115,7 @@ The three switches are gone — call sites read `a.channel.send(a)`,
 unrepresentable past the boundary. Adding SMS is one new class plus one entry in
 `CHANNELS` — existing modules untouched, and each channel's behaviour unit-tests as a
 leaf with literals. Where one switch legitimately stays — a single site over a closed
-enum — it is a `match` whose last arm is `case _: assert_never(x)`, so mypy fails the
+enum — it is a `match` whose last arm is `case _: assert_never(x)`, so ty fails the
 build when a variant is added but not handled; that arm is the completeness proof,
 not an "unknown kind" default. Full worked study including the strategy-map variant
 and the rejection counter-case: `../examples/anti-if-dispatch.md`.
@@ -152,8 +152,8 @@ and the rejection counter-case: `../examples/anti-if-dispatch.md`.
   `../examples/switch-to-polymorphism.md`.
 - **Interface vs strategy map.** Variants with several behaviors or state → interface
   with one type per variant. Variants that differ by a single function → a map
-  (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
-  comma-ok check is a dispatch, not a conditional. Either way the decision has one
+  from kind to function — a map lookup whose missing-key case is a declared absence
+  is a dispatch, not a conditional. Either way the decision has one
   owner.
 - **Null object over None-checks.** A scattered "if the logger is set, log" is
   the same disease with two variants. Construct a do-nothing value once; delete every
@@ -191,8 +191,9 @@ and the rejection counter-case: `../examples/anti-if-dispatch.md`.
   the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
   the caller owns the shared fields, each variant fills its own
   (`../examples/switch-to-polymorphism.md`).
-- **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
-  `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
+- **Replace If-Chain with Strategy Map**: single-behavior variance → a package-level
+  map from kind to function (or a field), the missing-key case handled at the
+  boundary only.
 - **Introduce Null Object**: absent-collaborator None-checks → a do-nothing value
   substituted by the constructor when none is given; delete the guards. A no-op
   implementation when an interface already exists, otherwise a value of the concrete
@@ -216,9 +217,8 @@ and the rejection counter-case: `../examples/anti-if-dispatch.md`.
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Is the same discriminator inspected in more than one place?**
-   Detection: list discriminators in the diff —
-   `grep -nE 'match [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level)\b' $(git diff --name-only -- '*.py')`
-   and if-chain forms `grep -nE 'if [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level) ==' ...`;
+   Detect-grep: `match [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level)\b|if [a-zA-Z_.]+\.(type|kind|status|mode|channel|format|level) ==`
+   Detection: the hits list the diff's discriminators, `match` and if-chain forms;
    then count each across the package: `grep -rnE 'match .*\.<field>|\.<field> ==|\.<field> in \(' --include='*.py' . | wc -l`.
    A `dict` of callables keyed by the field is a dispatch site too — the healthy
    one when it is the only one; a `.get(kind, fallback)` on such a dict deep in
@@ -231,8 +231,8 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    class.
 
 2. **Does a type switch dispatch on concrete types outside a boundary?**
-   Detection: `grep -rnE 'isinstance\([a-zA-Z_.]+, [A-Z]|case [A-Z][A-Za-z]*\(' --include='*.py' .` —
-   an `isinstance` chain or a `match` with class patterns; for each hit, is it in a
+   Detect-grep: `isinstance\([a-zA-Z_.]+, [A-Z]|case [A-Z][A-Za-z]*\(`
+   Detection: an `isinstance` chain or a `match` with class patterns; for each hit, is it in a
    `parse`/decoder/boundary adapter, or in business logic?
    Violation: a type switch in domain logic whose cases call variant-specific
    behavior or unpack the variants' fields — the behavior belongs on the variants.
@@ -246,20 +246,21 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    types, and decoding foreign JSON into your own types, are not this pattern.
 
 3. **Does a `case _:` (or trailing `else`) handle "unknown kind" away from the boundary?**
+   Detect: judgment
    Detection: for each `match` found in Q1, read the `case _:` arm; for each
    if-chain, the trailing `else`; for each strategy dict, any `.get(k, default)`.
    Violation: a `case _:` that raises `ValueError("unknown kind")`, logs, or
    returns a fallback deep in the call graph — the maybe-unknown concept leaked past
    construction; dispatch should have been chosen at `parse`. The one `case _:`
    that is not a finding is `case _: assert_never(x)` closing a `match` over an
-   `Enum` or a `Literal`: it is the completeness proof mypy checks, not a default.
+   `Enum` or a `Literal`: it is the completeness proof ty checks, not a default.
    A `match` over an `Enum` with no such arm is incomplete silently — ruff has no
-   exhaustiveness rule, and mypy checks only when `assert_never` asks it to — so
+   exhaustiveness rule, and ty checks only when `assert_never` asks it to — so
    the missing arm is itself a finding under Keep the Single Exhaustive Switch.
 
 4. **Does a boolean parameter select between behaviors?**
-   Detection: `grep -nE 'def .*\(.*\b[a-z_]+: bool' $(git diff --name-only -- '*.py')`,
-   and ruff `FBT001` (boolean positional parameter) / `FBT003` (boolean positional
+   Detect-grep: `def .*\(.*\b[a-z_]+: bool`
+   Detection: ruff `FBT001` (boolean positional parameter) / `FBT003` (boolean positional
    call argument) where the repository enables them; check whether the function
    branches on the flag near the top.
    Violation: a positional boolean parameter is always the finding — the lint-fixer
@@ -269,6 +270,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    into two named functions.
 
 5. **Inverse — is a NEW dispatch abstraction in the diff unearned?**
+   Detect: judgment
    Detection: for each new `Protocol`/ABC hierarchy, strategy dict or
    `singledispatch` in the diff, count production implementations/entries and the
    number of sites the old conditional occupied (`git log -p` or the pre-diff file).

@@ -102,12 +102,22 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    them. Fix every hit before reporting.
 7. **Comment critique**: spawn the `python-linter-driven-development:comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
-   are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
-   section pasted verbatim (toolbox kinds, three-test standard, tiers, budget
-   accounting, visibility default); (b) reference.md's Comment Value Toolbox
-   catalog pasted verbatim; (c) the absolute path to
-   `../../examples/private-comment-noise.md`; (d) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
-   fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
+   are in scope too. Its spawn prompt MUST contain: (a) the absolute path of
+   `../../rules/R9-repo-brain.md` and the range of its comment-policy section
+   (toolbox kinds, three-test standard, tiers, budget accounting, visibility
+   default): `sed -n '/^### Comment policy/,/^### Edge conventions/p'`; (b) the
+   absolute path of this skill's `reference.md` and the range of its Comment Value
+   Toolbox catalog: `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`
+   — the critic reads both ranges in its first turn, never a file whole; nothing is
+   pasted, and this skill reads neither to spawn it; (c) the absolute path to
+   `../../examples/private-comment-noise.md`; (d) the diff scope — this skill writes
+   no scope bundle, so the critic builds its inventory from the diff in its first
+   turn; (e) the count of comment lines the diff adds and the critic's budget in one
+   line: `N added comment lines, no bundle — budget: the first turn, then at most
+   four calls that open touched files for context, several files each (every tool
+   counts; never a sweep of the repository), then the verdicts. Report non-KEEP
+   verdicts and the tally.` Apply every
+   non-KEEP verdict (this skill is the rung-1 fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
    `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the
    caller — never fixed here (extraction is @refactoring's move). Then re-spawn
    the critic ONCE to confirm clean; a still-dirty re-critique is reported as-is,
@@ -143,7 +153,7 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    edge, add ONE line — `# See <docroot>/<file>.md ...` — to the front-door anchor's
    existing doc comment (anchor heuristic in reference.md), then confirm the module
    still imports (`python -c "import <module>"`) or the type check still passes
-   (`mypy <file>`) — the edge is a docstring line, so the only way to break it is a
+   (`ty check <file>` or `mypy <file>`) — the edge is a docstring line, so the only way to break it is a
    quoting or indentation error. Python files only — the gate verifies edges in
    `.py` files alone, so an edge in another language is unverifiable; report such
    docs as unwired instead of improvising. Wiring only: never rewrite the comment around it, never wire a stale

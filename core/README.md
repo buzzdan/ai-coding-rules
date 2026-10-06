@@ -4,22 +4,22 @@
 rules, skills, agents, commands and the repo-brain gate, written once and rendered
 per language. `lang/<lang>/` holds one binding per language: a `profile.yaml` with
 the scalars the templates substitute, the snippet files they include, whole-file
-overrides, and `passthrough/` for files copied into the plugin unchanged. Four
+overrides, and `passthrough/` for files copied into the plugin unchanged. Three
 bindings exist: `lang/go/` renders `go-linter-driven-development/`; `lang/python/`
 renders `python-linter-driven-development/`, adding a file wherever Python knowledge
 beats detection and recording its positions in `docs/language-residue.md`, "The
-Python binding"; `lang/ts-react/` renders `ts-react-linter-driven-development/` the
-same way for a React application in TypeScript ("The ts-react binding" there); and
-`lang/generic/` renders `linter-driven-development/`, the plugin for repositories
-without a language binding — its profile holds phrases the model reads as
-instructions, and it adds a file only where detection differs from knowledge
-(`docs/language-residue.md`, "The generic binding").
+Python binding"; and `lang/generic/` renders `linter-driven-development/`, the plugin
+for repositories without a language binding — its profile holds phrases the model
+reads as instructions, and it adds a file only where detection differs from
+knowledge (`docs/language-residue.md`, "The generic binding").
 
 `tools/ldd-gen` renders `core/` plus a binding into the plugin directory the
-marketplace serves. Edit sources here or under `lang/`, run `task generate` (and
-`task generate BINDING=python`, `task generate BINDING=ts-react`, `task generate
-BINDING=generic`), and commit all of them; `task check` fails when a plugin
-directory differs from its rendering.
+marketplace serves, and, for a binding whose profile names one, the standalone
+coding-rules handbook outside it (`coding-rules/go.md`, `coding-rules/python.md`,
+`coding-rules/generic.md`; "The handbook" below). Edit
+sources here or under `lang/`, run `task generate` (and `task generate
+BINDING=python`, `task generate BINDING=generic`), and commit all of them; `task
+check` fails when a plugin directory or a handbook differs from its rendering.
 
 ## Templating
 
@@ -73,6 +73,47 @@ File-level rules the generator applies without template syntax:
 Include files carry no leading or trailing blank lines; the surrounding template
 owns them. That is what keeps a rendered file byte-identical to a hand-written one.
 
+## The handbook
+
+`handbook/coding-rules.md` is the one core file that is not a plugin file: it is the
+template of the standalone coding-rules document a team reads without the plugin,
+rendered for every binding whose profile names a `handbook:` path (a clean relative
+markdown path under the repository root, outside every plugin directory, such as
+`coding-rules/go.md`). `task generate` writes it, `task check` compares it, and a
+file at that path that does not open with the generator's marker comment is never
+overwritten. The rendered document restates nothing: besides `{{include}}`, the
+template has five extraction functions that read the rules the plugin already
+carries, so the handbook cannot drift from the plugin. A handbook for any binding
+other than Go is also a residue gate: the render fails on any hard or soft residue
+token in the rendered text, except the decided asides `interface` and `struct`,
+because a Principle that reads as Go with no same-language example beside it is a
+core sentence that wants a neutral rewrite.
+
+| Construct | Renders |
+|---|---|
+| `{{section "rules/R1-primitive-obsession.md" "Principle"}}` | the body of that `## ` section of the core file, through the binding, with `` `Rn-….md` `` references shortened to `Rn` |
+| `{{moves "rules/R1-primitive-obsession.md"}}` | the bold leads of the rule's Fix-pattern bullets, joined with ` · `; a lead that is a sentence (opens with an article, carries a comma, ends in punctuation) is guidance, not a move, and is left out |
+| `{{questions "rules/R1/falsifying-questions.md" 1 4}}` | the bold headlines of the numbered questions in that include — the binding's file, else the core default — for the numbers given, or all of them with none; a number the file lacks is an error |
+| `{{maxim "Tell, don't ask"}}` | `**Tell, don't ask.**` followed by that maxim's `**Ask:**` paragraph from `maxims.md` |
+| `{{reviews "handbook/house-rules.md"}}` | the `**Review:**` lines of that include, joined with ` · ` |
+
+What the binding supplies, under `lang/<lang>/handbook/`: `R1/example.md` to
+`R12/example.md`, one short before-and-after per rule with an optional aside on the
+language's position (`> **In Go:** …`); `house-rules.md`, the rules that exist only
+in that language, each a `### ` heading, a short principle and one `**Review:**`
+line; and `mechanics.md`, extra rows for the mechanics table. The examples have a
+core default under `core/includes/handbook/Rn/example.md`: the same before-and-after
+in the pseudocode dialect of the canonical examples, closed by a `> **Spelling:**`
+aside that names the per-language form of what the fence leaves abstract (failure,
+absence, visibility, the spawn and the join). The generic binding renders those
+defaults as they are; a language binding writes all twelve of its own. `house-rules.md`
+and `mechanics.md` have no core default: a binding that names a `handbook:` path
+writes both. The shared
+house rules `H1…` are core: `core/includes/handbook/Hn/rule.md` states each once,
+and `Hn/spelling.md` carries the language's aside and its `**Review:**` line, with a
+neutral core default a binding replaces. How to read
+and consume the result: `docs/handbook.md`.
+
 ## What stays in the binding
 
 Some Go-owned files have no portable text worth extracting, or their seams are not
@@ -82,8 +123,7 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
 - `skills/testing/reference.md` and `skills/testing/examples/`: a Go test-harness
   catalogue. The generic binding ships a short `skills/testing/reference.md` of its
   own that says so and points at the repository's test utilities; the Python binding
-  ships a short pytest catalogue in the same shape, and the ts-react binding a
-  Vitest, React Testing Library and MSW catalogue.
+  ships a short pytest catalogue in the same shape.
 - `README.md`, `CHANGELOG.md`, `.claude-plugin/plugin.json`, `hooks/`: describe or
   configure the Go plugin itself.
 
@@ -95,8 +135,7 @@ differently from the other bindings:
   the skeptic's operating rule — in core, and renders every code section (a fence
   with the paragraphs that narrate its identifiers) from an include under
   `examples/<case>/`. The Go binding's sections are cut from the original text; the
-  Python binding's are written in Python, the ts-react binding's in TypeScript and
-  TSX. The generic binding declares
+  Python binding's are written in Python. The generic binding declares
   `include_fallback: {from: go, under: examples/}` in its profile, so it reads the
   Go sections, and adds the demonstration note through
   `examples/language-note.md` — the one include that carries its own leading and
@@ -111,14 +150,20 @@ differently from the other bindings:
   code-comments checklist and the bug-fix examples are includes, with the Go text
   under `lang/go/skills/documentation/reference/` and neutral defaults under
   `core/includes/`.
+- `scripts/ldd-detect.sh`, `scripts/ldd-scope.sh` and `scripts/ldd-detect_test.sh`,
+  the review's detection pass, its scope bundle and their fixture matrix, are core
+  templates that read two includes with no core default: `scripts/ldd-lang.sh`, the
+  language block (source glob, test-file test, suppression directive, comment marker
+  and its directive forms), and `scripts/ldd-fixture.sh`, the fixture rows the matrix
+  runs. Every binding writes both; the generic binding's block detects the language
+  from the repository's marker file, as its repo-brain adapter does.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The
   Go binding keeps its previous matrix verbatim as the one override in this
   repository, `lang/go/overrides/scripts/check-repo-brain_test.sh`, so the Go plugin
   stays byte-identical; the override goes when a Go release adopts the promoted
-  matrix with a Go fixture include. The Python and ts-react bindings each run one
-  row of their own.
+  matrix with a Go fixture include.
 
 ## Residue
 
@@ -137,20 +182,20 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (111 lines):
+Soft residue by token (115 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
-| interface | 80 | 23 |
+| interface | 85 | 24 |
 | Go code fence | 12 | 1 |
-| struct | 7 | 5 |
 | Go (the word) | 6 | 4 |
+| struct | 6 | 4 |
 | Go stdlib | 5 | 4 |
 | race detector | 2 | 2 |
 | func | 1 | 1 |
 | sync. | 1 | 1 |
 
-Soft residue by file (111 lines):
+Soft residue by file (115 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -163,9 +208,11 @@ Soft residue by file (111 lines):
 | `examples/anti-if-dispatch.md` | 5 | 1 |
 | `includes/rules/R11/falsifying-questions.md` | 5 | 1 |
 | `skills/code-designing/SKILL.md` | 5 | 1 |
-| `skills/refactoring/SKILL.md` | 4 | 2 |
+| `skills/refactoring/reference.md` | 4 | 1 |
 | `skills/testing/SKILL.md` | 4 | 1 |
+| `includes/handbook/R6/example.md` | 3 | 1 |
 | `includes/skills/documentation/reference/doc-comment-menus.md` | 3 | 1 |
+| `includes/handbook/R11/example.md` | 2 | 1 |
 | `includes/rules/R10/falsifying-questions.md` | 2 | 2 |
 | `agents/overabstraction-skeptic.md` | 1 | 1 |
 | `examples/storify-leaf-type.md` | 1 | 1 |
@@ -184,5 +231,4 @@ Soft residue by file (111 lines):
 | `rules/R2-self-validating-types.md` | 1 | 1 |
 | `rules/R7-test-placement.md` | 1 | 1 |
 | `skills/linter-driven-development/SKILL.md` | 1 | 1 |
-| `skills/refactoring/reference.md` | 1 | 1 |
 <!-- residue:end -->

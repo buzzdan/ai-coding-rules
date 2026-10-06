@@ -147,8 +147,8 @@ Full worked study including the strategy-map variant and the rejection counter-c
   `../examples/switch-to-polymorphism.md`.
 - **Interface vs strategy map.** Variants with several behaviors or state → interface
   with one type per variant. Variants that differ by a single function → a map
-  (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
-  comma-ok check is a dispatch, not a conditional. Either way the decision has one
+  from kind to function — a map lookup whose missing-key case is a declared absence
+  is a dispatch, not a conditional. Either way the decision has one
   owner.
 - **Null object over nil-checks.** A scattered "if the logger is set, log" is
   the same disease with two variants. Construct a do-nothing value once; delete every
@@ -186,8 +186,9 @@ Full worked study including the strategy-map variant and the rejection counter-c
   the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
   the caller owns the shared fields, each variant fills its own
   (`../examples/switch-to-polymorphism.md`).
-- **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
-  `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
+- **Replace If-Chain with Strategy Map**: single-behavior variance → a package-level
+  map from kind to function (or a field), the missing-key case handled at the
+  boundary only.
 - **Introduce Null Object**: absent-collaborator nil-checks → a do-nothing value
   substituted by the constructor when none is given; delete the guards. A no-op
   implementation when an interface already exists, otherwise a value of the concrete
@@ -211,15 +212,15 @@ Full worked study including the strategy-map variant and the rejection counter-c
 Answer each with evidence (`file:line`, command output) — never a bare verdict.
 
 1. **Is the same discriminator inspected in more than one place?**
-   Detection: list discriminators in the diff —
-   `grep -nE 'switch [a-zA-Z_.]+\.(Type|Kind|Status|Mode|Channel|Format|Level)\b' $(git diff --name-only -- '*.go')`
-   and if-chain forms `grep -nE 'if [a-zA-Z_.]+\.(Type|Kind|Status|Mode|Channel|Format|Level) ==' ...`;
+   Detect-grep: `switch [a-zA-Z_.]+\.(Type|Kind|Status|Mode|Channel|Format|Level)\b|if [a-zA-Z_.]+\.(Type|Kind|Status|Mode|Channel|Format|Level) ==`
+   Detection: the hits list the diff's discriminators, switch and if-chain forms;
    then count each across the package: `grep -rn 'switch .*\.<Field>' --include='*.go' . | wc -l` (plus `== ` comparisons on the same field).
    Violation: ≥2 sites inspecting one discriminator — the decision has no single
    owner; route to Interface Dispatch or Strategy Map.
 
 2. **Does a type switch dispatch on concrete types outside a boundary?**
-   Detection: `grep -rn 'switch .* := .*\.(type)' --include='*.go' .` — for each hit,
+   Detect-grep: `switch [^{]*\.\(type\)`
+   Detection: for each hit,
    is it in a `ParseX`/decoder/boundary adapter, or in business logic?
    Violation: a type switch in domain logic whose cases call variant-specific
    behavior or unpack the variants' fields — the behavior belongs on the variants.
@@ -233,17 +234,19 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    decode/unmarshal of foreign types are not this pattern.
 
 3. **Does a `default:` (or trailing `else`) handle "unknown kind" away from the boundary?**
+   Detect: judgment
    Detection: for each switch found in Q1, check the `default` arm for
    `errors.New`/`fmt.Errorf`/panic on an unknown-kind message.
    Violation: unknown-kind errors deep in the call graph — the maybe-unknown concept
    leaked past construction; dispatch should have been chosen at `ParseX`.
 
 4. **Does a boolean parameter select between behaviors?**
-   Detection: `grep -nE 'func .*\(.*\b(is|use|with|enable|skip)[A-Za-z]* bool' $(git diff --name-only -- '*.go')`;
-   check whether the function branches on it near the top.
+   Detect-grep: `func .*\(.*\b(is|use|with|enable|skip)[A-Za-z]* bool`
+   Detection: check whether the function branches on it near the top.
    Violation: a flag argument whose branches share little code — Split Flag Argument.
 
 5. **Inverse — is a NEW dispatch abstraction in the diff unearned?**
+   Detect: judgment
    Detection: for each new interface/strategy map in the diff, count production
    implementations/entries and the number of sites the old conditional occupied
    (`git log -p` or the pre-diff file).

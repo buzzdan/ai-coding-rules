@@ -40,7 +40,9 @@ R4's feature-envy question are graduates of exactly this path.
 decision belong on the type that owns the value?
 
 **Compiled into:** `rules/R11-conditional-dispatch.md` (asking what a value *is*),
-`rules/R4-helper-placement.md` Q6 (feature envy — asking for data to decide with).
+`rules/R4-helper-placement.md` Q6 (feature envy — asking for data to decide with),
+`rules/R1-primitive-obsession.md` Q8 (what a receiver does with a container it was
+handed — each operation is a method of the type that should own it).
 
 ### Talk to your friends, not your friends' friends
 — The Law of Demeter (Karl Lieberherr)
@@ -72,7 +74,8 @@ illegal state).
 ### Parse, don't validate
 — Alexis King
 
-**Ask:** does this check produce a *more-typed value* (`ParseX(raw) (X, error)`), or
+**Ask:** does this check produce a *more-typed value* (a parse function that returns
+the value or fails), or
 just a boolean the next caller must remember? Validation that returns proof is
 parsing; validation that returns advice is a latent re-check.
 

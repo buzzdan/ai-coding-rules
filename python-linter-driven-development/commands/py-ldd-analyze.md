@@ -28,7 +28,7 @@ Search project documentation to find test and lint commands:
    - `README.md` (project documentation)
    - `Makefile` (look for `test:` and `lint:` targets)
    - `Taskfile.yaml` (look for `test:` and `lint:` tasks)
-   - `pyproject.toml` (`[tool.ruff]`, `[tool.mypy]`, `[tool.pytest.ini_options]`),
+   - `pyproject.toml` (`[tool.ruff]`, `[tool.ty]`, `[tool.mypy]`, `[tool.pytest.ini_options]`),
      `tox.ini`, `noxfile.py`, `.pre-commit-config.yaml` (which checkers the
      repository runs)
 
@@ -36,13 +36,13 @@ Search project documentation to find test and lint commands:
    - **Test command**: `pytest`, `pytest --cov`, `make test`, `task test`, `tox -e py`
    - **Lint command (report-only)**: this command must NOT fix. Strip any `--fix`
      flag and run the checkers in report mode: `ruff check . && ruff format --check .`,
-     plus `mypy` where the repository configures it (or the project's lint command
+     plus `ty check` or `mypy` where the repository configures it (or the project's lint command
      with `--fix` removed).
 
 3. **Fallback to defaults** if not found:
    - Test: `pytest`
-   - Lint: `ruff check .` (no `--fix`); `mypy` only when a `[tool.mypy]` table or
-     `mypy.ini` exists
+   - Lint: `ruff check .` (no `--fix`); `ty check` only when a `[tool.ty]` table or
+     `ty.toml` exists, `mypy` only when a `[tool.mypy]` table or `mypy.ini` exists
 
 ## Step 2: Identify Files to Analyze
 
@@ -78,8 +78,9 @@ Name the rung in the report's scope line.
    what needs refactoring without changing anything. (The `python-linter-driven-development:lint-fixer` agent, which
    auto-fixes, is intentionally NOT used here — this command never edits.)
 3. **Design review**: invoke `Skill(python-linter-driven-development:pre-commit-review)`
-   in FULL mode over the file scope. It grep-prefilters the diff against rules R1–R12,
-   spawns one parallel `python-linter-driven-development:rule-hunter` per rule with hits, runs the
+   in FULL mode over the file scope. It runs the plugin's detection pass (`scripts/ldd-scope.sh`
+   then `scripts/ldd-detect.sh`) over the diff against rules R1–R12,
+   spawns one parallel `python-linter-driven-development:rule-hunter` per rule family with hits (at most four), runs the
    `python-linter-driven-development:overabstraction-skeptic` over every type/package-extraction proposal, and returns
    evidence-backed findings. It reports — it never edits.
 

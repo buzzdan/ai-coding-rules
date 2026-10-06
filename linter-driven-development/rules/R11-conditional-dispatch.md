@@ -114,7 +114,7 @@ with a shared base, or a dispatch table from name to variant object.
   asking to live on the interface (`../examples/switch-to-polymorphism.md`).
 - **Dispatch requires owning the output.** An interface method can only be written
   in the package that declares the interface, and it cannot reference another
-  package's unexported types. When the switch's output format belongs to a consumer
+  package's internal types. When the switch's output format belongs to a consumer
   (a private wire request in a client package) and the variants live in a shared API
   package, the move is unavailable — and forcing it (exporting the wire type,
   per-consumer `fill<X>Request` methods on domain types) inverts the dependency.
@@ -124,8 +124,8 @@ with a shared base, or a dispatch table from name to variant object.
   `../examples/switch-to-polymorphism.md`.
 - **Interface vs strategy map.** Variants with several behaviors or state → interface
   with one type per variant. Variants that differ by a single function → a map
-  (`var renderers = map[Format]func(Alert) string{...}`) — a map lookup with a
-  comma-ok check is a dispatch, not a conditional. Either way the decision has one
+  from kind to function — a map lookup whose missing-key case is a declared absence
+  is a dispatch, not a conditional. Either way the decision has one
   owner.
 - **Null object over null-checks.** A scattered "if the logger is set, log" is
   the same disease with two variants. Construct a do-nothing value once; delete every
@@ -163,8 +163,9 @@ with a shared base, or a dispatch table from name to variant object.
   the interface a fill-style method (`fillUpdate(req *T)`) instead of a constructor —
   the caller owns the shared fields, each variant fills its own
   (`../examples/switch-to-polymorphism.md`).
-- **Replace If-Chain with Strategy Map**: single-behavior variance → package-level
-  `map[Kind]func(...)` (or a field), comma-ok on lookup at the boundary only.
+- **Replace If-Chain with Strategy Map**: single-behavior variance → a package-level
+  map from kind to function (or a field), the missing-key case handled at the
+  boundary only.
 - **Introduce Null Object**: absent-collaborator null-checks → a do-nothing value
   substituted by the constructor when none is given; delete the guards. A no-op
   implementation when an interface already exists, otherwise a value of the concrete
@@ -190,6 +191,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
 Build each search over the language's source files (`detected-language source`).
 
 1. **Is the same discriminator inspected in more than one place?**
+   Detect-grep: `\b(switch|match) [a-zA-Z_.]+\.([Tt]ype|[Kk]ind|[Ss]tatus|[Mm]ode|[Cc]hannel|[Ff]ormat|[Ll]evel)\b|\bif [a-zA-Z_.]+\.([Tt]ype|[Kk]ind|[Ss]tatus|[Mm]ode|[Cc]hannel|[Ff]ormat|[Ll]evel) ==`
    Detection: list discriminators in the diff — switch, match or if-chain statements
    on a field named like `type`, `kind`, `status`, `mode`, `channel`, `format` or
    `level` (`switch x.Kind`, `match self.kind`, `if alert.channel ==`); then count
@@ -198,6 +200,7 @@ Build each search over the language's source files (`detected-language source`).
    owner; route to Interface Dispatch or Strategy Map.
 
 2. **Does a type switch dispatch on concrete types outside a boundary?**
+   Detect-grep: `\bisinstance\(|\binstanceof |\.\(type\)|\bcase [A-Z][A-Za-z]*\(`
    Detection: search for the language's runtime type test in a branching position
    (a type switch, `isinstance` chains, `instanceof` chains, `match` on a class) —
    for each hit, is it in a `ParseX`/decoder/boundary adapter, or in business
@@ -213,18 +216,21 @@ Build each search over the language's source files (`detected-language source`).
    decode/unmarshal of foreign types are not this pattern.
 
 3. **Does a default branch (or trailing `else`) handle "unknown kind" away from the boundary?**
+   Detect: judgment
    Detection: for each switch found in Q1, check the default arm for an error or
    exception carrying an unknown-kind message.
    Violation: unknown-kind errors deep in the call graph — the maybe-unknown concept
    leaked past construction; dispatch should have been chosen at `ParseX`.
 
 4. **Does a boolean parameter select between behaviors?**
+   Detect-grep: `\b(is|use|with|enable|skip)[A-Za-z_]*:? (bool|boolean)\b|\b(bool|boolean) (is|use|with|enable|skip)[A-Za-z_]*\b`
    Detection: in the changed files, find function signatures with a boolean
    parameter named like `is*`, `use*`, `with*`, `enable*`, `skip*`; check whether
    the function branches on it near the top.
    Violation: a flag argument whose branches share little code — Split Flag Argument.
 
 5. **Inverse — is a NEW dispatch abstraction in the diff unearned?**
+   Detect: judgment
    Detection: for each new interface/strategy map in the diff, count production
    implementations/entries and the number of sites the old conditional occupied
    (`git log -p` or the pre-diff file).

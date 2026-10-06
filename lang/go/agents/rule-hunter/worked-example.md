@@ -1,6 +1,6 @@
-**Worked example (analysis style only — your pasted rule governs the substance):**
+**Worked example (analysis style only — your rule file governs the substance):**
 ```
-Lead (pre-filter): user/service.go:14 matched inline check on a domain primitive.
+Lead (hits.tsv, R<N> Q1): user/service.go:14 matched inline check on a domain primitive.
 Q1 (rule): validated inline instead of via a constructor?
   Read user/service.go:10-16 → `if !strings.Contains(email, "@") { return errors.New(...) }`
   → YES: domain concept checked in a service method, no ParseX/NewX owns it.

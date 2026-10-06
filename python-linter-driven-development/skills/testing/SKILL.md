@@ -21,7 +21,7 @@ Writes tests autonomously based on code structure and type design, and serves as
 4. **Compose real layers** - in-memory/in-process implementations from the repository's test-support package
 5. **Avoid pitfalls**: No `time.sleep`, no conditionals in test bodies, no `mock.patch` of internal collaborators
 
-Ready after tests? Run linter: `ruff check --fix . && ruff format . && mypy`
+Ready after tests? Run linter: `ruff check --fix . && ruff format . && ty check` (or `mypy`, whichever the repository configures)
 </quick_start>
 
 <when_to_use>
@@ -57,7 +57,9 @@ Ready after tests? Run linter: `ruff check --fix . && ruff format . && mypy`
 - If you are tempted to add an interface so a test can inject a fake, stop — that interface is a test-only smell. Depend on the concrete type instead (see @code-designing and `../../rules/R6-test-only-interfaces.md`).
 
 **Coverage targets**
-- Rung 0 (leaf types): 100% unit test coverage
+- Rung 0 (leaf types): 100% unit test coverage, and no untriaged survivor when the
+  mutation tool runs over the leaf's package (`../../rules/R7-test-placement.md`,
+  Mutation score on leaf types only) — coverage is the floor, the mutation score the claim
 - Higher rungs (orchestrating types): cover the delta each rung adds — its seams and emergent behaviors
 - Critical workflows: top-rung (system) tests
 
@@ -262,7 +264,7 @@ All tests pass
 100% coverage on leaf types
 
 Next Steps:
-1. Run linter: ruff check --fix . && ruff format . && mypy
+1. Run linter: ruff check --fix . && ruff format . && ty check   # or mypy, whichever the repository configures
 2. If linter fails → use @refactoring skill
 3. If linter passes → use @pre-commit-review skill
 ```

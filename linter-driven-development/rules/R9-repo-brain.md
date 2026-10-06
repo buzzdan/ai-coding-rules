@@ -8,10 +8,7 @@ carry it, higher rungs summarizing and pointing down, never duplicating. Two
 invariants hold the network together: **reachability** (every doc is reachable from
 the root: CLAUDE.md → index.md → doc — no orphans) and **bidirectionality** (code
 points up at its feature doc; docs point down at code via greppable symbols; the
-index points everywhere). The doc root itself is an Open Knowledge Format (OKF
-v0.2) bundle: content docs carry YAML frontmatter, a file's path is its identity,
-and every index line is drift-checked against the `description` one level down
-(bundle policy below).
+index points everywhere).
 
 ## Why
 
@@ -145,6 +142,9 @@ TypeScript, `#` in shell or Ruby, a docstring in Python.
 ## Design guidance
 
 Forward guidance — what @documentation applies when writing docs after a feature.
+The doc root itself is an Open Knowledge Format (OKF v0.2) bundle: content docs
+carry YAML frontmatter, a file's path is its identity, and every index line is
+drift-checked against the `description` one level down (bundle policy below).
 
 ### The documentation ladder
 
@@ -252,8 +252,8 @@ comment-critic agent enforces them adversarially after writing:
 | **Contract** | parsing constructor (`ParsePolicy`, `ParsePort`), self-validating type, ordinary exported API | 2–3 prose lines | WHY + boundary contract; dos/don'ts example (free) |
 | **Crossroads** | entry point, orchestrator, state machine, feature front door | up to 5 prose lines | WHY, architectural context, use cases + See-edge |
 
-**Visibility default — unexported symbols get no comment.** The tier table
-prices exported API. An unexported function, type, constant, or variable
+**Visibility default — internal symbols get no comment.** The tier table
+prices exported API. An internal function, type, constant, or variable
 defaults to **zero** comment lines: the name is the documentation, and a name
 that needs a comment wants a rename or an extraction first
 (`R3-storifying.md`). The special case is **one line carrying a very
@@ -434,6 +434,7 @@ one command answers all four. Code-side searches run over the language's source
 files (`detected-language source`).
 
 1. **Is any doc an orphan?**
+   Detect-gate: Q1
    Detection: `find <docroot> -name '*.md' ! -name 'index.md'` versus the link
    targets extracted from `index.md` and any sub-indexes, e.g.
    `grep -oE '\]\([^)]+\.md\)' <docroot>/index.md`.
@@ -441,6 +442,7 @@ files (`detected-language source`).
    unread, so rotting. Cite the file and the index that should list it.
 
 2. **Is any edge broken — in either direction?**
+   Detect-gate: Q2
    Detection, code→docs: search the source files for doc paths
    (`(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md`) plus `.md`-to-`.md` links inside
    `<docroot>`; `test -f` each target.
@@ -466,6 +468,7 @@ files (`detected-language source`).
    *(planned)*, and a *(planned)*-marked line is exempt from resolution.
 
 3. **Is the root unwired?**
+   Detect-gate: Q3
    Detection: for each doc root, `grep -l '<docroot>/index.md' CLAUDE.md AGENTS.md
    2>/dev/null` in the root's owning project directory — the exact path, never a
    bare `index.md` mention. A monorepo sub-root also counts as wired when the
@@ -476,6 +479,7 @@ files (`detected-language source`).
    tool that reads AGENTS.md instead of CLAUDE.md starts blind.
 
 4. **Does a doc comment on a public symbol state WHAT instead of WHY?**
+   Detect: judgment
    Detection: for each public declaration in the diff (the language's declaration
    keywords — `type`, `class`, `def`, `func`, `fn`, `export` — on a public name),
    read its doc comment and compare its tokens against the identifier and the
@@ -487,6 +491,7 @@ files (`detected-language source`).
    NOT this question — they are `R3-storifying.md` Q3 (extraction candidates).
 
 5. **Is new public API naked, or a feature-sized change undocumented at rung 2?**
+   Detect: judgment
    Detection: in the diff's added lines, find public declarations and check each
    for a doc comment in the language's form (a comment block above, or a
    docstring inside); separately, compare new packages or entry points in the diff
@@ -496,6 +501,7 @@ files (`detected-language source`).
    the knowledge shipped without joining the network.
 
 6. **Did behavior change silently under an existing doc?** *(advisory)*
+   Detect: judgment
    Detection: map the diff's changed packages to docs that cite their symbols or
    package paths (grep `<docroot>` for the package name and its public symbols);
    check whether any such doc is in the diff.
@@ -504,6 +510,7 @@ files (`detected-language source`).
    affected section, never appending history.
 
 7. **Does any file break the bundle contract?**
+   Detect-gate: Q7
    Detection: every content `.md` under `<docroot>` starts with a terminated
    frontmatter block (first line `---`, a closing `---` follows) carrying
    `type` valued `feature` / `architecture` / `guide` and a non-empty

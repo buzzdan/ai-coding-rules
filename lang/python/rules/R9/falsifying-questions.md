@@ -4,6 +4,7 @@ directory. Q1–Q3 and Q7 are fully mechanical: the plugin ships them as
 one command answers all four. Code-side searches run over `*.py` files.
 
 1. **Is any doc an orphan?**
+   Detect-gate: Q1
    Detection: `find <docroot> -name '*.md' ! -name 'index.md'` versus the link
    targets extracted from `index.md` and any sub-indexes, e.g.
    `grep -oE '\]\([^)]+\.md\)' <docroot>/index.md`.
@@ -11,6 +12,7 @@ one command answers all four. Code-side searches run over `*.py` files.
    unread, so rotting. Cite the file and the index that should list it.
 
 2. **Is any edge broken — in either direction?**
+   Detect-gate: Q2
    Detection, code→docs: `grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' --include='*.py' .`
    plus `.md`-to-`.md` links inside `<docroot>`; `test -f` each target.
    Detection, docs→code: build the repo's declaration set once — classes,
@@ -35,6 +37,7 @@ one command answers all four. Code-side searches run over `*.py` files.
    *(planned)*, and a *(planned)*-marked line is exempt from resolution.
 
 3. **Is the root unwired?**
+   Detect-gate: Q3
    Detection: for each doc root, `grep -l '<docroot>/index.md' CLAUDE.md AGENTS.md
    2>/dev/null` in the root's owning project directory — the exact path, never a
    bare `index.md` mention. A monorepo sub-root also counts as wired when the
@@ -45,9 +48,8 @@ one command answers all four. Code-side searches run over `*.py` files.
    tool that reads AGENTS.md instead of CLAUDE.md starts blind.
 
 4. **Does a docstring on a public symbol state WHAT instead of WHY?**
-   Detection: for each public declaration in the diff
-   (`grep -nE '^(class|def|async def) [A-Za-z]|^    (def|async def) [a-z][a-z_]*\(' <changed files>`),
-   read its docstring. The PEP 257 summary line is the contract in one sentence
+   Detect-grep: `^(class|def|async def) [A-Za-z]|^    (def|async def) [a-z][a-z_]*\(`
+   Detection: for each public declaration in the diff, read its docstring. The PEP 257 summary line is the contract in one sentence
    and is exempt from the restatement verdict when it states that contract
    (`"""A named, validated service port; it cannot exist out of range."""` earns
    its line); it is a finding when it restates the name (`"""Policy is a
@@ -63,6 +65,7 @@ one command answers all four. Code-side searches run over `*.py` files.
    question — they are `R3-storifying.md` Q3 (extraction candidates).
 
 5. **Is new public API naked, or a feature-sized change undocumented at rung 2?**
+   Detect: judgment
    Detection: in the diff, `grep -nE '^(class|def|async def) [A-Za-z]'` on added
    lines and check whether the next non-blank line opens a docstring. Where the
    repository enables ruff's `D` rules, `D100`–`D103` (missing docstring on a public
@@ -75,6 +78,7 @@ one command answers all four. Code-side searches run over `*.py` files.
    the knowledge shipped without joining the network.
 
 6. **Did behavior change silently under an existing doc?** *(advisory)*
+   Detect: judgment
    Detection: map the diff's changed packages to docs that cite their symbols or
    package paths (grep `<docroot>` for the package name and its public symbols);
    check whether any such doc is in the diff.
@@ -83,6 +87,7 @@ one command answers all four. Code-side searches run over `*.py` files.
    affected section, never appending history.
 
 7. **Does any file break the bundle contract?**
+   Detect-gate: Q7
    Detection: every content `.md` under `<docroot>` starts with a terminated
    frontmatter block (first line `---`, a closing `---` follows) carrying
    `type` valued `feature` / `architecture` / `guide` and a non-empty

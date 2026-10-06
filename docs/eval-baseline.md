@@ -19,15 +19,16 @@ findings, the noise floor and every grader change made after the run, and commit
 Traces compress well and are what makes later calibration free; the scaffolds are
 not committed, so graders that read the tree cannot be regraded from a clone.
 
-The Go suite's current baseline measures plugin 2.11.0 at c78b55f and lives in the evals
-repository at
-[`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f);
+The Go suite's current baseline measures plugin 2.13.2 at b56f79b, the close of the
+token-budget stages, and lives in the evals repository at
+[`baselines/go-2.13.2-b56f79b/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.13.2-b56f79b);
 its README compares it case by case with the earlier
-[`baselines/go-2.10.0-5828c34/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-5828c34),
-which is the worked example of the procedure below, and names the reading guide for
-the next comparison: one grader on a scoped review is noise, up to three on the
-refactor cases C, F and the centerpiece is inside their observed swing and needs a
-second run, any change on a case that has never flipped is a signal. The generic
+[`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f),
+carries the first spend section, and names the reading guide for the next comparison:
+one grader on a scoped review is noise and the same grader missing in both runs is a
+signal, the whole-repository review inside 104 to 109 of 114 is noise, a refactor case
+needs a second run before a change of up to three graders is read, and any change on a
+case that has never flipped is a signal. The generic
 plugin's floor on the same fixture is
 [`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
 compared with it grader by grader. The Python suite's first baseline is that same
@@ -75,4 +76,6 @@ so a flip has one cause and a regression elsewhere has one suspect.
 Cheap tier about $66 for 23 runs; medium tier about $23 for 10 runs; a whole-repo
 review is the expensive cheap case at $7 to $15 per run. Sessions that spawn
 subagents in the background and then poll roughly double their cost; the
-`segments` field in each result marks them.
+`segments` field in each result marks them. Where the tokens of a run go, and the
+spend gate a cost-cutting change must pass beside the verdict comparison above, is
+in [token-budget.md](token-budget.md).

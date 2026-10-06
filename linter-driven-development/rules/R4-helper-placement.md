@@ -5,7 +5,7 @@
 Every extraction raises a second question: where does the helper live? The answer is
 decided by two axes — juiciness (the scorecard in `R1-primitive-obsession.md`; cite
 it, never re-derive it) and scope (feature-specific versus domain-generic). Three
-rungs: unexported in place, feature sub-package, shared domain package. Never test
+rungs: internal in place, feature sub-package, shared domain package. Never test
 privates, and never export a helper into its parent package just so a test can reach
 it.
 
@@ -13,7 +13,7 @@ it.
 
 Wrong placement rots in both directions. Helpers exported into the parent package for
 testability pollute its API — callers see symbols that exist only for tests, and the
-package's real surface becomes unreadable. Juicy helpers buried as unexported code
+package's real surface becomes unreadable. Juicy helpers buried as internal code
 either go untested or push the team into testing privates, breaking the
 public-API-only discipline (`R7-test-placement.md`). And role-named dumping grounds
 (`util`, `helpers`, `common`) accrete unrelated code that nobody can find, name, or
@@ -40,7 +40,7 @@ The rung-1 contrast — a trivial helper that stays put:
 
 ```text
 # Trivial: one caller, no domain vocabulary, no rules of its own.
-# Stays unexported; covered through the parent's public API.
+# Stays internal; covered through the parent's public API.
 parseArgument(arg):
     key, sep, value = arg.partition("=")
     if sep is empty: return absent
@@ -54,7 +54,7 @@ signal (below) never fires.
 
 ### The placement ladder
 
-1. **Trivial helper** → unexported, same package, tested only through the parent's
+1. **Trivial helper** → internal, same package, tested only through the parent's
    public API.
 2. **Juicy + feature-scoped** → vertical-slice feature sub-package (e.g. `kubefwd/`)
    *if the feature has enough substance to be a package*; types exported there. See
@@ -106,8 +106,10 @@ vocabulary of one — fold it into the vocabulary it belongs to. A role name (`u
 - **Move Method to the Envied Type** (Fowler: Feature Envy → Move Function): a
   function that reads another type's data more than its own belongs on that type —
   move it there, then place the enriched type on the ladder as usual. If the envied
-  type is foreign (another module's DTO), wrap it first (`R1-primitive-obsession.md`)
-  and hang the behavior on the wrapper.
+  type is foreign (another module's DTO) or a built-in container (a map of strings
+  the function keeps looking things up in), wrap it first
+  (`R1-primitive-obsession.md`, Name the Container) and hang the behavior on the
+  wrapper.
 - **A message chain is a placement signal, not a wrapper order** (Fowler: Message
   Chains). Before "fixing" `order.Customer().Address().City()` by adding a
   `CustomerCity()` forwarder, ask what the caller *does* with the endpoint (Tell,
@@ -139,13 +141,15 @@ means the files the repository's test runner picks up (`*<test-file suffix>`, a 
 directory, or whatever the repository uses).
 
 1. **Is a symbol public only so tests can reach it?**
+   Detect: judgment
    Detection: for each newly public function/type, search the non-test source files
    for references outside its defining file — count them.
    Violation: zero production call sites outside the package or module while test
    references exist — it was made public for tests; demote (rung 1) or promote
    (rung 2/3).
 
-2. **Are unexported helpers tested directly?**
+2. **Are internal helpers tested directly?**
+   Detect: judgment
    Detection: find test files that can reach non-public symbols (an in-package test,
    an import of a private module, a test that reaches past the public surface), then
    search those files for calls to the package's non-public functions.
@@ -153,17 +157,20 @@ directory, or whatever the repository uses).
    signal; give the helper its own package instead.
 
 3. **Does a new shared package have a role name?**
+   Detect-path: `(^|/)(util|utils|helpers|helper|common|shared|misc)(/|\.[a-z]+$)`
    Detection: list the shared-library directories and match their names against
    `util`, `utils`, `helpers`, `helper`, `common`, `shared`, `misc`.
    Violation: any hit — packages are named for a domain vocabulary, never a role.
 
 4. **Is a new shared package a single noun rather than a vocabulary?**
+   Detect: judgment
    Detection: count the public types the new package declares and ask whether
    plausible domain siblings exist under the name.
    Violation: a package named after its one type (`kubeport`) with no room for
    siblings — fold into a vocabulary package (`networking`) or keep at rung 1/2.
 
 5. **Did feature policy leak into a shared package?**
+   Detect: judgment
    Detection: search the shared package for feature-owned literals and constants
    (a product or feature name inside a string literal, say `"weka-`).
    Violation: any feature-specific literal or preference decision inside a
@@ -171,9 +178,12 @@ directory, or whatever the repository uses).
    `R1-primitive-obsession.md`).
 
 6. **Does a changed function envy another type's data?**
+   Detect: judgment
    Detection: for each changed function/method, count field/method accesses per
    value (occurrences of `<receiver>.` versus occurrences of `<parameter>.` in the
-   body), for the receiver and for its most-touched parameter or field.
+   body), for the receiver and for its most-touched parameter or field. A parameter
+   that is a built-in container is accessed by index, lookup, membership test and
+   loop rather than by field; count those the same way.
    Violation: accesses on one foreign value outnumber accesses on the receiver (or
    on all local data, for a free function) and the foreign type is yours to extend —
    Move Method to the Envied Type, then re-place via the ladder. A function that
