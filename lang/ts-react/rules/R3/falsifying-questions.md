@@ -16,8 +16,8 @@
    `typeof`/`in` checks, and protocol details (`response.json()`, header parsing,
    `URLSearchParams` decoding) are low.
    Violation: both altitudes in the same body — e.g. `line.split(',', 2)` three
-   lines from a business decision, or a date-format call three lines from a JSX
-   branch. Cite the two lines.
+   lines from a business decision, or a date-format call beside a JSX branch. Cite
+   the two lines.
 
 3. **Do block comments narrate sections inside a function body?**
    Detection: `grep -nE '^\s+// |\{/\* ' <file>` within function and component
@@ -38,10 +38,9 @@
    `../examples/storify-leaf-type.md`).
 
 5. **Does any function name lie about side effects?**
-   Detection: for each `parse*`/`validate*`/`is*`/`get*`/`format*` function in the
-   diff, check the body for assignments to a parameter's properties, a `.push()`/
-   `.splice()`/`.sort()` on an argument, a state-setter call, or a `ref.current =`
-   write.
+   Detection: for each `parse*`/`validate*`/`is*`/`get*` function in the diff,
+   check the body for assignments to a parameter's properties, a `.push()`/
+   `.splice()`/`.sort()` on an argument, a state-setter call, or a `ref.current =` write.
    Violation: a read-sounding name that mutates — rename to a mutating verb or split
    the query from the mutation; a `getX` that calls a state setter is the same
    finding with a worse disguise.

@@ -7,7 +7,6 @@ an MSW handler:
 it('accepts a channel-shaped recipient', () => {
   expect(slackSender.validate('#oncall')).toBe(true)
 })
-
 it('rejects a bare name', () => {
   expect(slackSender.validate('oncall')).toBe(false)
 })
@@ -26,6 +25,5 @@ it('posts the summary to the recipient URL', async () => {
 ```
 
 The drift bug (`webhook` missing from `validateChannel`) can no longer be written:
-there is no second place to forget. There is no "every channel has a sender" test to
-write either — `Record<Channel, ChannelSender>` is that test, and `tsc` runs it on
-every `Channel` member.
+there is no second place to forget. Nor is there an "every channel has a sender" test
+to write — `Record<Channel, ChannelSender>` is that test, run by `tsc`.

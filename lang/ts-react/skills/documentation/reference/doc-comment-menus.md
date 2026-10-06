@@ -36,10 +36,9 @@ exempt from the critic's restatement verdict when it does that, and a finding wh
 it repeats the name (`/** Gets the user. */` on `getUser`). The body, after one
 blank ` *` line, is where the WHY budget applies. `@param` and `@returns` appear
 only when they add what the signature cannot — units, ownership, what a valid value
-is — never to restate a type; match the tag convention the repository's
-`eslint-plugin-jsdoc` settings declare. Where the repository's `jsdoc/require-jsdoc`
-requires a block, a WHAT-comment is rewritten, never deleted; on a non-exported name
-it is deleted.
+is — never to restate a type. Where the repository's `jsdoc/require-jsdoc` requires
+a block, a WHAT-comment is rewritten, never deleted; on a non-exported name it is
+deleted.
 
 ### Module JSDoc Menu
 
@@ -73,8 +72,7 @@ to the standard tier budget.
 
 ### Component JSDoc Menu
 
-The props type carries the WHAT; a prop gets a line only for what its type cannot
-say, and the component's block carries the WHY of its shape:
+The props type carries the WHAT; a prop gets a line only for what its type cannot say:
 
 ```tsx
 interface SnapshotsTableProps {
@@ -102,7 +100,7 @@ export function SnapshotsTable(props: Readonly<SnapshotsTableProps>) {
 
 ### Hook JSDoc Menu
 
-The return type is the WHAT; the block states the contract behind it:
+The return type is the WHAT; the block is the contract behind it:
 
 ```typescript
 /**
@@ -191,17 +189,8 @@ export function parseUserId(raw: string): UserId {
 }
 ```
 
-```typescript
-// userId.test.ts — the lines the @example promises
-it('parses a non-empty id', () => {
-  expect(parseUserId('usr_123')).toBe('usr_123')
-})
-
-it('rejects the empty id', () => {
-  expect(() => parseUserId('')).toThrow(RangeError)
-})
-```
-
-Nothing runs an `@example`; the colocated test executes the same calls and keeps it
-honest. Examples show happy-path usage plus the one rejection that defines the
-contract. Keep simple — complex scenarios belong in feature docs.
+Nothing runs an `@example`; the colocated `userId.test.ts` makes the same two calls
+(`expect(parseUserId('usr_123')).toBe('usr_123')`,
+`expect(() => parseUserId('')).toThrow(RangeError)`) and keeps it honest. Examples
+show happy-path usage plus the one rejection that defines the contract. Keep simple —
+complex scenarios belong in feature docs.

@@ -28,7 +28,6 @@ an `if (expectError)`.
 describe('parsePolicy', () => {
   it.each([
     { name: 'plain', raw: '3x100ms', attempts: 3, delayMs: 100 },
-    { name: 'single attempt', raw: '1x1s', attempts: 1, delayMs: 1000 },
   ])('parses $name', ({ raw, attempts, delayMs }) => {
     const policy = parsePolicy(raw)
 
@@ -38,7 +37,6 @@ describe('parsePolicy', () => {
   it.each([
     { name: 'zero attempts', raw: '0x100ms', message: /zero attempts/ },
     { name: 'missing delay', raw: '3x', message: /missing delay/ },
-    { name: 'empty', raw: '', message: /empty/ },
   ])('rejects $name', ({ raw, message }) => {
     expect(() => parsePolicy(raw)).toThrow(message)
   })
@@ -58,15 +56,13 @@ the test times out — plus a `MemoryRouter` at the route under test. It returns
 
 ```tsx
 // src/test-utils/renderWithProviders.tsx
-type Options = Readonly<{ route?: string; path?: string }>
-
 export function createTestQueryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } })
 }
 
 export function renderWithProviders(
   ui: ReactElement,
-  { route = '/', path = '/' }: Options = {},
+  { route = '/', path = '/' }: Readonly<{ route?: string; path?: string }> = {},
 ): RenderResult & { user: UserEvent } {
   const user = userEvent.setup()
   const result = render(
@@ -82,8 +78,7 @@ export function renderWithProviders(
 }
 ```
 
-A leaf component with no query and no route uses plain `render`; the wrapper is
-infrastructure, not a reflex.
+A leaf component with no query and no route uses plain `render`; the wrapper is infrastructure, not a reflex.
 
 ## Queries and user events
 
@@ -95,10 +90,7 @@ produces; `fireEvent` fires one synthetic event and skips focus, hover and `keyd
 
 ```tsx
 it('saves the renamed device', async () => {
-  const { user } = renderWithProviders(<DevicePage />, {
-    route: '/devices/d-1',
-    path: '/devices/:deviceId',
-  })
+  const { user } = renderWithProviders(<DevicePage />, { route: '/devices/d-1', path: '/devices/:deviceId' })
 
   await user.clear(await screen.findByLabelText(/name/i))
   await user.type(screen.getByLabelText(/name/i), 'edge-02')
@@ -142,21 +134,11 @@ export const devicesErrorHandler = http.get(DEVICES_PATH, () =>
 )
 ```
 
-A test that needs the empty or failing shape prepends its override before rendering;
-the reset in `afterEach` means the override never leaks into the next test:
-
-```tsx
-it('shows the empty state when the cluster has no devices', async () => {
-  server.use(emptyDevicesHandler)
-
-  renderWithProviders(<DevicesPage />, { route: '/clusters/c-1/devices', path: '/clusters/:clusterId/devices' })
-
-  expect(await screen.findByText(/no devices yet/i)).toBeInTheDocument()
-})
-```
-
-Assert against `mockDevices.length`, not a literal count, so the fixture and the
-assertion cannot drift apart.
+A test that needs the empty or failing shape prepends its override before rendering
+— `server.use(emptyDevicesHandler)` as the first line, then
+`await screen.findByText(/no devices yet/i)` — and the reset in `afterEach` means the
+override never leaks into the next test. Assert against `mockDevices.length`, not a
+literal count, so the fixture and the assertion cannot drift apart.
 
 ## Hooks
 
@@ -188,12 +170,10 @@ handler file already gives the hook a real HTTP layer to run against.
 Never wait on `setTimeout` in a test. Every wait has a subject and a timeout: `findBy*`
 and `waitFor` poll the DOM until the assertion passes or RTL's timeout fails the test.
 Code that itself schedules time — a debounce, a poll, a retry backoff — runs under fake
-timers that the test advances explicitly.
+timers (`vi.useFakeTimers()` in `beforeEach`, `vi.useRealTimers()` in `afterEach`)
+that the test advances explicitly.
 
 ```tsx
-beforeEach(() => vi.useFakeTimers())
-afterEach(() => vi.useRealTimers())
-
 it('settles after the delay', async () => {
   const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 300), {
     initialProps: { value: 'a' },
@@ -210,28 +190,14 @@ it('settles after the delay', async () => {
   store update; `render`, `rerender`, `userEvent` and `waitFor` wrap themselves.
 - `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })` when fake timers and
   user events meet in one test, or the typed keystrokes never resolve.
-- An effect's cleanup stops what the effect started; a test that calls `unmount()`
-  and then advances the clock proves it — the poll's handler is not hit again.
 
 ## Real implementations
 
-**An in-memory store** has the production store's public methods and a `Map` inside.
+**An in-memory store** has the production store's public methods and a `Map` inside
+(`class MemoryPreferencesStore implements PreferencesStore` with `get(key): string |
+undefined` and `set(key, value): void` over a `private readonly values = new Map()`).
 It lives in `src/test-utils/`, has its own tests, and is what a provider or hook test
-composes — never a `vi.mock` of the module that owns the real one:
-
-```ts
-export class MemoryPreferencesStore implements PreferencesStore {
-  private readonly values = new Map<string, string>()
-
-  get(key: string): string | undefined {
-    return this.values.get(key)
-  }
-
-  set(key: string, value: string): void {
-    this.values.set(key, value)
-  }
-}
-```
+composes — never a `vi.mock` of the module that owns the real one.
 
 **A recorded exchange** is a handler whose body is a response captured from the real
 API (`mocks/fixtures/devices.json`), so the parser at the boundary runs against the

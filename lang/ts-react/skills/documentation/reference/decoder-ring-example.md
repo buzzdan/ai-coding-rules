@@ -9,7 +9,6 @@
  */
 export interface UserResponse {
   readonly uid: string
-  readonly email: string
 }
 
 // ✅
@@ -22,6 +21,5 @@ export interface UserResponse {
  */
 export interface UserResponse {
   readonly uid: string
-  readonly email: string
 }
 ```

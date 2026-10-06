@@ -18,9 +18,7 @@ export function NotifyPanel({ alert }: Readonly<{ alert: Alert }>) {
   }
   return <SendButton onSend={send} />
 }
-```
 
-```typescript
 // ❌ alerts/validateChannel.ts — drifted: webhook was never added here
 export function validateChannel(a: Alert): boolean {
   if (a.channel === 'email') {
