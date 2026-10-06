@@ -118,6 +118,40 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   phase through the repository's `jsx-a11y` configuration, where a failing rule is
   a mechanical fix, not a review hunter's finding.
 
+### Measured against 1.x
+
+Both plugins reviewed the `ts-react-mini` eval fixture (164 planted violations and
+controls, in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)) under the
+same prompt and model (`claude-sonnet-5`): eight review cases whose prompt names no
+slash command and whose graders carry no rule ids, then refereed finding by finding
+against the manifest, by substance.
+
+- **Whole repository.** 1.x found 53 of the 129 planted diseases a review must find,
+  2.0 found 89: 42 by both, 11 by 1.x alone, 47 by 2.0 alone, 29 by neither. False
+  positives on the 30 controls: 3 against 1. Cost $3.22 against $6.30.
+- **Scoped cases.** 2.0 found as many or more in six of seven (retention 4/3,
+  endpoint 4/2, ceremony 4/2, optional collaborators 6/4, globals 4/4, the
+  798-line centerpiece 34/11 of 45); 1.x was ahead on the placement picker (3/2).
+- **What 2.0 sees that 1.x never names:** tests (fused success/error tables, call
+  counts on doubles, sleep-then-assert, `vi.mock` of an internal hook beside MSW
+  handlers), test seams (an interface with one production implementer, hand
+  doubles, a false "avoids an import cycle"), documentation (the orphan doc, its
+  `file:line` citation and phantom symbol, the unwired `CLAUDE.md`), suppressions
+  as findings, the comment critic's verdicts, role-named directories and the
+  layer-versus-slice split, and three concurrency plants (an interval started in a
+  constructor and never cleared, a check-then-await race, bare sleeps in retries).
+- **What 1.x sees that 2.0 does not:** accessibility (no hunter owns it; 2.0 relies
+  on the repository's `jsx-a11y` rules, which the fixture disables as the house
+  style does), and the React tree in the whole-repository run, where 2.0's types
+  hunter declared partial coverage and did not reach `components/`, `hooks/` or
+  `pages/DeviceView/`, so the nested-component, prop-drilling and sort-in-render
+  plants went unseen rather than misjudged. 1.x also raised several real bugs
+  outside the manifest (a cross-tenant `lastSeen` key, a score recomputed by hand
+  and drifting, `NaN` passing a port check).
+- **2.0 weaknesses the run exposed:** it asserted a test file was missing that exists
+  (picker), it rewrote the one WHY comment the ceremony case protects, and its
+  whole-repository coverage is partial at 167 files.
+
 ## [1.2.0]
 
 - The hand-written plugin: six skills (`@linter-driven-development`,
