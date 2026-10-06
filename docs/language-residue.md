@@ -245,8 +245,9 @@ default everywhere else. Three scalar choices:
 - `src_glob` is `*.ts*`, because core glues one glob into `grep --include` and
   `git diff -- '<glob>'`, and a React source tree is `.ts` and `.tsx` in one
   tree; the binding's own detection commands spell both and prune `node_modules`.
-- `test_glob` is `.test.tsx`, the suffix core glues to a file name; Vitest and Jest
-  collect `.test.ts` beside it, and every include that lists test files names both.
+- `test_glob` is `.test.ts*`, a glob tail rather than a suffix, because core's one
+  use is `*{{.TestGlob}}` and Vitest and Jest collect `.test.ts` and `.test.tsx`
+  alike; every include that lists test files for a reader spells both out.
 - `nolint` is `// eslint-disable-next-line`, the common form; the includes treat
   `// eslint-disable-line`, the block form, `@ts-expect-error`, `@ts-ignore` and
   `@ts-nocheck` as suppressions of the same kind, the way the Python binding

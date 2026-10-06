@@ -12,9 +12,10 @@ cmd_prefix: tsr-ldd
 # per binding, so it has to cover both `.ts` and `.tsx` in one pattern; the includes'
 # own detection commands spell both and prune node_modules.
 src_glob: "*.ts*"
-# Core glues the test glob as a suffix (`user/service{{.TestGlob}}`); Vitest and Jest
-# collect `*.test.ts` and `*.test.tsx` alike, and the includes name both forms.
-test_glob: ".test.tsx"
+# Core's one use glues the test glob behind a star (`*{{.TestGlob}}`), so the value
+# is itself a glob tail that covers both `.test.ts` and `.test.tsx`; the includes
+# spell the two forms out wherever a reader, not a shell, is the audience.
+test_glob: ".test.ts*"
 project_marker: package.json
 # The most common form; the includes also name `// eslint-disable-line`, the block
 # form `/* eslint-disable <rule> */`, `@ts-expect-error` and `@ts-ignore`, which are

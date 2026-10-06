@@ -116,7 +116,7 @@ reason production does.
   fake data (embedded DB, temp dir, in-process HTTP server) and exercise the consumer's
   public API (@testing for harness patterns; placement per
   `R7-test-placement.md`).
-- **Delete the double**: the fake type in `*.test.tsx` / `fakes/` / `mocks/` /
+- **Delete the double**: the fake type in `*.test.ts*` / `fakes/` / `mocks/` /
   `testutil*` goes with the interface.
 - **If a verified cycle exists, fix the layering**: extract the shared vocabulary
   into a lower package both can import, or move the consumer — the dependency arrow
