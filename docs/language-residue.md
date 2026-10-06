@@ -1,6 +1,6 @@
 ---
 type: architecture
-description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's seven positions, and the Claude Code names a second plugin must not collide on
+description: how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's seven positions, the ts-react binding's nine, and the Claude Code names a second plugin must not collide on
 ---
 # Language Residue Decisions
 
@@ -66,14 +66,14 @@ drifting apart.
 
 ## Scalars
 
-| Key | `{{.Name}}` | Go | Generic | Python | Carries |
-|---|---|---|---|---|---|
-| `nil` | `{{.Nil}}` | nil | null | None | the missing value as a noun: "{{.Nil}}-checks", "{{.Nil}} holes", "{{.Nil}} handling" |
-| `task` | `{{.Task}}` | goroutine | concurrent task | concurrent task | a unit of concurrent work: R10's Principle and Why, "R10 {{.Task}} leaks", "no {{.Task}}s" at rung 0. Python says "concurrent task" too, so a leaked thread is in scope, not only an asyncio task |
-| `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | the documentation form as a noun or adjective: "its {{.DocForm}}", "kind ({{.DocForm}}/in-body/test)" |
-| `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | the two-word noun in R9 and the comment critic; one scalar would render "docstring comments" |
-| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | `.<ext>` | `*.py` minus the star | the source-file suffix in worked-example paths and R5's role-named files. The generic value is a placeholder rather than a phrase because every use site glues it to a file name: `user/service.<ext>:14` reads, `user/servicethe language's source suffix:14` does not |
-| `unexported` | `{{.Unexported}}` | unexported | unexported | underscore-prefixed | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads |
+| Key | `{{.Name}}` | Go | Generic | Python | ts-react | Carries |
+|---|---|---|---|---|---|---|
+| `nil` | `{{.Nil}}` | nil | null | None | undefined | the missing value as a noun: "{{.Nil}}-checks", "{{.Nil}} holes", "{{.Nil}} handling" |
+| `task` | `{{.Task}}` | goroutine | concurrent task | concurrent task | async task | a unit of concurrent work: R10's Principle and Why, "R10 {{.Task}} leaks", "no {{.Task}}s" at rung 0. Python says "concurrent task" too, so a leaked thread is in scope, not only an asyncio task; ts-react says "async task" so a promise, an effect, a timer and a subscription are all in scope |
+| `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | JSDoc | the documentation form as a noun or adjective: "its {{.DocForm}}", "kind ({{.DocForm}}/in-body/test)" |
+| `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | JSDoc comment | the two-word noun in R9 and the comment critic; one scalar would render "docstring comments" |
+| `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | `.<ext>` | `*.py` minus the star | `.ts` | the source-file suffix in worked-example paths and R5's role-named files. The generic value is a placeholder rather than a phrase because every use site glues it to a file name: `user/service.<ext>:14` reads, `user/servicethe language's source suffix:14` does not. ts-react names the module suffix; components are `.tsx`, and the includes say so where it matters |
+| `unexported` | `{{.Unexported}}` | unexported | unexported | underscore-prefixed | unexported | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads. In TypeScript the word is literal: a declaration a module does not export is invisible outside the file |
 
 Plural forms append `s` to the scalar; every value above pluralizes that way. A
 scalar never carries a sentence: when substitution would need a different article,
@@ -232,6 +232,138 @@ and are review-only rows, as the fixture's manifest records. The gate's adapter 
 the Python block of the generic adapter between Go-style marker comments, and the
 fixture include runs one row, `python`, with no detection cases.
 
+## The ts-react binding
+
+`ts-react-linter-driven-development` is rendered from the same core for a React
+single-page application written in TypeScript. It is one language and one
+framework: the scalars are TypeScript's, the includes are written for a React
+repository, and nothing in it serves a Node service (that would be a second binding
+with the same scalars and different includes, if one is ever needed). Like Python,
+it adds a file wherever knowing the stack beats detecting it and takes the core
+default everywhere else. Three scalar choices:
+
+- `src_glob` is `*.ts*`, because core glues one glob into `grep --include` and
+  `git diff -- '<glob>'`, and a React source tree is `.ts` and `.tsx` in one
+  tree; the binding's own detection commands spell both and prune `node_modules`.
+- `test_glob` is `.test.tsx`, the suffix core glues to a file name; Vitest and Jest
+  collect `.test.ts` beside it, and every include that lists test files names both.
+- `nolint` is `// eslint-disable-next-line`, the common form; the includes treat
+  `// eslint-disable-line`, the block form, `@ts-expect-error`, `@ts-ignore` and
+  `@ts-nocheck` as suppressions of the same kind, the way the Python binding
+  treats `# type: ignore` beside `# noqa`.
+
+Where a rule's Go text meets a TypeScript or React idiom, the binding takes a
+position and the includes implement it. The nine positions:
+
+1. **Absence.** `undefined` is the declared absence — an optional property,
+   `Map.get`, `find`, a `T | undefined` return every caller narrows under `strict`.
+   `null` is the wire's absence and stops at the boundary, where the parser maps it
+   to `undefined` or to a domain value. The findings are a value asserted into
+   existence where the type promises `T` (`as T`, a non-null `!`, an
+   `@ts-expect-error` — R1 Q4's sentinel in TypeScript spelling), `null` or
+   `undefined` returned for a failure (R2 Q5, Separate Failure from Absence — throw),
+   callers stacking `?.`, `??` and `if (!x)` because the absence should have been an
+   exception, and a nullable, optional cluster prop on a component that cannot
+   render without it: the parent decides, the child takes the cluster. Never a
+   `[T, boolean]` tuple, never a `-1`, `''` or `0` sentinel.
+2. **Optional collaborators.** The default is a stateless do-nothing object bound
+   once as a module constant — `NULL_SINK`, `SYSTEM_CLOCK` — supplied by a
+   destructuring default, with the parameter typed as the collaborator and never
+   `| undefined`. An optional callback prop is legitimate when the component has a
+   meaning without it, and the finding when every render path guards it or the
+   component cannot do its job without it. A context hook that hands `T | undefined`
+   to every consumer is the same disease: `useX()` throws outside its provider and
+   returns `T`.
+3. **Self-validating types.** Types are erased, so the invariant lives in the one
+   function that builds the value: `parseDevice(raw: unknown): Device` at the API
+   boundary with type guards, a `parse` factory inside the domain, `readonly`
+   fields so nothing is assigned after. A branded type with a validating
+   constructor earns R1's invariant point; a bare brand or a bare alias admits every
+   literal and scores zero. The findings are `data as DeviceApiResponse` taken on
+   faith at the boundary, `as unknown as`, a component re-validating what its prop
+   type promises, and an object literal that bypasses the factory. A schema library
+   is the boundary form where the repository already uses one; the plugin never
+   proposes adding one.
+4. **JSDoc.** The type system carries the WHAT, so a comment that restates a type
+   (`/** The cluster id */` on `clusterId: string`, `@param` and `@returns` tags
+   that repeat the signature) is deleted. The summary line is the contract and
+   exempt from the critic's restatement verdict when it states it; the WHY budget
+   applies to the body. Non-exported symbols get no comment by default. Where the
+   repository's `jsdoc/require-jsdoc` demands one, a WHAT-comment is rewritten,
+   never deleted. A Storybook story is the runnable example of a component only
+   where the repository already has Storybook.
+5. **Dispatch.** The kept single switch is over a discriminated union, closed by
+   exhaustiveness — `assertNever(x)` in the default arm or `satisfies never` — and
+   that arm is the completeness proof the compiler checks, not an unknown-kind
+   default; a `default: return null` in a render switch is R11 Q3's finding. A
+   `Record<Kind, …>` of handlers or components comes first, a strategy object
+   second, a class hierarchy last. Boolean props are the flag argument: an
+   `isLoading`/`isError`/`isEmpty` triplet becomes a status union, and three or
+   more boolean props on one component is Split Flag Argument's candidate.
+6. **Concurrency.** One thread: no locks, no atomics, no race detector. The units of
+   concurrent work are promises, effects, timers, subscriptions and queries. The
+   effect that starts a timer, a subscription or a fetch returns the cleanup that
+   stops it; a fetch effect owns an abort controller; the query layer owns a
+   fetch's lifecycle, so a raw fetch in an effect in a repository that has one is
+   the finding. The race is the stale closure and the out-of-order response,
+   guarded by abort or an `ignore` flag set in cleanup; check-then-act across an
+   `await` is the split guard. Production sleep is `setTimeout` polling or backoff
+   that nothing cancels. A disabled `react-hooks/exhaustive-deps` is a suppression
+   of this rule; `@typescript-eslint/no-floating-promises` is errcheck's twin.
+7. **Module state.** Silent everywhere: constants, `as const` enums, types, pure
+   functions, the `createContext` object, styles. Silent in the composition root:
+   `new QueryClient()`, the router, the provider tree, `import.meta.env` and
+   `window.__RUNTIME_ENV__` read once into one app-config value. Reported elsewhere:
+   a module-level `let`, `new ApiClient()` at import, a query client stashed in a
+   module for non-React code, registries filled at import time, `import.meta.env`
+   inside a hook or service, `localStorage` read at module scope, a lazily built
+   singleton behind a getter. React context is the composition mechanism; a module
+   singleton is the finding when a provider would do. A test that `vi.stubEnv`s or
+   `vi.mock`s a config module is evidence against the production code.
+8. **Components, hooks and the slice.** A component is an orchestrator: the render
+   tree is the story and logic lives in hooks and pure functions, the leaf types.
+   `react/no-unstable-nested-components` is R3's lint neighbor and a component past
+   `sonarjs/max-lines-per-function` is the fat function. Extract Custom Hook is
+   Extract Function, placed by R4's ladder: beside its only caller, then the page's
+   own `hooks/`, then `src/hooks/` only when two pages share it. The page folder is
+   R5's vertical slice; top-level `components/`, `hooks/`, `services/` and `types/`
+   hold only what two pages share; `utils/`, `common/` and `helpers/` are R4's role
+   names.
+9. **Test doubles.** MSW is the real layer for HTTP: one handler file per API
+   domain, started once in setup. `vi.mock` of an internal hook or service is R6's
+   single-implementer seam, and an interface with one implementation injected
+   through context "for testing" is the same finding. Mocking the true boundary is
+   fine: the router, the auth SDK, the clock, `matchMedia`. Queries go by role and
+   label first and by test id last; waits are `findBy*` and `waitFor`, never a
+   timeout; `toHaveBeenCalledTimes` on an internal mock is R7 Q5.
+
+The binding also holds stances that are not community norms and says so under an
+"Opinionated" heading in its README: no `utils.ts`, `common.ts` or `helpers.ts`; no
+testing of non-exported functions; no `vi.mock` of internal hooks and services; no
+module singletons outside the composition root; a `renderWithProviders` helper is
+infrastructure, a fixture that hides the test's input is R7 Q3.
+
+Accessibility, which the hand-written 1.x plugin reviewed with a checklist, is
+enforced in the linter phase through the repository's own `jsx-a11y` configuration:
+its findings are mechanical rows in the lint-fixer's table, and the review has no
+accessibility hunter, because the twelve rules have no accessibility rule and a
+binding cannot add one (hunters are spawned per core rule).
+
+The two files every binding must supply name the TypeScript tool chain: a
+`package.json` that depends on `react` as the marker, the package manager read from
+the lockfile, scripts discovered by name, `tsc -b` where `tsconfig.json` has
+`references`, ESLint, Prettier, and Stylelint only where configured. The refactoring
+routing table and the lint-fixer's compact copy are keyed by ESLint rule ids —
+SonarJS for complexity and size, `react-hooks` and `typescript-eslint` for R10, the
+mechanical row for imports, formatting and `jsx-a11y`; duplicated code beyond
+`sonarjs/no-identical-functions`, a single-implementer interface, an in-place sort
+of query data and exhaustiveness without `switch-exhaustiveness-check` configured are
+review-only rows. The gate's adapter is a new TypeScript block in the same shape as
+the Python one — `package.json` sub-projects outside `node_modules`, declarations
+from `export`ed and plain `function`, `const`, `class`, `interface`, `type` and
+`enum`, class members as `Class.member`, ownership by module and directory — and the
+fixture include runs one row, `ts-react`.
+
 ## The case studies
 
 The six files under `examples/` are case law: the rules cite them, and the review
@@ -251,7 +383,11 @@ implementers where Go sealed an interface with an unexported method, a frozen
 dataclass where Go had private fields behind accessors, `_private` docstrings where
 Go had comments on unexported symbols. Core headings such as "private fields +
 accessors" stay, and the Python section says in one sentence which Python mechanism
-answers to the name.
+answers to the name. The ts-react sections do the same in TypeScript and TSX, seen
+from the frontend that talks to the same service: a discriminated union closed by
+`assertNever` where Python had `match`, `readonly` fields and one factory where it
+had a frozen dataclass, non-exported helpers' JSDoc where it had `_private`
+docstrings, a context provider where it had an app factory.
 
 The generic binding reads the Go sections through `include_fallback` and adds the
 demonstration note above the "Demonstrates" line through `examples/language-note.md`.

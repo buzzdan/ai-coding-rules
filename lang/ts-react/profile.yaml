@@ -1,0 +1,46 @@
+# The TypeScript + React binding: every scalar a core template substitutes as
+# {{.Name}}, plus the output paths the generator does not own. Field names are the
+# yaml keys of Vars in tools/ldd-gen. The binding is one language (TypeScript) and
+# one framework (React): the scalars are TypeScript's, the includes are written for
+# a React repository. The positions it takes where the rules' Go text meets a
+# TypeScript or React idiom are recorded in docs/language-residue.md, "The ts-react
+# binding".
+plugin: ts-react-linter-driven-development
+lang: TypeScript + React
+cmd_prefix: tsr-ldd
+# Core uses the source glob in `grep --include` and `git diff -- '<glob>'`, one glob
+# per binding, so it has to cover both `.ts` and `.tsx` in one pattern; the includes'
+# own detection commands spell both and prune node_modules.
+src_glob: "*.ts*"
+# Core glues the test glob as a suffix (`user/service{{.TestGlob}}`); Vitest and Jest
+# collect `*.test.ts` and `*.test.tsx` alike, and the includes name both forms.
+test_glob: ".test.tsx"
+project_marker: package.json
+# The most common form; the includes also name `// eslint-disable-line`, the block
+# form `/* eslint-disable <rule> */`, `@ts-expect-error` and `@ts-ignore`, which are
+# suppressions of the same kind.
+nolint: "// eslint-disable-next-line"
+comment_prefix: "//"
+# Fallbacks when the repository's package.json scripts, Taskfile or Makefile do not
+# name the commands; `npx` finds the local binary under any package manager.
+default_test: npx vitest run
+default_lint: npx tsc --noEmit && npx eslint .
+default_lint_fix: npx eslint . --fix && npx prettier --write .
+# Single words core prose uses as common nouns: the missing value (`undefined` is the
+# declared absence; `null` is the wire's and stops at the boundary), a unit of
+# concurrent work (a promise, an effect, a timer or a subscription — one thread, so
+# the hazards are ordering and leaks, never a data race), the documentation comment
+# form, the source-file suffix (`.ts` for modules; components are `.tsx`) and the
+# visibility of a non-public symbol (a module's non-exported declaration; the value
+# starts with a vowel so "an {{.Unexported}} symbol" reads).
+nil: undefined
+task: async task
+doc_form: JSDoc
+doc_comment: JSDoc comment
+src_ext: .ts
+unexported: unexported
+# Paths in the plugin directory the generator does not own. An eval run copies its
+# cases under evals/ at run time.
+ignore:
+  - evals/*
+  - .DS_Store

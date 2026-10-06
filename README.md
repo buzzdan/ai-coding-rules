@@ -9,7 +9,7 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven d
 | 🐹 | [`go-linter-driven-development`](go-linter-driven-development/README.md) | 2.13.0 | Go |
 | 🐍 | [`python-linter-driven-development`](python-linter-driven-development/README.md) | 0.2.0 | Python |
 | 🧩 | [`linter-driven-development`](linter-driven-development/README.md) | 0.1.0 | Any language without a binding — detects the language at run time |
-| ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 1.2.0 | TypeScript + React |
+| ⚛️ | [`ts-react-linter-driven-development`](ts-react-linter-driven-development/README.md) | 2.0.0 | TypeScript + React |
 
 Plus the standalone rule documents the plugins grew out of:
 
@@ -38,7 +38,7 @@ The same core rendered for repositories without a language binding. It detects t
 
 ### TS/React plugin
 
-Six skills mirroring the same philosophy for TypeScript + React: component design, testing (React Testing Library), ESLint/SonarJS-driven refactoring, advisory pre-commit review, and documentation. Details: [plugin README](ts-react-linter-driven-development/README.md).
+The same core rendered for a React single-page application in TypeScript: every canonical example is TypeScript or TSX, every detection command greps `.ts` and `.tsx` files, the linter routing is keyed by ESLint rule ids (SonarJS, react-hooks, typescript-eslint), and the testing skill speaks Vitest, React Testing Library and MSW. Where a Go idiom has no TypeScript twin the plugin takes a position — `undefined` as declared absence, parse at the API boundary, discriminated unions closed by `assertNever`, effects that return their cleanup, context providers over module singletons, MSW over `vi.mock` — recorded in [docs/language-residue.md](docs/language-residue.md). Version 2 replaces the hand-written six-skill plugin; the upgrade notes are in the [plugin README](ts-react-linter-driven-development/README.md).
 
 ## Installation
 
@@ -78,14 +78,14 @@ Team members then install with the same `/plugin install` commands above.
 
 ## Developing the Plugins
 
-1. Clone the repo. The Go, Python and generic plugin directories are generated: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory drifts from its sources. How the pieces fit: [core/README.md](core/README.md) and [docs/generator.md](docs/generator.md).
+1. Clone the repo. All four plugin directories are generated: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/`, `lang/ts-react/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python`, `task generate BINDING=ts-react` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory drifts from its sources. How the pieces fit: [core/README.md](core/README.md) and [docs/generator.md](docs/generator.md).
 2. Test locally by adding the checkout as a marketplace:
    ```
    /plugin marketplace add ./ai-coding-rules
    /plugin install go-linter-driven-development@ai-coding-rules
    ```
    After changes, uninstall/reinstall the plugin to pick them up.
-3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, the case studies' doctrine in `core/examples/` and their code sections in `lang/<lang>/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
+3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, TypeScript and React material in `lang/ts-react/`, the case studies' doctrine in `core/examples/` and their code sections in `lang/<lang>/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
 4. Behavior changes to the Go and Python plugins are measured, not eyeballed: behavioral evals run them on a deliberately bad fixture project (go-mini, py-mini) and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals); `scripts/evals.sh` runs them against this checkout.
 5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0)).
 
