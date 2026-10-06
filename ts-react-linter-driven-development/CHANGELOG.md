@@ -5,6 +5,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-06
+
+### Added
+
+- **The review routes files of another language to the plugin installed for it.**
+  The scope script tells each file's language by its extension and writes one bundle
+  per language group: TypeScript and JavaScript are reviewed here; Go goes to
+  `go-linter-driven-development` and Python to `python-linter-driven-development`
+  when installed; any other language goes to `linter-driven-development` when
+  installed; a group no installed plugin reviews is named file by file with the
+  reason, never dropped. The detection pass runs once per group with the reviewing
+  plugin's rules, and the report is one report with a section per language. A
+  TypeScript-only diff writes the same flat bundle as before. `--lang` reviews one
+  group only, the flag a plugin passes when it routes a group here.
+  `scripts/ldd-scope_test.sh` is the scope script's own fixture matrix.
+
 ## [2.0.0] - 2026-10-06
 
 ### Changed

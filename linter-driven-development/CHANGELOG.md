@@ -5,6 +5,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-06
+
+### Added
+
+- **The review splits a mixed diff by language and routes each part to the right
+  plugin.** The scope script tells each file's language by its extension, not by
+  one marker file for the whole repository, and writes one bundle per language
+  group. A group whose language has its own plugin installed
+  (`go-linter-driven-development`, `python-linter-driven-development`,
+  `ts-react-linter-driven-development`) is reviewed by that plugin with its rules
+  and agents; every other language this plugin knows — D, Rust, C and C++, Java,
+  Kotlin, Ruby, shell, C#, and Go, Python, TypeScript or JavaScript when their
+  plugin is not installed — is reviewed here with that
+  language's comment, test-file and suppression conventions. The detection pass runs
+  once per group with the reviewing plugin's rules, and the report is one report
+  with a section per language; a group with no hits is reported as such. A diff of
+  D files in a repository with `setup.cfg` at its root is now a D review, never
+  "nothing to review"; a scope every installed plugin excludes names each file and
+  why, and exits non-zero. `--glob` reviews files of a language the table does not
+  know as one group; `--lang` reviews one group only, the flag a plugin passes when
+  it routes a group here. `scripts/ldd-scope_test.sh` is the scope script's own
+  fixture matrix, with the mixed-repository cases.
+
+### Changed
+
+- The language block names the languages it reviews itself and a row per language;
+  the marker-file detection is gone from the review scripts. `ldd-detect.sh` reads
+  the bundle's `language.txt`, or tells the language from the scope list, and
+  refuses a list that spans several languages.
+
 ## [0.4.0] - 2026-10-06
 
 ### Added

@@ -118,7 +118,9 @@ python-linter-driven-development/
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Python)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with the Python adapter
-                  ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
+                  ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass;
+                  a diff that also touches another language is split by file and
+                  that group reviewed by the plugin installed for its language
 ```
 
 - **[`rules/`](rules/)** — R1–R12, each a self-contained hunter rulebook: Principle,

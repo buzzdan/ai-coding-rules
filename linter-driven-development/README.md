@@ -22,7 +22,8 @@ At pre-flight the plugin reads your repository's marker files — `go.mod`,
 the language against the source files present. From the same repository it discovers
 the test command and the lint command you already run (README, CLAUDE.md, Makefile,
 Taskfile, package scripts, CI), and the linter's configuration file. A repository with
-several languages is worked one language at a time.
+several languages is implemented one language at a time; its review takes the whole
+diff and splits it by language ("Mixed repositories" below).
 
 The rules, the review and the refactoring moves are language-neutral and run in full.
 Each rule's canonical example shows the shape in pseudocode, and each falsifying
@@ -87,6 +88,12 @@ linter-driven-development/
   bundle the review scripts wrote — a hunter gets its family's rows of the detection
   pass's hits table, the critic the bundle's comment lines — which they read in their
   first turn.
+- **[`scripts/ldd-scope.sh`](scripts/ldd-scope.sh)** and
+  **[`scripts/ldd-detect.sh`](scripts/ldd-detect.sh)** — the review's scope bundle
+  and detection pass. The scope script tells each file's language by its extension
+  and writes one bundle per language; the detection pass runs each bundle with the
+  rules of the plugin that reviews it.
+
 - **[`scripts/check-repo-brain.sh`](scripts/check-repo-brain.sh)** — the
   documentation-network gate `/wire-repo-brain` installs into your repository. Its
   language adapter is chosen at run time: `go.mod` selects the Go block,
@@ -102,6 +109,29 @@ linter-driven-development/
 
 Not shipped here, because they are Go-specific rather than Go-illustrated: the
 test-harness catalogue and the package-size hook.
+
+## Mixed repositories
+
+A diff that touches several languages — D, Python and Go in one tree, say — is one
+review. The scope script splits the files by the language of each one, not by one
+language for the whole repository, and sends every group to the plugin that reviews
+it:
+
+- a language with its own plugin installed (`go-linter-driven-development`,
+  `python-linter-driven-development`, `ts-react-linter-driven-development`) is
+  reviewed by that plugin, with its rules and its agents;
+- every other language this plugin knows — D, Rust, C and C++, Java, Kotlin, Ruby,
+  shell, C#, and Go, Python, TypeScript or JavaScript when their plugin is not
+  installed — is reviewed here, with that language's comment, test-file and
+  suppression conventions (the review says so when a language's own plugin was not
+  installed);
+- a file whose extension the language table does not know is not source and is not
+  reviewed; `--glob '<pattern>'` reviews such files as one group of their own.
+
+The report is one report with a section per language; a group with no findings is
+reported as such, never dropped. The same split applies in `/ldd-review`,
+`/ldd-quickfix`, `/ldd-analyze` and the orchestrator's review phase. Installed
+plugins are read from `~/.claude/plugins/installed_plugins.json`.
 
 ## The Five-Phase Flow
 

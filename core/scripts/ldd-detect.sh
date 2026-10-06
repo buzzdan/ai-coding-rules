@@ -11,16 +11,25 @@
 #
 # Usage:  bash scripts/ldd-detect.sh [options] <bundle-dir>
 #         <bundle-dir>      the bundle ldd-scope.sh wrote; its files.txt is the
-#                           scope, hits.tsv and counts.tsv are written beside it
+#                           scope, hits.tsv and counts.tsv are written beside it.
+#                           A directory holding groups.txt is a scope split by
+#                           language: every group's bundle is run in turn by the
+#                           ldd-detect.sh of the plugin that reviews it, under a
+#                           "== <id> — <plugin> ==" line, and an excluded group
+#                           says why it was not reviewed
 #   --files <list>          read the scope from this file instead of files.txt
 #   --root <dir>            the reviewed repository (default: cwd); scope paths
 #                           are relative to it
 #   --rules <dir>           the rule files (default: ../rules beside this script)
 #   --cap <n>               hits kept per question in hits.tsv (default 40)
 #   --plan                  print the parsed detect lines and exit; nothing runs
-#   --glob <pattern>        source-file glob, when the language block cannot
-#                           tell it from the repository ({{.Lang}} block below)
+#   --glob <pattern>        the scope is one group of a language the table
+#                           does not know, matched by this glob
 #   --test-re <ERE>         test-file pattern over relative paths, same case
+#
+# The scope's language is the bundle's language.txt; without it, the files in
+# files.txt tell it by extension, and a list that spans several languages is
+# refused: ldd-scope.sh writes one bundle per language.
 #
 # Detect lines — one per numbered question under "## Falsifying questions":
 #   Detect-grep: `<ERE>` [files=src|test|all] [exclude-path=<ERE>,<ERE>] [context=<n>]
@@ -95,17 +104,66 @@ if (( ! PLAN )); then
   [[ -d "$BUNDLE" ]] || die "not a directory: $BUNDLE"
   BUNDLE=$(cd "$BUNDLE" && pwd)
   [[ -z "$FILES_LIST" ]] && FILES_LIST="$BUNDLE/files.txt"
-  [[ -f "$FILES_LIST" ]] || die "no scope list: $FILES_LIST"
+  [[ -f "$FILES_LIST" || -f "$BUNDLE/groups.txt" ]] || die "no scope list: $FILES_LIST"
   FILES_LIST=$(cd "$(dirname "$FILES_LIST")" && pwd)/$(basename "$FILES_LIST")
   [[ -d "$ROOT" ]] || die "not a directory: $ROOT"
   cd "$ROOT" || exit 2
 fi
 
+{{include "scripts/ldd-langs.sh"}}
+
 {{include "scripts/ldd-lang.sh"}}
 
+# ---------- a scope split by language: one run per group ----------
+if (( ! PLAN )) && [[ -f "$BUNDLE/groups.txt" ]]; then
+  failed=0
+  while IFS=$'\t' read -r id plugin plugin_dir bundle note; do
+    [[ -n "$id" ]] || continue
+    if [[ "$bundle" == "-" ]]; then
+      echo "== $id — not reviewed: $note =="
+      echo
+      continue
+    fi
+    echo "== $id — $plugin${note:+ ($note)} =="
+    script="$plugin_dir/scripts/ldd-detect.sh"
+    if [[ ! -f "$script" ]]; then
+      echo "$SCRIPT_NAME: $plugin has no ldd-detect.sh at $script; the $id group is inconclusive" >&2
+      failed=1
+      continue
+    fi
+    args=(--root "$ROOT" --cap "$CAP")
+    [[ -n "$OPT_TEST_RE" ]] && args+=(--test-re "$OPT_TEST_RE")
+    bash "$script" "${args[@]}" "$bundle" || { failed=1; echo "$SCRIPT_NAME: the $id group's detection pass failed; it is inconclusive" >&2; }
+    echo
+  done < "$BUNDLE/groups.txt"
+  (( failed == 0 )) || exit 2
+  exit 0
+fi
+
+# ---------- the scope's language ----------
 # --plan parses the rules and never touches the tree, so the language block is
 # configured only for a run.
-(( PLAN )) || lang_configure || exit 2
+LANG_ID=""
+if (( ! PLAN )); then
+  if [[ -f "$BUNDLE/language.txt" ]]; then
+    IFS=$'\t' read -r LANG_ID glob < "$BUNDLE/language.txt"
+    [[ "$LANG_ID" == "custom" && -z "$OPT_GLOB" ]] && OPT_GLOB="$glob"
+  else
+    ids=""
+    while IFS= read -r line; do
+      f="${line%% (not bundled:*}"; f="${f#./}"
+      [[ -n "$f" ]] || continue
+      id=$(lang_of_path "$f")
+      [[ -n "$id" ]] || continue
+      case " $ids " in *" $id "*) ;; *) ids="$ids $id" ;; esac
+    done < "$FILES_LIST"
+    ids="${ids# }"
+    [[ -n "$ids" ]] || die "no source file in the scope list $FILES_LIST (pass --glob '<pattern>' for a language the table does not know)"
+    [[ "$ids" == *" "* ]] && die "the scope list spans several languages ($ids); ldd-scope.sh writes one bundle per language"
+    LANG_ID="$ids"
+  fi
+  lang_configure "$LANG_ID" || die "this plugin has no language block for $LANG_ID"
+fi
 
 # ---------- the plan: every detect line, parsed ----------
 # One row per question: rule TAB question TAB kind TAB pattern TAB flags.
@@ -169,9 +227,9 @@ fi
 
 # ---------- the scope ----------
 # files.txt lines are "path" or "path (not bundled: <reason>)"; a not-bundled
-# file still exists for grep unless it was deleted. Only the language's source
-# files count, excluded directories are dropped, order is fixed for identical
-# tables across runs.
+# file still exists for grep unless it was deleted. Only the scope language's
+# source files count, excluded directories are dropped, order is fixed for
+# identical tables across runs.
 SRC_FILES=()
 TEST_FILES=()
 ALL_FILES=()
@@ -180,7 +238,7 @@ while IFS= read -r line; do
   f="${f#./}"
   [[ -z "$f" ]] && continue
   [[ -f "$f" ]] || continue
-  case "$(basename "$f")" in $LANG_SRC_GLOB) ;; *) continue ;; esac
+  [[ "$(lang_of_path "$f")" == "$LANG_ID" ]] || continue
   printf '%s\n' "$f" | grep -qE -- "$LANG_EXCLUDE_RE" && continue
   ALL_FILES+=("$f")
 done < <(LC_ALL=C sort -u "$FILES_LIST")

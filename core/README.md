@@ -155,13 +155,24 @@ differently from the other bindings:
   code-comments checklist and the bug-fix examples are includes, with the Go text
   under `lang/go/skills/documentation/reference/` and neutral defaults under
   `core/includes/`.
-- `scripts/ldd-detect.sh`, `scripts/ldd-scope.sh` and `scripts/ldd-detect_test.sh`,
-  the review's detection pass, its scope bundle and their fixture matrix, are core
-  templates that read two includes with no core default: `scripts/ldd-lang.sh`, the
-  language block (source glob, test-file test, suppression directive, comment marker
-  and its directive forms), and `scripts/ldd-fixture.sh`, the fixture rows the matrix
-  runs. Every binding writes both; the generic binding's block detects the language
-  from the repository's marker file, as its repo-brain adapter does.
+- `scripts/ldd-scope.sh`, `scripts/ldd-detect.sh`, `scripts/ldd-scope_test.sh` and
+  `scripts/ldd-detect_test.sh`, the review's scope bundle, its detection pass and
+  their fixture matrices, are core templates. The scripts read two includes with a
+  core default: `scripts/ldd-langs.sh`, the language table (a file's language by
+  its extension, the plugin written for a language, where an installed plugin lives)
+  — the same in every plugin, so two plugins that split one scope agree on every
+  file — and, in the tests, `scripts/ldd-mixed-fixture.sh`, the four-language (D, Python, Go, TypeScript)
+  repository the routing cases build. They read two includes with no core default:
+  `scripts/ldd-lang.sh`, the language block (the language ids the plugin reviews
+  itself, and per id the test-file test, the suppression directive, the comment
+  marker and its directive forms), and `scripts/ldd-fixture.sh`, the fixture rows
+  the matrix runs and the ids of the mixed repository the plugin reviews itself.
+  Every binding writes both; the generic binding's block carries one row per
+  language the table names, so it reviews any of them when no plugin written for
+  that language is installed. The split and the routing are core: a scope is grouped
+  by the language of each file, a group goes to the plugin installed for its
+  language, else to this plugin's block, else to the generic plugin, else it is
+  excluded and every file of it named.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The
@@ -176,7 +187,11 @@ differently from the other bindings:
 `task lint-core` scans `core/` for language-specific text and rewrites this section.
 Hard residue is a plugin-name or command-prefix literal, a `golangci` reference, a
 source-file glob or a nolint directive: each has a profile scalar or an include, so a
-hit is a missed substitution and fails the check. Soft residue is Go vocabulary that
+hit is a missed substitution and fails the check. A file that names every language
+on purpose and renders the same in every plugin — the language table, the
+mixed-repository fixture, a test that names the sibling plugins it routes to —
+carries `residue-exempt: <why>` in its first twenty lines and is scanned for soft
+residue only. Soft residue is Go vocabulary that
 reads fine in a Go plugin (`nil`, `ctx`, goroutines, `interface`, error tuples,
 standard-library calls, linter and library names such as `exhaustive` or `testify`);
 it is the list of words a second language binding must decide how to render, by
@@ -188,26 +203,28 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (115 lines):
+Soft residue by token (130 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
 | interface | 85 | 24 |
+| Go (the word) | 13 | 8 |
 | Go code fence | 12 | 1 |
-| Go (the word) | 6 | 4 |
+| Go stdlib | 9 | 5 |
 | struct | 6 | 4 |
-| Go stdlib | 5 | 4 |
+| func | 4 | 2 |
+| go.mod | 2 | 1 |
 | race detector | 2 | 2 |
-| func | 1 | 1 |
 | sync. | 1 | 1 |
 
-Soft residue by file (115 lines):
+Soft residue by file (130 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
 | `skills/documentation/reference.md` | 18 | 5 |
 | `rules/R11-conditional-dispatch.md` | 13 | 1 |
 | `rules/R6-test-only-interfaces.md` | 13 | 1 |
+| `includes/scripts/ldd-mixed-fixture.sh` | 10 | 4 |
 | `includes/rules/R6/falsifying-questions.md` | 8 | 1 |
 | `maxims.md` | 7 | 4 |
 | `examples/switch-to-polymorphism.md` | 6 | 2 |
@@ -220,6 +237,8 @@ Soft residue by file (115 lines):
 | `includes/skills/documentation/reference/doc-comment-menus.md` | 3 | 1 |
 | `includes/handbook/R11/example.md` | 2 | 1 |
 | `includes/rules/R10/falsifying-questions.md` | 2 | 2 |
+| `skills/pre-commit-review/SKILL.md` | 2 | 1 |
+| `skills/pre-commit-review/reference.md` | 2 | 1 |
 | `agents/overabstraction-skeptic.md` | 1 | 1 |
 | `examples/storify-leaf-type.md` | 1 | 1 |
 | `includes/agents/lint-fixer/routing-table.md` | 1 | 1 |
@@ -236,5 +255,6 @@ Soft residue by file (115 lines):
 | `rules/R10-concurrency-safety.md` | 1 | 1 |
 | `rules/R2-self-validating-types.md` | 1 | 1 |
 | `rules/R7-test-placement.md` | 1 | 1 |
+| `scripts/ldd-scope_test.sh` | 1 | 1 |
 | `skills/linter-driven-development/SKILL.md` | 1 | 1 |
 <!-- residue:end -->
