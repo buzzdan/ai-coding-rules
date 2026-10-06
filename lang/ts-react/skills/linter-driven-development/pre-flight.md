@@ -7,9 +7,10 @@
    `format`/`formatcheck`/`format:check`, `test`/`test:run`/`vitest`/`jest`,
    `check`/`checkall` — Makefile, Taskfile.yaml, `eslint.config.*`, `tsconfig.json`
    (`references` present → `tsc -b`, else `tsc --noEmit`), `vitest.config.*`/
-   `jest.config.*`, the CI workflow, in that order): test + lint commands, and which
-   checkers the repository runs — `tsc`, ESLint, Prettier, Stylelint where
-   configured. Detect the package manager from the lockfile (`yarn.lock` → `yarn`,
+   `jest.config.*`, the CI workflow, in that order): test + lint commands, the
+   mutation target when one exists (`mutate`, `stryker`), and which checkers the
+   repository runs — `tsc`, ESLint, Prettier, Stylelint where configured. Detect the
+   package manager from the lockfile (`yarn.lock` → `yarn`,
    `pnpm-lock.yaml` → `pnpm`, `package-lock.json` → `npm`, `bun.lockb` → `bun`) and
    run every script through it. Fallbacks: `npx vitest run`,
    `npx tsc --noEmit && npx eslint . --fix && npx prettier --write .`. Never bring a

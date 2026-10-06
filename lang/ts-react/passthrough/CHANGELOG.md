@@ -14,7 +14,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   rules, the maxims, the design, TDD, refactoring, testing, review and documentation
   skills, the hunter/skeptic/critic review and the repo-brain gate — with TypeScript
   and React knowledge. Every canonical example is TypeScript in a React repository;
-  every falsifying question says what to grep in `.ts` and `.tsx` files.
+  every falsifying question carries a detect line over `.ts` and `.tsx` files.
 - **`@component-designing` is `@code-designing`.** The design skill carries the
   core's name; the other five skill names are unchanged.
 - **No `CLAUDE.md` in the plugin directory.** The 1.x file that instructed Claude to
@@ -27,8 +27,44 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ### Added
 
 - **The twelve rules** under `rules/`, R1-primitive-obsession through
-  R12-mutation-discipline, each a self-contained hunter payload with a TypeScript
-  canonical example.
+  R12-mutation-discipline, each a self-contained hunter rulebook with a TypeScript
+  canonical example and a detect line on every falsifying question.
+- **The review's detection pass and scope bundle are scripts.** `scripts/ldd-scope.sh`
+  writes the bundle from the review's scope rung — a file list, the working tree, the
+  branch against its base, or the whole repository — with the added comment lines
+  the critic judges in `comments.txt`, and prints one summary line.
+  `scripts/ldd-detect.sh` runs every detect line over the bundle and writes
+  `hits.tsv`, `hits-all.tsv` and `counts.tsv`, with the suppression scan as a row;
+  two runs over one tree write identical counts. Every falsifying question in
+  `rules/R1` to `R12` carries a detect line beside its prose — a `grep` pattern over
+  `.ts` and `.tsx` files, a `path` pattern over their paths, a reference to one of
+  the R9 gate's questions, or the word `judgment` for a question the hunter can only
+  read. The pre-commit review's first step runs both scripts and reads the counts
+  table they print; a rule family with a hit gets one hunter carrying its rule files
+  by path and its family's rows of the hits table, and the comment critic reads the
+  bundle's comment lines as its inventory. What each question asks is unchanged.
+- **R1 catches containers of primitives.** Two falsifying questions: Q7, a nested
+  container in a signature or a field (`Map<string, string[]>`,
+  `Record<string, Record<string, number>>`), always a finding; Q8, a flat
+  `string[]`, `Record<string, string>` or tuple crossing a function boundary, judged
+  by what its receivers do with it — a lookup, a membership test, a loop that
+  filters and extracts, each one a method of a type that does not exist yet. The
+  move is **Name the Container**; the lint-fixer's routing table, the refactoring
+  routing table and the design skill's linter triggers carry it as a review-only
+  row, because ESLint has no rule for it.
+- **R7's mutation question.** Q7 asks whether a mutant survives a leaf type's
+  tests: coverage is the floor, the mutation score the claim, and the move is Kill
+  the surviving mutant. The TypeScript mechanics name Stryker — `npx stryker run`
+  with `mutate` naming leaf modules only, never pages, hooks or the whole `src/`
+  tree — and every survivor is triaged as a missing `it.each` row, dead logic or a
+  recorded equivalent mutant. The workflow's pre-flight discovers a `mutate` or
+  `stryker` target beside the test and lint commands, and the testing reference's
+  checklist carries the row.
+- **`coding-rules/ts-react.md`, the TypeScript + React coding-rules handbook.** The
+  twelve rules with TypeScript examples and the binding's positions as asides, the
+  house rules with their TypeScript spelling, a self-review checklist and the
+  mechanics; generated from `core/handbook/` and `lang/ts-react/handbook/` in the
+  same run as the plugin, and read by a team that does not develop with it.
 - **Nine positions where the rules meet TypeScript and React idiom**, recorded in
   the main repository's `docs/language-residue.md`: `undefined` is the declared
   absence and `null` stops at the boundary; an optional collaborator is a module
@@ -51,7 +87,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `eslint-disable` in all its spellings, `@ts-expect-error`, `@ts-ignore`,
   `@ts-nocheck`, `prettier-ignore` — is one the lint-fixer never adds.
 - **The agents**: `rule-hunter`, `overabstraction-skeptic`, `comment-critic` and
-  `lint-fixer`, each spawned in an isolated context with its rule as payload.
+  `lint-fixer`, each spawned in an isolated context and pointed by path at its rule
+  files — a hunter gets its rule family's, four hunters at most, with its family's
+  rows of the detection pass's hits table; the critic gets the bundle's comment
+  lines.
 - **Seven slash commands**: `/tsr-ldd-autopilot`, `/tsr-ldd-quickfix`,
   `/tsr-ldd-prepare`, `/tsr-ldd-analyze`, `/tsr-ldd-review`, `/tsr-ldd-status` and
   `/wire-repo-brain`.

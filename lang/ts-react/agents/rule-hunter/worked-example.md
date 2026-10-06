@@ -1,6 +1,6 @@
-**Worked example (analysis style only — your pasted rule governs the substance):**
+**Worked example (analysis style only — your rule file governs the substance):**
 ```
-Lead (pre-filter): src/services/userApi.ts:14 matched inline check on a domain primitive.
+Lead (hits.tsv, R<N> Q1): src/services/userApi.ts:14 matched inline check on a domain primitive.
 Q1 (rule): validated inline instead of via a constructor?
   Read src/services/userApi.ts:10-16 → `if (!email.includes('@')) throw new Error(...)`
   → YES: domain concept checked in a service module, no `parseEmail`/`Email.parse` owns it.

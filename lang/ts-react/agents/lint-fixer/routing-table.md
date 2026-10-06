@@ -5,6 +5,7 @@
 | `react/no-unstable-nested-components` | rules/R3-storifying.md (via @refactoring); the extracted component is placed per rules/R4-helper-placement.md |
 | `max-params` | rules/R1-primitive-obsession.md (Introduce Parameter Object — a `readonly` props/options type) |
 | `sonarjs/no-duplicate-string` on an enum-shaped literal / `no-magic-numbers` on a domain value / `sonarjs/max-union-size` | rules/R1-primitive-obsession.md ("Name enum strings" move, or a named type) |
+| A tuple return (`[T, boolean]`, `[Data, Error]`); a `Record<string, string>`, `string[]` or `Map` of primitives crossing a function boundary or nested in a type (review-only — no ESLint rule) | rules/R1-primitive-obsession.md ("Name the Container" move — Q7 nested, Q8 flat across a boundary) |
 | `sonarjs/no-identical-functions` | rules/R1-primitive-obsession.md (extract shared type/logic); duplicated `switch`/if-chains on one discriminant → rules/R11-conditional-dispatch.md |
 | `sonarjs/max-lines` (600) | rules/R5-vertical-slice.md |
 | `react/no-multi-comp` | rules/R5-vertical-slice.md (one component per file; the page folder decides where the second goes) |

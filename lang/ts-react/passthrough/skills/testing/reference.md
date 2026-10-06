@@ -275,3 +275,4 @@ or recorded API cannot represent the behavior under test.
 - [ ] HTTP through MSW handlers; no `vi.mock` of an internal hook or service
 - [ ] Every wait is `findBy*`, `waitFor` or an advanced fake timer; `vi.useRealTimers()` after
 - [ ] `npx vitest run --coverage` shows 100% on leaf types
+- [ ] `npx stryker run` reports no untriaged survivor, with `mutate` naming leaf modules only

@@ -5,6 +5,7 @@ one command answers all four. Code-side searches run over `*.ts` and `*.tsx` fil
 outside `node_modules`.
 
 1. **Is any doc an orphan?**
+   Detect-gate: Q1
    Detection: `find <docroot> -name '*.md' ! -name 'index.md'` versus the link
    targets extracted from `index.md` and any sub-indexes, e.g.
    `grep -oE '\]\([^)]+\.md\)' <docroot>/index.md`.
@@ -12,6 +13,7 @@ outside `node_modules`.
    unread, so rotting. Cite the file and the index that should list it.
 
 2. **Is any edge broken — in either direction?**
+   Detect-gate: Q2
    Detection, code→docs: `grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .`
    plus `.md`-to-`.md` links inside `<docroot>`; `test -f` each target.
    Detection, docs→code: build the repo's declaration set once — top-level
@@ -38,6 +40,7 @@ outside `node_modules`.
    *(planned)*, and a *(planned)*-marked line is exempt from resolution.
 
 3. **Is the root unwired?**
+   Detect-gate: Q3
    Detection: for each doc root, `grep -l '<docroot>/index.md' CLAUDE.md AGENTS.md
    2>/dev/null` in the root's owning project directory — the exact path, never a
    bare `index.md` mention. A monorepo sub-root also counts as wired when the
@@ -48,9 +51,9 @@ outside `node_modules`.
    tool that reads AGENTS.md instead of CLAUDE.md starts blind.
 
 4. **Does a JSDoc on an exported symbol state WHAT instead of WHY?**
-   Detection: for each exported declaration in the diff
-   (`grep -nE '^export (default )?(async )?(function|const|class|type|interface|enum) [A-Za-z]' <changed files>`),
-   read the JSDoc block above it. The summary line is the contract in one sentence
+   Detect-grep: `^export (default )?(async )?(function|const|class|type|interface|enum) [A-Za-z]`
+   Detection: for each exported declaration in the diff, read the JSDoc block
+   above it. The summary line is the contract in one sentence
    and is exempt from the restatement verdict when it states that contract
    (`/** A named, validated service port; it cannot exist out of range. */` earns
    its line); it is a finding when it restates the name (`/** Policy is a policy.
@@ -68,6 +71,7 @@ outside `node_modules`.
    question — they are `R3-storifying.md` Q3 (extraction candidates).
 
 5. **Is new exported API naked, or a feature-sized change undocumented at rung 2?**
+   Detect: judgment
    Detection: in the diff, `grep -nE '^\+export (default )?(async )?(function|const|class|type|interface|enum) [A-Za-z]'`
    on added lines and check whether the preceding added line closes a JSDoc block
    (`*/`). Where the repository configures `eslint-plugin-jsdoc`,
@@ -81,6 +85,7 @@ outside `node_modules`.
    doc-root entry — the knowledge shipped without joining the network.
 
 6. **Did behavior change silently under an existing doc?** *(advisory)*
+   Detect: judgment
    Detection: map the diff's changed modules and page folders to docs that cite
    their symbols or directory paths (grep `<docroot>` for the folder name and its
    exported symbols); check whether any such doc is in the diff.
@@ -89,6 +94,7 @@ outside `node_modules`.
    affected section, never appending history.
 
 7. **Does any file break the bundle contract?**
+   Detect-gate: Q7
    Detection: every content `.md` under `<docroot>` starts with a terminated
    frontmatter block (first line `---`, a closing `---` follows) carrying
    `type` valued `feature` / `architecture` / `guide` and a non-empty
