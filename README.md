@@ -20,9 +20,6 @@ Plus the coding rules as a single document, for a project that does not use the 
 
 All four are generated from the same sources as the plugins, so they never drift from them; import one from your `CLAUDE.md` or `AGENTS.md`, or read it before your first PR. How they are built: [docs/handbook.md](docs/handbook.md).
 
-And the hand-written testing strategy the TS/React plugin grew out of:
-
-- [`testing_rules_ts_react.md`](testing_rules_ts_react.md) — TypeScript + React testing strategy (Vitest, RTL, MSW)
 
 ### Go plugin (v2 — rules as data)
 
