@@ -1,0 +1,1 @@
+`// eslint-disable-next-line …`, `// eslint-disable-line`, `/* eslint-disable */`/`/* eslint-enable */`, `@ts-expect-error`, `@ts-ignore`, `@ts-nocheck`, `// prettier-ignore`, `// @vitest-environment`, `/// <reference …>` triple-slash lines, `// biome-ignore`, `/* istanbul ignore next */`, and `/* c8 ignore next */`

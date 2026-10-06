@@ -1,0 +1,1 @@
+- [JSDoc Menus](#jsdoc-menus) — module, component, hook, type, function menus; `@example` blocks
