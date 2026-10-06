@@ -34,9 +34,11 @@ export class Ports {
 }
 
 // ❌ a shape crosses the boundary; the caller pokes the method out of it
+const BEARER = 'Bearer '
+
 function bearerToken(headers: Record<string, string>): string | undefined {
   for (const [name, value] of Object.entries(headers)) {
-    if (name === 'Authorization' && value.startsWith('Bearer ')) return value.slice(7)
+    if (name === 'Authorization' && value.startsWith(BEARER)) return value.slice(BEARER.length)
   }
   return undefined
 }
@@ -49,7 +51,7 @@ export class Headers {
   }
   authToken(): string | undefined {
     const value = this.raw.get('Authorization')
-    return value?.startsWith('Bearer ') ? value.slice(7) : undefined
+    return value?.startsWith(BEARER) ? value.slice(BEARER.length) : undefined
   }
 }
 ```

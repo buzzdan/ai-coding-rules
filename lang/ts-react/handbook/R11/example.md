@@ -1,9 +1,11 @@
 ```tsx
 // ❌ the same discriminator in NotifyPanel.tsx, validateChannel.ts and alertsApi.ts
-switch (alert.channel) {
-  case 'email': return sendEmail(alert.recipient, renderEmail(alert))
-  case 'slack': return postSlack(alert.recipient, renderSlack(alert))
-  default: return Promise.reject(new Error(`unknown channel ${alert.channel}`))
+function send(alert: Alert): Promise<void> {
+  switch (alert.channel) {
+    case 'email': return sendEmail(alert.recipient, renderEmail(alert))
+    case 'slack': return postSlack(alert.recipient, renderSlack(alert))
+    default: return Promise.reject(new Error(`unknown channel ${alert.channel}`))
+  }
 }
 
 // ✅ chosen once at the boundary; everything downstream tells
