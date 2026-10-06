@@ -134,7 +134,7 @@ FNR == 1 {
 }
 { line = $0; d = braces(line) }
 destr {
-  if (line ~ /^[ \t]*[}\]]/) { names(buf); buf = ""; destr = 0; advance(); next }
+  if (line ~ /^[ \t]*[]}]/) { names(buf); buf = ""; destr = 0; advance(); next }
   if (line ~ /^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace|import)[ \t]/) {
     names(buf); buf = ""; destr = 0
   } else { buf = buf "," line; advance(); next }
