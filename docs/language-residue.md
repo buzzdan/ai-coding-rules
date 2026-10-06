@@ -73,7 +73,7 @@ drifting apart.
 | `doc_form` | `{{.DocForm}}` | godoc | doc comment | docstring | JSDoc | the documentation form as a noun or adjective: "its {{.DocForm}}", "kind ({{.DocForm}}/in-body/test)" |
 | `doc_comment` | `{{.DocComment}}` | godoc comment | doc comment | docstring | JSDoc comment | the two-word noun in R9 and the comment critic; one scalar would render "docstring comments" |
 | `src_ext` | `{{.SrcExt}}` | `*.go` minus the star | `.<ext>` | `*.py` minus the star | `.ts` | the source-file suffix in worked-example paths and R5's role-named files. The generic value is a placeholder rather than a phrase because every use site glues it to a file name: `user/service.<ext>:14` reads, `user/servicethe language's source suffix:14` does not |
-| `unexported` | `{{.Unexported}}` | unexported | internal | underscore-prefixed | unexported | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads. "Unexported" is Go's word, so the generic binding says "internal", the one most languages share; the generic handbook's residue gate is what caught it |
+| `unexported` | `{{.Unexported}}` | unexported | internal | underscore-prefixed | internal | the visibility of a symbol outside the public surface, in R4's ladder, R9's visibility default and R2's field discipline. Every value starts with a vowel so "an {{.Unexported}} symbol" reads. "Unexported" is Go's word, so the generic binding says "internal", the one most languages share; the generic handbook's residue gate is what caught it, and the ts-react handbook's catches it the same way, so ts-react says "internal" too |
 
 Plural forms append `s` to the scalar; every value above pluralizes that way. A
 scalar never carries a sentence: when substitution would need a different article,
@@ -259,8 +259,13 @@ framework: the scalars are TypeScript's, the includes are written for a React
 repository, and nothing in it serves a Node service (that would be a second binding
 with the same scalars and different includes, if one is ever needed). Like Python,
 it adds a file wherever knowing the stack beats detecting it and takes the core
-default everywhere else. Three scalar choices:
+default everywhere else. Four scalar choices:
 
+- `unexported` is `internal`, as in the generic binding: in TypeScript the honest
+  word is "unexported" — a declaration the module does not export is invisible
+  outside the file — but that word is itself a residue token, and the handbook's
+  residue gate rejects it in rendered text; `internal` starts with a vowel and reads
+  in every sentence that uses it.
 - `src_glob` is `*.ts*`, because core glues one glob into `grep --include` and
   `git diff -- '<glob>'`, and a React source tree is `.ts` and `.tsx` in one
   tree; the binding's own detection commands spell both and prune `node_modules`.
