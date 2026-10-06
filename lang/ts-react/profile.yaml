@@ -23,8 +23,11 @@ project_marker: package.json
 nolint: "// eslint-disable-next-line"
 comment_prefix: "//"
 # Fallbacks when the repository's package.json scripts, Taskfile or Makefile do not
-# name the commands; `npx` finds the local binary under any package manager. The fix
-# fallback type-checks first: ESLint's `--fix` and Prettier never see a type error.
+# name the commands, in the npm spelling: a scalar is one command, so the pre-flight
+# and the analyze command tell the agent to swap `npx` for the detected package
+# manager's executor (`yarn`, `pnpm exec`, `bunx`) — `npx` cannot resolve a Yarn
+# Plug'n'Play repository's binaries. The fix fallback type-checks first: ESLint's
+# `--fix` and Prettier never see a type error.
 default_test: npx vitest run
 default_lint: npx tsc --noEmit && npx eslint .
 default_lint_fix: npx tsc --noEmit && npx eslint . --fix && npx prettier --write .

@@ -511,15 +511,17 @@ useEffect(() => {
   }, POLL_MS)
 }, [id])
 
-// ✅ the effect that starts the timer returns the cleanup that stops it; the fetch is abortable
+// ✅ the effect that starts the timer returns the cleanup that stops it; each tick retires the last
 useEffect(() => {
-  const controller = new AbortController()
+  let inflight: AbortController | undefined
   const timer = setInterval(() => {
-    void fetchStatus(id, controller.signal).then(setStatus).catch(ignoreAbort)
+    inflight?.abort()                       // a slow response never lands after a newer one
+    inflight = new AbortController()
+    void fetchStatus(id, inflight.signal).then(setStatus).catch(ignoreAbort)
   }, POLL_MS)
   return () => {
     clearInterval(timer)
-    controller.abort()
+    inflight?.abort()
   }
 }, [id])
 
@@ -785,6 +787,6 @@ are the ones that catch the most. The house-rule questions are review questions 
 | Type suppression | `@ts-expect-error` over `@ts-ignore` — the same rule as `eslint-disable`, see H1 |
 | TypeScript / React | the examples assume TypeScript 5 under `strict` and React 18; `satisfies` needs 4.9+, `toSorted` the ES2023 lib (else `[...xs].sort()`) |
 | Tests | Vitest collects `*.test.ts` and `*.test.tsx` colocated with the module; `renderWithProviders` in `src/test-utils/`; MSW started once in the setup file |
-| Package manager | read from the lockfile (`yarn.lock`, `pnpm-lock.yaml`, `package-lock.json`, `bun.lockb`); every script runs through it |
+| Package manager | read from the lockfile (`yarn.lock`, `pnpm-lock.yaml`, `package-lock.json`, `bun.lock` or the older `bun.lockb`); every script runs through it |
 | Mutation | Stryker over leaf modules only, where the repository configures it |
 | Workflow | RED → GREEN → REFACTOR per behavior; package-scoped lint every cycle; review per finished slice; commit only a green tree |

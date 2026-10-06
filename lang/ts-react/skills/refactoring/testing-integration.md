@@ -1,5 +1,5 @@
 **MANDATORY** after creating new types or extracting functions, hooks or components:
-1. List created types: `grep -rnE "^export (interface|type|class)[[:space:]]+\w+" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .`
+1. List what was created — types, functions, hooks and components alike: `grep -rnE "^export (default )?(async )?(interface|type|class|enum|function|const|let)[[:space:]]+\w+" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .`
 2. Missing tests for any of them → STOP and invoke @testing. Before a move,
    characterization tests through the public API (`renderWithProviders` + MSW,
    never a `vi.mock` of the module being moved); `npx vitest run <dir>` after each step.

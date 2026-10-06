@@ -3,7 +3,7 @@ avoid refactoring.** Handle the error, parse at the boundary, or reduce the
 complexity. Before finishing, scan all uncommitted files:
 
 ```bash
-changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
+changed_files=$({ git diff --name-only; git diff --cached --name-only; git ls-files --others --exclude-standard; } | sort -u)
 [ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep -nE 'eslint-disable|@ts-(expect-error|ignore|nocheck)|prettier-ignore' 2>/dev/null
 ```
 

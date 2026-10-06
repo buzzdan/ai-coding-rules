@@ -108,7 +108,7 @@ mode is the one invoked, before any move: `sed -n '/^## Preparatory mode/,/^## S
 
 <testing_integration>
 **MANDATORY** after creating new types or extracting functions, hooks or components:
-1. List created types: `grep -rnE "^export (interface|type|class)[[:space:]]+\w+" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .`
+1. List what was created — types, functions, hooks and components alike: `grep -rnE "^export (default )?(async )?(interface|type|class|enum|function|const|let)[[:space:]]+\w+" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .`
 2. Missing tests for any of them → STOP and invoke @testing. Before a move,
    characterization tests through the public API (`renderWithProviders` + MSW,
    never a `vi.mock` of the module being moved); `npx vitest run <dir>` after each step.
@@ -122,7 +122,7 @@ avoid refactoring.** Handle the error, parse at the boundary, or reduce the
 complexity. Before finishing, scan all uncommitted files:
 
 ```bash
-changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
+changed_files=$({ git diff --name-only; git diff --cached --name-only; git ls-files --others --exclude-standard; } | sort -u)
 [ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep -nE 'eslint-disable|@ts-(expect-error|ignore|nocheck)|prettier-ignore' 2>/dev/null
 ```
 

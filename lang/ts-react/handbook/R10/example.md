@@ -6,15 +6,17 @@ useEffect(() => {
   }, POLL_MS)
 }, [id])
 
-// ✅ the effect that starts the timer returns the cleanup that stops it; the fetch is abortable
+// ✅ the effect that starts the timer returns the cleanup that stops it; each tick retires the last
 useEffect(() => {
-  const controller = new AbortController()
+  let inflight: AbortController | undefined
   const timer = setInterval(() => {
-    void fetchStatus(id, controller.signal).then(setStatus).catch(ignoreAbort)
+    inflight?.abort()                       // a slow response never lands after a newer one
+    inflight = new AbortController()
+    void fetchStatus(id, inflight.signal).then(setStatus).catch(ignoreAbort)
   }, POLL_MS)
   return () => {
     clearInterval(timer)
-    controller.abort()
+    inflight?.abort()
   }
 }, [id])
 

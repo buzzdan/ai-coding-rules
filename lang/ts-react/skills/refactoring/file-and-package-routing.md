@@ -11,7 +11,7 @@
 **Package-size zones** — count non-test `.ts`/`.tsx` modules per directory:
 
 ```
-find <dir> -maxdepth 1 -type f \( -name '*.ts' -o -name '*.tsx' \) -not -name '*.test.*' -not -name '*.d.ts' -not -name 'index.ts' | wc -l
+find <dir> -maxdepth 1 -type f \( -name '*.ts' -o -name '*.tsx' \) -not -name '*.test.*' -not -name '*.spec.*' -not -name '*.stories.*' -not -name '*.d.ts' -not -name 'index.ts' | wc -l
 ```
 
 ≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —

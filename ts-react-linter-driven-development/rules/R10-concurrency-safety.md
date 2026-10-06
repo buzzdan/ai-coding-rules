@@ -68,17 +68,21 @@ function DeviceStatus({ id }: Readonly<{ id: DeviceId }>) {
 ```
 
 Where no query layer exists, the effect that starts the work returns the function
-that stops it — the cleanup runs on unmount and before every re-run:
+that stops it — the cleanup runs on unmount and before every re-run — and each tick
+aborts the request before it, so two polls are never in flight and the slow one
+cannot overwrite the fresh one:
 
 ```tsx
 useEffect(() => {
-  const controller = new AbortController()
+  let inflight: AbortController | undefined
   const timer = setInterval(() => {
-    void refreshStatus(id, controller.signal).then(setStatus).catch(ignoreAbort)
+    inflight?.abort()                               // the previous tick's response is retired first
+    inflight = new AbortController()
+    void refreshStatus(id, inflight.signal).then(setStatus).catch(ignoreAbort)
   }, POLL_MS)
   return () => {                                  // whoever starts the timer owns its stop
     clearInterval(timer)
-    controller.abort()
+    inflight?.abort()
   }
 }, [id])
 ```

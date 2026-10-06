@@ -8,7 +8,7 @@ allowed-tools:
 ---
 
 !`git status --porcelain`
-!`git diff --stat`
+!`git diff --stat HEAD`
 
 Display current implementation status:
 

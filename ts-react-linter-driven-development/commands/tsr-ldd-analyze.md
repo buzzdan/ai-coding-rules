@@ -30,7 +30,7 @@ Search project documentation to find test and lint commands:
      `lintcheck`/`lint:check`/`lint`; format `formatcheck`/`format:check`; tests
      `test:run`/`test`/`vitest`/`jest`; combined `check`/`checkall`) and the lockfile for
      the package manager (`yarn.lock` → `yarn`, `pnpm-lock.yaml` → `pnpm`,
-     `package-lock.json` → `npm`, `bun.lockb` → `bun`)
+     `package-lock.json` → `npm`, `bun.lock` or the older `bun.lockb` → `bun`)
    - `Makefile` (look for `test:` and `lint:` targets)
    - `Taskfile.yaml` (look for `test:` and `lint:` tasks)
    - `eslint.config.*`/`.eslintrc*`, `tsconfig.json` (`references` → `tsc -b`, else
@@ -45,7 +45,9 @@ Search project documentation to find test and lint commands:
      `npx stylelint '**/*.scss'` where the repository configures it (or the project's
      lint command with `--fix` removed and `prettier --write` turned into `--check`).
 
-3. **Fallback to defaults** if not found:
+3. **Fallback to defaults** if not found (the npm spelling; under another package
+   manager replace `npx` with its executor — `yarn`, `pnpm exec`, `bunx` — because
+   `npx` cannot resolve a Plug'n'Play repository's binaries):
    - Test: `npx vitest run`
    - Lint: `npx tsc --noEmit && npx eslint .` (no `--fix`); `npx prettier --check .` only when a
      Prettier config or dependency exists

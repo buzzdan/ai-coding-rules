@@ -119,11 +119,12 @@ cd "$ROOT" || exit 2
 #
 # One glob has to cover `.ts` and `.tsx` (the driver passes it to find -name, a
 # case pattern and git pathspecs alike), so it is `*.ts*`; the names that glob
-# also admits — declaration files, `tsconfig.tsbuildinfo`, Vitest snapshots,
-# `.tsv` data — are dropped by the exclude pattern, which the driver applies to
-# every candidate path after the glob.
+# also admits — declaration files, source maps, `tsconfig.tsbuildinfo`, Vitest
+# snapshots, `.tsv` data — and the `*.generated.ts(x)` modules a code generator
+# writes are dropped by the exclude pattern, which the driver applies to every
+# candidate path after the glob.
 LANG_SRC_GLOB='*.ts*'
-LANG_EXCLUDE_RE='(^|/)(node_modules|dist|build|\.next|coverage|\.git|storybook-static)/|\.d\.ts$|\.tsbuildinfo$|\.snap$|\.tsv$'
+LANG_EXCLUDE_RE='(^|/)(node_modules|dist|build|\.next|coverage|\.git|storybook-static)/|\.d\.ts$|\.generated\.tsx?$|\.tsbuildinfo$|\.map$|\.snap$|\.tsv$'
 LANG_SUPPRESS_RE='eslint-disable(-next-line|-line)?|@ts-(expect-error|ignore|nocheck)|prettier-ignore'
 LANG_COMMENT_RE='//|/[*]|^[[:space:]]*[*]'
 LANG_DIRECTIVE_RE='eslint-(disable|enable)|@ts-(expect-error|ignore|nocheck|check)|prettier-ignore|/// <reference|@vitest-environment|istanbul ignore|c8 ignore|biome-ignore'
