@@ -31,8 +31,8 @@
 4. **Do boolean flags track state across a loop?**
    Detection: `grep -nE '^\s+let [a-zA-Z_]+ = (false|true)$' <changed files>` near
    `for`, `while` and `.forEach` loops; look for flags set inside the loop and read
-   after it, and for an early `return` inside a `forEach` callback that was meant as
-   a `break` — it is not one, and the flag it sets is the loop state in disguise.
+   after it, and for a `return` inside a `forEach` callback meant as a `break` — it
+   is not one, and the flag it sets is the loop state in disguise.
    Violation: flag-driven loops — a collection/domain type (or a `find`/`some`/
    `reduce` on it) should absorb the loop (see
    `../examples/storify-leaf-type.md`).

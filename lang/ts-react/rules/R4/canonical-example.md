@@ -28,9 +28,8 @@ function parseK3sArgument(arg: string): readonly [key: string, value: string] | 
 
 There is no urge to test this directly — and that absence is the point: the promotion
 signal (below) never fires. The rungs in TypeScript: rung 1 is a non-exported
-function at module scope beside its only caller, covered through the module's
-exported API (never a function declared inside the component body, which is
-re-created every render); rung 2 is the page folder's own module named for its
+function at module scope beside its only caller (never inside the component body,
+where it is re-created every render), covered through the module's exports; rung 2 is the page folder's own module named for its
 vocabulary (`pages/Cluster/managementPort.ts`, `pages/Cluster/hooks/`), exported
 there and imported by relative path; rung 3 is a shared `src/<domain>/` module named
 for a vocabulary and reached through the path alias. There is no `internal/`

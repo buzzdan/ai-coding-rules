@@ -44,7 +44,7 @@
 
 6. **Does a changed function envy another type's data?**
    Detection: for each changed function or component, count property accesses per
-   value: `grep -oE '\b<param>\.[a-zA-Z_]+' <func body> | sort | uniq -c` for its
+   value: `grep -oE '\b<param>\.[a-zA-Z_]+' <function body> | sort | uniq -c` for its
    most-touched parameter or prop versus the same count for its own data (its
    state, its module's types). A component reaching into another page's data shape
    — `pages/Alerts/AlertRow.tsx` walking `device.network.interfaces[0].addresses`

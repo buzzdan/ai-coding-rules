@@ -7,10 +7,7 @@
   `sink: Sink | undefined` with `this.sink = sink ?? NULL_SINK` inside the constructor
   keeps `undefined` legal and merely moves the check; it is allowed only when the
   default is genuinely expensive to build, and even then the field is typed without
-  `undefined` and no method guards it. In a component the same shape is a
-  destructuring default on the prop (`{ onOpenEvents = noop }`) when the component
-  has a meaning without the callback; when every render path guards
-  `onOpenEvents?.()`, the prop is required, not optional.
+  `undefined` and no method guards it.
 
   ```typescript
   // ❌ optional sink kept undefined-able; every method re-asks the question
@@ -19,7 +16,7 @@
 
     record(ev: UiEvent): void {
       if (this.sink !== undefined) {
-        this.sink.write(ev)
+        this.sink.write(ev, Date.now())
       }
     }
   }
