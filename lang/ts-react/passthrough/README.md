@@ -42,7 +42,7 @@ disease rather than the Go one:
   `useX()` throws outside its provider and returns `T`.
 - **A self-validating type is the one function that builds the value.** Types are
   erased, so the invariant lives in `parseDevice(raw: unknown): Device` at the API
-  boundary, in a `Port.parse`-style factory inside the domain, and in `readonly`
+  boundary, in a `parsePort`-style factory inside the domain, and in `readonly`
   fields after. A branded type with a validating constructor earns R1's invariant
   point; a bare brand or `type Alias = string` scores zero. The findings are
   `data as DeviceApiResponse` taken on faith at the boundary, `as unknown as`, and
@@ -80,7 +80,7 @@ disease rather than the Go one:
 - **A component is an orchestrator.** Its render tree reads as the story; logic
   lives in hooks and pure functions. `react/no-unstable-nested-components` is R3's
   lint neighbor; a component past `max-lines-per-function` is the fat function.
-  Extract Custom Hook is Extract Function, and R4's ladder decides where it lands:
+  Extract Function (here, a custom hook) lands where R4's ladder decides:
   beside its only caller, then the page's own `hooks/`, then `src/hooks/` only when
   two pages share it. The page folder is the vertical slice; top-level
   `components/`, `hooks/`, `services/` and `types/` hold only what two pages share.
@@ -141,6 +141,11 @@ adds a checker the repository does not use.
   `@ts-expect-error`, `@ts-ignore`, `@ts-nocheck` and `// prettier-ignore`. The
   lint-fixer never adds one and never edits `eslint.config.*`, `tsconfig*.json` or
   `.prettierrc*`; a new one in a diff is itself a review finding.
+- **What it does not review.** Accessibility beyond what `jsx-a11y` flags —
+  contrast, heading order, focus management, live regions — is the repository's
+  axe run, which this plugin does not replace. Error-boundary placement and
+  memoization (`memo`, `useMemo`, `useCallback`) are no rule's territory and are
+  not reviewed.
 
 ## Architecture: Rules as Data
 

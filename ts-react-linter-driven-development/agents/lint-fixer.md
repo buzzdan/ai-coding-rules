@@ -23,7 +23,7 @@ slice).
 
 **Loop:**
 1. Run the linter over the scope: `task lintwithfix` if a Taskfile/Makefile defines it
-   and the scope is the whole repository, else `npx eslint . --fix && npx prettier --write .` with the scope's
+   and the scope is the whole repository, else `npx tsc --noEmit && npx eslint . --fix && npx prettier --write .` with the scope's
    package paths in place of `./...`.
 2. Read the remaining issues. Classify each: mechanical → fix it; design → escalate.
 3. Apply targeted mechanical fixes (Read the site first, Edit minimally).
@@ -32,12 +32,22 @@ slice).
 
 **Escalation contract (the core of this job):** mechanical issues you fix —
 formatting (Prettier), import ordering and duplicates (`simple-import-sort/*`,
-`import/order`, `import/no-duplicates`), unused imports/variables (`unused-imports/*`,
+`import/order`, `import/no-duplicates`), unused imports/variables
+(`unused-imports/no-unused-imports`, `unused-imports/no-unused-vars`,
 `@typescript-eslint/no-unused-vars`), type-only imports
 (`@typescript-eslint/consistent-type-imports`), `curly`, `prefer-const`, `eqeqeq`,
-`no-plusplus`, `arrow-body-style`, `no-console`, `jsx-a11y/*` markup fixes (the `alt`,
-the `htmlFor`, the role), `react/jsx-no-leaked-render` (wrap the `&&` render in a
-boolean), magic values (`no-magic-numbers` — mechanical ONLY when the value is not an
+`no-plusplus`, `arrow-body-style`, `no-console`, the `jsx-a11y` families
+`click-events-have-key-events`, `no-static-element-interactions`,
+`interactive-supports-focus`, `label-has-associated-control`, `aria-props`,
+`aria-proptypes`, `role-has-required-aria-props`, `alt-text`, `img-redundant-alt`
+when the fix is one attribute or a `button` for a `div onClick` (when the honest fix
+is `role` + `tabIndex` + `onKeyDown` on a non-interactive element, escalate: that is a
+design question for the component), `react/jsx-no-leaked-render` (wrap the `&&`
+render in a boolean), `react/no-array-index-key` when the item has an id
+(`key={item.id}`; when nothing in the item identifies it, escalate to R1 — the list
+element has no identity, which is a missing type, not a key problem),
+`react/forbid-dom-props` / `react/forbid-component-props` on an inline `style` (the
+SCSS module class), magic values (`no-magic-numbers` — mechanical ONLY when the value is not an
 enum-shaped domain concept; enum-shaped hits like `=== 'READY'` status strings
 escalate, see the table), `@typescript-eslint/no-floating-promises` fixed with `await`
 — or `void` only when the promise is genuinely fire-and-forget at an entry point;
@@ -57,7 +67,9 @@ this table:
 | `react/no-multi-comp` | rules/R5-vertical-slice.md (one component per file; the page folder decides where the second goes) |
 | `@typescript-eslint/no-explicit-any` / `no-unsafe-*` / `no-non-null-assertion` / `no-unnecessary-condition` at a boundary | rules/R2-self-validating-types.md (parse at the boundary — a guard, not an assertion) |
 | `@typescript-eslint/switch-exhaustiveness-check` / `sonarjs/no-nested-switch` / `sonarjs/max-switch-cases` / `sonarjs/no-small-switch` | rules/R11-conditional-dispatch.md (via @refactoring) |
-| `react-hooks/exhaustive-deps` / `react-hooks/set-state-in-effect` / `@typescript-eslint/no-floating-promises` (not fire-and-forget) / `@typescript-eslint/no-misused-promises` / `promise/catch-or-return` | rules/R10-concurrency-safety.md (via @refactoring) |
+| `react-hooks/exhaustive-deps` / `react-hooks/set-state-in-effect` / `@typescript-eslint/no-floating-promises` (mechanical when the fix is `await`, or `void` only at an entry point for genuinely fire-and-forget work; otherwise here) / `@typescript-eslint/no-misused-promises` / `promise/catch-or-return` | rules/R10-concurrency-safety.md (via @refactoring) |
+| `react/no-array-index-key` when the item has no id field | rules/R1-primitive-obsession.md (the list element has no identity — a missing type, not a key problem) |
+| `jsx-a11y/click-events-have-key-events` / `no-static-element-interactions` / `interactive-supports-focus` when the honest fix is `role` + `tabIndex` + `onKeyDown` on a non-interactive element | escalate — a design question for the component |
 | `import/no-mutable-exports` / `no-restricted-syntax` on `import.meta.env` outside the config module | rules/R8-no-globals.md |
 | `no-param-reassign` / `sonarjs/prefer-read-only-props` / `react/no-direct-mutation-state` | rules/R12-mutation-discipline.md |
 | a `vi.mock` of an internal module (review-only) | rules/R6-test-only-interfaces.md |

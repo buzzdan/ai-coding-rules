@@ -10,7 +10,9 @@
 | `react/no-multi-comp` | rules/R5-vertical-slice.md (one component per file; the page folder decides where the second goes) |
 | `@typescript-eslint/no-explicit-any` / `no-unsafe-*` / `no-non-null-assertion` / `no-unnecessary-condition` at a boundary | rules/R2-self-validating-types.md (parse at the boundary — a guard, not an assertion) |
 | `@typescript-eslint/switch-exhaustiveness-check` / `sonarjs/no-nested-switch` / `sonarjs/max-switch-cases` / `sonarjs/no-small-switch` | rules/R11-conditional-dispatch.md (via @refactoring) |
-| `react-hooks/exhaustive-deps` / `react-hooks/set-state-in-effect` / `@typescript-eslint/no-floating-promises` (not fire-and-forget) / `@typescript-eslint/no-misused-promises` / `promise/catch-or-return` | rules/R10-concurrency-safety.md (via @refactoring) |
+| `react-hooks/exhaustive-deps` / `react-hooks/set-state-in-effect` / `@typescript-eslint/no-floating-promises` (mechanical when the fix is `await`, or `void` only at an entry point for genuinely fire-and-forget work; otherwise here) / `@typescript-eslint/no-misused-promises` / `promise/catch-or-return` | rules/R10-concurrency-safety.md (via @refactoring) |
+| `react/no-array-index-key` when the item has no id field | rules/R1-primitive-obsession.md (the list element has no identity — a missing type, not a key problem) |
+| `jsx-a11y/click-events-have-key-events` / `no-static-element-interactions` / `interactive-supports-focus` when the honest fix is `role` + `tabIndex` + `onKeyDown` on a non-interactive element | escalate — a design question for the component |
 | `import/no-mutable-exports` / `no-restricted-syntax` on `import.meta.env` outside the config module | rules/R8-no-globals.md |
 | `no-param-reassign` / `sonarjs/prefer-read-only-props` / `react/no-direct-mutation-state` | rules/R12-mutation-discipline.md |
 | a `vi.mock` of an internal module (review-only) | rules/R6-test-only-interfaces.md |

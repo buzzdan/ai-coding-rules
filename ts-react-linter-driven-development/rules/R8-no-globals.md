@@ -33,7 +33,7 @@ Real refactoring shape — `env.apiUrl` was read in 12 places deep in the codeba
 ```tsx
 // src/config/env.ts — a module-level config object, read at import, from every layer
 export const env = {
-  apiUrl: window.__RUNTIME_ENV__?.API_URL ?? import.meta.env.VITE_API_URL,
+  apiUrl: window.__RUNTIME_ENV__.API_URL ?? import.meta.env.VITE_API_URL,
 }
 
 // src/services/devicesApi.ts
@@ -65,7 +65,7 @@ export class DevicesApi {
 
 // src/hooks/useRenameDevice.ts — the query client comes from the provider, not a module
 export function useRenameDevice() {
-  const api = useDevicesApi()
+  const api = useServices().devices
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, name }: RenameInput) => api.rename(id, name),
@@ -74,15 +74,15 @@ export function useRenameDevice() {
 }
 
 // src/main.tsx — the environment is read ONLY in the composition root
-const config = parseAppConfig(import.meta.env, window.__RUNTIME_ENV__)
+const config = readAppConfig(import.meta.env, window.__RUNTIME_ENV__)
 const queryClient = new QueryClient()
-const devicesApi = new DevicesApi(new ApiClient(config.apiUrl))
+const services: Services = { devices: new DevicesApi(new ApiClient(config.apiUrl)) }
 
 createRoot(rootElement).render(
   <QueryClientProvider client={queryClient}>
-    <ApiProvider devices={devicesApi}>
+    <ServicesProvider value={services}>
       <App />
-    </ApiProvider>
+    </ServicesProvider>
   </QueryClientProvider>,
 )
 ```
@@ -163,7 +163,7 @@ the repository uses to wire the application.
      `type`/`interface`/`class` declaration, a pure function, the `createContext(…)`
      key, a `styles` import;
    - silent only in the composition root: `const queryClient = new QueryClient()`,
-     `createBrowserRouter(…)`, `const config = parseAppConfig(…)`, the provider
+     `createBrowserRouter(…)`, `const config = readAppConfig(…)`, the provider
      tree, a registry filled by hand;
    - reported everywhere else: a module-level `let`, a `Map`/`Set`/array/object a
      function writes into (`const REGISTRY = new Map<string, Handler>()` next to a

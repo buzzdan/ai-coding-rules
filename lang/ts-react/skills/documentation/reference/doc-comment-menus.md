@@ -76,13 +76,13 @@ The props type carries the WHAT; a prop gets a line only for what its type canno
 
 ```tsx
 interface SnapshotsTableProps {
-  /** Newest first; the table does not sort. */           <- ordering the type cannot say
+  /** Newest first; the table does not sort. */            // <- ordering the type cannot say
   readonly snapshots: readonly Snapshot[]
-  /** Milliseconds; 0 disables polling. */                <- units
+  /** Milliseconds; 0 disables polling. */                 // <- units
   readonly pollInterval: number
-  /** The page owns navigation; the table only reports. */ <- ownership: who acts on it
+  /** The page owns navigation; the table only reports. */ // <- ownership: who acts on it
   readonly onOpen: (id: SnapshotId) => void
-  readonly clusterId: ClusterId                           <- nothing: name and type say it
+  readonly clusterId: ClusterId                            // <- nothing: name and type say it
 }
 
 /**
@@ -138,14 +138,14 @@ Pick per symbol kind (hints above):
  *   [when to reach for it, or a short flow sketch]
  *
  * @example                                               <- parse functions:
- * parsePolicy('3x100ms').attempts // => 3                   dos/don'ts inputs
- * parsePolicy('0x') // throws RangeError: zero attempts
+ * parsePolicy('3x100ms').maxAttempts // => 3                 dos/don'ts inputs
+ * parsePolicy('0x100ms') // throws PolicyError: zero attempts
  *
  * See docs/[feature].md for the full picture.            <- whenever the doc exists
  */
 export interface Policy {
-  readonly attempts: number
-  readonly delayMs: number
+  readonly maxAttempts: number
+  readonly baseDelayMs: number
 }
 ```
 
@@ -167,7 +167,8 @@ or nothing:
  * See docs/[feature].md#section for the detailed flow.  <- whenever the doc exists
  */
 export function parseSnapshot(raw: unknown): Snapshot {
-  // ...
+  if (!isSnapshotResponse(raw)) throw new ApiError('snapshot: unexpected shape')
+  return { id: parseSnapshotId(raw.id), takenAt: new Date(raw.taken_at) }
 }
 ```
 

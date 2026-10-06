@@ -180,9 +180,8 @@ then route through REFACTOR → @refactoring → its escalation to @code-designi
 Design revision is a deliberate checkpoint, never a mid-GREEN detour.
 
 **REFACTOR (linter-driven)** — on the code just written:
-1. Package-scoped lint (fast): `npx eslint <dir>` plus `npx tsc --noEmit -p tsconfig.json`
-   (project-wide — TypeScript has no per-directory type check; `tsc -b` where the
-   repository uses project references), then `npx vitest run <dir>`
+1. Package-scoped lint (fast): `npx eslint <dir>` plus `npx tsc --noEmit` (project-wide;
+   `tsc -b` where the repository uses project references), then `npx vitest run <dir>`
 2. Cheap rule greps: run the detection commands from the **Falsifying questions**
    sections of the `../../rules/R*.md` files relevant to what was written.
 Any hit → invoke @refactoring: its `<routing_table>` routes each failure to the

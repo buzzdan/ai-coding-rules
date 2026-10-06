@@ -17,7 +17,10 @@
    `URLSearchParams` decoding) are low.
    Violation: both altitudes in the same body — e.g. `line.split(',', 2)` three
    lines from a business decision, or a date-format call beside a JSX branch. Cite
-   the two lines.
+   the two lines. An IIFE inside a function body or a render tree
+   (`{(() => { switch (status) { … } })()}`) is a low-altitude block that was never
+   named — Extract Function (a component, in a render tree), or a lookup object when
+   the body is a `switch` (`R11-conditional-dispatch.md`).
 
 3. **Do block comments narrate sections inside a function body?**
    Detection: `grep -nE '^\s+// |\{/\* ' <file>` within function and component

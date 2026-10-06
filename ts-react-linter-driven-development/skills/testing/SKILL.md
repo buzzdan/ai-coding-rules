@@ -61,7 +61,7 @@ Ready after tests? Run linter: `npx tsc --noEmit && npx eslint . --fix && npx pr
 - Higher rungs (orchestrating types): cover the delta each rung adds — its seams and emergent behaviors
 - Critical workflows: top-rung (system) tests
 
-**Assertions**: `expect` with the `@testing-library/jest-dom` matchers is the default (`expect(screen.getByRole('button', { name: /save/i })).toBeEnabled()`, `expect(() => parsePort('')).toThrow(/empty/)`), queried by role before label before text before test id and driven by `userEvent.setup()` rather than `fireEvent`; `toHaveBeenCalledTimes` only on a spy at the true boundary (a callback prop), never on an internal mock — but project convention wins — match the codebase you're in; never add a second assertion library.
+**Assertions**: `expect` with the `@testing-library/jest-dom` matchers is the default — `toBeInTheDocument`, `toBeEnabled` and `toHaveAccessibleName` are the assertions of choice (`expect(screen.getByRole('button', { name: /save/i })).toBeEnabled()`, `expect(() => parsePort('')).toThrow(/empty/)`), scoped with `within(section).getByRole(...)` when the page holds more than one match; `toHaveBeenCalledTimes` only on a spy at the true boundary (a callback prop), never on an internal mock — but project convention wins — match the codebase you're in; never add a second assertion library.
 </philosophy>
 
 <composition_ladder>
@@ -139,7 +139,7 @@ See reference.md for the Testing Library and MSW catalogue.
 **Test structure:**
 - Parametrized: Separate success/error `it.each` blocks (complexity = 1)
 - `beforeEach`: Only for real infrastructure (`server.use`, fake timers, a store) — never to hide the literal a test should show
-- A `name` on every `it.each` row (`it.each([{ name: 'plain', raw: '3x100ms', attempts: 3 }])('parses $name', ...)`); object rows when a row carries more than two values
+- A `name` on every `it.each` row (`it.each([{ name: 'plain', raw: '3x100ms', maxAttempts: 3 }])('parses $name', ...)`); object rows when a row carries more than two values
 
 See reference.md for detailed patterns and examples.
 </unit_tests_workflow>

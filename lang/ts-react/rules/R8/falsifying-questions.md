@@ -11,7 +11,7 @@ the repository uses to wire the application.
      `type`/`interface`/`class` declaration, a pure function, the `createContext(…)`
      key, a `styles` import;
    - silent only in the composition root: `const queryClient = new QueryClient()`,
-     `createBrowserRouter(…)`, `const config = parseAppConfig(…)`, the provider
+     `createBrowserRouter(…)`, `const config = readAppConfig(…)`, the provider
      tree, a registry filled by hand;
    - reported everywhere else: a module-level `let`, a `Map`/`Set`/array/object a
      function writes into (`const REGISTRY = new Map<string, Handler>()` next to a

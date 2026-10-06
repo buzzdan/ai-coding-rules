@@ -8,8 +8,8 @@ file shows how each is spelled with Vitest, `@testing-library/react` and MSW v2.
 ## Contents
 
 - [Parametrized tests](#parametrized-tests) — `it.each` with named rows, the success/error split
-- [Rendering with providers](#rendering-with-providers) — `renderWithProviders`, a fresh `QueryClient`, `MemoryRouter`
-- [Queries and user events](#queries-and-user-events) — role before label before text before test id; `userEvent.setup()`
+- [Rendering with providers](#rendering-with-providers) — `renderWithProviders`, a fresh `QueryClient`, `MemoryRouter`, `ServicesProvider`; navigation proven by arrival
+- [Queries and user events](#queries-and-user-events) — role before label before text before test id; `userEvent.setup()`; `within(scope)` and the dialog recipe
 - [MSW handlers and per-test overrides](#msw-handlers-and-per-test-overrides) — one file per API domain, `server.use`
 - [Hooks](#hooks) — `renderHook` with the providers wrapper
 - [Async and timers](#async-and-timers) — `findBy*`, `waitFor`, fake timers; never a `setTimeout` wait
@@ -27,16 +27,16 @@ an `if (expectError)`.
 ```ts
 describe('parsePolicy', () => {
   it.each([
-    { name: 'plain', raw: '3x100ms', attempts: 3, delayMs: 100 },
-  ])('parses $name', ({ raw, attempts, delayMs }) => {
+    { name: 'plain', raw: '3x100ms', maxAttempts: 3, baseDelayMs: 100 },
+  ])('parses $name', ({ raw, maxAttempts, baseDelayMs }) => {
     const policy = parsePolicy(raw)
 
-    expect([policy.attempts, policy.delayMs]).toEqual([attempts, delayMs])
+    expect([policy.maxAttempts, policy.baseDelayMs]).toEqual([maxAttempts, baseDelayMs])
   })
 
   it.each([
     { name: 'zero attempts', raw: '0x100ms', message: /zero attempts/ },
-    { name: 'missing delay', raw: '3x', message: /missing delay/ },
+    { name: 'missing delay', raw: '3x', message: /expected/ },
   ])('rejects $name', ({ raw, message }) => {
     expect(() => parsePolicy(raw)).toThrow(message)
   })
@@ -51,8 +51,10 @@ it — and its split are in `../../rules/R7-test-placement.md`.
 A component that reads a query or the URL renders inside the providers production
 gives it. `renderWithProviders` lives in `src/test-utils/` and builds a fresh
 `QueryClient` per test — `retry: false`, or a failing query retries with backoff and
-the test times out — plus a `MemoryRouter` at the route under test. It returns the
-`userEvent` instance beside RTL's result so setup and interaction stay together.
+the test times out — plus a `MemoryRouter` at the route under test and the
+`ServicesProvider` with the test-utils' default services, which a page test replaces
+with its own fakes (`{ services }`, the R8 payoff). It returns the `userEvent`
+instance beside RTL's result so setup and interaction stay together.
 
 ```tsx
 // src/test-utils/renderWithProviders.tsx
@@ -60,25 +62,51 @@ export function createTestQueryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } })
 }
 
+interface RenderOptions {
+  readonly route?: string
+  readonly path?: string
+  readonly services?: Services // a page test hands the provider its own fakes
+}
+
 export function renderWithProviders(
   ui: ReactElement,
-  { route = '/', path = '/' }: Readonly<{ route?: string; path?: string }> = {},
+  { route = '/', path = '/', services = TEST_SERVICES }: RenderOptions = {},
 ): RenderResult & { user: UserEvent } {
   const user = userEvent.setup()
   const result = render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={[route]}>
-        <Routes>
-          <Route element={ui} path={path} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <ServicesProvider value={services}>
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter initialEntries={[route]}>
+          <Routes>
+            <Route element={ui} path={path} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ServicesProvider>,
   )
   return { ...result, user }
 }
 ```
 
 A leaf component with no query and no route uses plain `render`; the wrapper is infrastructure, not a reflex.
+
+Navigation is proven by arrival, never by `window.location` — under happy-dom that is
+the test runner's URL, so asserting on it tests the environment, not the page. The
+test renders a sibling `<Route>` for the destination whose element is the proof:
+
+```tsx
+it('opens the device page from the list', async () => {
+  const { user } = renderWithProviders(
+    <Routes>
+      <Route element={<DevicesPage />} path="/devices" />
+      <Route element={<h1>Device page</h1>} path="/devices/:id" />
+    </Routes>,
+    { route: '/devices', path: '/*' },
+  )
+  await user.click(await screen.findByRole('link', { name: 'edge-01' }))
+  expect(await screen.findByRole('heading', { name: 'Device page' })).toBeInTheDocument()
+})
+```
 
 ## Queries and user events
 
@@ -103,6 +131,24 @@ it('saves the renamed device', async () => {
 
 `toHaveBeenCalledTimes` belongs on a spy at the true boundary — a callback prop the
 test passed in — never on a mocked internal module.
+
+Scope a query with `within(scope)` when the page holds more than one match —
+`within(screen.getByRole('dialog'))`, `within(rows[0])` — instead of a looser
+`getByText`. A dialog test reaches the dialog by role (markup with no role is
+unreachable, which is the structural half of accessibility R7 keeps), asserts inside
+it through `within(dialog)`, closes it from the keyboard and checks it is gone:
+
+```tsx
+it('closes the rename dialog on Escape', async () => {
+  const { user } = renderWithProviders(<DevicePage />, { route: '/devices/d-1', path: '/devices/:deviceId' })
+  await user.click(await screen.findByRole('button', { name: /rename/i }))
+
+  const dialog = screen.getByRole('dialog')
+  expect(within(dialog).getByRole('button', { name: /save/i })).toBeDisabled() // nothing typed yet
+  await user.keyboard('{Escape}')
+  await waitForElementToBeRemoved(dialog)
+})
+```
 
 ## MSW handlers and per-test overrides
 

@@ -6,8 +6,8 @@
    improvements remain on the table:
    - **R2 is not fully paid.** `IPConfig` is a class with public mutable fields and a
      separate `validate()` that `alignIps` must remember to call — validation the
-     type does not own. The stricter move: make collection the constructor, a
-     `collectIpConfig(addresses)` factory that throws on an empty result and returns
+     type does not own. The stricter move: make collection the constructor — a
+     `collectIpConfigFrom(addresses)` that throws on an empty result and returns
      a value with `readonly ip4`/`readonly ip6`, so `validate()` disappears. Then an
      invalid `IPConfig` cannot reach `alignIps` at all (see
      `../rules/R2-self-validating-types.md`).

@@ -34,16 +34,19 @@ by a string field, and three parts of the codebase ask which one it is.
 ```tsx
 // ❌ src/pages/Alerts/NotifyPanel.tsx — first copy of the discriminator
 function NotifyPanel({ alert }: Readonly<{ alert: Alert }>) {
-  switch (alert.channel) {
-    case 'email':
-      return <EmailForm recipient={alert.recipient} />
-    case 'slack':
-      return <SlackForm recipient={alert.recipient} />
-    case 'webhook':
-      return <WebhookForm recipient={alert.recipient} />
-    default:
-      return null                                   // "unknown channel" rendered as nothing
+  const send = (): Promise<void> => {
+    switch (alert.channel) {
+      case 'email':
+        return sendEmail(alert.recipient, renderEmail(alert))
+      case 'slack':
+        return postSlack(alert.recipient, renderSlack(alert))
+      case 'webhook':
+        return postJson(alert.recipient, alert.summary)
+      default:
+        return Promise.reject(new Error(`unknown channel ${alert.channel}`))   // "unknown channel" decided here, again
+    }
   }
+  return <SendButton onSend={send} />
 }
 
 // ❌ src/pages/Alerts/validateChannel.ts — second copy, drifting already: nobody added webhook here
@@ -63,9 +66,10 @@ export function retryPolicyFor(alert: Alert): RetryPolicy {
 
 Three owners of one decision, already inconsistent: `validateChannel` silently returns
 `false` for a webhook because the second copy was never updated. Adding SMS means
-finding all three (and the fourth one hiding in a test helper). The render switch also
-carries the `default: return null` path — the "maybe-unknown channel" concept leaks
-into a component, the behavioural twin of R1's maybe-invalid port.
+finding all three (and the fourth one hiding in a test helper). The component's switch
+also carries the `default:` arm (in a render switch it is `default: return null`) — the
+"maybe-unknown channel" concept leaks into a component, the behavioural twin of R1's
+maybe-invalid port.
 
 ### After
 
@@ -74,44 +78,44 @@ into a component, the behavioural twin of R1's maybe-invalid port.
 export type Channel = 'email' | 'slack' | 'webhook'
 
 export interface ChannelSender {
-  readonly Form: ComponentType<{ readonly recipient: string }>
-  readonly retryPolicy: RetryPolicy
-  validRecipient(recipient: string): boolean
+  send(a: Alert): Promise<void>
+  validate(recipient: string): boolean
+  retryPolicy(): RetryPolicy
 }
 
-const SLACK: ChannelSender = {
-  Form: SlackForm,
-  retryPolicy: { attempts: 3, baseDelayMs: 5_000 },
-  validRecipient: (recipient) => recipient.startsWith('#'),
+const slackSender: ChannelSender = {
+  send: (a) => postSlack(a.recipient, renderSlack(a)),
+  validate: (recipient) => recipient.startsWith('#'),
+  retryPolicy: () => ({ attempts: 3, baseDelayMs: 5_000 }),
 }
 
 // The ONLY place the raw string is inspected — the decision is made once, at the
 // boundary, like R2's parsePort. The Record is complete or it does not compile.
-const CHANNELS: Record<Channel, ChannelSender> = {
-  email: EMAIL,
-  slack: SLACK,
-  webhook: WEBHOOK,
+const CHANNEL_SENDERS: Record<Channel, ChannelSender> = {
+  email: emailSender,
+  slack: slackSender,
+  webhook: webhookSender,
 }
 
 export function parseChannel(raw: string): ChannelSender {
   if (!isChannel(raw)) throw new ApiError(`unknown channel ${raw}`)   // thrown at the edge, nowhere else
-  return CHANNELS[raw]
+  return CHANNEL_SENDERS[raw]
 }
 
 function NotifyPanel({ alert }: Readonly<{ alert: Alert }>) {
-  return <alert.channel.Form recipient={alert.recipient} />
+  return <SendButton onSend={() => alert.channel.send(alert)} />
 }
 ```
 
-The three switches are gone — call sites read `alert.channel.validRecipient(…)`,
-`alert.channel.retryPolicy`, `<alert.channel.Form />`. There is no `default: return
-null` anywhere downstream: an `Alert` that exists holds a `ChannelSender` that
-exists, so "unknown channel" is unrepresentable past the boundary. Adding SMS is one
-new object plus one entry in `CHANNELS` — existing modules untouched, `tsc` refusing
-to build until the entry exists, and each channel's behaviour unit-tests as a leaf
-with literals. Where one switch legitimately stays — a single site over a closed
-union — it is a `switch` whose `default` arm is `return assertNever(channel)`, so
-`tsc` fails the build when a variant is added but not handled; that arm is the
+The three switches are gone — call sites read `alert.channel.send(alert)`,
+`alert.channel.validate(…)`, `alert.channel.retryPolicy()`. There is no `default:`
+arm anywhere downstream: an `Alert` that exists holds a `ChannelSender` that exists,
+so "unknown channel" is unrepresentable past the boundary. Adding SMS is one new
+object plus one entry in `CHANNEL_SENDERS` — existing modules untouched, `tsc`
+refusing to build until the entry exists, and each channel's behaviour unit-tests as
+a leaf with literals. Where one switch legitimately stays — a single site over a
+closed union — it is a `switch` whose `default` arm is `return assertNever(channel)`,
+so `tsc` fails the build when a variant is added but not handled; that arm is the
 completeness proof, not an "unknown kind" default. The component form of the flag
 argument is the boolean prop: `<Panel isCompact isInline showHeader />` is three
 switches the caller sets and the component unpicks — Split Flag Argument into two
@@ -221,7 +225,11 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    then count each across the repository: `grep -rnE "switch \(.*\.<field>\)|\.<field> === '" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules . | wc -l`.
    A `Record<Kind, …>` of handlers or components keyed by the field is a dispatch
    site too — the healthy one when it is the only one; a `MAP[kind] ?? fallback`
-   deep in logic is Q3's default arm in another spelling.
+   deep in logic is Q3's default arm in another spelling. An IIFE in a render tree
+   — `{(() => { switch (alert.kind) { … } })()}` — is a switch site in parentheses:
+   `grep -rnE '\{\(\(\) => \{' --include='*.tsx' --exclude-dir=node_modules .`
+   lists them, each counts toward the discriminator's site total, and the fix is
+   the `Record<Kind, …>` lookup or a named component.
    Violation: ≥2 sites inspecting one discriminator — the decision has no single
    owner. Route first to Strategy Map (a `Record<Kind, Handler>` — for rendering, a
    `Record<Kind, ComponentType<…>>` — filled once at the boundary), then to
@@ -263,11 +271,11 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    for props and options typed `boolean`, and `grep -nE 'function [a-zA-Z]+\([^)]*: boolean' ...`
    for positional flags; check whether the function or component branches on the
    flag near the top.
-   Violation: a positional boolean parameter is always the finding — the lint-fixer
-   moves it into an options object (`send(alert, { dryRun: true })`), which is the
-   mechanical half. A named boolean stays when its two branches share their body
-   and differ in one step; when they share little, Split Flag Argument into two
-   named functions. Boolean props are the component form: three or more on one
+   Violation: a positional boolean parameter is the finding; no ESLint rule flags it,
+   so it is review-only and routes to @refactoring — Split Flag Argument into two
+   named functions when the branches share little, Introduce Parameter Object when
+   the flag travels with other arguments (`send(alert, { dryRun: true })`). A named
+   boolean stays when its two branches share their body and differ in one step. Boolean props are the component form: three or more on one
    component, or an `isLoading`/`isError`/`isEmpty` triplet, is the same finding —
    two components, or a `status`/`variant` union when the flags exclude each other.
 

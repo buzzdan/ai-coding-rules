@@ -43,15 +43,16 @@ authoritative; this command adds nothing to it. One pass delivers the whole chai
 - Add CI workflows — the report only suggests `bash scripts/check-repo-brain.sh`
 - Touch anything beyond doc files, `index.md`, `conventions.md`,
   CLAUDE.md/AGENTS.md, the copied check script, and one-line JSDoc edge additions
-  (verified after each by running `npx tsc --noEmit` — `tsc -b` where `tsconfig.json` has `references` — and `npx eslint` on the file)
+  (verified after each by running `npx tsc --noEmit` and `npx eslint` on the file)
 
 **Language scope**: this is the TypeScript + React plugin, so code↔docs verification is
 TypeScript-first. On a repo with no TypeScript, the pass still delivers the whole
 structure layer (frontmatter, index, drift check, conventions, routing, CI gate on
 structure) — but code→docs edges, symbol drift detection, and the file-path ban
 only cover `.ts` and `.tsx` files, and doc roots are only discovered at the repo root
-and `package.json` sub-projects outside `node_modules` (a Go or Python sub-project's
-own docs/ is not wired — it is reported, not silently skipped). Non-TypeScript symbols
+and `package.json` sub-projects outside `node_modules` — a root `package.json` with
+`workspaces` makes each member such a sub-project with its own doc root (a Go or
+Python sub-project's own docs/ is not wired — it is reported, not silently skipped). Non-TypeScript symbols
 cited in covered docs still resolve via the gate's whole-word fallback.
 
 When it finishes, review the report, then `git diff` — the changes should read as

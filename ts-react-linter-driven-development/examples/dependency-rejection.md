@@ -148,6 +148,15 @@ constructs `OrderService`.
 ## Step 4 — stop at the entry points
 
 ```tsx
+// src/hooks/useServices.ts — the context is a key; the value is built once, below
+const ServicesContext = createContext<Services | undefined>(undefined)
+export const ServicesProvider = ServicesContext.Provider
+export function useServices(): Services {
+  const services = useContext(ServicesContext)
+  if (services === undefined) throw new Error('useServices() outside <ServicesProvider>')
+  return services
+}
+
 // ✅ src/main.tsx — the environment is read ONLY here, at wiring time
 const config = readAppConfig(import.meta.env, window.__RUNTIME_ENV__) // one AppConfig, validated once
 const natsClient = new NATSClient(new WsSocket(), { url: config.natsUrl, token: config.natsToken })
@@ -156,15 +165,6 @@ const services: Services = {
   users: new UserService(natsClient, config.apiBaseUrl),
 }
 createRoot(rootElement).render(<ServicesProvider value={services}><App /></ServicesProvider>)
-
-// src/hooks/useServices.ts — the context is a key; the value is built once, above
-const ServicesContext = createContext<Services | undefined>(undefined)
-export const ServicesProvider = ServicesContext.Provider
-export function useServices(): Services {
-  const services = useContext(ServicesContext)
-  if (services === undefined) throw new Error('useServices() outside <ServicesProvider>')
-  return services
-}
 ```
 
 Final state: 2 environment reads — `main.tsx`, and `renderWithProviders` in
@@ -191,8 +191,8 @@ it('rejects when the socket refuses the connection', async () => {
 // src/pages/Orders/OrdersPage.test.tsx — a page test supplies its own services
 it('processes the selected order', async () => {
   const orders = new OrderService(new NATSClient(new FakeSocket(), TEST_NATS), 'https://api.test')
-  renderWithProviders(<OrdersPage />, { services: { ...TEST_SERVICES, orders } })
-  await userEvent.click(screen.getByRole('button', { name: 'Process' }))
+  const { user } = renderWithProviders(<OrdersPage />, { services: { ...TEST_SERVICES, orders } })
+  await user.click(screen.getByRole('button', { name: 'Process' }))
   expect(await screen.findByText('Order processed')).toBeInTheDocument()
 })
 ```

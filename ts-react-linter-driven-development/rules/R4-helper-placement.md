@@ -59,8 +59,8 @@ is the page folder's own module named for its vocabulary
 path; rung 3 is a shared `src/<domain>/` module named for a vocabulary, reached
 through the path alias. There is no `internal/` convention — `export` is the wall,
 and a barrel `index.ts` that re-exports a module's private names tears it down.
-Extract Custom Hook is Extract Function on the same ladder: beside its only caller,
-then the page's `hooks/`, then `src/hooks/` only when two pages share it.
+Extract Function (here, a custom hook) climbs the same ladder: beside its only
+caller, then the page's `hooks/`, then `src/hooks/` only when two pages share it.
 
 ## Design guidance
 

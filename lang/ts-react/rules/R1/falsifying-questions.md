@@ -43,7 +43,9 @@
    function under `strict`, so that form arrives silenced — a `find(...)!`, an
    `as Device`, a `@ts-expect-error` on the line — and the silence is the same hit;
    `-1`, `''` and `0` type-check against `number` and `string`, which is why the
-   grep exists. A `: X | undefined` signature is a declared absence and is not this
+   grep exists. With `noUncheckedIndexedAccess` off, `items[0]` is typed `T` and a
+   missing element is a silent `undefined` — the sentinel in its configuration form;
+   the hunter reads `tsconfig` once to know which. A `: X | undefined` signature is a declared absence and is not this
    question, as long as the `undefined` means "not there" and never "it failed"
    (R2 Q5 owns that line). A trailing comment (`return 0 // sentinel`) does not hide
    the hit.

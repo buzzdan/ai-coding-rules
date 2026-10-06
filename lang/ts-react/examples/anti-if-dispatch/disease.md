@@ -32,11 +32,11 @@ export function validateChannel(a: Alert): boolean {
 
 // ❌ alerts/retryPolicy.ts — the same decision wearing an object lookup with a default
 const RETRY_POLICIES: Record<string, RetryPolicy> = {
-  webhook: { attempts: 5, delayMs: 0 },
-  slack: { attempts: 3, delayMs: 5_000 },
+  webhook: { attempts: 5, baseDelayMs: 0 },
+  slack: { attempts: 3, baseDelayMs: 5_000 },
 }
 
 export function retryPolicyFor(a: Alert): RetryPolicy {
-  return RETRY_POLICIES[a.channel] ?? { attempts: 1, delayMs: 60_000 }
+  return RETRY_POLICIES[a.channel] ?? { attempts: 1, baseDelayMs: 60_000 }
 }
 ```

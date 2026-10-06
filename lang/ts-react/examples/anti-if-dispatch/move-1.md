@@ -44,7 +44,7 @@ export const slackSender: ChannelSender = {
     return recipient.startsWith('#')
   },
   retryPolicy() {
-    return { attempts: 3, delayMs: 5_000 }
+    return { attempts: 3, baseDelayMs: 5_000 }
   },
 }
 ```

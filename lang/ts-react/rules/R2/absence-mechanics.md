@@ -5,9 +5,10 @@
   `new Reporter({ sink: null })` before it runs, and a caller that spells
   `sink: undefined` gets the default and R2 Q6's finding. A parameter typed
   `sink: Sink | undefined` with `this.sink = sink ?? NULL_SINK` inside the constructor
-  keeps `undefined` legal and merely moves the check; it is allowed only when the
-  default is genuinely expensive to build, and even then the field is typed without
-  `undefined` and no method guards it.
+  keeps `undefined` legal and merely moves the check. A destructuring default is
+  evaluated per call, so a default that must be built rather than shared is still
+  `sink = buildSink()` in the parameter list — never `??` behind a `| undefined`
+  parameter.
 
   ```typescript
   // ❌ optional sink kept undefined-able; every method re-asks the question
@@ -16,14 +17,14 @@
 
     record(ev: UiEvent): void {
       if (this.sink !== undefined) {
-        this.sink.write(ev, Date.now())
+        this.sink.write(ev, new Date())
       }
     }
   }
 
   // ✅ absence is a named value; no argument is ever undefined
   export const NULL_SINK: Sink = { write() {} } // a real Sink whose write() discards
-  export const SYSTEM_CLOCK: Clock = { now: () => Date.now() }
+  export const SYSTEM_CLOCK: Clock = { now: () => new Date() }
 
   interface ReporterOptions {
     readonly sink?: Sink

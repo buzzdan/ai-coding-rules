@@ -27,6 +27,11 @@ fetch — in an effect, a custom hook, an event handler or a service.
    rejection surfaces as an unhandled-rejection log line, not as handling. A raw
    fetch in `useEffect` in a repository that has TanStack Query is the finding even
    with a controller: the query layer owns the lifecycle (`queryFn({ signal })`).
+   `items.forEach(async (item) => …)` is the loop form: one promise per item that
+   nothing awaits, so a rejection vanishes (`@typescript-eslint/no-misused-promises`
+   marks the callback where it is configured). Sequential work is `for (const item
+   of items) { await … }`; independent work is `await Promise.all(items.map(…))` —
+   the finding is the `forEach`, the fix is whichever of the two the caller means.
 
 3. **Is shared mutable state written from two async continuations without a guard?**
    Detection: for each effect or handler with an `await` or a `.then`, list what the

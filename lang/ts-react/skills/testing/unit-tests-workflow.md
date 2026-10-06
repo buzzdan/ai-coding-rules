@@ -9,6 +9,6 @@
 **Test structure:**
 - Parametrized: Separate success/error `it.each` blocks (complexity = 1)
 - `beforeEach`: Only for real infrastructure (`server.use`, fake timers, a store) — never to hide the literal a test should show
-- A `name` on every `it.each` row (`it.each([{ name: 'plain', raw: '3x100ms', attempts: 3 }])('parses $name', ...)`); object rows when a row carries more than two values
+- A `name` on every `it.each` row (`it.each([{ name: 'plain', raw: '3x100ms', maxAttempts: 3 }])('parses $name', ...)`); object rows when a row carries more than two values
 
 See reference.md for detailed patterns and examples.

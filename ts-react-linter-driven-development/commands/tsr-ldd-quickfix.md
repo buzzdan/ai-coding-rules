@@ -46,7 +46,7 @@ resolved scope, telling it Phases 1–2 are skipped:
 **Phase 3 — TESTS + LINT over the scope** (via the `ts-react-linter-driven-development:lint-fixer` agent, Agent tool,
 isolated context, spawned with the package list)
 - Discover project test/lint commands (`task test` / `make test` / `npx vitest run`;
-  lint from Taskfile/Makefile or `npx eslint . --fix && npx prettier --write .`)
+  lint from Taskfile/Makefile or `npx tsc --noEmit && npx eslint . --fix && npx prettier --write .`)
 - Run the discovered test command first; all tests must pass before the lint pass
   proceeds (a test failure is a fix target, not a skip)
 - One lint run over the scope's packages; mechanical issues are `FIXED` in place

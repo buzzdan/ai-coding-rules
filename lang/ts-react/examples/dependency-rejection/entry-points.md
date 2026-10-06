@@ -1,4 +1,13 @@
 ```tsx
+// src/hooks/useServices.ts — the context is a key; the value is built once, below
+const ServicesContext = createContext<Services | undefined>(undefined)
+export const ServicesProvider = ServicesContext.Provider
+export function useServices(): Services {
+  const services = useContext(ServicesContext)
+  if (services === undefined) throw new Error('useServices() outside <ServicesProvider>')
+  return services
+}
+
 // ✅ src/main.tsx — the environment is read ONLY here, at wiring time
 const config = readAppConfig(import.meta.env, window.__RUNTIME_ENV__) // one AppConfig, validated once
 const natsClient = new NATSClient(new WsSocket(), { url: config.natsUrl, token: config.natsToken })
@@ -7,15 +16,6 @@ const services: Services = {
   users: new UserService(natsClient, config.apiBaseUrl),
 }
 createRoot(rootElement).render(<ServicesProvider value={services}><App /></ServicesProvider>)
-
-// src/hooks/useServices.ts — the context is a key; the value is built once, above
-const ServicesContext = createContext<Services | undefined>(undefined)
-export const ServicesProvider = ServicesContext.Provider
-export function useServices(): Services {
-  const services = useContext(ServicesContext)
-  if (services === undefined) throw new Error('useServices() outside <ServicesProvider>')
-  return services
-}
 ```
 
 Final state: 2 environment reads — `main.tsx`, and `renderWithProviders` in

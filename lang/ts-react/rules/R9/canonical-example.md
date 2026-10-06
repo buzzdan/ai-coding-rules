@@ -69,16 +69,16 @@ repo/
  * See docs/retry-policy.md for the incident and the cap math.
  */
 export class Policy {
-  private constructor(
+  constructor(
     readonly maxAttempts: number,
     readonly baseDelayMs: number,
-  ) {}
-
-  static parse(maxAttempts: number, baseDelayMs: number): Policy {
-    if (maxAttempts < 1 || baseDelayMs <= 0) {
-      throw new PolicyError('retry policy: attempts must be positive and the base delay non-zero')
+  ) {
+    if (maxAttempts < 1) {
+      throw new PolicyError('retry policy: zero attempts')
     }
-    return new Policy(maxAttempts, baseDelayMs)
+    if (baseDelayMs <= 0) {
+      throw new PolicyError('retry policy: the base delay must be non-zero')
+    }
   }
 
   /** Run op until it succeeds or the attempts are exhausted. */
@@ -94,6 +94,23 @@ export class Policy {
     }
     throw new RetriesExhausted()
   }
+
+  private attempts(): readonly number[] {
+    return Array.from({ length: this.maxAttempts }, (_, i) => i + 1)
+  }
+
+  private backOff(attempt: number): Promise<void> {
+    return sleepWithJitter(this.baseDelayMs * 2 ** attempt)
+  }
+}
+
+/** Builds the policy from the `<attempts>x<delay>ms` form the config file uses, e.g. `'3x100ms'`. */
+export function parsePolicy(raw: string): Policy {
+  const match = /^(\d+)x(\d+)ms$/.exec(raw)
+  if (match === null) {
+    throw new PolicyError(`retry policy "${raw}": expected <attempts>x<delay>ms`)
+  }
+  return new Policy(Number(match[1]), Number(match[2]))
 }
 ```
 
@@ -103,8 +120,8 @@ export class Policy {
 type: feature
 description: why retries use capped full jitter; `Policy` API
 ---
-Entry point: `Policy.do`. Construction: `Policy.parse` — validates the cap against
-the base delay, so an unbounded backoff cannot exist.
+Entry point: `Policy.do`. Construction: `parsePolicy` — rejects zero attempts and a
+zero base delay, so an unbounded backoff cannot exist.
 ```
 
 ```markdown
@@ -128,7 +145,7 @@ private methods `attempts`/`backOff` carry it (`R3-storifying.md`); `Policy`'s J
 opens with the one-line summary, states the WHY the code cannot (the incident) in its
 body, and carries the upward edge to the feature doc on its own trailing line — no
 `@param` tags restating `number`; the doc points down with the greppable tokens
-`Policy.do` and `Policy.parse` — no path, no line number — and is listed in the index;
+`Policy.do` and `parsePolicy` — no path, no line number — and is listed in the index;
 CLAUDE.md imports the index, so the whole map is in context at session start. Grep
 `Policy` or open CLAUDE.md: either way, the jitter incident is two hops away. And the
 index line has one source of truth: it IS `retry-policy.md`'s `description`, copied

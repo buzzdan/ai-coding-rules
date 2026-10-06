@@ -23,10 +23,11 @@ project_marker: package.json
 nolint: "// eslint-disable-next-line"
 comment_prefix: "//"
 # Fallbacks when the repository's package.json scripts, Taskfile or Makefile do not
-# name the commands; `npx` finds the local binary under any package manager.
+# name the commands; `npx` finds the local binary under any package manager. The fix
+# fallback type-checks first: ESLint's `--fix` and Prettier never see a type error.
 default_test: npx vitest run
 default_lint: npx tsc --noEmit && npx eslint .
-default_lint_fix: npx eslint . --fix && npx prettier --write .
+default_lint_fix: npx tsc --noEmit && npx eslint . --fix && npx prettier --write .
 # Single words core prose uses as common nouns: the missing value (`undefined` is the
 # declared absence; `null` is the wire's and stops at the boundary), a unit of
 # concurrent work (a promise, an effect, a timer or a subscription — one thread, so

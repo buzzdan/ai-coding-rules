@@ -47,13 +47,13 @@ it('creates a user', async () => {
 })
 
 it.each([                                                    // success and error fused
-  { raw: { attempts: 3, baseDelayMs: 100 }, expectError: false },
-  { raw: { attempts: 0, baseDelayMs: 100 }, expectError: true },
+  { raw: '3x100ms', expectError: false },
+  { raw: '0x100ms', expectError: true },
 ])('parsePolicy($raw)', ({ raw, expectError }) => {
   if (expectError) {                                         // a conditional inside a case
     expect(() => parsePolicy(raw)).toThrow()
   } else {
-    expect(parsePolicy(raw).attempts).toBe(3)
+    expect(parsePolicy(raw).maxAttempts).toBe(3)
   }
 })
 
@@ -84,15 +84,15 @@ it('creates a user and shows it', async () => {
 
 describe('parsePolicy', () => {
   it.each([
-    { name: 'plain', raw: { attempts: 3, baseDelayMs: 100 }, attempts: 3 },
-    { name: 'single attempt', raw: { attempts: 1, baseDelayMs: 100 }, attempts: 1 },
-  ])('accepts $name', ({ raw, attempts }) => {
-    expect(parsePolicy(raw).attempts).toBe(attempts)
+    { name: 'plain', raw: '3x100ms', maxAttempts: 3 },
+    { name: 'single attempt', raw: '1x100ms', maxAttempts: 1 },
+  ])('accepts $name', ({ raw, maxAttempts }) => {
+    expect(parsePolicy(raw).maxAttempts).toBe(maxAttempts)
   })
 
   it.each([
-    { name: 'zero attempts', raw: { attempts: 0, baseDelayMs: 100 } },
-    { name: 'negative delay', raw: { attempts: 3, baseDelayMs: -1 } },
+    { name: 'zero attempts', raw: '0x100ms' },
+    { name: 'missing delay', raw: '3x' },
   ])('rejects $name', ({ raw }) => {
     expect(() => parsePolicy(raw)).toThrow(PolicyError)
   })

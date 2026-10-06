@@ -15,8 +15,8 @@ it('rejects when the socket refuses the connection', async () => {
 // src/pages/Orders/OrdersPage.test.tsx — a page test supplies its own services
 it('processes the selected order', async () => {
   const orders = new OrderService(new NATSClient(new FakeSocket(), TEST_NATS), 'https://api.test')
-  renderWithProviders(<OrdersPage />, { services: { ...TEST_SERVICES, orders } })
-  await userEvent.click(screen.getByRole('button', { name: 'Process' }))
+  const { user } = renderWithProviders(<OrdersPage />, { services: { ...TEST_SERVICES, orders } })
+  await user.click(screen.getByRole('button', { name: 'Process' }))
   expect(await screen.findByText('Order processed')).toBeInTheDocument()
 })
 ```
