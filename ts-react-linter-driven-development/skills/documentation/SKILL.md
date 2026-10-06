@@ -1,642 +1,242 @@
 ---
 name: documentation
-description: Generate comprehensive feature documentation including Storybook stories, JSDoc comments, and feature guides. Use after completing a feature (may span multiple commits). Creates documentation for humans and AI to understand features, usage patterns, and design decisions.
+description: |
+  The repo-brain author/maintainer: writes behavior-focused documentation and wires it
+  into the documentation network defined by rules/R9-repo-brain.md.
+  FEATURE mode (default): after feature implementation or bug fixes — invoked by
+  @linter-driven-development (Phase 5) — to document HOW THE PRODUCT BEHAVES and wire
+  it into the network.
+  BOOTSTRAP mode: on request ("set up docs", "create an index", "make this repo
+  AI-navigable", /wire-repo-brain) or when FEATURE mode finds no doc root — discovers
+  the doc root, verifies-or-adds OKF frontmatter, builds index.md, wires
+  CLAUDE.md/AGENTS.md, wires missing code→docs edges, installs conventions.md and
+  the conformance check script, reports gaps.
+  NOT a changelog - documents current behavior, not change history.
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - Write
+  - Edit
+  - Agent
 ---
 
-# Documentation (TypeScript + React)
+<objective>
+Author and maintain the repo brain: a documentation network where any entry point — a
+grep hit on a symbol, a file open, CLAUDE.md at session start — reaches full context
+within two hops. Everything normative (the documentation ladder, both network
+invariants, the comment policy, the edge policy, the index policy, the OKF
+frontmatter/bundle policy, root wiring, doc-root discovery) lives ONCE in
+`../../rules/R9-repo-brain.md`; this skill is the
+actor that applies it. Templates live in `reference.md` — they are menus, never forms.
+</objective>
 
-Generate comprehensive documentation for features, components, and hooks.
+<philosophy>
+**The 5-Year Reader Test**: someone reading this in 5 years doesn't care that "we
+fixed a bug where X happened" — they want to know how X works NOW. This holds for
+comments as much as docs: a PR number, review item, or "the previous behavior"
+narration in a JSDoc is provenance, not behavior (R9's floor names it a failure
+mode).
 
-## When to Use
-- After completing a feature (may span multiple commits)
-- When a component/hook needs usage documentation
-- When design decisions need recording
-- For public/shared components and hooks
+**Behavior over history**: document what the product DOES, not what changed. A bug fix
+updates the affected section to describe correct behavior; it never appends a "Fixed:"
+entry (worked examples in reference.md, "Bug Fix Documentation").
 
-## Documentation Types
+**Conciseness over completeness**: a focused doc that gets read beats an exhaustive
+doc that gets skipped.
 
-### 1. Storybook Stories (Component Documentation)
-**Purpose**: Visual documentation of component usage and variants
+**Plain words over clever words**: everyday English, short sentences, one idea per
+sentence. Write for a fresh graduate whose first language may not be English — a
+doc that needs a dictionary fails even when it is true (R9's plain-English/empathy
+test; applies to JSDocs and feature docs alike).
 
-**Creates**: `.stories.tsx` files alongside components
+**Comments stand alone**: a reader must understand the comment BEFORE reading the
+code. If reading the code is required to understand the comment, the comment adds
+negative value — no decoder-ring IDs, no forward references to other comments
+(R9's empathy test, second half).
+</philosophy>
 
-### 2. JSDoc Comments (Code Documentation)
-**Purpose**: Inline documentation for types, props, complex functions
+<mode_selection>
+**FEATURE** is the default: run it after a feature or bug fix lands (ldd Phase 5).
+Switch to **BOOTSTRAP** when the user asks to wire a repo ("set up docs", "create an
+index", "make this repo AI-navigable") or when FEATURE step 1 finds no doc root.
+Skip entirely for individual commits and internal refactors that change no behavior —
+unless an R9 Q6 check shows a doc citing the reshaped code.
+</mode_selection>
 
-**Location**: In source files (`.ts`, `.tsx`)
+<feature_mode>
+1. **Scope**: establish what shipped — the feature's commits/diff, which packages and
+   entry points it touches.
+2. **Place each fact on the documentation ladder**: apply R9's rung table and
+   placement rule (`../../rules/R9-repo-brain.md`, Design guidance). Before writing
+   any comment, first check whether a rename or extraction makes it unnecessary.
+3. **Rung 1 — JSDoc**: write/refresh doc comments per R9's comment policy —
+   **exported symbols only by default**: an unexported symbol gets NO comment
+   (R9's visibility default) unless one line carries a very high-value toolbox
+   item the code cannot show; never more than that one line. Every comment
+   must pass R9's three-test standard BEFORE it is written (toolbox-value,
+   tier budget, plain English), with content picked FROM the Comment Value Toolbox
+   (catalog in reference.md) for the symbol's tier: 1–5 prose lines, helper /
+   contract / crossroads; overflow moves to the feature doc. Keep the
+   `See docs/<feature>.md` edge wherever a feature doc exists. A package that
+   earns more moves its JSDoc to the language's dedicated package-doc file
+   (R9's ~20–30 line bound). A crossroads that deserves richer inline JSDoc
+   stays within budget and gets an expand recommendation in the report — never extra
+   lines. Add testable examples for complex/core types.
+4. **Rung 2 — feature doc**: create/update `<docroot>/<feature>.md` from the
+   reference.md template, with OKF frontmatter (required keys — R9's bundle
+   policy); lateral doc links inline, each in a sentence stating the
+   relationship (R9 edge policy — no `Related` section);
+   key players as `Symbol | Role | Package`; entry points cite symbols — never
+   file paths or line numbers (R9 edge policy). Bug fix → update the existing
+   doc's affected section; do not create a new doc.
+5. **Rung 3 — the map**: add/refresh the doc's one line in `index.md` — copied
+   from the doc's `description` (R9 drift-check rule); verify root wiring
+   (`@<docroot>/index.md` import in CLAUDE.md, AGENTS.md routing block).
+6. **Self-check**: run R9's falsifying-question detections on the touched scope —
+   Q1–Q3 and Q7 mechanically (orphans, broken edges in both directions, unwired
+   root, bundle contract — the repo's `scripts/check-repo-brain.sh` runs all four
+   in one pass when installed), Q4–Q6 over the diff (WHAT-comments, naked exported
+   API, silently-changed doc). The detection commands live in R9; never restate
+   them. Fix every hit before reporting.
+7. **Comment critique**: spawn the `ts-react-linter-driven-development:comment-critic` agent (Agent tool) on the full diff —
+   not just the comments this run wrote; in-body comments left by earlier phases
+   are in scope too. Its spawn prompt MUST contain: (a) R9's comment-policy
+   section pasted verbatim (toolbox kinds, three-test standard, tiers, budget
+   accounting, visibility default); (b) reference.md's Comment Value Toolbox
+   catalog pasted verbatim; (c) the absolute path to
+   `../../examples/private-comment-noise.md`; (d) the diff scope. Apply every non-KEEP verdict (this skill is the rung-1
+   fixer): DELETE and TRIM as returned; REWRITE using the critic's proposal;
+   `DELETE → route R3` verdicts are deleted here and reported as R3 leads for the
+   caller — never fixed here (extraction is @refactoring's move). Then re-spawn
+   the critic ONCE to confirm clean; a still-dirty re-critique is reported as-is,
+   never looped further.
+8. **Report** in the FEATURE output format below.
+</feature_mode>
 
-### 3. Feature Documentation (Architectural Documentation)
-**Purpose**: WHY decisions were made, HOW feature works, WHAT to extend
+<bootstrap_mode>
+1. **Discover doc root(s)** per R9's discovery order (`.ai/` → `.ainav/` → `docs/`;
+   create `docs/` if none exists). Monorepo → one doc root + index per sub-project.
+2. **Inventory existing docs**, classify each (feature / architecture / guide /
+   stale — classification table in reference.md), and **verify-or-add frontmatter**
+   (migration guidance in reference.md): a doc already conformant is left alone; an
+   un-inferable `type` goes to the advisory report, never guessed.
+3. **Build or rebuild `index.md`**: bare except the root's `okf_version`, grouped
+   by topic, one line per doc — each line copied from the doc's `description`
+   (R9 drift-check rule); past ~300 lines it becomes a directory-shaped map of
+   maps, and the split lands in the same commit as the `See docs/...` path
+   rewrite (R9 index policy; templates in reference.md).
+4. **Wire the root**: author the routing block once, in AGENTS.md — repo root
+   and, in a monorepo, nested per sub-project — then wire CLAUDE.md with the
+   `@AGENTS.md` embed plus the `@<docroot>/index.md` import (create a minimal
+   CLAUDE.md section if none exists; never restate the routing prose there).
+   Add or verify; snippets in reference.md.
+5. **Teach and enforce**: create-or-verify `<docroot>/conventions.md` (template in
+   reference.md) — the ONE content file bootstrap generates (network
+   infrastructure, not a content doc) — listed FIRST in the index; copy the
+   plugin's `scripts/check-repo-brain.sh` into the target repo's `scripts/`
+   (verify-or-copy — a diverged copy is reported, never overwritten). The report
+   suggests CI wiring as plain `bash scripts/check-repo-brain.sh`; never add a
+   workflow file.
+6. **Wire missing upward edges**: for each indexed (non-stale) doc with no code-side
+   edge, add ONE line — `// See <docroot>/<file>.md ...` — to the front-door anchor's
+   existing doc comment (anchor heuristic in reference.md), then confirm the module
+   still type-checks (`npx tsc --noEmit`) and the edge is found by
+   `grep -rn "See docs/" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules`
+   — the edge is a `// See docs/<feature>.md` line directly above the front-door
+   export, under its JSDoc block, so the only way to break it is to land it inside a
+   string or JSX text. TypeScript files only — the gate verifies edges in `.ts` and
+   `.tsx` files alone, so an edge in another language is unverifiable; report such
+   docs as unwired instead of improvising. Wiring only: never rewrite the comment around it, never wire a stale
+   doc (its ⚠️ index flag is the finding), and skip — as a reported gap — any doc
+   whose anchor you cannot identify with confidence.
+7. **Confirm and report**: re-run R9 Q1–Q3 and Q7 as confirmation — via the
+   installed script — a Q1 hit (a doc with no index line) means step 3 didn't land,
+   a Q3 hit means step 4 didn't, a Q7 hit means step 2 or 5 didn't; repair any
+   before reporting, and verify every edge added in step 6 resolves. The ADVISORY
+   findings list carries Q2 hits plus rung-2 gaps (two-signal criterion in
+   reference.md), any doc left unwired in step 6, and any `type` needing a human
+   call. Bootstrap wires and maps; it NEVER mass-generates content docs — those are
+   written incrementally by FEATURE mode.
+</bootstrap_mode>
 
-**Creates**: `docs/features/[feature-name].md`
+<output_format>
+FEATURE mode:
+```
+DOCUMENTATION COMPLETE — FEATURE mode
+Feature: <name>
 
-## Workflow
+Artifacts:
+- <docroot>/<feature>.md (created/updated)
+- JSDoc: <symbols touched, grouped by package>
+- testable examples: <functions>
+- index.md: <line added/refreshed>
 
-### 1. Identify Documentation Needs
+Network edges added:
+- code→docs: <symbol> → <docroot>/<feature>.md
+- docs→code: <doc> → <symbols/packages cited>
+- root: @<docroot>/index.md in CLAUDE.md (verified/added)
 
-Ask:
-- Is this a reusable component? → Storybook story
-- Is this a custom hook? → JSDoc + usage example
-- Is this a complete feature? → Feature documentation
-- Are types/props complex? → JSDoc comments
+R9 self-check: Q1–Q3, Q7 clean · Q4–Q6 clean over diff
+  (or per hit: <Qn>: <evidence> — fixed by <R9 fix-pattern move>)
 
-### 2. Create Storybook Stories
+Comment critic: <N> reviewed — <D> deleted · <T> trimmed · <R> rewritten ·
+  clean on re-critique (or: <remaining verdicts, reported as-is>)
+  R3 leads (in-body extraction candidates, for the caller): <file:line, ...> (omit when none)
 
-**For each component**, create stories showing:
-- Default state
-- All variants/props
-- Interactive states
-- Edge cases (loading, error, empty)
-
-**Example**:
-```typescript
-// src/components/Button/Button.stories.tsx
-import type { Meta, StoryObj } from '@storybook/react'
-import { Button } from './Button'
-
-const meta: Meta<typeof Button> = {
-  title: 'Components/Button',
-  component: Button,
-  parameters: {
-    layout: 'centered'
-  },
-  tags: ['autodocs'],
-  argTypes: {
-    variant: {
-      control: 'select',
-      options: ['primary', 'secondary', 'danger']
-    }
-  }
-}
-
-export default meta
-type Story = StoryObj<typeof Button>
-
-// Default story
-export const Primary: Story = {
-  args: {
-    label: 'Button',
-    variant: 'primary',
-    onClick: () => alert('clicked')
-  }
-}
-
-// Variants
-export const Secondary: Story = {
-  args: {
-    ...Primary.args,
-    variant: 'secondary'
-  }
-}
-
-export const Danger: Story = {
-  args: {
-    ...Primary.args,
-    variant: 'danger'
-  }
-}
-
-// States
-export const Disabled: Story = {
-  args: {
-    ...Primary.args,
-    isDisabled: true
-  }
-}
-
-export const Loading: Story = {
-  args: {
-    ...Primary.args,
-    isLoading: true
-  }
-}
-
-// Interactive example
-export const WithIcon: Story = {
-  args: {
-    ...Primary.args,
-    icon: <IconCheck />
-  }
-}
+Expand recommendations (optional — omit the section when none):
+- <Symbol> — consider expanding its JSDoc inline beyond the doc reference:
+  <one-line rationale>
 ```
 
-### 3. Add JSDoc Comments
-
-**For public types and interfaces**:
-```typescript
-/**
- * Props for the Button component.
- *
- * @example
- * ```tsx
- * <Button
- *   label="Click me"
- *   variant="primary"
- *   onClick={() => console.log('clicked')}
- * />
- * ```
- */
-export interface ButtonProps {
-  /** The text to display on the button */
-  label: string
-
-  /** The visual style variant of the button */
-  variant?: 'primary' | 'secondary' | 'danger'
-
-  /** Callback fired when the button is clicked */
-  onClick: () => void
-
-  /** If true, the button will be disabled */
-  isDisabled?: boolean
-
-  /** If true, the button will show a loading spinner */
-  isLoading?: boolean
-}
+BOOTSTRAP mode:
 ```
+BOOTSTRAP COMPLETE
+Doc root(s): <discovered/created; per sub-project if monorepo>
+Index: <docroot>/index.md built — <N> docs, <M> groups; map of maps: <yes/no>
+Frontmatter: <N> verified, <M> added
+Root wiring: CLAUDE.md @import <added/verified> · AGENTS.md routing block <added/verified>
+Conventions: <docroot>/conventions.md <created/verified>
+Check script: scripts/check-repo-brain.sh <installed/verified> — suggest CI: bash scripts/check-repo-brain.sh
+Upward edges: <K> wired — <doc> ← <anchor symbol> (<package>), ...
 
-**For custom hooks**:
-```typescript
-/**
- * Custom hook for managing user authentication state.
- *
- * Handles login, logout, and persisting auth state to localStorage.
- * Automatically refreshes token when it expires.
- *
- * @param options - Configuration options for authentication
- * @returns Authentication state and methods
- *
- * @example
- * ```tsx
- * function LoginForm() {
- *   const { login, isLoading, error } = useAuth()
- *
- *   const handleSubmit = async (email: string, password: string) => {
- *     await login(email, password)
- *   }
- *
- *   return <Form onSubmit={handleSubmit} isLoading={isLoading} error={error} />
- * }
- * ```
- */
-export function useAuth(options?: AuthOptions): UseAuthReturn {
-  // Implementation
-}
+Advisory findings (reported, not fixed — FEATURE mode writes content):
+- unwired: <doc> — indexed, but no confident front-door anchor; needs a human call
+- broken edge: <source> → <target> (unresolved)
+- gap: <package> — <dangling code→docs edge | entry points with no citing doc>
+- stale: <doc> — indexed with ⚠️ flag; cites unresolved <symbol>; not edge-wired
+- type?: <doc> — class not inferable; needs a human call
+- diverged script: scripts/check-repo-brain.sh differs from the plugin's — not overwritten
 ```
-
-**For complex types**:
-```typescript
-/**
- * Represents the state of an asynchronous operation.
- *
- * Uses discriminated union to ensure invalid states are impossible
- * (e.g., cannot have both data and error simultaneously).
- *
- * @template T - The type of data returned on success
- *
- * @example
- * ```typescript
- * const [state, setState] = useState<AsyncState<User>>({ status: 'idle' })
- *
- * // Type narrowing works automatically
- * if (state.status === 'success') {
- *   console.log(state.data.name) // state.data is available and typed
- * }
- * ```
- */
-export type AsyncState<T> =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: T }
-  | { status: 'error'; error: Error }
-```
-
-### 4. Create Feature Documentation
-
-**For completed features**, create `docs/features/[feature-name].md`:
-
-**Template**:
-```markdown
-# Feature: [Feature Name]
-
-## Overview
-Brief description of what the feature does and why it exists.
-
-## Problem
-What problem does this feature solve? What was the pain point?
-
-## Solution
-How does this feature solve the problem? What approach was taken?
-
-## Architecture
-
-### Components
-- **ComponentName**: Purpose and responsibility
-- **AnotherComponent**: Purpose and responsibility
-
-### Hooks
-- **useFeatureHook**: What it does and why it's separate
-
-### Context
-- **FeatureContext**: What state it manages and why context was needed
-
-### Types
-- **KeyType**: What it represents and why it's a custom type
-
-## Key Design Decisions
-
-### 1. [Decision Title]
-**Decision**: What was decided
-**Rationale**: Why this approach was chosen
-**Alternatives**: What other approaches were considered
-**Trade-offs**: What we gained and what we gave up
-
-### 2. [Another Decision]
-...
-
-## Usage
-
-### Basic Usage
-```typescript
-// Simple example showing most common use case
-```
-
-### Advanced Usage
-```typescript
-// Example showing advanced features or edge cases
-```
-
-### Integration
-How this feature integrates with other parts of the application.
-
-## API Reference
-
-### Components
-
-#### ComponentName
-Props:
-- `propName` (Type): Description
-
-Events:
-- `onEvent`: When it fires and what it provides
-
-#### AnotherComponent
-...
-
-### Hooks
-
-#### useFeatureHook
-Parameters:
-- `param` (Type): Description
-
-Returns:
-- `returnValue` (Type): Description
-
-### Types
-
-#### TypeName
-```typescript
-type TypeName = ...
-```
-
-Description of when and how to use this type.
-
-## Testing Strategy
-
-### Unit Tests
-- What is tested at the unit level (pure components, hooks)
-- Coverage expectations (100% for leaf components)
-
-### Integration Tests
-- What user flows are tested
-- How mocking is handled (MSW for APIs)
-
-## Accessibility
-
-### Compliance
-- WCAG level compliance (A, AA, AAA)
-- What accessibility features are implemented
-
-### Keyboard Navigation
-- What keyboard shortcuts are supported
-- How tab order works
-
-### Screen Reader Support
-- What ARIA attributes are used
-- What announcements are made
-
-## Performance Considerations
-
-### Optimizations
-- What performance optimizations are implemented
-- Use of memo, useMemo, useCallback
-
-### Bundle Impact
-- Approximate bundle size contribution
-- Any lazy loading or code splitting
-
-## Known Limitations
-
-### Current Limitations
-- What doesn't work yet
-- What edge cases aren't handled
-
-### Future Enhancements
-- What could be improved
-- What features could be added
-
-## Troubleshooting
-
-### Common Issues
-
-#### Issue: [Problem Description]
-**Symptom**: What users will see
-**Cause**: Why this happens
-**Solution**: How to fix it
-
-## Related Features
-- Links to related documentation
-- Dependencies on other features
-- Features that depend on this
-
-## Migration Guide
-(If replacing existing functionality)
-
-### Before
-```typescript
-// Old way
-```
-
-### After
-```typescript
-// New way
-```
-
-### Breaking Changes
-- What changed
-- How to update code
-
-## Changelog
-- v1.1.0 (2024-01-15): Added support for...
-- v1.0.0 (2024-01-01): Initial implementation
-```
-
-## Output Format
-
-After generating documentation:
-
-```
-📚 DOCUMENTATION GENERATED
-
-Feature: User Authentication
-
-Generated Files:
-✅ Storybook Stories (3 components)
-   - src/features/auth/components/LoginForm.stories.tsx
-   - src/features/auth/components/RegisterForm.stories.tsx
-   - src/features/auth/components/PasswordInput.stories.tsx
-
-✅ JSDoc Comments Added
-   - src/features/auth/hooks/useAuth.ts (hook documentation)
-   - src/features/auth/types.ts (type definitions)
-   - src/features/auth/context/AuthContext.tsx (context API)
-
-✅ Feature Documentation
-   - docs/features/authentication.md (complete guide)
-
-📖 Documentation includes:
-   - Problem/solution overview
-   - Architecture and design decisions
-   - Usage examples (basic + advanced)
-   - API reference (components, hooks, types)
-   - Testing strategy
-   - Accessibility features
-   - Performance considerations
-   - Troubleshooting guide
-
-🎯 Next Steps:
-1. Review generated Storybook stories locally: npm run storybook
-2. Review feature documentation: docs/features/authentication.md
-3. Update any project-specific references or links
-4. Commit documentation with feature code
-
-📝 Maintenance:
-- Update Storybook stories when component props change
-- Update JSDoc when APIs change
-- Update feature docs when design decisions change
-- Keep examples working (they're testable!)
-```
-
-## Documentation Principles
-
-### For Humans AND AI
-
-Documentation serves two audiences:
-1. **Human developers**: Need to understand and extend code
-2. **AI assistants**: Need context to help debug and extend features
-
-Write documentation that helps both audiences understand:
-- **WHY** decisions were made (context for future changes)
-- **HOW** the feature works (architecture and flow)
-- **WHAT** can be extended (integration points)
-
-### Show, Don't Tell
-
-Prefer code examples over prose descriptions:
-
-**❌ Bad**:
-```
-The Button component accepts a variant prop that can be primary,
-secondary, or danger, and will style the button accordingly.
-```
-
-**✅ Good**:
-```typescript
-<Button variant="primary" label="Save" />
-<Button variant="secondary" label="Cancel" />
-<Button variant="danger" label="Delete" />
-```
-
-### Keep Examples Executable
-
-Storybook stories and JSDoc examples should be real, working code that compiles and runs.
-
-### Document Design Decisions
-
-Most important: **WHY** decisions were made.
-
-**❌ Bad**:
-```
-// Uses context for state management
-```
-
-**✅ Good**:
-```
-/**
- * Uses AuthContext for state management instead of prop drilling.
- *
- * Decision: Context chosen because auth state is needed in 10+
- * components across different nesting levels (nav, profile, settings,
- * protected routes). Prop drilling would be unmaintainable.
- *
- * Alternative considered: Redux - overkill for single feature state
- */
-```
-
-## When to Document
-
-### Always Document
-- Public/shared components
-- Custom hooks (except trivial ones)
-- Complex types (discriminated unions, branded types)
-- Completed features (spanning multiple commits)
-
-### Consider Documenting
-- Complex utility functions
-- Non-obvious algorithms
-- Performance-critical code
-- Edge cases and workarounds
-
-### Don't Over-Document
-- Trivial functions (self-explanatory)
-- Implementation details (private functions)
-- Obvious code (const user = getUser())
-
-## Best Practices
-
-### Storybook
-- One story file per component
-- Show all variants
-- Include interactive controls
-- Document props with argTypes
-- Add accessibility checks (a11y addon)
-
-### JSDoc
-- Use `@param`, `@returns`, `@example` tags
-- Include examples showing typical usage
-- Document complex types inline
-- Link related types with `@see`
-
-### Feature Docs
-- Start with problem/solution
-- Include architecture diagrams (mermaid)
-- Provide working code examples
-- Document WHY, not just WHAT
-- Keep updated as feature evolves
-
-## Tools
-
-### Storybook Commands
-```bash
-# Run Storybook locally
-npm run storybook
-
-# Build static Storybook
-npm run build-storybook
-
-# Test stories (interaction testing)
-npm run test-storybook
-```
-
-### TypeDoc (Alternative to JSDoc)
-```bash
-# Generate API documentation from TypeScript
-npx typedoc --entryPoints src/index.ts
-```
-
-## Key Principles
-
-See reference.md for detailed principles:
-- Document WHY, not just WHAT
-- Show working code examples
-- Keep docs close to code
-- Update docs with code changes
-- Test examples (Storybook)
-- Document for humans AND AI
-- Focus on usage, not implementation
-
-See reference.md for complete documentation templates and examples.
-
-## Acceptance Criteria
-
-**All criteria must be met before documentation is considered complete.**
-
-### Mandatory Requirements (Must Pass)
-
-1. **JSDoc Comments (for hooks and types)**
-   - [ ] All public hooks have JSDoc with `@example`
-   - [ ] All complex types have JSDoc explanations
-   - [ ] Props interfaces documented
-   - [ ] Return types documented for hooks
-
-2. **Examples Are Executable**
-   - [ ] JSDoc examples are valid TypeScript
-   - [ ] Code examples compile without errors
-
-3. **Documentation Quality**
-   - [ ] WHY documented, not just WHAT
-   - [ ] Examples show typical usage patterns
-   - [ ] Integration points described
-   - [ ] Troubleshooting section for complex features
-
-### Nice-to-Have (Optional)
-
-1. **Storybook Stories (for components)**
-   - [ ] Story file created for each public component
-   - [ ] Default state story exists
-   - [ ] All variants/props demonstrated
-   - [ ] Interactive states shown (loading, error, empty)
-   - [ ] Stories compile and render without errors
-
-*Note: Storybook is valuable for visual documentation but not required for skill completion.*
-
-### Documentation Completion Checklist
-
-```
-✅ DOCUMENTATION ACCEPTANCE CRITERIA
-
-JSDoc (Hooks & Types) - REQUIRED:
-[ ] Public hooks documented
-[ ] @example tags with working code
-[ ] Complex types explained
-[ ] Return types documented
-
-Quality - REQUIRED:
-[ ] WHY, not just WHAT
-[ ] Examples are executable
-[ ] Integration points clear
-[ ] Troubleshooting included (for complex features)
-
-Storybook (Components) - OPTIONAL:
-[ ] Story file per public component
-[ ] Default state story
-[ ] All variants shown
-[ ] Edge cases covered (loading, error, empty)
-
-Documentation complete: All REQUIRED boxes checked ✅
-```
-
-### What Blocks Completion
-
-The following will BLOCK documentation completion:
-- Missing JSDoc for public hooks
-- Examples that don't compile
-- Documentation that only describes WHAT (not WHY)
-
-The following will NOT block completion:
-- Missing Storybook stories (nice-to-have)
-
-### Documentation Output Requirements
-
-Documentation must include:
-1. **JSDoc Comments** - Inline documentation for hooks and types (required)
-2. **Working Examples** - All examples must compile (required)
-3. **Storybook Stories** - Visual documentation for components (optional, nice-to-have)
-
-### Documentation Types by Scope
-
-| Scope | Required | Nice-to-Have |
-|-------|----------|--------------|
-| Single component | JSDoc for props | Storybook story |
-| Custom hook | JSDoc with @example | - |
-| Complex type | JSDoc explaining purpose | - |
-| Complete feature | JSDoc + examples | Storybook + feature docs |
+</output_format>
+
+<success_criteria>
+- Every fact sits at its lowest viable rung of the documentation ladder; nothing
+  duplicated across rungs (R9 placement rule).
+- New/updated docs joined the network: indexed, root-wired, edges in both directions.
+- FEATURE: the R9 self-check ran and every hit was fixed before reporting.
+- FEATURE: the comment-critic ran over the full diff, every non-KEEP verdict was
+  applied (R3 routes reported, not fixed), and the one re-critique confirmed clean
+  — or the remainder is reported as-is.
+- BOOTSTRAP: root(s) + index + root wiring + conventions.md + check
+  script exist; frontmatter verified-or-added on every content doc; every
+  confidently-anchorable doc has an upward edge; gaps reported; zero content docs
+  generated (conventions.md and the copied script are the two sanctioned
+  artifacts).
+- All prose passes the 5-year reader test; zero changelog-style entries.
+</success_criteria>
+
+<constraints>
+This skill MUST NOT:
+- Restate R9 content — the documentation ladder, invariants, and policies are cited,
+  never copied.
+- Append change history to docs — current behavior only, always.
+- Mass-generate content docs in BOOTSTRAP mode — advisory gap report only
+  (conventions.md and the copied check script are the two sanctioned artifacts).
+- Fill templates for their own sake — reference.md's templates are menus; R9's
+  comment policy decides what earns its place.
+- Spawn anything other than `ts-react-linter-driven-development:comment-critic`, loop the critique more than one
+  fix-and-recheck round, or fix `DELETE → route R3` verdicts itself (extraction
+  belongs to @refactoring).
+</constraints>

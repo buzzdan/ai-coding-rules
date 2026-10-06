@@ -26,7 +26,7 @@ use_row() {
   FX_FENCE="typescript"
   FX_DOTTED_CONFIG="eslint.config.mjs"
   FX_GLOB1='*.d.ts'; FX_GLOB2='*.generated.ts'
-  FX_EXTERNAL1="React.useState"; FX_EXTERNAL2="Intl.DateTimeFormat"
+  FX_EXTERNAL1="vi.mock"; FX_EXTERNAL2="screen.getByRole"
   FX_URL="https://example.github.io/retry/#Policy.Do"
 }
 
@@ -34,18 +34,14 @@ fx_write_marker() { # <dir> <module>
   printf '{"name": "%s", "private": true}\n' "$2" > "$1/package.json"
 }
 
-# The names are the core matrix's, not idiomatic TypeScript. The module comment
-# names the two external tokens: the driver exempts only lower-case qualifiers
-# (`msw.http`), so a capitalised namespace such as `Intl.DateTimeFormat` resolves
-# the way any undeclared token does — as a whole word in a non-markdown file.
+# The names are the core matrix's, not idiomatic TypeScript. The row's external
+# tokens are lower-case qualifiers (`vi.mock`, `screen.getByRole`) because the
+# driver exempts only those; a capitalised namespace such as `Intl.DateTimeFormat`
+# resolves the way any undeclared token does — as a whole word in a non-markdown
+# file — which is the same limit the Python row lives with.
 fx_write_conformant_code() {
   mkdir -p "$REPO/retry"
   cat > "$REPO/retry/policy.ts" <<'TS'
-/**
- * Retry policies. Delays are milliseconds; the dashboard renders the next
- * attempt with Intl.DateTimeFormat and keeps the attempt count in React.useState.
- */
-
 /** Policy bounds retries. See docs/retry-policy.md for the jitter decision. */
 export class Policy {
   private readonly maxAttempts: number

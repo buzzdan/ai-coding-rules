@@ -1,867 +1,371 @@
 ---
 name: refactoring
-description: Linter-driven refactoring patterns to reduce complexity and improve code quality in React/TypeScript. Use when ESLint fails with SonarJS complexity issues (cognitive, cyclomatic, expression) or when code feels hard to read/maintain. Applies component extraction, hook extraction, and simplification patterns.
+description: |
+  BACKWARD view over rules/ — routes linter and review failures to the rule whose Fix pattern owns the repair.
+  Use when linter fails with complexity issues (cyclomatic, cognitive, maintainability) or when code feels hard to read/maintain.
+  Also the skill for removing a `// eslint-disable-next-line` directive or a package-level global (R8): "drop the suppression", "remove the global", "make the linter pass without suppressions" route here, one green step per commit.
+  Also runs PREPARATORY mode: reshape code an approved plan touches, before the first RED, so the feature lands add-only.
+  Applies storifying, type extraction, function extraction, conditional-dispatch, and mutation-discipline patterns via rules/R1-R8 and R10-R12.
+allowed-tools:
+  - Skill(ts-react-linter-driven-development:code-designing)
+  - Skill(ts-react-linter-driven-development:testing)
+  - Skill(ts-react-linter-driven-development:pre-commit-review)
 ---
 
-# Refactoring (React/TypeScript)
-
-Linter-driven refactoring patterns to reduce complexity and improve React code quality.
-
-## When to Use
-- ESLint fails with SonarJS complexity issues
-- Code feels hard to read or maintain
-- Components/functions are too long or deeply nested
-- Automatically invoked by @linter-driven-development when linter fails
-
-## Critical Rule: Never Disable Linter Rules
-
-**IMPORTANT**: When refactoring:
-- **DO NOT** add `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, or similar suppression comments
-- **ALWAYS** fix the underlying issue through proper refactoring
-- **ONLY** disable rules as an absolute last resort with explicit user approval
-- **When approved**: Add a comment explaining WHY the rule is disabled
-- Linter warnings indicate real code quality issues - fix them, don't hide them
-
-## Refactoring Signals
-
-### SonarJS Linter Failures
-- **sonarjs/cognitive-complexity** (max: 15) → Simplify logic, extract functions/hooks
-- **sonarjs/cyclomatic-complexity** (max: 10) → Reduce branches, early returns
-- **sonarjs/expression-complexity** (max: 5) → Extract variables, simplify conditions
-- **sonarjs/max-lines-per-function** (max: 200) → Extract components/hooks
-- **sonarjs/max-lines** (max: 600) → Split file into multiple files
-- **sonarjs/nested-control-flow** (max: 4) → Early returns, guard clauses
-
-### React-Specific Signals
-- **react/no-unstable-nested-components** → Extract component definitions
-- **react/no-multi-comp** → Split into separate files
-- **react-hooks/exhaustive-deps** → Simplify dependencies, extract logic
-
-### Code Smells
-- Components > 200 LOC
-- Functions with > 4 levels of nesting
-- Mixed abstraction levels (UI + business logic)
-- Inline complex logic in JSX
-- Deeply nested conditionals
-
-## Workflow
-
-### 1. Interpret Linter Output
-
-Run the lint check command from package.json and analyze failures:
-```
-src/components/LoginForm.tsx:45:1: Cognitive Complexity of 18 exceeds max of 15
-src/components/UserList.tsx:120:5: Cyclomatic Complexity of 12 exceeds max of 10
-src/components/DataTable.tsx:89:1: Function has 250 lines, max is 200
-```
-
-### 2. Diagnose Root Cause
-
-For each failure, ask:
-- **Mixed abstractions?** → Extract custom hooks, extract components
-- **Complex conditionals?** → Early returns, guard clauses, extract conditions
-- **Primitive obsession?** → Create Zod schemas or branded types
-- **Long component?** → Split into smaller components
-- **Nested components?** → Extract to separate components
-- **Complex JSX logic?** → Extract to helper functions or hooks
-
-### 3. Apply Refactoring Pattern
-
-Choose appropriate pattern:
-- **Extract Custom Hook**: Move logic out of component
-- **Extract Component**: Break down large components
-- **Extract Helper Function**: Simplify complex logic
-- **Early Returns/Guard Clauses**: Reduce nesting
-- **Simplify Conditions**: Extract to variables, use early returns
-- **Extract Validation**: Move to Zod schemas or validation functions
-
-### 4. Verify Improvement
-
-- Re-run linter using detected lint check command from package.json
-- Tests still pass using detected test command from package.json
-- Code more readable?
-
-## Refactoring Patterns
-
-### Pattern 1: Extract Custom Hook (Business Logic)
-
-**Signal**: Component mixing UI with complex logic
-
-```typescript
-// ❌ Before - Complex logic in component (Cognitive Complexity: 18)
-function UserProfile({ userId }: { userId: string }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`/api/users/${userId}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch user')
-        }
-        const data = await response.json()
-        setUser(data)
-      } catch (err) {
-        setError(err as Error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchUser()
-  }, [userId])
-
-  if (isLoading) return <Spinner />
-  if (error) return <ErrorMessage error={error} />
-  if (!user) return <NotFound />
-
-  return (
-    <div>
-      <h1>{user.name}</h1>
-      <p>{user.email}</p>
-    </div>
-  )
-}
-
-// ✅ After - Logic extracted to hook (Component Complexity: 4)
-function useUser(userId: string) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true)
-      setError(null)
-      try {
-        const response = await fetch(`/api/users/${userId}`)
-        if (!response.ok) throw new Error('Failed to fetch user')
-        setUser(await response.json())
-      } catch (err) {
-        setError(err as Error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchUser()
-  }, [userId])
-
-  return { user, isLoading, error }
-}
-
-function UserProfile({ userId }: { userId: string }) {
-  const { user, isLoading, error } = useUser(userId)
-
-  if (isLoading) return <Spinner />
-  if (error) return <ErrorMessage error={error} />
-  if (!user) return <NotFound />
-
-  return (
-    <div>
-      <h1>{user.name}</h1>
-      <p>{user.email}</p>
-    </div>
-  )
-}
-```
-
-### Pattern 2: Extract Component (Break Down Large Components)
-
-**Signal**: Component > 200 lines, doing too much
-
-```typescript
-// ❌ Before - Large component (250 lines, Cognitive Complexity: 22)
-function UserDashboard() {
-  const [users, setUsers] = useState([])
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-
-  // ... 200+ lines of logic and JSX
-
-  return (
-    <div>
-      {/* Search bar */}
-      <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-
-      {/* User list */}
-      <ul>
-        {users.filter(u => u.name.includes(searchTerm)).map(user => (
-          <li key={user.id} onClick={() => setSelectedUser(user)}>
-            {user.name} - {user.email}
-            <button onClick={() => setIsEditing(true)}>Edit</button>
-            <button onClick={() => deleteUser(user.id)}>Delete</button>
-          </li>
-        ))}
-      </ul>
-
-      {/* User detail */}
-      {selectedUser && (
-        <div>
-          {isEditing ? (
-            <form>...</form>
-          ) : (
-            <div>...</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ✅ After - Broken into focused components
-function UserDashboard() {
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-
-  return (
-    <div>
-      <UserSearch />
-      <UserList onSelectUser={setSelectedUser} />
-      {selectedUser && <UserDetail user={selectedUser} />}
-    </div>
-  )
-}
-
-function UserSearch() {
-  const [searchTerm, setSearchTerm] = useState('')
-  // Search logic
-  return <input value={searchTerm} onChange={...} />
-}
-
-function UserList({ onSelectUser }: { onSelectUser: (user: User) => void }) {
-  const { users } = useUsers()
-  return (
-    <ul>
-      {users.map(user => (
-        <UserListItem key={user.id} user={user} onSelect={onSelectUser} />
-      ))}
-    </ul>
-  )
-}
-
-function UserListItem({ user, onSelect }: UserListItemProps) {
-  return (
-    <li onClick={() => onSelect(user)}>
-      <span>{user.name}</span>
-      <UserActions user={user} />
-    </li>
-  )
-}
-```
-
-### Pattern 3: Early Returns / Guard Clauses (Reduce Nesting)
-
-**Signal**: Deeply nested conditionals, cyclomatic complexity high
-
-```typescript
-// ❌ Before - Deep nesting (Cyclomatic Complexity: 12, Nesting: 5)
-function validateAndSubmit(data: FormData) {
-  if (data) {
-    if (data.email) {
-      if (isValidEmail(data.email)) {
-        if (data.password) {
-          if (data.password.length >= 8) {
-            if (data.terms) {
-              return submitForm(data)
-            } else {
-              return { error: 'Must accept terms' }
-            }
-          } else {
-            return { error: 'Password too short' }
-          }
-        } else {
-          return { error: 'Password required' }
-        }
-      } else {
-        return { error: 'Invalid email' }
-      }
-    } else {
-      return { error: 'Email required' }
-    }
-  }
-  return { error: 'No data' }
-}
-
-// ✅ After - Early returns (Cyclomatic Complexity: 7, Nesting: 1)
-function validateAndSubmit(data: FormData) {
-  if (!data) return { error: 'No data' }
-  if (!data.email) return { error: 'Email required' }
-  if (!isValidEmail(data.email)) return { error: 'Invalid email' }
-  if (!data.password) return { error: 'Password required' }
-  if (data.password.length < 8) return { error: 'Password too short' }
-  if (!data.terms) return { error: 'Must accept terms' }
-
-  return submitForm(data)
-}
-
-// ✅ Even better - Use Zod schema
-const FormDataSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  terms: z.boolean().refine(val => val === true, 'Must accept terms')
-})
-
-function validateAndSubmit(data: unknown) {
-  const result = FormDataSchema.safeParse(data)
-  if (!result.success) {
-    return { error: result.error.errors[0].message }
-  }
-  return submitForm(result.data)
-}
-```
-
-### Pattern 4: Extract Complex Conditions (Simplify Expression Complexity)
-
-**Signal**: Complex boolean expressions, expression complexity > 5
-
-```typescript
-// ❌ Before - Complex condition (Expression Complexity: 8)
-if (
-  user &&
-  user.isActive &&
-  !user.isBanned &&
-  user.subscription &&
-  user.subscription.status === 'active' &&
-  user.subscription.expiresAt > Date.now() &&
-  (user.roles.includes('admin') || user.roles.includes('moderator'))
-) {
-  // Allow access
-}
-
-// ✅ After - Extracted to helper functions
-function hasActiveSubscription(user: User): boolean {
-  return (
-    user.subscription?.status === 'active' &&
-    user.subscription.expiresAt > Date.now()
-  )
-}
-
-function hasModeratorAccess(user: User): boolean {
-  return user.roles.includes('admin') || user.roles.includes('moderator')
-}
-
-function canAccessFeature(user: User): boolean {
-  return (
-    user.isActive &&
-    !user.isBanned &&
-    hasActiveSubscription(user) &&
-    hasModeratorAccess(user)
-  )
-}
-
-if (user && canAccessFeature(user)) {
-  // Allow access
-}
-
-// ✅ Or extract to variables
-const isUserValid = user.isActive && !user.isBanned
-const hasSubscription = hasActiveSubscription(user)
-const isModerator = hasModeratorAccess(user)
-
-if (user && isUserValid && hasSubscription && isModerator) {
-  // Allow access
-}
-```
-
-### Pattern 5: Extract Unstable Nested Components
-
-**Signal**: react/no-unstable-nested-components
-
-```typescript
-// ❌ Before - Component defined inside component
-function UserList() {
-  const users = useUsers()
-
-  // ❌ Recreated on every render
-  const UserCard = ({ user }: { user: User }) => (
-    <div>
-      <h3>{user.name}</h3>
-      <p>{user.email}</p>
-    </div>
-  )
-
-  return (
-    <div>
-      {users.map(user => <UserCard key={user.id} user={user} />)}
-    </div>
-  )
-}
-
-// ✅ After - Component extracted
-function UserCard({ user }: { user: User }) {
-  return (
-    <div>
-      <h3>{user.name}</h3>
-      <p>{user.email}</p>
-    </div>
-  )
-}
-
-function UserList() {
-  const users = useUsers()
-  return (
-    <div>
-      {users.map(user => <UserCard key={user.id} user={user} />)}
-    </div>
-  )
-}
-```
-
-### Pattern 6: Simplify Hook Dependencies
-
-**Signal**: react-hooks/exhaustive-deps warnings, complex useEffect
-
-```typescript
-// ❌ Before - Complex dependencies
-function SearchResults({ initialQuery, filters, sortBy }: Props) {
-  const [results, setResults] = useState([])
-
-  useEffect(() => {
-    const fetchResults = async () => {
-      const response = await api.search({
-        query: initialQuery,
-        filters: filters,
-        sort: sortBy,
-        page: 1
-      })
-      setResults(response.data)
-    }
-    fetchResults()
-  }, [initialQuery, filters, sortBy, filters.category, filters.price]) // ❌ Duplicates, object deps
-}
-
-// ✅ After - Simplified with custom hook
-function useSearchResults(query: string, filters: Filters, sortBy: string) {
-  const [results, setResults] = useState([])
-
-  // Stable object reference
-  const searchParams = useMemo(
-    () => ({ query, filters, sort: sortBy, page: 1 }),
-    [query, filters, sortBy]
-  )
-
-  useEffect(() => {
-    api.search(searchParams).then(response => setResults(response.data))
-  }, [searchParams])
-
-  return results
-}
-
-function SearchResults({ initialQuery, filters, sortBy }: Props) {
-  const results = useSearchResults(initialQuery, filters, sortBy)
-  return <ResultsList results={results} />
-}
-```
-
-### Pattern 7: Extract Form Validation Logic
-
-**Signal**: Complex validation in components
-
-```typescript
-// ❌ Before - Validation scattered in component
-function LoginForm() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [errors, setErrors] = useState({})
-
-  const handleSubmit = () => {
-    const newErrors = {}
-
-    if (!email) {
-      newErrors.email = 'Email required'
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Invalid email'
-    }
-
-    if (!password) {
-      newErrors.password = 'Password required'
-    } else if (password.length < 8) {
-      newErrors.password = 'Password too short'
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
-      return
-    }
-
-    submitLogin(email, password)
-  }
-
-  // ...JSX
-}
-
-// ✅ After - Validation with Zod
-import { z } from 'zod'
-
-const LoginSchema = z.object({
-  email: z.string().email('Invalid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters')
-})
-
-function LoginForm() {
-  const { values, errors, setValue, handleSubmit } = useFormValidation(
-    LoginSchema,
-    { email: '', password: '' },
-    submitLogin
-  )
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <Input
-        label='Email'
-        value={values.email}
-        onChange={e => setValue('email', e.target.value)}
-        error={errors.email}
-      />
-      <Input
-        label='Password'
-        type='password'
-        value={values.password}
-        onChange={e => setValue('password', e.target.value)}
-        error={errors.password}
-      />
-      <button type='submit'>Login</button>
-    </form>
-  )
-}
-```
-
-### Pattern 8: Replace Tag-Based Conditionals with Dispatch (Anti-IF)
-
-**Signal**: The same discriminator (`kind`, `status`, `type` field) inspected in more than one place; ternary/if-else chains in JSX selecting between renderings; switch statements duplicated across files
-
-The Anti-IF principle: a conditional that asks what a value *is* may exist once. The second copy of the same `switch (x.kind)` is a missing abstraction — dispatch through a lookup map or let a discriminated union carry the decision.
-
-```typescript
-// ❌ Before - Same discriminator inspected in three places
-function StatusBadge({ status }: { status: Status }) {
-  return status === 'active' ? (
-    <Badge color='green'>Active</Badge>
-  ) : status === 'pending' ? (
-    <Badge color='yellow'>Pending</Badge>
-  ) : (
-    <Badge color='red'>Suspended</Badge>
-  )
-}
-
-function statusLabel(status: Status) {
-  if (status === 'active') return 'Active'
-  if (status === 'pending') return 'Pending approval'
-  return 'Suspended' // drifts independently of StatusBadge
-}
-
-function canLogin(status: Status) {
-  if (status === 'active') return true
-  if (status === 'pending') return true
-  return false
-}
-
-// ✅ After - One dispatch owner: a config map keyed by the discriminator
-const STATUS_CONFIG: Record<Status, { color: BadgeColor; label: string; canLogin: boolean }> = {
-  active: { color: 'green', label: 'Active', canLogin: true },
-  pending: { color: 'yellow', label: 'Pending approval', canLogin: true },
-  suspended: { color: 'red', label: 'Suspended', canLogin: false }
-}
-
-function StatusBadge({ status }: { status: Status }) {
-  const { color, label } = STATUS_CONFIG[status]
-  return <Badge color={color}>{label}</Badge>
-}
-
-// Adding a status = adding one entry; TypeScript errors until every
-// Record key is present — the compiler enforces completeness.
-```
-
-For variant components, dispatch through a component map instead of ternary chains in JSX:
-
-```typescript
-// ❌ Before - Nested ternaries selecting components
-function NotificationItem({ notification }: { notification: Notification }) {
-  return notification.kind === 'message' ? (
-    <MessageNotification data={notification} />
-  ) : notification.kind === 'mention' ? (
-    <MentionNotification data={notification} />
-  ) : (
-    <SystemNotification data={notification} />
-  )
-}
-
-// ✅ After - Component map, one entry per variant.
-// `satisfies` a mapped type: each component is checked against ITS OWN variant
-// (MessageNotification must accept Extract<Notification, { kind: 'message' }>),
-// and a missing kind is a compile error — don't widen every view to the union,
-// which would force each component to re-narrow internally (re-asking).
-const NOTIFICATION_VIEWS = {
-  message: MessageNotification,
-  mention: MentionNotification,
-  system: SystemNotification
-} satisfies {
-  [K in Notification['kind']]: FC<{ data: Extract<Notification, { kind: K }> }>
-}
-
-function NotificationItem({ notification }: { notification: Notification }) {
-  // TypeScript cannot correlate the map entry with the narrowed union here
-  // (correlated-union limitation), so ONE localized cast sits at the single
-  // dispatch site — made safe in practice by the `satisfies` check above.
-  const View = NOTIFICATION_VIEWS[notification.kind] as FC<{ data: Notification }>
-  return <View data={notification} />
-}
-```
-
-When a switch legitimately stays (single site, variant-specific payloads), make it a **discriminated union with an exhaustiveness check** — the compiler then does what an if-chain never could: fail the build when a variant is added but not handled:
-
-```typescript
-type PaymentEvent =
-  | { kind: 'charge'; amountCents: number }
-  | { kind: 'refund'; amountCents: number; reason: string }
-  | { kind: 'dispute'; caseId: string }
-
-function describe(event: PaymentEvent): string {
-  switch (event.kind) {
-    case 'charge':
-      return `Charged ${formatCents(event.amountCents)}`
-    case 'refund':
-      return `Refunded ${formatCents(event.amountCents)}: ${event.reason}`
-    case 'dispute':
-      return `Dispute opened (${event.caseId})`
-    default: {
-      const unhandled: never = event // compile error if a variant is missed
-      return unhandled
-    }
-  }
-}
-```
-
-**The dividing line**: dispatch is bought with the deletion of duplicated decisions. One switch at one site over a discriminated union is healthy — keep it exhaustive. The violation is the *second* copy of the discriminator, or `boolean` props that select between behaviors (`<Button isLink />` wants to be two components or a variant prop dispatched through a map). Guard clauses and value checks (`if (!user) return null`) are healthy control flow — never "fix" those.
-
-### Pattern 9: Replace Loop with Pipeline
-
-**Signal**: Imperative loops with accumulators, flags, and conditionals pushing into arrays; cyclomatic complexity from loop bodies
-
-Fowler's Replace Loop with Pipeline: each `filter`/`map` stage states one transformation, where a loop body interleaves them all.
-
-```typescript
-// ❌ Before - Accumulator loop, three concerns interleaved (Cyclomatic: 5)
-function activeAdminEmails(users: User[]): string[] {
-  const result: string[] = []
-  for (const user of users) {
-    if (user.isActive) {
-      if (user.roles.includes('admin')) {
-        result.push(user.email.toLowerCase())
-      }
-    }
-  }
-  return result
-}
-
-// ✅ After - Pipeline, one concern per stage (Cyclomatic: 1 per stage)
-function activeAdminEmails(users: User[]): string[] {
-  return users
-    .filter(user => user.isActive)
-    .filter(user => user.roles.includes('admin'))
-    .map(user => user.email.toLowerCase())
-}
-```
-
-**Guardrails**:
-- Name complex stage predicates (`filter(isActiveAdmin)`) instead of inlining multi-line arrows — the pipeline should read as a story
-- Don't force `reduce` where a loop is clearer: a `reduce` with a mutating accumulator object is the same loop wearing a costume; prefer `Object.groupBy`/`Map` construction or keep the loop
-- Early-exit searches use `find`/`some`/`every`, not `filter(...)[0]`
-- Async work per item is not a pipeline stage — `for...of` with `await` stays a loop (or `Promise.all(items.map(...))` when parallel is intended)
-
-## Refactoring Decision Tree
-
-When linter fails, follow this decision tree:
+<objective>
+Fix code that already fails lint or review. This skill is a thin directional view:
+every fix pattern lives exactly once in `../../rules/` — this protocol routes each
+failure to its owning rule, sequences multi-rule work via `reference.md`, and loops
+until green. Operates autonomously — no user confirmation between patterns, and no
+user confirmation at the end: every invocation ends with the green tree committed
+and the `Stop check` block in the message that ends the turn (`<stopping_criteria>`,
+`<output_format>`). "Nothing is committed, ready for your review" is this skill
+failing, not finishing — there is no next turn to review in.
+
+Forward counterpart (designing before code exists): @code-designing.
+</objective>
+
+<skill_invocation>
+**CRITICAL**: When this skill says "Invoke @skill-name", you MUST invoke it with the
+**Skill tool** — do not just mention it.
+
+| Notation | Skill Tool Call |
+|----------|-----------------|
+| @code-designing | `Skill(ts-react-linter-driven-development:code-designing)` |
+| @testing | `Skill(ts-react-linter-driven-development:testing)` |
+| @pre-commit-review | `Skill(ts-react-linter-driven-development:pre-commit-review)` |
+</skill_invocation>
+
+<routing_table>
+Normative linter→rule routing, keyed by ESLint rule ids. (The lint-fixer agent
+embeds a compact copy of this table in `../../agents/lint-fixer.md` — keep them
+consistent.) ESLint has no duplicate-code (beyond `sonarjs/no-identical-functions`),
+single-implementer or exhaustiveness rule unless configured, and there is no race
+detector: those rows are review findings the hunters own alone.
+
+| Linter failure | Route |
+|---|---|
+| `sonarjs/cognitive-complexity` / `sonarjs/cyclomatic-complexity` | `../../rules/R3-storifying.md` |
+| `sonarjs/max-lines-per-function` / `sonarjs/nested-control-flow` / `sonarjs/no-nested-conditional` / `sonarjs/no-nested-functions` / `sonarjs/expression-complexity` / `sonarjs/elseif-without-else` | `../../rules/R3-storifying.md` |
+| `react/no-unstable-nested-components` | `../../rules/R3-storifying.md` — extract the component; place it per `../../rules/R4-helper-placement.md` |
+| `max-params` | `../../rules/R1-primitive-obsession.md` (Introduce Parameter Object — a `readonly` props/options type, scored) |
+| `sonarjs/no-duplicate-string` on an enum-shaped literal; `no-magic-numbers` on a domain value; `sonarjs/max-union-size` | `../../rules/R1-primitive-obsession.md` (Name enum strings, or a named type) |
+| `sonarjs/no-identical-functions`; duplicated code (review-only) | `../../rules/R1-primitive-obsession.md` (extract shared type/logic); duplicated `switch`/if-chains on the same kind/type discriminator → `../../rules/R11-conditional-dispatch.md` |
+| `sonarjs/max-lines` (600) | `../../rules/R5-vertical-slice.md` — mechanics in `<file_and_package_routing>` below |
+| `react/no-multi-comp` | `../../rules/R5-vertical-slice.md` — one component per file; the page folder decides where the second goes |
+| `@typescript-eslint/no-explicit-any` / `@typescript-eslint/no-unsafe-*` / `@typescript-eslint/no-non-null-assertion` / `@typescript-eslint/no-unnecessary-condition` at a boundary | `../../rules/R2-self-validating-types.md` (parse at the boundary — a guard, not an assertion) |
+| `@typescript-eslint/switch-exhaustiveness-check` (when configured; review-only otherwise) / `sonarjs/no-nested-switch` / `sonarjs/max-switch-cases` / `sonarjs/no-small-switch` | `../../rules/R11-conditional-dispatch.md` — handle the case at the single dispatch site and close it with `default: return assertNever(x)`; a second `switch` appearing is the R11 violation itself |
+| Three or more boolean props on one component; an `isLoading`/`isError`/`isEmpty` triplet (review-only) | `../../rules/R11-conditional-dispatch.md` — Split Flag Argument when the branches share little; a status union when they are mutually exclusive |
+| `react-hooks/exhaustive-deps` / `react-hooks/set-state-in-effect` / `@typescript-eslint/no-floating-promises` / `@typescript-eslint/no-misused-promises` / `promise/catch-or-return` | `../../rules/R10-concurrency-safety.md` |
+| `import/no-mutable-exports`; `no-restricted-syntax` on `import.meta.env` outside the config module (when configured); import-time side effects (review-only) | `../../rules/R8-no-globals.md` |
+| `no-param-reassign` / `sonarjs/prefer-read-only-props` / `react/no-direct-mutation-state`; an in-place `.sort()`/`.splice()` on query data (review-only) | `../../rules/R12-mutation-discipline.md` |
+| A `vi.mock` of an internal module; an interface with one implementation (review-only) | `../../rules/R6-test-only-interfaces.md` |
+| `unused-imports/*`, `simple-import-sort/*`, `import/order`, `import/no-duplicates`, `@typescript-eslint/consistent-type-imports`, `curly`, `arrow-body-style`, `no-console`, `prefer-const`, `eqeqeq`, `no-plusplus`, `react/jsx-*` ordering and `react/jsx-no-leaked-render`, `jsx-a11y/*`, Prettier | Mechanical — fix directly (import the type, add the `alt`/`htmlFor`/role, wrap the `&&` render in a boolean, delete the unused symbol, sort the imports). Enum-shaped `sonarjs/no-duplicate-string` literals and `=== 'READY'` comparisons → R1's "Name enum strings" move. An `@ts-expect-error` on `return undefined` is R1 Q4 — never a suppression. |
+</routing_table>
+
+<pattern_index>
+Each named refactoring move is owned by one rule's **Fix pattern** section — apply it
+from there, never from memory:
+
+| Move | Owner |
+|------|-------|
+| Extract Function (named after the comment), Early Returns, Honest Rename, Extract Leaf Type | `../../rules/R3-storifying.md` |
+| Replace Primitive with Domain Type, Extract Collection Type, Replace Sentinel with comma-ok, Name enum strings, Over-abstraction rejection | `../../rules/R1-primitive-obsession.md` |
+| Add validating constructor, Hoist method checks, Delete re-validation, Separate Failure from Absence, Introduce Null Object (optional collaborator) | `../../rules/R2-self-validating-types.md` |
+| Demote helper (rung 1), Promote to feature/domain package (rungs 2–3), Split policy from vocabulary | `../../rules/R4-helper-placement.md` |
+| Slice out a feature, Rename layer files by role, Split a generic package by owner | `../../rules/R5-vertical-slice.md` |
+| Delete the Test Seam, Rewrite test around real collaborators, Delete the double | `../../rules/R6-test-only-interfaces.md` |
+| Move test down a rung, Split Success and Error Tables, Replace sleep with synchronization | `../../rules/R7-test-placement.md` |
+| Extract Clean Island, Push Global Up One Level, Replace Import-Time Initialization with a Constructor, Pass Cancellation Down | `../../rules/R8-no-globals.md` |
+| Inject the Exit Path, Make Concurrent Work Joinable, Extract Synchronized Owner, Replace Sleep with Cancellable Wait, Delete Unearned Guards | `../../rules/R10-concurrency-safety.md` |
+| Replace Duplicated Switch with Interface Dispatch, Replace If-Chain with Strategy Map, Introduce Null Object, Split Flag Argument, Keep the Single Exhaustive Switch | `../../rules/R11-conditional-dispatch.md` |
+| Copy on the Way In, Copy on the Way Out / Encapsulate Collection, Separate Query from Modifier, Remove Setting Method, Split Variable | `../../rules/R12-mutation-discipline.md` |
+
+**Introduce Null Object, the shape.** The null object is a *named* value of the
+collaborator's existing concrete type — a sink composing the standard no-op writer, a
+clock that is the real clock — supplied as the constructor's default through an option
+or passed by the caller by name. Never a new interface with one no-op implementation
+(R6), never a undefined parameter that means "default" (R2). An option handed undefined
+records the error on the value under construction and the constructor fails with it
+(R2's example) — the option never substitutes the default and never stores the
+undefined.
+
+**In TypeScript:** `const NULL_SINK: Sink = { write() {} }` bound once as a module
+constant (an object literal typed as the collaborator — never a class with one no-op
+method, R6), and a clock that is `const SYSTEM_CLOCK: Clock = { now: () => new Date() }`
+the same way; the parameter is typed `Sink`, never `Sink | undefined`, and the default
+is a destructuring default — `constructor({ sink = NULL_SINK }: ReporterOptions)`,
+`function useReporter({ sink = NULL_SINK }: Readonly<ReporterOptions>)` — so the
+stored field is `Sink`, no method guards it, and the caller never has a reason to pass
+`undefined`. In React an optional callback prop (`onOpenEvents?`) is legitimate when
+the component means something without it; when every render path guards it, the prop
+is required, or takes the Null Object in the same destructuring default.
+
+**Extract Function prefers the function that exists.** Before writing a helper for a
+step — parse, decode, normalize, validate — grep the package for one that already does
+it (grep the package for a function named after the step's noun) and prefer
+the one with a test. A sibling written beside a tested function is a second owner of
+the same rule (R1 Q2), not an extraction; when the existing function has the wrong
+shape, change it and its test rather than copy it, and never leave two. A behavioral
+difference between the inline code and the existing function — one trims a field, the
+other does not — is not a licence for a sibling: it is a bug in one of them (fix it,
+with a test) or a parameter of the one function, and the STATUS block names which. Two
+parsers of one line format is the finding R1 Q2 exists for.
+
+**Multi-rule procedures** (sequencing, god-object decomposition, package
+decomposition): `reference.md` in this directory.
+
+**Case law** (deep worked studies):
+- Storify → leaf type discovery: `../../examples/storify-leaf-type.md`
+- Over-abstraction rejection + cheaper alternatives: `../../examples/overabstraction-cidr.md`
+- Incremental global elimination: `../../examples/dependency-rejection.md`
+- Duplicated kind-switch → interface dispatch (and the kept-switch rejection): `../../examples/anti-if-dispatch.md`
+- Type switch over an owned interface → fill-style method (and the dependency-direction rejection): `../../examples/switch-to-polymorphism.md`
+</pattern_index>
+
+<file_and_package_routing>
+**`sonarjs/max-lines` (600; or a module over ~450 lines where the repository sets no limit — count):**
+
+| File pattern | Action |
+|---|---|
+| Multiple juicy types | Route to @code-designing — one juicy type per module (juiciness per R1) |
+| Single god component or class (>15 handlers/methods) | `reference.md` → god-object decomposition, then @code-designing for the composition |
+| Long functions, few types | Storify → extract functions and hooks (R3) |
+| Several components in one file (`react/no-multi-comp`) | One component per file; the page folder decides where the second lands (R4, R5) |
+
+<package_decomposition>
+**Package-size zones** — count non-test `.ts`/`.tsx` modules per directory:
 
 ```
-Linter Failure
-    ├─ Cognitive Complexity > 15
-    │   ├─ Mixed abstractions? → Extract custom hooks
-    │   ├─ Complex conditions? → Extract to helper functions
-    │   ├─ Accumulator loop with conditionals? → Replace Loop with Pipeline (Pattern 9)
-    │   └─ Deep nesting? → Early returns, guard clauses
-    │
-    ├─ Cyclomatic Complexity > 10
-    │   ├─ Many branches? → Early returns
-    │   ├─ Complex switch? → Use object mapping or extract functions
-    │   ├─ Same discriminator switched in 2+ places? → Lookup map / component map (Pattern 8)
-    │   └─ Multiple &&/|| chains? → Extract conditions to variables
-    │
-    ├─ Expression Complexity > 5
-    │   ├─ Long boolean expressions? → Extract to variables
-    │   └─ Nested ternaries? → Extract to function or if statements
-    │
-    ├─ Max Lines Per Function > 200
-    │   ├─ Large component? → Extract smaller components
-    │   ├─ Complex logic? → Extract custom hooks
-    │   └─ Mixed concerns? → Separate UI from business logic
-    │
-    ├─ Nested Control Flow > 4
-    │   └─ Deep nesting? → Early returns, guard clauses
-    │
-    └─ React-specific
-        ├─ no-unstable-nested-components → Extract component definition
-        ├─ no-multi-comp → Split into separate files
-        └─ exhaustive-deps → Simplify dependencies, extract logic
+find <dir> -maxdepth 1 -type f \( -name '*.ts' -o -name '*.tsx' \) -not -name '*.test.*' -not -name '*.d.ts' -not -name 'index.ts' | wc -l
 ```
 
-## Key Principles
+≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —
+**must decompose**. Either zone: run the 3-step design review in `reference.md` →
+"Package decomposition" (it is a *design* review — missing domain types are the
+disease, file count the symptom). Invoke @code-designing to validate extracted types.
+</package_decomposition>
+</file_and_package_routing>
 
-See reference.md for detailed principles:
-- **Never Disable Rules**: Fix issues through refactoring, never suppress with eslint-disable or @ts-ignore
-- Single Responsibility: Each component/hook does one thing
-- DRY (Don't Repeat Yourself): Extract repeated patterns to reusable utilities/constants
-- Check Before Creating: Search for existing type guards, utilities, and constants before creating new ones
-- Extract Early, Extract Often: Don't wait for linter to fail
-- Composition Over Complexity: Combine simple pieces
-- Guard Clauses: Exit early, reduce nesting
-- Extract Helper Functions: Name complex logic
-- Type Guards: Use utilities (isString, isNumber) instead of repeated typeof checks
-- Custom Hooks: Reusable logic outside components
-- Zod for Validation: Move validation out of components
-- Self-Validation Ownership: Extracted types own their validation; composed validated types (Zod/branded) are trusted, not re-validated
-- One Dispatch Owner (Anti-IF): A discriminator is inspected in one place — lookup/component maps for duplicated conditionals, discriminated unions with `never` exhaustiveness checks for the switch that stays
+<preparatory_mode>
+Fowler's preparatory refactoring — "make the change easy, then make the easy change":
+reshape code an approved plan is about to touch, before the first RED, so the feature
+lands as add-only. Invoked by @linter-driven-development (Phase 1.5, or Phase 2 RED
+friction) or `/tsr-ldd-prepare`, with a DESIGN PLAN, the touch-point file list, and
+findings that already passed the four PREPARE gates (multiply / safe / bounded /
+skeptic — the gates live in @linter-driven-development `<phase_1_5_prepare>`; this
+mode trusts their verdicts and re-runs none of them). Fully autonomous — no user
+confirmation, same as the rest of this skill.
 
-## After Refactoring
+Differences from failure-driven operation:
 
-- [ ] Re-run linter using detected lint command - **changed code must have no linting errors**
-- [ ] Run tests using detected test command
-- [ ] Verify behavior unchanged
-- [ ] Check if more readable
-- [ ] Consider broader refactoring if patterns repeat
+- **The trigger is the plan, not the linter.** Targets are usually lint-green;
+  "still failing → next move" does not apply. Route each finding by its rule (the
+  same `<routing_table>` rules own the same fix patterns) and apply.
+- **Safety before motion.** Uncovered paths get characterization tests through the
+  public API first (@testing); the full suite — not just the touched package — runs
+  green after every move, because prep edits existing behavior by definition.
+- **Stopping criterion — landing shape, not lint.** Stop when the planned change
+  lands as add-only or near-add-only: a new variant = one new file plus one case at
+  the dispatch boundary (R11); new behavior = a method on an existing type (R1); new
+  code = testable without touching globals (R8). Re-check against the plan after
+  each move; shape reached → STOP, even with findings left — those were never
+  preparation and belong to Phase 4's advisory report.
+- **Commits are segregated.** Prep work lands in its own commit(s), never mixed with
+  feature code — the reviewer sees behavior-preserving reshaping and new behavior as
+  separate diffs.
+</preparatory_mode>
 
-## Success Criteria: Comments
+<iteration_loop>
+1. Receive trigger (from @linter-driven-development, from the caller acting on accepted
+   @pre-commit-review findings, or manual).
+2. Route each failure via `<routing_table>`; apply the owning rule's Fix pattern,
+   least-invasive move first (sequencing in `reference.md`).
+3. Re-run the linter immediately — no user confirmation.
+4. Still failing → next move in the sequence. Repeat until green.
+5. **Escalation**: complexity failures that keep recurring mean a new type or design
+   is needed — invoke @code-designing. Patterns exhausted → report what was tried and
+   escalate to the user for architectural guidance. Frame the escalation in maxim
+   vocabulary (`../../maxims.md`) — name *why* the code resists ("every caller asks
+   this struct three questions and then decides — the design wants Tell-Don't-Ask"),
+   not just which linter stayed red.
+6. **Green is the exit condition, not the exit.** Linter green → leave the loop
+   through `<stopping_criteria>`: its six steps run in order and each writes its line
+   of the `Stop check` block as it finishes. The loop has ended when the block has
+   its six lines and sits in the message that ends the turn; a green linter with no
+   block is the loop still running.
+</iteration_loop>
 
-**No comments on functions, variables, or code lines** - they should be self-explanatory through good naming.
+<testing_integration>
+**MANDATORY** after creating new types or extracting functions, hooks or components:
+1. List created types: `grep -rnE "^export (interface|type|class)[[:space:]]+\w+" --include='*.ts' --include='*.tsx' --exclude-dir=node_modules .`
+2. Missing tests for any of them → STOP and invoke @testing. Before a move,
+   characterization tests through the public API (`renderWithProviders` + MSW,
+   never a `vi.mock` of the module being moved); `npx vitest run <dir>` after each step.
+3. Coverage: `npx vitest run --coverage` (or the repository's coverage command) —
+   leaf types must show 100% (R7).
+</testing_integration>
 
-**Acceptable comments:**
-- File-level comments explaining a complex hook's purpose or architecture
-- JSDoc for public API functions that will be consumed by other modules
-- Comments explaining WHY (non-obvious business logic, intentional tradeoffs)
+<nolint_prohibition>
+**NEVER add `// eslint-disable-next-line`, `@ts-expect-error` or `@ts-ignore` to
+avoid refactoring.** Handle the error, parse at the boundary, or reduce the
+complexity. Before finishing, scan all uncommitted files:
 
-**Not acceptable:**
-- Comments explaining WHAT code does (refactor to better names instead)
-- Comments on variables or individual lines
-- Comments that repeat the function/variable name
-
-See examples.md for detailed examples.
-
-## Acceptance Criteria
-
-**CRITICAL: All criteria must be met before completing refactoring.**
-
-### Mandatory Requirements (Must Pass)
-
-1. **No Linter Rule Disabling in Refactored Code**
-   - [ ] Refactored files contain NO new `eslint-disable`, `eslint-disable-next-line`, `eslint-disable-line` comments
-   - [ ] Refactored files contain NO new `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck` comments
-   - [ ] Pre-existing disabling comments in unchanged files are acceptable (not in scope)
-   - [ ] All linter issues resolved through proper refactoring patterns
-   - **If disabling seems necessary**: Stop, reconsider approach, ask user for approval
-
-2. **All Linter Checks Pass Clean**
-   - [ ] ESLint: 0 errors, 0 warnings in refactored files
-   - [ ] TypeScript: 0 errors
-   - [ ] No new linter issues introduced by refactoring
-
-3. **Behavior Preserved**
-   - [ ] All existing tests still pass
-   - [ ] No functionality removed or changed (unless explicitly requested)
-   - [ ] Public API unchanged (unless explicitly requested)
-
-4. **Iterative Verification (Multiple Passes)**
-   - [ ] Run linter after each refactoring step
-   - [ ] Run linter at least twice after final changes
-   - [ ] Both runs pass clean with no new issues
-   - [ ] If fix introduces new issue, address it before proceeding
-
-### Verification Workflow
-
-**IMPORTANT**: Detect available scripts from the project's `package.json` before running checks.
-
-```
-# After each refactoring step:
-Run lint check command from package.json (quick verification)
-
-# After all refactoring complete:
-# Iteration 1
-Run all quality check commands detected from package.json:
-- TypeScript check
-- Linting check
-- Tests
-
-# Iteration 2 (verify stability)
-Run the same quality check commands again
-
-# Both must pass clean before refactoring is complete
+```bash
+changed_files=$({ git diff --name-only; git diff --cached --name-only; } | sort -u)
+[ -n "$changed_files" ] && printf '%s\n' "$changed_files" | xargs grep -nE 'eslint-disable|@ts-(expect-error|ignore|nocheck)|prettier-ignore' 2>/dev/null
 ```
 
-### Refactoring Completion Checklist
+Any hit → remove the directive and fix properly. Genuine false positives belong in
+`eslint.config.*` — a rule turned off for a named file glob — or in `tsconfig*.json`,
+with user approval, never unilaterally.
 
+An `eslint-disable` or `@ts-expect-error` that was already in a touched file is the
+same hit when it names a rule routed this session and sits on a function, component
+or type this session changed, or on a module-level declaration in a touched module
+(`import/no-mutable-exports` → R8 in a globals request; `react-hooks/exhaustive-deps`
+→ R10; an `@ts-expect-error` on `return undefined` → R1): it suppresses the rule it
+names, so route it as a finding of that rule and delete it with the fix.
+"Pre-existing" and "unrelated" are not verdicts for those — a request to make the
+linter pass without suppressions is met when the touched functions and the touched
+modules' top-level declarations carry none of the routed rules' directives, not when
+the one directive the request named is gone and its neighbours keep their `// TODO`.
+A directive elsewhere in a touched file, or one naming a rule this session never
+routed — `sonarjs/cognitive-complexity` → R3 on the function whose one global read
+was just replaced — is a BROADER CONTEXT line under the `Stop check` block: reported
+with its rule, not fixed in this session, not silent.
+</nolint_prohibition>
+
+<stopping_criteria>
+Linter green is where stopping begins, not where it ends. The exit is six actions over
+the code this session touched, run in order; each action ends by writing its line of
+the `Stop check` block (`<output_format>`). The line is the receipt: an action with no
+line has not run, and the line is written when the action finishes, never from memory
+at the end.
+
+1. **Gates.** Linter 0 issues; tests green; functions <50 LOC, nesting ≤2; no red-zone
+   packages. Line `1 gates`: the four measurements.
+2. **Detection re-run.** Re-run the detection commands (each rule's Falsifying
+   questions) of every rule routed in this session over the touched files — and for
+   R8 over the touched packages, because a package-level variable, an import-time
+   initializer or a singleton has no function to sit in: the sibling file of the one just edited is in
+   R8's scope, and in no other rule's. The rules routed this session are the outer
+   bound: a rule no failure routed here has no re-run and no fix in this session,
+   whatever a suppression in the touched code names. Inside that bound, every
+   remaining hit is measured by what this session touched, never the file it landed
+   in:
+   - **Fixed** when the hit sits in a function or type this session changed, or is an
+     R8 package-level declaration in a touched package: the second global beside the
+     one just removed, the import-time initializer under it, the manufactured root
+     context in the function just reshaped, the flag pair in the loop just storified. Route it again;
+     a hit here means not done. "Pre-existing" and "unrelated" are not verdicts for
+     these — the request that named one global meant the linter, not that line — and
+     a suppression directive on a touched function or type is a hit of the rule it
+     suppresses (`<nolint_prohibition>`) when that rule was routed this session.
+   - **Reported** when it sits anywhere else in a touched file — a function this
+     session never opened, a type it only called — or when it is a hit of a rule this
+     session never routed, wherever it sits: one `BROADER CONTEXT` line per hit under
+     the block (`<output_format>`), `file:line — rule and question — what stands`.
+     Reported, not fixed, not silent. Replacing one global read inside a brownfield
+     function does not make that function's eight-linter `// eslint-disable-next-line` this session's
+     work: the complexity rules it names were never routed by a globals request, so
+     the directive is a line in the report, never a storifying detour. The reverse
+     bound holds too: a hit in code this session wrote or moved is never a BROADER
+     CONTEXT line — the sibling parser this session extracted beside the tested one
+     (R1 Q2) is fixed, and "pre-existing" is not a word for it.
+   Line `2 re-run`: every rule routed this session by id and, per rule, `0 hits`, the
+   anchor still standing and where it was routed again, or `n reported` for the hits
+   on BROADER CONTEXT lines.
+3. **The noun check.** For each concept the touched code handles, ask once: does it
+   have a named box? A slice walked with flags is a collection type *over that slice*
+   — R1's Extract Collection Type: `type Nodes []Node`, and the loop becomes named
+   query methods on it — not an accumulator that stands beside the loop (that is the
+   flags renamed); an optional collaborator that may be absent is a Null Object
+   default, never an optional field that may be absent, and an option handed undefined records the error for
+   the constructor to return rather than storing it or substituting the default; a
+   value parsed in two places has one constructor; a repeated predicate is a method.
+   Score each candidate with R1's scorecard: ≥4 → apply the
+   move; 2–3 → apply it or record the judgment call in the STATUS block; 0–1 → leave
+   it. A candidate is never skipped because the linter is already quiet. Line
+   `3 nouns`: each candidate with its score and verdict — `none scored ≥2` when
+   nothing qualified, never a blank.
+4. **The comment critic.** Spawn one `ts-react-linter-driven-development:comment-critic` (Agent tool, foreground) over
+   the touched files with the payload @pre-commit-review step 3b names, and state the
+   scope in the spawn prompt as *every comment in each touched file*, not the changed
+   lines — the `Sink is where events are written.` JSDoc beside the code just
+   reshaped restates its name whether or not this session wrote it. Apply its
+   TRIM / REWRITE / DELETE verdicts — a comment edit is small — and route its
+   `DELETE → route R3` verdicts back to step 3. Line `4 critic`: the verdict counts
+   applied and routed.
+5. **STOP**, and read the over-engineering signs as a check on step 3, never as a
+   reason to skip it: a one-method type that merely unwraps, a function that only
+   calls another, more layers than concepts — undo that move. Line `5 STOP`: none of
+   the signs, or the move undone.
+6. **Commit.** Tests and lint green and the tree dirty → `git commit` with the STATUS
+   block's summary as the message — one commit per green step when the caller asked
+   for deployable steps, and for R8 a step is one island and its caller (Extract Clean
+   Island, then Push the Global Up One Level, one level per commit), never every
+   caller threaded at once — so the green tree outlives the session. Inside the
+   workflow, Phase 5 commits the slice it ships; a standalone invocation commits
+   here, now, before the report. A report that ends with "let me know if you'd like
+   me to commit" or "your call" is the failure this step exists to prevent: there is
+   no next turn. Line `6 commit`: the hash and message, `Phase 5 commits the slice`,
+   or `tree clean, nothing to commit`.
+
+The six lines are the block, and the block goes where the user reads: the message
+that ends the turn, whichever path invoked this skill — a standalone invocation's
+report, the workflow's Phase 5 ship summary, quickfix's ship summary. A caller that
+summarises this skill's work carries the block verbatim above its own summary, and
+the BROADER CONTEXT lines under it travel with the block: what step 2 reported instead
+of fixing is the caller's to hear, not this session's to bury. Prose
+that narrates the steps ("re-ran detection, spawned the critic, committed") in place
+of the six lines is the block missing, and a missing block means the refactoring did
+not finish.
+</stopping_criteria>
+
+<output_format>
 ```
-✅ REFACTORING ACCEPTANCE CRITERIA
+REFACTORING APPLIED
 
-Linter Compliance (MANDATORY):
-[ ] No eslint-disable comments added
-[ ] No @ts-ignore/@ts-expect-error added
-[ ] All complexity issues fixed through refactoring patterns
-[ ] Did NOT disable rules to "fix" issues
-[ ] If any disabling approved: comment explains WHY
+Failures Routed:
+1. [linter] → [rule] → [move applied]: [what changed]
 
-Quality Verification:
-[ ] ESLint passes clean (0 errors/warnings)
-[ ] TypeScript compiles (0 errors)
-[ ] All tests pass
-[ ] Ran verification twice consecutively
+Types Created (R1 verdict): [Type] — [why juicy] → @testing invoked
+Types Rejected (not juicy): [Type] — [cheaper alternative used]
 
-Code Quality:
-[ ] No comments explaining WHAT (only WHY if needed)
-[ ] Self-explanatory naming
-[ ] Single responsibility per function/component
-[ ] No repeated typeof checks (use type guards)
+Metrics: cyclomatic [before]→[after], LOC [before]→[after], nesting [before]→[after]
+Files Modified: [file] (+X, -Y)
 
-Refactoring complete: All boxes checked ✅
+Stop check:
+1 gates      lint 0 · tests green · max LOC [n] · max nesting [n]
+2 re-run     [R3, R1, R8]: [0 hits / file.ts:NN still — routed again]
+3 nouns      [Region (score 5) → Replace Primitive with Domain Type applied; Tags (score 2) → recorded]
+4 critic     [n] verdicts applied · [n] DELETE → routed R3
+5 STOP       [none of the over-engineering signs / undone: <move>]
+6 commit     [abc1234 "<message>" / Phase 5 commits the slice / tree clean, nothing to commit]
+
+BROADER CONTEXT
+  [file.ts:NN — R3 Q1 — // eslint-disable-next-line on an eight-linter function this session never opened / none]
+
+STATUS: [linter green / still failing: N issues / escalated to @code-designing]
 ```
+Every line of `Stop check` renders, in this order, with a result — never a bare
+checkmark; a missing line means the step did not run and the STATUS is not final.
+Each line opens with its step number and keyword exactly as shown — `1 gates`,
+`2 re-run`, `3 nouns`, `4 critic`, `5 STOP`, `6 commit` — so the six receipts can be
+found without reading the prose, and the result follows on the same line. Under the
+block, `BROADER CONTEXT` lists every hit step 2 reported rather than fixed, one line
+each with its `file:line`, rule and question, or `none`. The block and its BROADER
+CONTEXT lines are copied verbatim into whatever message ends the turn
+(`<stopping_criteria>`).
+</output_format>
 
-### What Blocks Completion
-
-The following will BLOCK refactoring completion:
-- Any new linter disabling comment (without explicit user approval)
-- Approved linter disabling without explanatory comment (why was it necessary)
-- Complexity still above thresholds
-- Any failing linter check in refactored files
-- Single-run verification (must run twice)
-- Tests failing after refactoring
-
-### Acceptable Exceptions (Require User Approval)
-
-Only with explicit user consent:
-- Keeping complexity slightly above threshold with justification
-- Disabling a specific rule with documented reason
-- Breaking behavior change (if explicitly requested)
-
-**When disabling a rule with approval, add a comment explaining WHY:**
-```typescript
-// ❌ Bad: Disabled without explanation
-// eslint-disable-next-line sonarjs/cognitive-complexity
-function complexLegacyParser() { ... }
-
-// ✅ Good: Disabled with justification
-// eslint-disable-next-line sonarjs/cognitive-complexity -- Legacy parser with complex state machine, refactoring planned in Q2
-function complexLegacyParser() { ... }
-```
-
-**Document any exceptions when reporting refactoring results.**
-
-## Additional Resources
-
-- **reference.md** - Complete refactoring patterns, storifying techniques, and decision trees
-- **examples.md** - Real-world refactoring examples:
-  - Avoid IIFE (use lookup objects or helper functions)
-  - No empty blocks (use early returns, guard clauses)
-  - Magic numbers (extract to named constants)
-  - Comments philosophy (explain WHY, not WHAT)
-  - Complex conditionals to early returns
+<integration>
+**Invoked by**: @linter-driven-development (Phase 1.5 / RED friction → `<preparatory_mode>`;
+Phase 3, lint failures), or the caller acting
+on accepted @pre-commit-review findings (@linter-driven-development Phase 4 accepted
+findings, or the user) — @pre-commit-review reports only and never invokes fix skills.
+**Invokes**: @code-designing (new types/design needed), @testing (after every extraction
+— mandatory), @pre-commit-review (after lint passes). **Loop**: lint fails → @refactoring
+→ re-lint → @pre-commit-review → repeat until both pass.
+</integration>

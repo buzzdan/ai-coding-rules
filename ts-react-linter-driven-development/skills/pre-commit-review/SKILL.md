@@ -1,577 +1,370 @@
 ---
 name: pre-commit-review
-description: ADVISORY validation of code against design principles, accessibility, and best practices that linters cannot fully enforce. Use after linter passes and tests pass to validate design quality. Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+description: |
+  ADVISORY pre-commit review that orchestrates parallel single-obsession rule hunters, an over-abstraction skeptic, and a comment critic against the diff.
+  Spawns read-only agents (rule-hunter, overabstraction-skeptic, comment-critic); NEVER edits code.
+  Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
+  Categorizes findings as Bugs, New Practice (when in Rome), Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+allowed-tools:
+  - Read
+  - Grep
+  - Bash
+  - Agent
 ---
 
-# Pre-Commit Design Review (React/TypeScript)
-
-ADVISORY validation of code against design principles, accessibility, and practices that linters cannot fully enforce.
-Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities.
-
-## When to Use
-- Automatically invoked by @linter-driven-development (Phase 4)
-- Manually before committing (to validate design quality)
-- After linter passes and tests pass
-
-## What This Reviews
-- **NOT code correctness** (tests verify that)
-- **NOT syntax/style** (ESLint/Prettier enforce that)
-- **YES design principles** (primitive obsession, composition, architecture)
-- **YES maintainability** (readability, complexity, testability)
-- **YES accessibility** (semantic HTML, ARIA, keyboard nav)
-
-## Review Scope
-
-**Primary Scope**: Changed code in commit
-- All modified lines
-- All new components/hooks
-- Specific focus on design principle adherence
-- Accessibility compliance
-
-**Secondary Scope**: Context around changes
-- Entire files containing modifications
-- Flag patterns/issues outside commit scope
-- Suggest broader refactoring opportunities
-
-## Finding Categories (Debt-Based)
-
-### 🔴 Design Debt
-**Will cause pain when extending/modifying code**
-
-Violations:
-- **Primitive obsession**: string IDs, unvalidated inputs, no branded types
-- **Wrong architecture**: Technical layers instead of feature-based
-- **Prop drilling**: State passed through 3+ component levels
-- **Tight coupling**: Components tightly coupled to specific implementations
-- **Missing error boundaries**: No error handling for async operations
-- **No type validation**: Runtime data not validated (no Zod schemas), types relying on upstream validation, or re-validating composed validated types
-
-Impact: Future changes will require more work and introduce bugs
-
-### 🟡 Readability Debt
-**Makes code harder to understand and work with**
-
-Violations:
-- **Mixed abstractions**: Business logic mixed with UI in same component
-- **Complex conditions**: Deeply nested or complex boolean expressions
-- **Inline styles/logic**: Complex logic directly in JSX
-- **Poor naming**: Generic names (data, handler, manager, utils)
-- **God components**: Components doing too many things
-- **Missing extraction**: Logic that should be custom hooks
-
-Impact: Team members (and AI) will struggle to understand intent
-
-### 🟢 Polish Opportunities
-**Minor improvements for consistency and quality**
-
-Violations:
-- **Missing JSDoc**: Complex types/hooks without documentation
-- **Accessibility enhancements**: Could be more accessible (but not broken)
-- **Type improvements**: Could use more specific types (vs any/unknown)
-- **Better naming**: Non-idiomatic or unclear names
-- **Performance**: Unnecessary rerenders, missing memoization
-- **Bundle size**: Unused dependencies, large imports
-
-Impact: Low, but improves codebase quality
-
-## Review Workflow
-
-### 0. Architecture Pattern Validation (FIRST CHECK)
-
-**Expected: Consistent architecture. Design Debt (ADVISORY) - never blocks commit.**
-
-Check file patterns:
-- `src/{components,hooks,contexts}/` → ✅ Layer-based (most common)
-- `src/features/[feature]/{components,hooks,context}/` → ✅ Feature-based
-- Mixed patterns → ✅ Hybrid (if intentional)
-- Inconsistent patterns → 🔴 Design Debt
-
-**Advisory Categories**:
-1. **✅ Consistent architecture** → Acknowledge pattern, ensure new code follows it
-2. **🟢 Hybrid with clear boundaries** → Validate shared vs feature-specific distinction is clear
-3. **🔴 Inconsistent patterns (advisory)** → Suggest establishing clear conventions
-
-**Report Template**:
-```
-🟢 Architecture Review: Layer-Based Pattern
-- Current: Code organized by technical layer (components/, hooks/, contexts/)
-- Status: Consistent with existing codebase ✅
-- New code follows established pattern ✅
-```
-
-Or if inconsistent:
-```
-🔴 Design Debt (Advisory): Inconsistent Architecture
-- Issue: Mixed patterns without clear conventions
-- Examples: Some auth code in src/components/, other auth code scattered
-- Suggestion: Document architecture decisions and apply consistently
-- Alternative: Proceed as-is (address in future refactor)
-```
-
-**Always acknowledge**: Consistency with existing codebase is the priority.
-
----
-
-### 1. Analyze Commit Scope
-```bash
-# Identify what changed
-git diff --name-only
-
-# See actual changes
-git diff
-```
-
-### 2. Review Design Principles
-
-Check for each principle in changed code:
-
-#### Primitive Obsession
-**Look for**:
-- String types for domain concepts (email, userId, etc.)
-- Numbers without validation (age, price, quantity)
-- Booleans representing state (use discriminated unions)
-
-**Example violation**:
-```typescript
-// 🔴 Design Debt
-interface User {
-  id: string  // What if empty? Not UUID?
-  email: string  // What if invalid?
-}
-
-// ✅ Better
-type UserId = Brand<string, 'UserId'>
-const EmailSchema = z.string().email()
-```
-
-#### Component Composition
-**Look for**:
-- Prop drilling (state passed through 3+ levels)
-- Giant components (>200 lines)
-- Mixed UI and business logic
-- Inline complex logic in JSX
-
-**Example violation**:
-```typescript
-// 🔴 Design Debt: Prop drilling
-<Parent>
-  <Middle user={user} onUpdate={onUpdate}>
-    <Deep user={user} onUpdate={onUpdate}>
-      <VeryDeep user={user} onUpdate={onUpdate} />
-    </Deep>
-  </Middle>
-</Parent>
-
-// ✅ Better: Use context or composition
-<UserProvider>
-  <Parent>
-    <Middle><Deep><VeryDeep /></Deep></Middle>
-  </Parent>
-</UserProvider>
-```
-
-#### Custom Hooks
-**Look for**:
-- Complex logic in components (should be in hooks)
-- Duplicated logic across components
-- useEffect with complex dependencies
-
-**Example violation**:
-```typescript
-// 🟡 Readability Debt: Logic in component
-function UserProfile() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(false)
-  useEffect(() => {
-    // 50 lines of fetch logic
-  }, [])
-  // More logic...
-}
-
-// ✅ Better: Extract to hook
-function useUser(id) { /* fetch logic */ }
-function UserProfile() {
-  const { user, loading } = useUser(userId)
-  return <UI user={user} loading={loading} />
-}
-```
-
-### 3. Review Accessibility
-
-**Check for each component** (jsx-a11y rules + manual review):
-
-#### Semantic HTML
-- Using correct HTML elements (<button>, <form>, <nav>, <main>)
-- Proper heading hierarchy (h1 → h2 → h3, no skipping)
-- Lists for list content (<ul>, <ol>)
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: Non-semantic
-<div onClick={handleClick}>Click me</div>  // Should be <button>
-
-// 🟡 Readability Debt: Wrong heading order
-<h1>Title</h1>
-<h3>Subtitle</h3>  // Skipped h2
-
-// ✅ Better
-<button onClick={handleClick}>Click me</button>
-<h1>Title</h1>
-<h2>Subtitle</h2>
-```
-
-#### ARIA Attributes
-- Form inputs have labels
-- Interactive elements have accessible names
-- Images have alt text
-- Dialogs have proper roles and labels
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: Missing label
-<input type="text" placeholder="Email" />
-
-// 🟢 Polish: Could improve alt text
-<img src="avatar.jpg" alt="image" />  // Generic
-
-// ✅ Better
-<label htmlFor="email">Email</label>
-<input id="email" type="text" />
-
-<img src="avatar.jpg" alt="John Doe's profile picture" />
-```
-
-#### Keyboard Navigation
-- All interactive elements keyboard accessible
-- Focus styles visible
-- Logical tab order
-- Escape closes modals
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: No keyboard support
-<div onClick={handleClick}>Action</div>
-
-// ✅ Better
-<button onClick={handleClick}>Action</button>
-
-// Or if div required:
-<div
-  role="button"
-  tabIndex={0}
-  onClick={handleClick}
-  onKeyDown={(e) => e.key === 'Enter' && handleClick()}
->
-  Action
-</div>
-```
-
-#### Color and Contrast
-- Text readable (sufficient contrast)
-- Not relying on color alone for meaning
-- Focus indicators visible
-
-**Example violations**:
-```typescript
-// 🟡 Readability Debt: Color only indicates error
-<Input style={{ borderColor: 'red' }} />
-
-// ✅ Better: Visual + text indicator
-<Input
-  aria-invalid="true"
-  aria-describedby="email-error"
-  style={{ borderColor: 'red' }}
-/>
-<span id="email-error">Email is invalid</span>
-```
-
-#### Screen Reader Support
-- Dynamic content announces updates (aria-live)
-- Loading states communicated
-- Error messages associated with fields
-
-**Example violations**:
-```typescript
-// 🟢 Polish: Loading not announced
-{isLoading && <Spinner />}
-
-// ✅ Better
-{isLoading && (
-  <div role="status" aria-live="polite">
-    Loading user data...
-    <Spinner aria-hidden="true" />
-  </div>
-)}
-```
-
-### 4. Review TypeScript Usage
-
-**Type safety**:
-- Using `any` or `unknown` without validation
-- Missing type definitions for props
-- Not using branded types for domain concepts
-- Not using Zod for runtime validation
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: Using any
-function processData(data: any) { }
-
-// 🟡 Readability Debt: Inline type
-function Button(props: { label: string; onClick: () => void }) { }
-
-// ✅ Better
-const DataSchema = z.object({ /* ... */ })
-function processData(data: z.infer<typeof DataSchema>) { }
-
-interface ButtonProps {
-  label: string
-  onClick: () => void
-}
-function Button({ label, onClick }: ButtonProps) { }
-```
-
-### 5. Review Testing Implications
-
-**Testability**:
-- Components too complex to test
-- Logic not extracted to testable units
-- Testing implementation details (bad)
-
-**Example violations**:
-```typescript
-// 🟡 Readability Debt: Hard to test
-function ComplexForm() {
-  // 200 lines of intertwined logic and UI
-  // Would need to test implementation details
-}
-
-// ✅ Better: Separated concerns
-function useFormLogic() { /* testable hook */ }
-function FormUI({ state, actions }) { /* testable UI */ }
-```
-
-### 6. Broader Context Review
-
-After reviewing changed code, scan entire modified files for:
-- Similar violations elsewhere in file
-- Patterns suggesting broader refactoring
-- Opportunities for consistency improvements
-
-**Report format**:
-```
-📝 BROADER CONTEXT:
-While reviewing LoginForm.tsx, noticed similar validation patterns in
-RegisterForm.tsx and ProfileForm.tsx (src/components/). Consider
-extracting shared validation logic to a useFormValidation hook or
-creating branded types for Email, Password used across features.
-```
-
-## Output Format
-
-After review:
+<objective>
+Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
+parallel single-obsession `ts-react-linter-driven-development:rule-hunter` agents, one `ts-react-linter-driven-development:overabstraction-skeptic`, and one
+`ts-react-linter-driven-development:comment-critic`.
+Pure orchestration and reporting: this skill may spawn agents but never edits code, never
+fixes findings, and never blocks a commit. Rule knowledge lives once in `../../rules/`;
+agents receive it as spawn-time payload — they do not invoke skills.
+</objective>
+
+<timing>
+Run pre-commit, per completed vertical slice — NEVER mid-implementation. GREEN-step TDD
+code is supposed to look under-designed; reviewing it produces false positives. The
+per-cycle detection greps in the REFACTOR step (see @refactoring) are the
+mid-implementation net; this pass is the verification net on finished work.
+</timing>
+
+<inputs>
+- **Diff scope**: the caller's resolved file list or diff range. Callers resolve it by one
+  ladder — an explicit argument, else the working tree's changes against `HEAD`
+  (`git diff --name-only HEAD -- '*.ts*'` plus untracked files), else the current
+  branch against its base, and the whole repository only when asked for explicitly. This
+  skill never widens the scope it is given, and an empty scope is reported as "nothing to
+  review" — never as a clean verdict.
+- **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes — requires the
+  previous report's findings).
+</inputs>
+
+<protocol>
+
+<step_1_grep_prefilter>
+In-context, cheap — no agents yet. For each rule below, read its rule file's
+**Falsifying questions** section and run the detection commands there against the diff
+scope (changed files only). The commands live in the rule files; never restate them here.
+A rule with zero hits is skipped — no hunter spawned for it.
+
+| Rule | File | Hunt focus |
+|------|------|------------|
+| R1 | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
+| R2 | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
+| R3 | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
+| R4 | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
+| R5 | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
+| R6 | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
+| R7 | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps |
+| R8 | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
+| R9 | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
+| R10 | `../../rules/R10-concurrency-safety.md` | async tasks without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R11 | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
+| R12 | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
+
+Also in-context: a new `eslint-disable` (any form), `@ts-expect-error` or `@ts-ignore`
+in the diff, or a new rule turned off or `ignores` entry added in `eslint.config.*`,
+or a new `exclude`/`skipLibCheck`-style loosening in `tsconfig*.json`, is itself a
+finding — the change must justify, with evidence, that the rule genuinely does not
+apply. Both directive families are suppressions: an `@ts-expect-error` on
+`return undefined` silences R1 Q4 as surely as an
+`// eslint-disable-next-line sonarjs/cognitive-complexity` silences R3.
+
+Also in-context — the **when-in-Rome check**: a diff must arrive in the host repo's
+existing style, not import a new one. Flag anything the diff introduces that the repo
+does not already use: a new test mechanism (golden files, snapshot testing, a new
+assertion library), a new dependency in `package.json`, a new tool or config file, edits to
+repo-level convention files (CLAUDE.md, coding standards, lint config) bundled into a
+feature diff, or a directory layout unlike its siblings. Detection is comparative:
+for each candidate, grep the repo *outside* the diff for prior use — zero prior use
+is the finding. These are not style crimes; they are adoption decisions that belong
+to the repo owner. The fix is a discussion or a separate PR, never silent inclusion.
+</step_1_grep_prefilter>
+
+<step_2_spawn_hunters>
+For every rule with pre-filter hits, spawn one `ts-react-linter-driven-development:rule-hunter` agent, as **foreground**
+`Agent` calls (`run_in_background: false`) issued together in one message, so the hunters
+run in parallel and every result comes back in that same message. A foreground call
+blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
+and the review never waits for one any other way: no `ReadNotifications`, `ListAgents`
+or `Monitor` calls, no scheduled wake-up. One host differs: a Claude Code cloud session
+(`CLAUDE_AUTO_BACKGROUND_TASKS` set) turns a foreground call still running after 120
+seconds into a background task and answers "Async agent launched". That hunter is still
+running and its result arrives by itself when it finishes; do not poll for it and do not
+spawn it again — work through the results in hand, and when nothing is left but waiting,
+end the message and let the delivery resume the review. The skeptic and the critic
+(step 3) share one message of their own, spawned only once every hunter result is in
+hand. Each spawn prompt MUST contain:
+
+1. **The rule file's FULL content, pasted** — the hunter's entire rulebook and single
+   obsession. Never a path reference alone; never more than one rule per hunter.
+2. **The diff scope** — the changed-file list or `git diff` range.
+3. **That rule's pre-filter hits** — as starting leads (the hunter re-runs the
+   detection commands itself; leads are a starting point, not a limit).
+
+If the rule cites a case file by plugin-relative path (e.g. `../examples/*.md`), resolve
+it to an absolute path and include that path in the spawn prompt — the hunter runs in the
+reviewed project's cwd and cannot resolve plugin-relative paths on its own.
+
+Each hunter returns one block per finding:
+`rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
+plus one receipt line per falsifying question (`Q<n>: <hits> hit(s) → <findings>
+finding(s)`) and a final tally line (`R<N>: <M> finding(s)` or a hunted-clean line).
+The receipts are how a whole-repository hunt is read: a question with no receipt was
+not run over the scope, and the leads were never the scope.
+</step_2_spawn_hunters>
+
+<step_3_skeptic_pass>
+Collect ALL type/package-extraction findings — every R1/R2/R4 "create a type/package"
+proposal, R10 "Extract Synchronized Owner" proposals, and R11 "Interface Dispatch" /
+"Strategy Map" proposals — and spawn one `ts-react-linter-driven-development:overabstraction-skeptic`, as a **foreground**
+`Agent` call (`run_in_background: false`) in a message with no hunters in it, after
+every hunter result is in hand; the comment critic (step 3b), when it runs, is spawned
+in that same message so the two run in parallel. Its spawn prompt MUST contain:
+
+1. The extraction findings under review — the hunter blocks pasted verbatim.
+2. Payload: the **Juiciness scoring** and **The over-abstraction trap** sections of
+   `../../rules/R1-primitive-obsession.md`, pasted.
+3. Payload: the FULL content of `../../examples/overabstraction-cidr.md`, pasted.
+
+Verdicts per finding: `CONFIRMED (score ≥4 + verified evidence)`, `CONFIRMED (score
+2–3, judgment call) — alternative: …` (the type ships as the finding's fix with the
+skeptic's cheaper move beside it; the user chooses), or `REFUTED (score 0–1 + reason) →
+cheaper alternative`. Carry the verdict word and the score into the report verbatim, as
+the report example shows. A refuted proposal does not ship; when its cheaper
+alternative (better naming, private fields + accessors, or R11's Keep the Single
+Exhaustive Switch) is still worth doing, report the alternative as 🟢 Polish. When R11
+dispatch proposals are under review, additionally paste the FULL
+content of both R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
+juiciness rejection: the switch stays, goes exhaustive) and
+`../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the
+move is unavailable when the consumer owns the output format; the switch shrinks to
+pure dispatch). Only findings the skeptic cannot kill ship as extraction
+findings. Non-extraction findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose
+no new type) skip the skeptic and go straight to the report — R9 findings (orphans,
+broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
+construction mechanics — a validating constructor, unexported fields, an options
+type with its `With*` functions, a named Null Object default — are not extractions either
+and never go to the skeptic: they close the holes of a type that already exists, and a
+skeptic verdict on them would be scoring a guard, not a type.
+</step_3_skeptic_pass>
+
+<step_3b_comment_critic>
+When the diff contains comment lines — prefilter:
+`git diff --cached -- '*.ts' '*.tsx' | grep -E '^\+.*(//|/\*\*)' | grep -vE '(//|/\*)\s*(eslint-(disable|enable)|@ts-(expect-error|ignore|nocheck)|prettier-ignore|/ <reference)|// =>'`
+(any hit qualifies; directives don't count) — spawn one `ts-react-linter-driven-development:comment-critic` in the same
+hunter-free message as the skeptic (when no skeptic runs, the critic has that message
+alone), also in the **foreground** (`run_in_background: false`): its full-repository
+comment sweep is the longest pass of the review, and waiting for it is done by the
+foreground call returning — or, in a cloud session that backgrounds it after 120
+seconds, by its result arriving on its own — never by a timer, a scheduled wake-up or
+a notification poll. Its spawn prompt MUST contain:
+
+1. Payload: R9's **Comment policy** section (`../../rules/R9-repo-brain.md`,
+   Design guidance) pasted verbatim — the Comment Value Toolbox kinds, the
+   three-test standard, the tier table, budget accounting, and the visibility
+   default.
+2. Payload: the **Comment Value Toolbox** catalog section of
+   `../documentation/reference.md` (resolve to an absolute path) pasted verbatim.
+3. The absolute path to `../../examples/private-comment-noise.md` — the critic
+   reads it when judging comments on unexported symbols.
+4. The diff scope.
+
+It judges every comment in the diff (JSDoc, in-body, test) against the three-test
+standard and returns per-comment verdicts (`KEEP / TRIM / REWRITE / DELETE`, or
+`DELETE → route R3` for in-body extraction candidates) with evidence and proposed
+replacement text. Non-KEEP verdicts land in the report as 🟡 Readability Debt;
+`DELETE → route R3` verdicts merge with any R3 hunter findings on the same lines
+(one finding, not two). The critic is advisory like everything else — accepted
+verdicts are fixed by @documentation (the rung-1 fixer), except R3 routes, which
+go to @refactoring.
+</step_3b_comment_critic>
+
+<step_4_merged_report>
+Merge surviving findings into one report.
+
+**Cluster pass (before categorizing):** group *every* hunter finding — kept, refuted
+by the skeptic, or never sent to it — by shared anchor. An anchor is the named thing a
+finding is about, never its line: a type (a finding on one of its fields and a finding
+on one of its methods share the type), a function, a discriminator, or a package (two
+findings on files of one package share the package, and findings that name the same
+two packages together share both as one anchor). List the anchors first, then count.
+An anchor converges when ≥2 findings from *different* rules land on it, or ≥2
+findings answering *different* falsifying questions of one rule — exported nilable
+fields, a method that re-checks them and a undefined handed to the constructor are three
+questions of R2 answered on one type, and one missing constructor, not three lines.
+Two findings of the same question on one anchor are a shared-shape line below, not a
+cluster. The skeptic's verdict removes a proposed type from the fix column; it never
+removes the convergence, which is the evidence. Each hunter is single-obsession and
+blind to the others, and each falsifying question is blind to the next, so independent
+convergence on one anchor is evidence that a domain concept is missing there — the
+cluster is a juiciness scorecard that filled itself in (R1 hunter sees the raw
+primitive, R11 the duplicated switch, R2 the ownerless validation: one disease, four
+jurisdictions). Render each cluster as a first-class entry above the categories:
 
 ```
-⚠️  PRE-COMMIT REVIEW FINDINGS
-
-Reviewed:
-- src/components/LoginForm.tsx (+45, -20 lines)
-- src/types/auth.ts (+15, -0 lines)
-- src/hooks/useAuth.ts (+30, -5 lines)
-
-🔴 DESIGN DEBT (2 findings) - Recommended to fix:
-
-1. src/components/LoginForm.tsx:45 - Primitive obsession
-   Current: email validation with regex inline
-   Better:  Use Zod schema or branded Email type
-   Why:     Type safety, validation guarantee, reusable across features
-   Fix:     Use @component-designing to create Email type
-
-2. src/components/LoginForm.tsx:89 - Missing error boundary
-   Current: Async login can fail silently
-   Better:  Wrap with ErrorBoundary or add error handling
-   Why:     Better user experience, prevents broken UI
-   Fix:     Add ErrorBoundary or try-catch with user feedback
-
-🟡 READABILITY DEBT (3 findings) - Consider fixing:
-
-1. src/components/LoginForm.tsx:120 - Mixed abstractions
-   Component mixes validation logic with UI rendering
-   Why:     Harder to understand and test independently
-   Fix:     Extract validation to useFormValidation hook
-
-2. src/components/LoginForm.tsx:67 - Complex condition
-   if (email && email.length > 0 && /regex/.test(email) && !isSubmitting && !error)
-   Why:     Hard to understand intent
-   Fix:     Extract to: const canSubmit = isFormValid(email, isSubmitting, error)
-
-3. src/hooks/useAuth.ts:34 - Missing hook extraction
-   Complex useEffect with multiple concerns
-   Why:     Hard to test, hard to reuse
-   Fix:     Split into useLogin and useAuthState hooks
-
-🟢 POLISH OPPORTUNITIES (4 findings) - Optional improvements:
-
-1. src/types/auth.ts:10 - Missing JSDoc
-   Public Email type should have documentation
-   Suggestion: Add JSDoc explaining validation rules
-
-2. src/components/LoginForm.tsx:12 - Accessibility enhancement
-   Form could use aria-describedby for better screen reader support
-   Current:  <input type="email" />
-   Better:   <input type="email" aria-describedby="email-hint" />
-   Impact:   Better accessibility for screen reader users
-
-3. src/components/LoginForm.tsx:55 - Keyboard navigation
-   Close button could have Escape key handler
-   Suggestion: Add onKeyDown handler for Escape key
-
-4. src/hooks/useAuth.ts:89 - Type improvement
-   Return type could be more specific than { user: User | null }
-   Suggestion: Use discriminated union for different states
-
-📝 BROADER CONTEXT:
-While reviewing LoginForm.tsx, noticed similar validation patterns in
-RegisterForm.tsx (lines 45-67) and ProfileForm.tsx (lines 89-110).
-Consider:
-- Extract shared validation to useFormValidation hook
-- Create branded Email and Password types used across auth feature
-- Add error boundaries to all auth forms consistently
-
-────────────────────────────────────────
-
-💡 RECOMMENDATION:
-Fix design debt (🔴) before committing if possible. Design debt compounds
-over time and makes future changes harder. Readability and Polish can be
-addressed in follow-up commits.
-
-Would you like to:
-1. Commit as-is (accept debt)
-2. Fix design debt (🔴), then commit
-3. Fix design + readability (🔴 + 🟡), then commit
-4. Fix all findings (🔴 🟡 🟢), then commit
-5. Refactor broader scope (address validation patterns across features)
+🔗 CLUSTER: Alert.Channel
+   Convergence: 4 findings — R1, R11, R2, R7
+   Hypothesis: missing domain concept — a Channel type wants to exist
+   Skeptic: CONFIRMED (score 6: switched in 3 files, +2 unrepresentable — the
+   unknown-channel default at notify.ts:71 goes; +2 noun — Send/Deliver)
+   Routing: design-first — @code-designing (cluster-scoped), then @refactoring
+   implements; do NOT fix members independently (partial fixes undo each other)
 ```
 
-## Key Principles
+Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
+anchor: two findings or twenty, the largest and the smallest alike. The title is the
+anchor itself — the type, field, function or package name the findings share
+(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`,
+`🔗 CLUSTER: internal/common, internal/utils`), never a description of the problem;
+the description is the Hypothesis line beneath it. When the skeptic
+reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
+type routes design-first as above; a REFUTED one keeps the cluster (the convergence
+is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no
+extraction was proposed at the anchor (a function three rules converged on, say) the
+entry carries no verdict and routes to @refactoring. The example shows one cluster; a
+whole-repository review commonly has six or more, and the pass is not done until each
+anchor that two rules converged on has its own entry. Member findings still appear
+under their categories below, tagged `[cluster: <anchor>]`. Clustering is *reporting*
+— this skill still never edits and never invokes fix skills; the caller routes.
 
-See reference.md for detailed principles:
-- Primitive obsession prevention
-- Component composition over prop drilling
-- Custom hooks for reusable logic
-- Semantic HTML and ARIA
-- Type safety with TypeScript and Zod
-- Testability and separation of concerns
-- Accessibility is not optional
+Category mapping:
 
-## After Review
+- 🐛 **Bugs** — will fail at runtime regardless of rule (undefined returned as a value,
+  cancellation severed by a manufactured root context, R10 async task leaks and
+  unguarded concurrent writes): fix immediately.
+- 🟠 **New Practice (when in Rome)** — the when-in-Rome check's findings: a
+  mechanism, dependency, framework, or convention the host repo does not already
+  use, introduced without discussion. Advisory like everything else, but flag it
+  loudly: reviewers reject these threads hardest, and the fix (owner buy-in or a
+  separate PR) is cheap before pushing and expensive after.
+- 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, R10's non-crash findings (production
+  sleeps, fire-and-forget ownership, mutex placement), R11 (duplicated discriminators,
+  boundary leaks), R12 (leaked mutable internals, unvalidated setters), and R5
+  (advisory — never blocks; the user may have valid reasons): fix before commit
+  recommended.
+- 🟡 **Readability Debt** — R3, R9, unclear naming, and the comment-critic's
+  non-KEEP verdicts (trash or over-budget or hard-to-read comments): improves
+  maintainability.
+- 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
 
-This is **ADVISORY** only. User decides:
-- Accept debt knowingly
-- Fix critical issues (design debt)
-- Fix all findings
-- Expand refactoring scope
+**One line per finding, anchored and answered.** Every finding a hunter returned and
+the skeptic did not kill, every cheaper alternative the skeptic shipped in a refuted
+type's place, and every non-KEEP verdict the comment critic returned renders as its
+own line in the hunter's shape, `file:line | evidence | fix | effort` (a critic line's
+evidence is its verdict and reason, its fix the REWRITE text or DELETE, and its effort
+S — a comment edit is always small; a `DELETE → route R3` verdict merges into the R3
+finding on those lines and takes that finding's effort), as the report example shows:
 
-The review never blocks commits. It informs decisions.
+- The line opens with the `file:line` anchor the hunter cited. A finding without its
+  anchor is a claim, not a finding.
+- The evidence cell names the rule and the falsifying question the finding answers,
+  by number and in the question's own words — `R1 Q5: host, port and tls travel
+  together across three signatures` — so the reader can open the rule and check.
+- The fix cell names the move exactly as the rule's **Fix pattern** section spells it
+  (`Introduce Parameter Object`, `Name enum strings`, `Extract Leaf Type`,
+  `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
+  its place. The skeptic's verdict and score follow the move when one applies.
+- Effort carries over from the hunter (S/M/L).
 
-## Acceptance Criteria
+A count is never a finding. `R9 (46 findings)` or `R1 (8 findings): highlights …`
+drops the anchors a reader needs to act on and is forbidden as a rendering, whatever
+the scope. The unit that must never be lost is the anchor: every finding's `file:line`
+appears in the report, heading its own line, or — when several findings share one
+shape (thirty restating comments, say) — listed on one shared-shape line that names
+every anchor and the shared evidence and fix once. Either way the anchors rendered
+equal the findings returned. Length is never a reason to roll up: a whole-repository
+review with a hundred and thirty findings renders a hundred and thirty anchors,
+grouped under their categories and rules.
 
-**All criteria must be met before review is considered complete.**
+**Reconcile before emitting.** Every hunter ends with a tally (`R<N>: <M> finding(s)`).
+The report header carries, per hunter, that tally beside the number of its anchors
+rendered below (own line or shared-shape line alike) —
+`Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the two numbers agree for
+every rule before the report is emitted; a rendered count below the tally means a
+finding was dropped in the merge, and the fix is to render it, never to adjust the
+tally. A finding the skeptic refuted still counts as rendered when its
+cheaper alternative is on the page.
+Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
+Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
 
-### Mandatory Requirements (Must Pass)
+**The report is the message.** The report is emitted as the text of the message that
+ends the review — never written to a file, never attached, never replaced by a summary
+that points at a file or at "the report I sent". Length is no reason: a
+whole-repository report of thirty kilobytes is the normal size and goes in the message
+whole, under its categories. This skill has nothing to write to disk; a Write call
+during a review is the report leaving the page.
+</step_4_merged_report>
 
-1. **Review Scope Complete**
-   - [ ] All changed files reviewed
-   - [ ] All new components/hooks analyzed
-   - [ ] Broader context examined (entire modified files)
+</protocol>
 
-2. **Categorization Complete**
-   - [ ] All findings categorized (Design Debt / Readability Debt / Polish)
-   - [ ] Each finding has: location, current code, better approach, why it matters
-   - [ ] Fix suggestions provided for each finding
+<modes>
+**FULL (first run):** pre-filter all twelve rules over the whole diff scope; report every
+surviving finding.
 
-3. **Design Principles Checked**
-   - [ ] Primitive obsession checked
-   - [ ] Component composition checked
-   - [ ] Prop drilling checked
-   - [ ] Custom hook extraction opportunities identified
-   - [ ] Type safety validated (each type owns validation; composed Zod/branded types trusted, not re-validated)
+**INCREMENTAL (re-run after fixes):** diff scope = only files changed since the last
+review. Run steps 1–3 on that scope, compare against the previous findings, and report a
+delta: ✅ **Fixed** (previous finding no longer reproducible — re-run its detection
+command to confirm), ⚠️ **Remaining** (still evidenced), 🆕 **New** (introduced by the
+fixes). Use after @refactoring applies fixes or whenever the caller iterates.
+</modes>
 
-4. **Accessibility Checked**
-   - [ ] Semantic HTML usage verified
-   - [ ] ARIA attributes checked
-   - [ ] Keyboard navigation verified
-   - [ ] Form labels checked
-   - [ ] Color contrast considerations noted
-
-5. **Findings Reported**
-   - [ ] Clear output format used
-   - [ ] User presented with options (commit as-is, fix debt, etc.)
-   - [ ] Broader context patterns noted if found
-
-### Review Completion Checklist
-
+<report_example>
 ```
-✅ PRE-COMMIT REVIEW ACCEPTANCE CRITERIA
+📊 CODE REVIEW REPORT
+Scope: user/service.ts, user/auth.ts (+ tests) · Mode: FULL
+Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skipped
+Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
+Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
-Scope:
-[ ] All changed files reviewed
-[ ] All new code analyzed
-[ ] Broader file context examined
+🔴 DESIGN DEBT                       (one finding per line; wrapped here for width)
+user/service.ts:67 | R1 Q1: the session token is validated inline as a raw string,
+  no ParseX owns it; Q2: the same emptiness predicate at user/auth.ts:41 — two
+  owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED
+  (score 5) | M
+user/auth.ts:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an
+  invalid Authenticator; Q2: Verify re-checks the range at auth.ts:52 | Add
+  validating constructor: NewAuthenticator | S
 
-Categorization:
-[ ] Design Debt findings identified
-[ ] Readability Debt findings identified
-[ ] Polish Opportunities identified
-[ ] Each finding has fix suggestion
+🟡 READABILITY DEBT
+user/auth.ts:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling
+  in one body; Q3: the block comment `// compare password` names the section |
+  Extract Function named after the comment: comparePassword | S
+user/service.ts:15 | critic: the JSDoc restates the name ("UserService provides
+  user services") — toolbox-value floor, no toolbox item delivered | REWRITE →
+  wider context: "Every user mutation flows through this service — auth, quota,
+  and audit hooks attach here." | S
 
-Design Principles:
-[ ] No primitive obsession
-[ ] No prop drilling
-[ ] Proper component composition
-[ ] Custom hooks where appropriate
+🟢 POLISH
+user/auth.ts:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper
+  alternative to REFUTED PasswordHash wrapper (score 1: only method unwraps) | S
 
-Accessibility:
-[ ] Semantic HTML
-[ ] Proper ARIA
-[ ] Keyboard accessible
-[ ] Form labels present
+📝 BROADER CONTEXT
+user/service.ts:23 — email still a raw string (outside diff scope; same R1 pattern).
 
-Output:
-[ ] Findings formatted clearly
-[ ] User options presented
-[ ] Recommendations clear
-
-Review complete: All boxes checked ✅
+Caller decides: commit as-is · fix 🔴 first · fix all. Findings are advisory.
 ```
+</report_example>
 
-### What Blocks Completion
+<constraints>
+This skill MUST NOT:
+- Edit code, fix findings, or invoke fix skills (@refactoring, @code-designing, @testing)
+- Write the report, or any part of it, to a file — the report is the message that
+  ends the review, whole, whatever its length
+- Run the linter or tests — the caller does (see @linter-driven-development)
+- Block commits — every finding is advisory; the caller decides what to fix
+- Restate rule content — rules live once in `../../rules/`; paste them as spawn payload
+  and cite them in findings
+- Spawn anything other than `ts-react-linter-driven-development:rule-hunter`, `ts-react-linter-driven-development:overabstraction-skeptic`, and
+  `ts-react-linter-driven-development:comment-critic`
+- Wait for any agent by polling notifications, arming a monitor or scheduling a
+  wake-up, or spawn an agent a second time because its call was answered "Async agent
+  launched"; a foreground call returns its result in the same message, and a call a
+  cloud session backgrounded after 120 seconds delivers its result by itself
+</constraints>
 
-The following will BLOCK review completion:
-- Files not reviewed
-- Findings not categorized
-- Missing fix suggestions
-- Accessibility not checked
-- No user options presented
-
-### Review Output Requirements
-
-Review must include:
-1. **Files Reviewed** - List of all files examined
-2. **Design Debt** - High-impact issues with fix suggestions
-3. **Readability Debt** - Medium-impact issues with fix suggestions
-4. **Polish Opportunities** - Low-impact improvements
-5. **Broader Context** - Patterns noticed in unmodified code
-6. **User Options** - Clear choices for how to proceed
-
-**Note**: This review is ADVISORY. It never blocks commits but informs decisions.
-
-## Additional Resources
-
-- **reference.md** - Complete review checklist and examples
-- **examples.md** - Specific violations to check for:
-  - Design Debt: IIFE patterns, primitive obsession, prop drilling
-  - Readability Debt: Empty blocks, magic numbers
-  - Polish: Comment quality, EMPTY_STRING usage
-  - Detection patterns and review finding formats
-  - Suggested fixes for each violation type
+<who_invokes>
+1. **@linter-driven-development** — Phase 4, pre-commit / per completed vertical slice
+2. **@refactoring** — after applying patterns, to validate design quality (INCREMENTAL)
+3. **User** — manual standalone review before commit
+</who_invokes>
