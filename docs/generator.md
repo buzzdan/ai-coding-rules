@@ -5,11 +5,12 @@ description: how the plugin directories are generated from core/ and one binding
 # Plugin Generator
 
 The directories the marketplace serves, `go-linter-driven-development/`,
-`python-linter-driven-development/` and `linter-driven-development/`, are not edited
-by hand. `tools/ldd-gen` renders each from two sources: `core/`, the language-neutral
-text of the rules, skills, agents, commands and the repo-brain gate, and one binding
-under `lang/` — `lang/go/` for the Go plugin, `lang/python/` for the Python plugin,
-`lang/generic/` for the plugin that detects the language at run time. The
+`python-linter-driven-development/`, `ts-react-linter-driven-development/` and
+`linter-driven-development/`, are not edited by hand. `tools/ldd-gen` renders each
+from two sources: `core/`, the language-neutral text of the rules, skills, agents,
+commands and the repo-brain gate, and one binding under `lang/` — `lang/go/` for the
+Go plugin, `lang/python/` for the Python plugin, `lang/ts-react/` for the TypeScript +
+React plugin, `lang/generic/` for the plugin that detects the language at run time. The
 templating contract (the scalars, the include construct and its `core/includes/`
 defaults, overrides, file-name templating) and the residue backlog live in
 [core/README.md](../core/README.md); how a Go idiom in core prose is rendered for a
@@ -25,7 +26,8 @@ second language is decided in [language-residue.md](language-residue.md).
    `include_fallback` in its profile to read another binding's includes under one
    path prefix; the generic binding reads the Go case-study sections this way.
 2. Run `task generate` for the Go plugin, `task generate BINDING=python` for the
-   Python one and `task generate BINDING=generic` for the generic one. Each renders
+   Python one, `task generate BINDING=ts-react` for the TypeScript + React one and
+   `task generate BINDING=generic` for the generic one. Each renders
    its binding over its plugin directory: every file the generator owns is
    rewritten, and files it no longer produces are removed. A binding whose profile
    names a `handbook:` path also renders the standalone coding-rules document to
@@ -44,7 +46,7 @@ its README is current, and every falsifying question in `core/includes/rules/` a
 lead the review's detection script runs; the kinds and their shape are in
 [token-budget.md](token-budget.md), "S8"), `task docs:check`, `task test-gate` (each
 generated script passes its own fixture matrix — the repo-brain gate and the review's
-detection pass, the Go and Python plugins on their own row, the generic plugin once
+detection pass, the Go, Python and TypeScript plugins on their own row, the generic plugin once
 per language its block detects), and the generator's unit tests and linter. The fixture matrix uses
 GNU `sed`, so on macOS two of its cases fail while the same run passes on Linux.
 Paths listed under `ignore` in the profile, such as eval cases copied under the

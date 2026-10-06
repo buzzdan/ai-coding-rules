@@ -1,577 +1,331 @@
 ---
 name: pre-commit-review
-description: ADVISORY validation of code against design principles, accessibility, and best practices that linters cannot fully enforce. Use after linter passes and tests pass to validate design quality. Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+description: |
+  ADVISORY pre-commit review that orchestrates four parallel rule-family hunters, an over-abstraction skeptic, and a comment critic against the diff.
+  Spawns read-only agents (rule-hunter, overabstraction-skeptic, comment-critic); NEVER edits code.
+  Invoked by @linter-driven-development (Phase 4), by @refactoring (after pattern application), or manually for standalone code review.
+  Categorizes findings as Bugs, New Practice (when in Rome), Design Debt, Readability Debt, or Polish Opportunities. Does NOT block commits.
+allowed-tools:
+  - Read
+  - Grep
+  - Bash
+  - Agent
 ---
 
-# Pre-Commit Design Review (React/TypeScript)
-
-ADVISORY validation of code against design principles, accessibility, and practices that linters cannot fully enforce.
-Categorizes findings as Design Debt, Readability Debt, or Polish Opportunities.
-
-## When to Use
-- Automatically invoked by @linter-driven-development (Phase 4)
-- Manually before committing (to validate design quality)
-- After linter passes and tests pass
-
-## What This Reviews
-- **NOT code correctness** (tests verify that)
-- **NOT syntax/style** (ESLint/Prettier enforce that)
-- **YES design principles** (primitive obsession, composition, architecture)
-- **YES maintainability** (readability, complexity, testability)
-- **YES accessibility** (semantic HTML, ARIA, keyboard nav)
-
-## Review Scope
-
-**Primary Scope**: Changed code in commit
-- All modified lines
-- All new components/hooks
-- Specific focus on design principle adherence
-- Accessibility compliance
-
-**Secondary Scope**: Context around changes
-- Entire files containing modifications
-- Flag patterns/issues outside commit scope
-- Suggest broader refactoring opportunities
-
-## Finding Categories (Debt-Based)
-
-### 🔴 Design Debt
-**Will cause pain when extending/modifying code**
-
-Violations:
-- **Primitive obsession**: string IDs, unvalidated inputs, no branded types
-- **Wrong architecture**: Technical layers instead of feature-based
-- **Prop drilling**: State passed through 3+ component levels
-- **Tight coupling**: Components tightly coupled to specific implementations
-- **Missing error boundaries**: No error handling for async operations
-- **No type validation**: Runtime data not validated (no Zod schemas), types relying on upstream validation, or re-validating composed validated types
-
-Impact: Future changes will require more work and introduce bugs
-
-### 🟡 Readability Debt
-**Makes code harder to understand and work with**
-
-Violations:
-- **Mixed abstractions**: Business logic mixed with UI in same component
-- **Complex conditions**: Deeply nested or complex boolean expressions
-- **Inline styles/logic**: Complex logic directly in JSX
-- **Poor naming**: Generic names (data, handler, manager, utils)
-- **God components**: Components doing too many things
-- **Missing extraction**: Logic that should be custom hooks
-
-Impact: Team members (and AI) will struggle to understand intent
-
-### 🟢 Polish Opportunities
-**Minor improvements for consistency and quality**
-
-Violations:
-- **Missing JSDoc**: Complex types/hooks without documentation
-- **Accessibility enhancements**: Could be more accessible (but not broken)
-- **Type improvements**: Could use more specific types (vs any/unknown)
-- **Better naming**: Non-idiomatic or unclear names
-- **Performance**: Unnecessary rerenders, missing memoization
-- **Bundle size**: Unused dependencies, large imports
-
-Impact: Low, but improves codebase quality
-
-## Review Workflow
-
-### 0. Architecture Pattern Validation (FIRST CHECK)
-
-**Expected: Consistent architecture. Design Debt (ADVISORY) - never blocks commit.**
-
-Check file patterns:
-- `src/{components,hooks,contexts}/` → ✅ Layer-based (most common)
-- `src/features/[feature]/{components,hooks,context}/` → ✅ Feature-based
-- Mixed patterns → ✅ Hybrid (if intentional)
-- Inconsistent patterns → 🔴 Design Debt
-
-**Advisory Categories**:
-1. **✅ Consistent architecture** → Acknowledge pattern, ensure new code follows it
-2. **🟢 Hybrid with clear boundaries** → Validate shared vs feature-specific distinction is clear
-3. **🔴 Inconsistent patterns (advisory)** → Suggest establishing clear conventions
-
-**Report Template**:
-```
-🟢 Architecture Review: Layer-Based Pattern
-- Current: Code organized by technical layer (components/, hooks/, contexts/)
-- Status: Consistent with existing codebase ✅
-- New code follows established pattern ✅
-```
-
-Or if inconsistent:
-```
-🔴 Design Debt (Advisory): Inconsistent Architecture
-- Issue: Mixed patterns without clear conventions
-- Examples: Some auth code in src/components/, other auth code scattered
-- Suggestion: Document architecture decisions and apply consistently
-- Alternative: Proceed as-is (address in future refactor)
-```
-
-**Always acknowledge**: Consistency with existing codebase is the priority.
-
----
-
-### 1. Analyze Commit Scope
-```bash
-# Identify what changed
-git diff --name-only
-
-# See actual changes
-git diff
-```
-
-### 2. Review Design Principles
-
-Check for each principle in changed code:
-
-#### Primitive Obsession
-**Look for**:
-- String types for domain concepts (email, userId, etc.)
-- Numbers without validation (age, price, quantity)
-- Booleans representing state (use discriminated unions)
-
-**Example violation**:
-```typescript
-// 🔴 Design Debt
-interface User {
-  id: string  // What if empty? Not UUID?
-  email: string  // What if invalid?
-}
-
-// ✅ Better
-type UserId = Brand<string, 'UserId'>
-const EmailSchema = z.string().email()
-```
-
-#### Component Composition
-**Look for**:
-- Prop drilling (state passed through 3+ levels)
-- Giant components (>200 lines)
-- Mixed UI and business logic
-- Inline complex logic in JSX
-
-**Example violation**:
-```typescript
-// 🔴 Design Debt: Prop drilling
-<Parent>
-  <Middle user={user} onUpdate={onUpdate}>
-    <Deep user={user} onUpdate={onUpdate}>
-      <VeryDeep user={user} onUpdate={onUpdate} />
-    </Deep>
-  </Middle>
-</Parent>
-
-// ✅ Better: Use context or composition
-<UserProvider>
-  <Parent>
-    <Middle><Deep><VeryDeep /></Deep></Middle>
-  </Parent>
-</UserProvider>
-```
-
-#### Custom Hooks
-**Look for**:
-- Complex logic in components (should be in hooks)
-- Duplicated logic across components
-- useEffect with complex dependencies
-
-**Example violation**:
-```typescript
-// 🟡 Readability Debt: Logic in component
-function UserProfile() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(false)
-  useEffect(() => {
-    // 50 lines of fetch logic
-  }, [])
-  // More logic...
-}
-
-// ✅ Better: Extract to hook
-function useUser(id) { /* fetch logic */ }
-function UserProfile() {
-  const { user, loading } = useUser(userId)
-  return <UI user={user} loading={loading} />
-}
-```
-
-### 3. Review Accessibility
-
-**Check for each component** (jsx-a11y rules + manual review):
-
-#### Semantic HTML
-- Using correct HTML elements (<button>, <form>, <nav>, <main>)
-- Proper heading hierarchy (h1 → h2 → h3, no skipping)
-- Lists for list content (<ul>, <ol>)
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: Non-semantic
-<div onClick={handleClick}>Click me</div>  // Should be <button>
-
-// 🟡 Readability Debt: Wrong heading order
-<h1>Title</h1>
-<h3>Subtitle</h3>  // Skipped h2
-
-// ✅ Better
-<button onClick={handleClick}>Click me</button>
-<h1>Title</h1>
-<h2>Subtitle</h2>
-```
-
-#### ARIA Attributes
-- Form inputs have labels
-- Interactive elements have accessible names
-- Images have alt text
-- Dialogs have proper roles and labels
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: Missing label
-<input type="text" placeholder="Email" />
-
-// 🟢 Polish: Could improve alt text
-<img src="avatar.jpg" alt="image" />  // Generic
-
-// ✅ Better
-<label htmlFor="email">Email</label>
-<input id="email" type="text" />
-
-<img src="avatar.jpg" alt="John Doe's profile picture" />
-```
-
-#### Keyboard Navigation
-- All interactive elements keyboard accessible
-- Focus styles visible
-- Logical tab order
-- Escape closes modals
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: No keyboard support
-<div onClick={handleClick}>Action</div>
-
-// ✅ Better
-<button onClick={handleClick}>Action</button>
-
-// Or if div required:
-<div
-  role="button"
-  tabIndex={0}
-  onClick={handleClick}
-  onKeyDown={(e) => e.key === 'Enter' && handleClick()}
->
-  Action
-</div>
-```
-
-#### Color and Contrast
-- Text readable (sufficient contrast)
-- Not relying on color alone for meaning
-- Focus indicators visible
-
-**Example violations**:
-```typescript
-// 🟡 Readability Debt: Color only indicates error
-<Input style={{ borderColor: 'red' }} />
-
-// ✅ Better: Visual + text indicator
-<Input
-  aria-invalid="true"
-  aria-describedby="email-error"
-  style={{ borderColor: 'red' }}
-/>
-<span id="email-error">Email is invalid</span>
-```
-
-#### Screen Reader Support
-- Dynamic content announces updates (aria-live)
-- Loading states communicated
-- Error messages associated with fields
-
-**Example violations**:
-```typescript
-// 🟢 Polish: Loading not announced
-{isLoading && <Spinner />}
-
-// ✅ Better
-{isLoading && (
-  <div role="status" aria-live="polite">
-    Loading user data...
-    <Spinner aria-hidden="true" />
-  </div>
-)}
-```
-
-### 4. Review TypeScript Usage
-
-**Type safety**:
-- Using `any` or `unknown` without validation
-- Missing type definitions for props
-- Not using branded types for domain concepts
-- Not using Zod for runtime validation
-
-**Example violations**:
-```typescript
-// 🔴 Design Debt: Using any
-function processData(data: any) { }
-
-// 🟡 Readability Debt: Inline type
-function Button(props: { label: string; onClick: () => void }) { }
-
-// ✅ Better
-const DataSchema = z.object({ /* ... */ })
-function processData(data: z.infer<typeof DataSchema>) { }
-
-interface ButtonProps {
-  label: string
-  onClick: () => void
-}
-function Button({ label, onClick }: ButtonProps) { }
-```
-
-### 5. Review Testing Implications
-
-**Testability**:
-- Components too complex to test
-- Logic not extracted to testable units
-- Testing implementation details (bad)
-
-**Example violations**:
-```typescript
-// 🟡 Readability Debt: Hard to test
-function ComplexForm() {
-  // 200 lines of intertwined logic and UI
-  // Would need to test implementation details
-}
-
-// ✅ Better: Separated concerns
-function useFormLogic() { /* testable hook */ }
-function FormUI({ state, actions }) { /* testable UI */ }
-```
-
-### 6. Broader Context Review
-
-After reviewing changed code, scan entire modified files for:
-- Similar violations elsewhere in file
-- Patterns suggesting broader refactoring
-- Opportunities for consistency improvements
-
-**Report format**:
-```
-📝 BROADER CONTEXT:
-While reviewing LoginForm.tsx, noticed similar validation patterns in
-RegisterForm.tsx and ProfileForm.tsx (src/components/). Consider
-extracting shared validation logic to a useFormValidation hook or
-creating branded types for Email, Password used across features.
-```
-
-## Output Format
-
-After review:
-
-```
-⚠️  PRE-COMMIT REVIEW FINDINGS
-
-Reviewed:
-- src/components/LoginForm.tsx (+45, -20 lines)
-- src/types/auth.ts (+15, -0 lines)
-- src/hooks/useAuth.ts (+30, -5 lines)
-
-🔴 DESIGN DEBT (2 findings) - Recommended to fix:
-
-1. src/components/LoginForm.tsx:45 - Primitive obsession
-   Current: email validation with regex inline
-   Better:  Use Zod schema or branded Email type
-   Why:     Type safety, validation guarantee, reusable across features
-   Fix:     Use @component-designing to create Email type
-
-2. src/components/LoginForm.tsx:89 - Missing error boundary
-   Current: Async login can fail silently
-   Better:  Wrap with ErrorBoundary or add error handling
-   Why:     Better user experience, prevents broken UI
-   Fix:     Add ErrorBoundary or try-catch with user feedback
-
-🟡 READABILITY DEBT (3 findings) - Consider fixing:
-
-1. src/components/LoginForm.tsx:120 - Mixed abstractions
-   Component mixes validation logic with UI rendering
-   Why:     Harder to understand and test independently
-   Fix:     Extract validation to useFormValidation hook
-
-2. src/components/LoginForm.tsx:67 - Complex condition
-   if (email && email.length > 0 && /regex/.test(email) && !isSubmitting && !error)
-   Why:     Hard to understand intent
-   Fix:     Extract to: const canSubmit = isFormValid(email, isSubmitting, error)
-
-3. src/hooks/useAuth.ts:34 - Missing hook extraction
-   Complex useEffect with multiple concerns
-   Why:     Hard to test, hard to reuse
-   Fix:     Split into useLogin and useAuthState hooks
-
-🟢 POLISH OPPORTUNITIES (4 findings) - Optional improvements:
-
-1. src/types/auth.ts:10 - Missing JSDoc
-   Public Email type should have documentation
-   Suggestion: Add JSDoc explaining validation rules
-
-2. src/components/LoginForm.tsx:12 - Accessibility enhancement
-   Form could use aria-describedby for better screen reader support
-   Current:  <input type="email" />
-   Better:   <input type="email" aria-describedby="email-hint" />
-   Impact:   Better accessibility for screen reader users
-
-3. src/components/LoginForm.tsx:55 - Keyboard navigation
-   Close button could have Escape key handler
-   Suggestion: Add onKeyDown handler for Escape key
-
-4. src/hooks/useAuth.ts:89 - Type improvement
-   Return type could be more specific than { user: User | null }
-   Suggestion: Use discriminated union for different states
-
-📝 BROADER CONTEXT:
-While reviewing LoginForm.tsx, noticed similar validation patterns in
-RegisterForm.tsx (lines 45-67) and ProfileForm.tsx (lines 89-110).
-Consider:
-- Extract shared validation to useFormValidation hook
-- Create branded Email and Password types used across auth feature
-- Add error boundaries to all auth forms consistently
-
-────────────────────────────────────────
-
-💡 RECOMMENDATION:
-Fix design debt (🔴) before committing if possible. Design debt compounds
-over time and makes future changes harder. Readability and Polish can be
-addressed in follow-up commits.
-
-Would you like to:
-1. Commit as-is (accept debt)
-2. Fix design debt (🔴), then commit
-3. Fix design + readability (🔴 + 🟡), then commit
-4. Fix all findings (🔴 🟡 🟢), then commit
-5. Refactor broader scope (address validation patterns across features)
-```
-
-## Key Principles
-
-See reference.md for detailed principles:
-- Primitive obsession prevention
-- Component composition over prop drilling
-- Custom hooks for reusable logic
-- Semantic HTML and ARIA
-- Type safety with TypeScript and Zod
-- Testability and separation of concerns
-- Accessibility is not optional
-
-## After Review
-
-This is **ADVISORY** only. User decides:
-- Accept debt knowingly
-- Fix critical issues (design debt)
-- Fix all findings
-- Expand refactoring scope
-
-The review never blocks commits. It informs decisions.
-
-## Acceptance Criteria
-
-**All criteria must be met before review is considered complete.**
-
-### Mandatory Requirements (Must Pass)
-
-1. **Review Scope Complete**
-   - [ ] All changed files reviewed
-   - [ ] All new components/hooks analyzed
-   - [ ] Broader context examined (entire modified files)
-
-2. **Categorization Complete**
-   - [ ] All findings categorized (Design Debt / Readability Debt / Polish)
-   - [ ] Each finding has: location, current code, better approach, why it matters
-   - [ ] Fix suggestions provided for each finding
-
-3. **Design Principles Checked**
-   - [ ] Primitive obsession checked
-   - [ ] Component composition checked
-   - [ ] Prop drilling checked
-   - [ ] Custom hook extraction opportunities identified
-   - [ ] Type safety validated (each type owns validation; composed Zod/branded types trusted, not re-validated)
-
-4. **Accessibility Checked**
-   - [ ] Semantic HTML usage verified
-   - [ ] ARIA attributes checked
-   - [ ] Keyboard navigation verified
-   - [ ] Form labels checked
-   - [ ] Color contrast considerations noted
-
-5. **Findings Reported**
-   - [ ] Clear output format used
-   - [ ] User presented with options (commit as-is, fix debt, etc.)
-   - [ ] Broader context patterns noted if found
-
-### Review Completion Checklist
-
-```
-✅ PRE-COMMIT REVIEW ACCEPTANCE CRITERIA
-
-Scope:
-[ ] All changed files reviewed
-[ ] All new code analyzed
-[ ] Broader file context examined
-
-Categorization:
-[ ] Design Debt findings identified
-[ ] Readability Debt findings identified
-[ ] Polish Opportunities identified
-[ ] Each finding has fix suggestion
-
-Design Principles:
-[ ] No primitive obsession
-[ ] No prop drilling
-[ ] Proper component composition
-[ ] Custom hooks where appropriate
-
-Accessibility:
-[ ] Semantic HTML
-[ ] Proper ARIA
-[ ] Keyboard accessible
-[ ] Form labels present
-
-Output:
-[ ] Findings formatted clearly
-[ ] User options presented
-[ ] Recommendations clear
-
-Review complete: All boxes checked ✅
-```
-
-### What Blocks Completion
-
-The following will BLOCK review completion:
-- Files not reviewed
-- Findings not categorized
-- Missing fix suggestions
-- Accessibility not checked
-- No user options presented
-
-### Review Output Requirements
-
-Review must include:
-1. **Files Reviewed** - List of all files examined
-2. **Design Debt** - High-impact issues with fix suggestions
-3. **Readability Debt** - Medium-impact issues with fix suggestions
-4. **Polish Opportunities** - Low-impact improvements
-5. **Broader Context** - Patterns noticed in unmodified code
-6. **User Options** - Clear choices for how to proceed
-
-**Note**: This review is ADVISORY. It never blocks commits but informs decisions.
-
-## Additional Resources
-
-- **reference.md** - Complete review checklist and examples
-- **examples.md** - Specific violations to check for:
-  - Design Debt: IIFE patterns, primitive obsession, prop drilling
-  - Readability Debt: Empty blocks, magic numbers
-  - Polish: Comment quality, EMPTY_STRING usage
-  - Detection patterns and review finding formats
-  - Suggested fixes for each violation type
+<objective>
+Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
+four parallel rule-family hunters, one over-abstraction skeptic and one comment
+critic — the agents `ts-react-linter-driven-development:rule-hunter`, `ts-react-linter-driven-development:overabstraction-skeptic` and
+`ts-react-linter-driven-development:comment-critic`, spawned by those names and no others. Pure orchestration
+and reporting: this skill spawns agents and reports; it never edits code, never fixes
+findings, never blocks a commit. Rule knowledge lives once in `../../rules/`; agents get
+the paths of their rules and read them themselves in their first turn — the parent never
+pastes a rule, and agents do not invoke skills. Each step's long form is in
+`reference.md` here, read by `sed` range inside a Bash call the step already makes —
+never the file whole, never a call of its own — except the report's, read once before
+writing.
+</objective>
+
+<timing>
+Run pre-commit, per completed vertical slice — NEVER mid-implementation: GREEN-step TDD
+code is supposed to look under-designed. The REFACTOR step's per-cycle greps are the
+mid-implementation net; this pass is the verification net on finished work.
+</timing>
+
+<inputs>
+- **Diff scope**: the caller's resolved rung — explicit files or directories, else
+  the working tree's changes against `HEAD` plus untracked files, else the branch
+  against its base as a range (`--base <merge-base>`), and the whole repository
+  (`--all`) only when asked for explicitly. Step 1 hands that rung to `ldd-scope.sh`,
+  which resolves it; the scope is never widened here, and an empty scope is reported
+  as "nothing to review", never as a clean verdict.
+- **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes; needs the previous
+  report's findings).
+</inputs>
+
+<protocol>
+
+<step_1_detection_pass>
+In-context, cheap, no agents yet. One Bash command resolves the scope, writes the scope
+bundle and runs the detection pass over it — the plugin's two review scripts, never a
+recipe or a grep composed here in their place:
+`S=<this skill dir>/../../scripts; out=$(bash "$S/ldd-scope.sh" <rung>); echo "$out"; case "$out" in *'nothing to review') ;; *) B=${out##* }; bash "$S/ldd-detect.sh" "$B" && sed -n '/^## Hunt focus/,/^## Waiting for agents/p' <this skill dir>/reference.md ;; esac`
+`<rung>` is the scope from `<inputs>` as `ldd-scope.sh` takes it: the explicit files
+or directories as arguments (a directory stands for the source files under it),
+`--base <ref>` for the branch against its base, `--all` for the whole repository,
+nothing for the working tree against `HEAD` with untracked files. The scope script
+prints one summary line — files bundled, files listed with a not-bundled reason, the
+diff's size, the comment lines found — whose last word is the bundle path `B`; when
+it prints `ldd-scope: nothing to review` instead, the review ends with that report.
+The detection script runs every falsifying question's detect line over the scope,
+writes `hits.tsv`, `hits-all.tsv` and `counts.tsv` into the bundle, and prints the
+**counts table** — one row per question, `rule q kind hits`, a `judgment` row for a
+question only a hunter's reading answers — then one line per rule family. That
+table, about 300 tokens, is the pre-filter: the parent prints no rule file, composes
+no detection command, and never reads a Falsifying-questions section. On a scoped review the R9
+gate's rows are the scope's own files' — an orphan doc or an unwired root is the
+repository's state, for a `--all` review or BROADER CONTEXT, never this diff's
+finding. When the
+detection script exits 2 instead — a pattern its grep rejects, the R9 gate failing to
+run — the review did not run: report its message, spawn nothing, and never render a
+rule as `skipped` or compose the pass by hand. A rule family none of whose rules has
+a hit — `0` on every row of theirs that is not `judgment` — is skipped: no hunter for
+it.
+
+Also in-context: a new `eslint-disable` (any form), `@ts-expect-error` or `@ts-ignore`
+in the diff, or a new rule turned off or `ignores` entry added in `eslint.config.*`,
+or a new `exclude`/`skipLibCheck`-style loosening in `tsconfig*.json`, is itself a
+finding — the change must justify, with evidence, that the rule genuinely does not
+apply. Both directive families are suppressions: an `@ts-expect-error` on
+`return undefined` silences R1 Q4 as surely as an
+`// eslint-disable-next-line sonarjs/cognitive-complexity` silences R3.
+
+The table's `SUPPRESS` row is that check for the directive: it counts the suppression
+directives on the diff's added lines (over every scope file when the bundle has no
+diff), and a count above zero is one finding per `SUPPRESS` row of `hits-all.tsv` —
+the uncapped table, so no directive hides behind an overflow row — anchored at that
+row's `file:line`. A new exclusion in the linter's configuration file is still read
+from the diff.
+
+Also in-context — the **when-in-Rome check**: anything the diff introduces that the
+repo does not already use (a new test mechanism, a dependency in `package.json`,
+a tool or config file, a convention-file edit bundled into a feature diff, a layout
+unlike its siblings) is a 🟠 finding when a grep of the repo *outside* the diff shows
+zero prior use; the fix is a discussion or a separate PR, never silent inclusion.
+</step_1_detection_pass>
+
+<step_2_spawn_hunters>
+The bundle exists (step 1 wrote it: `files.txt`, `diff.patch` on a scoped review,
+`scope/<path>.txt` per bundled file with the file's own line numbers, `dirs.txt` on
+`--all`, `comments.txt`, `hits.tsv`, `hits-all.tsv`, `counts.tsv`); nothing is
+written here. One Bash
+command, only when the scope is not empty, lists every rule path the prompts will
+carry and prints `sed -n '/^## Waiting for agents/,/^## The merged report/p'
+<this skill dir>/reference.md` — how agents are waited for, what each returns and what
+their verdicts do — so steps 2, 3 and 3b cost no read of their own. The bundle is the
+only thing this review writes; hunters and the critic get its path, the skeptic does
+not.
+
+Spawn **one rule-hunter per rule family with hits** — four at most, never one per
+rule — as **foreground** `Agent` calls (`run_in_background: false`) issued together in
+one message, so they run in parallel and return in it. Never wait any other way — no
+polling, monitor or wake-up, no second spawn of a call answered "Async agent
+launched"; its result arrives by itself ("Waiting for agents", read above). The
+families:
+
+| Hunter | Rules | Family |
+|--------|-------|--------|
+| types | R1, R2, R11, R12 | primitives, validation, enums and sentinels, options |
+| structure | R3, R4, R5 | package, file and function shape |
+| tests and dependencies | R6, R7, R8, R10 | tests, globals, dependency injection, dependencies |
+| documentation | R9 | comments and the documentation network — runs beside the comment-critic (step 3b) |
+
+A family none of whose rules had a hit gets no hunter — its `judgment` rows alone
+spawn nothing; step 1's four family lines say which families did. A family with a
+hit gets one hunter carrying **every rule file of the family**, the hitless ones
+included: their `judgment` questions are read on the ground the family's hits name,
+and their mechanical questions receipt `0 hit(s)`. Each spawn prompt MUST contain:
+
+1. **The absolute paths of every rule file of this family** — the hunter's whole
+   rulebook, each read whole in its first turn. Never the text pasted; never two
+   families in one hunter; the parent reads no rule to build a prompt (step 1
+   printed only the counts).
+2. **The bundle's absolute path** and the diff scope it holds. On `--all`, also this
+   hunter's **reading order**: `dirs.txt` with the directories the family's `hits.tsv`
+   rows name first, most rows first, ties by line count ascending, then the rest — no
+   two hunters truncate at the same tail.
+3. **The family's rows of the hits table**, as the one command the hunter runs in its
+   first turn beside its rule files — `awk -F'\t' '$1 ~ /^(R1|R2|R11|R12)$/' <bundle>/hits.tsv`
+   with the family's rule ids — and every row of the counts table for the family's
+   rules, pasted from step 1's print (about two dozen lines for a four-rule family).
+   The counts are the hunter's receipts: it judges every hit the table counted, runs
+   each `judgment` question as its rule's prose says, and returns one receipt per
+   question carrying the table's number.
+4. **The overflow rows**, when the family has any: a row whose file is `-` and whose
+   excerpt reads `+N more hit(s) not listed` is a question capped in `hits.tsv`. The
+   prompt names each (`R9 Q4: 55 more hits than listed`) and says where the rest are:
+   the same `awk` over `<bundle>/hits-all.tsv`, the uncapped table, filtered to that
+   rule and question — `awk -F'\t' '$1 == "R9" && $2 == "4"' <bundle>/hits-all.tsv` —
+   read in a later call and judged like the rest, so the receipt still carries the
+   table's count. The hunter runs no pattern of its own.
+
+Every path is absolute (the hunter runs in the reviewed project's cwd): resolve
+`../../rules/R<N>-….md` and any case file the rule cites from this skill's own
+location, then `ls` every resolved path before spawning — listing is not reading; a
+path that does not list is fixed here, never handed to a hunter. Each hunter returns
+finding blocks (`rule | file:line | evidence | fix pattern | effort`), one receipt per
+falsifying question of each rule it was given (`R<N> Q<n>: <hits> hit(s) → <findings>
+finding(s)` with the counts table's number; `R<N> Q<n>: judgment → <findings>
+finding(s)` for a judgment question; `R<N> Q<n>: <judged> of <hits> hit(s) judged →
+<findings> finding(s)` when its budget ended before every hit was read), one tally
+per rule — or, for a rule file that did not read, `R<N>: rule unreadable at <path>`
+in the tally's place — and, when its budget ended the hunt, one `not reached:` line.
+A question with no receipt was not run. Findings, receipts, tallies (or unreadable
+lines) and that line are the whole report, about 3k tokens; a hunter returns no
+narrative ("Hunter output", read above).
+</step_2_spawn_hunters>
+
+<step_3_skeptic_pass>
+Collect every finding whose fix is a new type or package — R1's Replace Primitive
+with Domain Type, Introduce Parameter Object, Name the Container and Name enum
+strings, R4's promotion to a
+package, R10's Extract Synchronized Owner when it names the owner type, R11's
+Interface Dispatch and Strategy Map — and no other. Never an R2 construction
+mechanic (a validating constructor, internal fields, an options type and its
+`With*` functions, a Null Object default), never an R10 fix that is a lock taken or a
+write moved under one, never a fix that is a rename, a deletion or a test: those
+propose no type, and they go straight to the report. Spawn one
+overabstraction-skeptic, foreground, in a message with no hunters in it, after every
+hunter result is in hand; the critic (step 3b) shares that message. Its spawn prompt
+MUST contain:
+
+1. The extraction findings under review — the hunter blocks pasted verbatim,
+   numbered, findings that share a file or a package adjacent, so one inspection call
+   verifies them together.
+2. The absolute path of `../../rules/R1-primitive-obsession.md` and the range it reads:
+   `sed -n '/^### Juiciness scoring/,/^### Placement/p'`. Never the file whole.
+3. The absolute path of `../../examples/overabstraction-cidr.md`; with R11 dispatch
+   proposals under review, also `../../examples/anti-if-dispatch.md` and
+   `../../examples/switch-to-polymorphism.md`.
+4. The count and the budget it fixes, in one line: `N findings — budget: the first
+   turn, then one inspection call per finding (every tool counts; findings sharing a
+   file share a call), then the verdicts. Report verdict lines only.`
+
+No bundle: the skeptic verifies call sites across the whole repository. Its verdicts
+(`CONFIRMED (score N …)`, `CONFIRMED (score N, judgment call) — alternative: …`,
+`REFUTED (score N …) → cheaper alternative`, `N/A (R2 mechanism)`, `N/A (no
+extraction)`, `skeptic: not reached`) are carried into the report verbatim, score
+included; a report its turn
+ceiling cut off before the verdicts carries none, and every finding sent then ships
+as proposed with `skeptic: not reached`. What never goes to it (R2's construction
+mechanics, non-extraction findings) and what each verdict does: "Skeptic verdicts",
+read in step 2.
+</step_3_skeptic_pass>
+
+<step_3b_comment_critic>
+When the scope carries comment lines — step 1's summary line says how many, and
+`comments.txt` in the bundle holds them as `file:line:text ⏎ code`, the code being the
+declaration or statement below the comment: the diff's added comment lines on a
+scoped review plus every comment line of a bundled file the diff does not touch,
+every comment line of the bundled files on `--all`, minus directives; one line
+qualifies, none and the critic is not spawned — spawn one
+comment-critic in the same hunter-free message as the skeptic (alone when no skeptic
+runs), foreground; it is waited for only by the call returning. Its spawn prompt MUST
+contain:
+
+1. The absolute path of `../../rules/R9-repo-brain.md` and the range of its **Comment
+   policy** section: `sed -n '/^### Comment policy/,/^### Edge conventions/p'`.
+2. The absolute path of `../documentation/reference.md` and the range of its **Comment
+   Value Toolbox** catalog:
+   `sed -n '/^## Comment Value Toolbox/,/^## Frontmatter Templates/p'`.
+   Neither file is read whole.
+3. The absolute path of `../../examples/private-comment-noise.md`.
+4. The diff scope and the bundle's absolute path: the critic reads
+   `<bundle>/comments.txt` in its first turn and opens a numbered `scope/` file only
+   to judge a comment in its context. A caller without a bundle omits the path, and
+   the critic builds its scope in its first turn.
+5. The count of comment lines from step 1's summary line and the budget in one line:
+   `N comment lines in comments.txt — budget: the first turn, then at most K calls
+   that open scope files for context, several files each (every tool counts; never a
+   sweep of the scope), then the verdicts. Report non-KEEP verdicts and the tally.` K
+   is four on a scoped diff, six on `--all`.
+
+It returns one block per non-KEEP verdict (`TRIM / REWRITE / DELETE`, `DELETE → route
+R3`) with evidence and replacement text, and a tally that counts the KEEPs; non-KEEP
+verdicts are 🟡 Readability Debt ("Critic verdicts", read in step 2).
+</step_3b_comment_critic>
+
+<step_4_merged_report>
+Before writing, read `reference.md`, `sed -n '/^## The merged report/,$p'` — the cluster
+pass, the category map, the line shape, the reconciliation and the worked example —
+once, now. The contract it spells out, kept whatever the scope:
+
+- **Clusters first.** Before categorizing, list the anchors: group every hunter finding
+  — kept, refuted by the skeptic, or never sent to it — by the named thing it is about
+  (a type, a function, a discriminator, a package), never by line. An anchor converges
+  when ≥2 findings from different rules, or from different falsifying questions of one
+  rule, land on it — exported nilable fields, a method re-checking them and a
+  undefined handed to the constructor are three R2 questions on one type, one missing
+  constructor. Render every converged anchor, two findings or twenty, as its own entry
+  above the categories, titled with the anchor itself:
+
+  ```
+  🔗 CLUSTER: Alert.Channel — R1, R11, R2, R7
+     Convergence: 4 findings — R1 Q1, R11 Q2, R2 Q2, R7 Q4
+     Hypothesis: missing domain concept — a Channel type wants to exist
+     Skeptic: CONFIRMED (score 6) · (or REFUTED → the cheaper alternative, the
+     convergence still real · or no verdict when no extraction was proposed)
+     Routing: design-first — @code-designing (cluster-scoped), then @refactoring
+  ```
+
+  The title line carries the anchor and the ids of the rules that converged on it;
+  the pass is not done until each anchor two rules converged on has its entry, and a
+  whole-repository review commonly has six or more. Members still render under their
+  categories, each tagged `[cluster: <anchor>]`.
+- **The first line is `📊 CODE REVIEW REPORT`**, then the `Scope:`, `Hunters:`,
+  `Skeptic:` and `Critic:` lines as the example shows — before any cluster, never
+  under a title of the review's own.
+- **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
+  R9, the critic's non-KEEP verdicts) · 🟢 Polish (the skeptic's cheaper alternatives).
+- **One line per finding**: `file:line | R<N> Q<n>: evidence in the question's own
+  words | the move as the rule's Fix pattern spells it | S/M/L`. Evidence about a
+  function, a signature or a call quotes it as the code writes it —
+  `dial(host string, port int, tls bool)` — never the bare name. The fix cell names the
+  move exactly as the Fix pattern section spells it — `Introduce Parameter Object`,
+  `Name enum strings`, `Extract Leaf Type` — and the skeptic's verdict and score follow
+  the move in the same cell: `Introduce Parameter Object: Endpoint — skeptic REFUTED
+  (score 1) → rename dial to Client.dial`. A verdict never replaces the move name with
+  its alternative, and a REFUTED finding keeps its own line under its category — the
+  hunter's evidence in the question's words, the move, the verdict — while its
+  cheaper alternative ships as a second line under 🟢 Polish; a Polish line alone is
+  a finding dropped, and the `Hunters:` count does not count it. A
+  count is never a finding — `R9 (46 findings)` is forbidden; findings of one shape may
+  share one line naming every anchor. Anchors rendered equal findings returned.
+- **One physical line, never wrapped.** A finding line and a cluster title line are
+  each one line of text however long — never broken across lines for width. Readers
+  grep the report, and a move name or anchor split over two lines is invisible to
+  them; length is the renderer's problem, not the report's.
+- **Reconcile**: the header carries every rule's tally beside its rendered count — one
+  entry per rule, a family hunter having returned one tally per rule it was given —
+  `Hunters: R1 8/8 · R9 53/53 (not reached: internal/store) · R4–R6 skipped` — and the
+  two agree, or the dropped finding is rendered, never the tally adjusted. Any agent's
+  `not reached:` line renders verbatim beside its tally — a hunter's beside the tallies
+  of the rules it hunted — and the Scope line then reads
+  `Mode: FULL · PARTIAL coverage`; without those words the header asserts full
+  coverage. A hunter's `R<N>: rule unreadable at <path>` line is the same: it renders
+  verbatim in that rule's place in the header — never as `skipped`, never as a clean
+  tally, never dropped — and the Scope line reads `PARTIAL coverage`; a rule that had
+  hits and was not hunted is coverage the review did not have.
+- Fix routing cites each rule's **Fix pattern**; out-of-scope observations go under
+  BROADER CONTEXT; the report ends `Caller decides: commit as-is · fix 🔴 first · fix
+  all. Findings are advisory.` **The report is the message** that ends the review —
+  never a file, never a summary pointing at one, whatever its length.
+</step_4_merged_report>
+
+</protocol>
+
+<modes>
+**FULL:** the detection pass over the whole scope, all twelve rules; report every
+surviving finding. **INCREMENTAL:** scope = the files changed since the last review;
+run steps 1–3 on it and report the delta against the previous findings — ✅ Fixed (its
+question's row in the new counts table is clear, or the hunter's re-judgment confirms),
+⚠️ Remaining, 🆕 New.
+</modes>
+
+<constraints>
+This skill MUST NOT:
+- Edit code, fix findings, or invoke fix skills (@refactoring, @code-designing, @testing)
+- Write the report, or any part of it, to a file — the bundle is the only file it
+  writes, and an empty scope writes none
+- Run the linter or tests, or block a commit — every finding is advisory
+- Restate or paste rule content — spawn prompts name rules by absolute path and range
+- Compose a detection command or a bundle recipe in place of `ldd-scope.sh` and
+  `ldd-detect.sh` — the scripts are the pre-filter and the bundle
+- Spawn anything but the three agents in `<objective>`, or wait for one by polling,
+  monitoring, scheduling or re-spawning
+</constraints>
+
+<who_invokes>
+@linter-driven-development (Phase 4, per completed slice) · @refactoring (after fixes,
+INCREMENTAL) · the user (standalone review before commit).
+</who_invokes>

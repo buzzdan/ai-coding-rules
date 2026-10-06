@@ -4,22 +4,25 @@
 rules, skills, agents, commands and the repo-brain gate, written once and rendered
 per language. `lang/<lang>/` holds one binding per language: a `profile.yaml` with
 the scalars the templates substitute, the snippet files they include, whole-file
-overrides, and `passthrough/` for files copied into the plugin unchanged. Three
+overrides, and `passthrough/` for files copied into the plugin unchanged. Four
 bindings exist: `lang/go/` renders `go-linter-driven-development/`; `lang/python/`
 renders `python-linter-driven-development/`, adding a file wherever Python knowledge
 beats detection and recording its positions in `docs/language-residue.md`, "The
-Python binding"; and `lang/generic/` renders `linter-driven-development/`, the plugin
-for repositories without a language binding — its profile holds phrases the model
-reads as instructions, and it adds a file only where detection differs from
-knowledge (`docs/language-residue.md`, "The generic binding").
+Python binding"; `lang/ts-react/` renders `ts-react-linter-driven-development/` the
+same way for a React application in TypeScript ("The ts-react binding" there); and
+`lang/generic/` renders `linter-driven-development/`, the plugin for repositories
+without a language binding — its profile holds phrases the model reads as
+instructions, and it adds a file only where detection differs from knowledge
+(`docs/language-residue.md`, "The generic binding").
 
 `tools/ldd-gen` renders `core/` plus a binding into the plugin directory the
 marketplace serves, and, for a binding whose profile names one, the standalone
 coding-rules handbook outside it (`coding-rules/go.md`, `coding-rules/python.md`,
-`coding-rules/generic.md`; "The handbook" below). Edit
+`coding-rules/ts-react.md`, `coding-rules/generic.md`; "The handbook" below). Edit
 sources here or under `lang/`, run `task generate` (and `task generate
-BINDING=python`, `task generate BINDING=generic`), and commit all of them; `task
-check` fails when a plugin directory or a handbook differs from its rendering.
+BINDING=python`, `task generate BINDING=ts-react`, `task generate BINDING=generic`),
+and commit all of them; `task check` fails when a plugin directory or a handbook
+differs from its rendering.
 
 ## Templating
 
@@ -123,7 +126,8 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
 - `skills/testing/reference.md` and `skills/testing/examples/`: a Go test-harness
   catalogue. The generic binding ships a short `skills/testing/reference.md` of its
   own that says so and points at the repository's test utilities; the Python binding
-  ships a short pytest catalogue in the same shape.
+  ships a short pytest catalogue in the same shape, and the ts-react binding a
+  Vitest, React Testing Library and MSW catalogue.
 - `README.md`, `CHANGELOG.md`, `.claude-plugin/plugin.json`, `hooks/`: describe or
   configure the Go plugin itself.
 
@@ -135,7 +139,8 @@ differently from the other bindings:
   the skeptic's operating rule — in core, and renders every code section (a fence
   with the paragraphs that narrate its identifiers) from an include under
   `examples/<case>/`. The Go binding's sections are cut from the original text; the
-  Python binding's are written in Python. The generic binding declares
+  Python binding's are written in Python, the ts-react binding's in TypeScript and
+  TSX. The generic binding declares
   `include_fallback: {from: go, under: examples/}` in its profile, so it reads the
   Go sections, and adds the demonstration note through
   `examples/language-note.md` — the one include that carries its own leading and
@@ -163,7 +168,8 @@ differently from the other bindings:
   Go binding keeps its previous matrix verbatim as the one override in this
   repository, `lang/go/overrides/scripts/check-repo-brain_test.sh`, so the Go plugin
   stays byte-identical; the override goes when a Go release adopts the promoted
-  matrix with a Go fixture include.
+  matrix with a Go fixture include. The Python and ts-react bindings each run one
+  row of their own.
 
 ## Residue
 

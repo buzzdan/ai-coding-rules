@@ -1,6 +1,6 @@
 ---
 type: architecture
-description: the go-mini and py-mini fixtures and their violations manifests: plants, controls, scaffolds, and the checks that keep them honest
+description: the go-mini, py-mini and ts-react-mini fixtures and their violations manifests: plants, controls, scaffolds, and the checks that keep them honest
 ---
 # The Fixtures and Their Answer Key
 
@@ -24,6 +24,26 @@ lint is two tools (ruff and mypy) with two suppression directives (`# noqa` and
 the same rule catches (`context.Background()` in library code becomes
 `logging.basicConfig` at import, the labeled `continue` a for/else `break`).
 
+`ts-react/fixture/ts-react-mini/` is the frontend of the same service for the
+TypeScript + React plugin: a Vite single-page application in strict TypeScript
+against the same HTTP contract, with pages under `src/pages/`, two vertical slices
+under `src/features/` and the role layers (`components/`, `hooks/`, `services/`,
+`types/`) a hybrid layout keeps beside them, TanStack Query over a fetch client,
+tests colocated as `*.test.ts(x)` with Testing Library and MSW, and an inline
+ESLint 9 flat configuration with SonarJS thresholds, Prettier and `tsc`. The
+heartbeat endpoint becomes the Heartbeats page's simulator: the operator pastes
+one recorded line and the page shows what the service would answer, computed by a
+`processHeartbeat` that applies the Go and Python transition rules in one function,
+so the shared recording still drives the hidden black-box suite (Vitest renders the
+page and compares the result region byte for byte). What differs is what the
+platform forces: a goroutine is a timer, an effect or a dropped promise, `nil` is
+`undefined` with the wire's `null` stopping at the boundary, an interface with one
+implementation is a context provider "so tests can swap it", a hand double sits
+beside working MSW handlers, and eight React-only ids (an unstable nested
+component, `vi.mock` of an internal hook, test ids over roles, a fetch in an effect
+without abort, a disabled `exhaustive-deps`, prop drilling, a sort in render, a
+nullable prop) follow the 156 shared ones.
+
 Ground rules, all enforced:
 
 - **No hints in the tree.** No markers, no TODOs naming rules, no fixture CLAUDE.md
@@ -39,8 +59,11 @@ Ground rules, all enforced:
   `# type: ignore[<code>]` in Python. `scaffold/default.sh` copies the tree as is
   (lint green, and the review must flag every directive). `scaffold/red-lint.sh`
   strips the directives first: 51 real findings across 13 linters in go-mini, 61
-  ruff findings across 21 rules plus 3 mypy errors in py-mini, which is what the
-  quickfix case exercises. In py-mini every remaining `# noqa` is live: ruff's
+  ruff findings across 21 rules plus 3 mypy errors in py-mini, 62 ESLint findings
+  across 21 rules plus 3 `tsc` errors in ts-react-mini (where the directives are
+  `// eslint-disable-next-line <rule> -- TODO`, `// @ts-expect-error TODO` and the
+  one configuration comment that silences `sonarjs/max-lines`, a rule no disable
+  comment reaches), which is what the quickfix case exercises. In py-mini every remaining `# noqa` is live: ruff's
   unused-noqa rule is on. The Python scaffold and the suite's suppression graders
   also know ty's `# ty: ignore[<rule>]`, the plugin's first-named type checker, so
   a ty plant needs no scaffold change and an agent cannot hide a finding behind
@@ -56,7 +79,9 @@ Ground rules, all enforced:
 ## The manifest
 `go/violations.yaml`, beside the fixture, is the answer key, kept outside the scaffolded tree. One
 entry per plant or control, 156 in total. `py/violations.yaml` carries the same 156
-ids in the same order with Python files and anchors; where a plant's disease had
+ids in the same order with Python files and anchors, and `ts-react/violations.yaml`
+the same 156 with TypeScript files and anchors followed by the eight React-only
+ids; where a plant's disease had
 to change with the language, a comment on the entry says so, and `expect.lint`
 names the ruff rule that fires (or `"-"` where ruff has no rule for the plant, such
 as duplicate code, file length or exhaustiveness, so the plant is review-only).
@@ -102,12 +127,13 @@ The manifest has three consumers, so a fact lives once:
 3. **The Python parity report.** Because py-mini carries the same ids with Python
    anchors, per-rule recall can be compared across languages one rule at a time.
 
-`check-manifest.sh` (`task go:manifest`, `task py:manifest`) asserts that every
+`check-manifest.sh` (`task go:manifest`, `task py:manifest`, `task ts-react:manifest`) asserts that every
 listed file exists, that every anchor matches at least one line in each listed
 file, that every rule has at least one plant and one control, and that the fixture
-carries no hints. Run it after any change to a fixture or its manifest. The Python
-grader generator is the Go script called with the Python manifest and graders
-directory (`task py:graders`).
+carries no hints; the TypeScript one also checks that the two suites' recordings
+are byte-identical. Run it after any change to a fixture or its manifest. The Python
+and TypeScript grader generators are the Go script called with that suite's manifest
+and graders directory (`task py:graders`, `task ts-react:graders`).
 
 ## Known weakness
 The Case D control's types have no callers in the fixture, so an agent that deletes

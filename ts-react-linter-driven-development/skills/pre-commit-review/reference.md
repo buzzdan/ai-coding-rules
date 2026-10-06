@@ -1,645 +1,297 @@
-# Pre-Commit Review Reference (React/TypeScript)
+# Pre-Commit Review — Reference
 
-## Review Philosophy
+`SKILL.md` holds the protocol; this file holds the long form each step reads by `sed`
+range at the moment it needs it, never the file whole and never before that step. The
+sections, in the order the steps use them: Hunt focus · Waiting for agents · Hunter
+output · Skeptic verdicts · Critic verdicts · The merged report · Report example. The
+first is printed by the Bash call step 1 already makes and the next four by step 2's,
+so they cost no round trip; the last two are read once, before the report is written.
 
-**Advisory, not blocking**: Inform decisions, don't prevent commits.
+## Hunt focus
 
-**Debt-based categories**: Focus on future maintainability cost.
+What each hunter is after — the detection pass's map of the rules. The counts table
+step 1 printed says which families had hits; four hunters at most, one per family
+with a hit, each given every rule file of its family and the family's rows of the
+hits table: **types** (R1, R2, R11, R12), **structure** (R3, R4, R5), **tests and
+dependencies** (R6, R7, R8, R10) and **documentation** (R9, beside the comment
+critic):
 
-**Context-aware**: Review changes plus broader file context.
+| Rule | Family | File | Hunt focus |
+|------|--------|------|------------|
+| R1 | types | `../../rules/R1-primitive-obsession.md` | domain concepts as raw primitives; sentinel returns; ceremony wrappers (inverse) |
+| R2 | types | `../../rules/R2-self-validating-types.md` | invalid-state construction; defensive re-checks; the missing value returned where a real value is expected |
+| R3 | structure | `../../rules/R3-storifying.md` | mixed abstraction levels; comments naming unextracted blocks |
+| R4 | structure | `../../rules/R4-helper-placement.md` | helper visibility/placement off the placement ladder |
+| R5 | structure | `../../rules/R5-vertical-slice.md` | horizontal layering; role-named packages |
+| R6 | tests and dependencies | `../../rules/R6-test-only-interfaces.md` | interfaces whose only second implementer is a test double |
+| R7 | tests and dependencies | `../../rules/R7-test-placement.md` | tests reaching privates; success-or-error flag conditionals; wrong-rung tests; sleeps; untriaged mutation survivors on a leaf type |
+| R8 | tests and dependencies | `../../rules/R8-no-globals.md` | package-level state; library code manufacturing its own root cancellation |
+| R9 | documentation | `../../rules/R9-repo-brain.md` | orphan docs; broken doc edges (both directions); WHAT-comments on exported API; unwired root; bundle-contract breaks (missing frontmatter, index timestamps, log.md) |
+| R10 | tests and dependencies | `../../rules/R10-concurrency-safety.md` | async tasks without exit paths or owners; unguarded shared-state writes; production sleeps; decorative mutexes |
+| R11 | types | `../../rules/R11-conditional-dispatch.md` | one discriminator switched in ≥2 places; type switches in domain logic; unknown-kind defaults away from the boundary; flag arguments; unearned dispatch abstractions (inverse) |
+| R12 | types | `../../rules/R12-mutation-discipline.md` | internal slices/maps returned by reference; constructors aliasing caller collections; query/modifier hybrids; setters around validating constructors; ceremony copies (inverse) |
 
-## Complete Review Checklist
+## Waiting for agents
 
-### 1. Architecture Patterns
+For every rule family with hits in the counts table, spawn one `ts-react-linter-driven-development:rule-hunter` agent —
+four at most — as **foreground** `Agent` calls (`run_in_background: false`) issued
+together in one message, so the hunters run in parallel and every result comes back in
+that same message. A foreground call
+blocks until its hunter returns — a whole-repository hunter takes one to four minutes —
+and the review never waits for one any other way: no `ReadNotifications`, `ListAgents`
+or `Monitor` calls, no scheduled wake-up. One host differs: a Claude Code cloud session
+(`CLAUDE_AUTO_BACKGROUND_TASKS` set) turns a foreground call still running after 120
+seconds into a background task and answers "Async agent launched". That hunter is still
+running and its result arrives by itself when it finishes; do not poll for it and do not
+spawn it again — work through the results in hand, and when nothing is left but waiting,
+end the message and let the delivery resume the review. The skeptic and the critic
+(step 3) share one message of their own, spawned only once every hunter result is in
+hand.
 
-#### ✅ Feature-Based Structure
+## Hunter output
+
+Each hunter returns one block per finding:
+`rule | file:line | evidence (falsifying-question answers) | proposed fix pattern | effort (S/M/L)`
+plus one receipt line per falsifying question of each rule it was given, in rule
+order — `R<N> Q<n>: <hits> hit(s) → <findings> finding(s)` with the counts table's
+number for that question, `R<N> Q<n>: judgment → <findings> finding(s)` for a question
+the table marks `judgment`, and `R<N> Q<n>: <judged> of <hits> hit(s) judged →
+<findings> finding(s)` when its budget ended before every counted hit was read — and
+one tally line per rule (`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a
+types hunter given R1, R2 and R11 returns three tallies. A rule file that did not read
+has `R<N>: rule unreadable at <path>` in its tally's place, and the hunter hunts the
+rest; that line is part of the report shape, never dropped and never a tally. The
+receipts are how a hunt is read against the table: the hunter ran no pattern of its
+own (a capped question's remaining hits it read from `hits-all.tsv`), so a receipt's
+number is the table's and the reconciliation in step 4 is mechanical — a question with
+no receipt was not run, a receipt below the table's count is ground not covered. A hunter that spends the tool-call budget its agent definition
+states returns the same shape plus one `not reached: …` line for the hunter, naming
+the files or directories it did not read to judge, and the report header renders that
+line verbatim beside the tallies of the rules it hunted (step 4), never as a clean
+verdict.
+
+**The report cap.** A hunter's report is its finding blocks, its receipts, its tallies
+(or a rule's `rule unreadable` line in a tally's place) and its `not reached:` line —
+nothing else: no narrative of the hunt, no restating of
+a rule, no code beyond the evidence excerpt inside a finding block. About 3k tokens.
+The parent merges four of these into one report and keeps only those four things, so
+every other word a hunter writes is billed and dropped.
+
+## Skeptic verdicts
+
+Verdicts per finding: `CONFIRMED (score ≥4 + verified evidence)`, `CONFIRMED (score
+2–3, judgment call) — alternative: …` (the type ships as the finding's fix with the
+skeptic's cheaper move beside it; the user chooses), or `REFUTED (score 0–1 + reason) →
+cheaper alternative`. Carry the verdict word and the score into the report verbatim, as
+the report example shows. A refuted proposal does not ship; when its cheaper
+alternative (better naming, private fields + accessors, or R11's Keep the Single
+Exhaustive Switch) is still worth doing, report the alternative as 🟢 Polish. When R11
+dispatch proposals are under review, additionally include the absolute paths of both
+R11 case files — `../../examples/anti-if-dispatch.md` (Move 3 is the
+juiciness rejection: the switch stays, goes exhaustive) and
+`../../examples/switch-to-polymorphism.md` (the dependency-direction rejection: the
+move is unavailable when the consumer owns the output format; the switch shrinks to
+pure dispatch). The skeptic returns verdict lines only — one per finding, numbered
+as sent, the evidence inside the parentheses, a cheaper alternative on at most one
+more line, about 2k tokens for a dozen findings — and the parent keeps nothing else
+of its report. A finding the skeptic's budget did not reach carries
+`skeptic: not reached` in the verdict's place and ships as the hunter proposed it; a
+report the skeptic's turn ceiling cut off before any verdict is the same for every
+finding it was sent, and the Scope line reads `PARTIAL coverage`.
+Only findings the skeptic cannot kill ship as extraction findings. Non-extraction
+findings (R3, R5–R9, and R1/R2/R10/R11 findings that propose no new type) skip the
+skeptic and go straight to the report — R9 findings (orphans,
+broken edges, WHAT-comments, unwired root) propose no type extractions. R2's
+construction mechanics — a validating constructor, internal fields, an options
+type with its `With*` functions, a named Null Object default — are not extractions either
+and never go to the skeptic: they close the holes of a type that already exists, and a
+skeptic verdict on them would be scoring a guard, not a type. An R10 finding whose fix
+is a lock taken, or a write moved under the lock that already exists, names no owner
+type and goes straight to the report too; Extract Synchronized Owner goes to the
+skeptic only when the finding names the new owner. What still arrives comes back as
+`N/A (R2 mechanism)` or `N/A (no extraction)`, one line, never scored: the finding
+ships as the hunter proposed it, and the verdict is not a refutation.
+
+## Critic verdicts
+
+It judges every comment line of the bundle's `comments.txt` (JSDoc, in-body,
+test) against the three-test standard and returns one block per non-KEEP verdict (`TRIM / REWRITE / DELETE`, or
+`DELETE → route R3` for in-body extraction candidates) with evidence and proposed
+replacement text, and a tally whose KEEP count is the only trace of the comments it
+passed — a KEEP is never a block, and the parent keeps nothing of the report but the
+blocks and the tally. Non-KEEP verdicts land in the report as 🟡 Readability Debt;
+`DELETE → route R3` verdicts merge with any R3 hunter findings on the same lines
+(one finding, not two). The critic is advisory like everything else — accepted
+verdicts are fixed by @documentation (the rung-1 fixer), except R3 routes, which
+go to @refactoring.
+
+## The merged report
+
+**Cluster pass (before categorizing):** group *every* hunter finding — kept, refuted
+by the skeptic, or never sent to it — by shared anchor. An anchor is the named thing a
+finding is about, never its line: a type (a finding on one of its fields and a finding
+on one of its methods share the type), a function, a discriminator, or a package (two
+findings on files of one package share the package, and findings that name the same
+two packages together share both as one anchor). List the anchors first, then count.
+An anchor converges when ≥2 findings from *different* rules land on it, or ≥2
+findings answering *different* falsifying questions of one rule — exported nilable
+fields, a method that re-checks them and a undefined handed to the constructor are three
+questions of R2 answered on one type, and one missing constructor, not three lines.
+Two findings of the same question on one anchor are a shared-shape line below, not a
+cluster. The skeptic's verdict removes a proposed type from the fix column; it never
+removes the convergence, which is the evidence. Each hunter owns one rule family and
+is blind to the other families, each rule inside a hunter is hunted by its own
+detection commands, and each falsifying question is blind to the next, so independent
+convergence on one anchor is evidence that a domain concept is missing there — the
+cluster is a juiciness scorecard that filled itself in (R1's questions see the raw
+primitive, R11's the duplicated switch, R2's the ownerless validation: one disease,
+four jurisdictions). Render each cluster as a first-class entry above the categories:
+
 ```
-src/features/auth/
-├── components/        # Auth UI components
-├── hooks/            # Auth custom hooks
-├── context/          # Auth context
-├── types.ts          # Auth types
-└── index.ts          # Public API
-```
-
-#### 🔴 Technical Layer Structure (Design Debt)
-```
-src/
-├── components/auth.tsx
-├── hooks/auth.ts
-├── contexts/auth.tsx
-└── types/auth.ts
-```
-
-**Impact**: Features spread across directories, hard to find all related code.
-
-### 2. Primitive Obsession
-
-#### String Primitives
-
-**🔴 Design Debt**:
-```typescript
-interface User {
-  id: string          // Empty? Invalid format?
-  email: string       // Validated? Format?
-  phone: string       // Format? Country code?
-}
-
-function getUser(id: string): User  // Any string accepted
-```
-
-**✅ Better**:
-```typescript
-// Branded types
-type UserId = Brand<string, 'UserId'>
-type Email = Brand<string, 'Email'>
-
-// Or Zod schemas
-const UserIdSchema = z.string().uuid()
-const EmailSchema = z.string().email()
-
-type UserId = z.infer<typeof UserIdSchema>
-type Email = z.infer<typeof EmailSchema>
-
-interface User {
-  id: UserId
-  email: Email
-  phone: PhoneNumber
-}
-
-function getUser(id: UserId): User  // Only valid IDs accepted
-```
-
-#### Re-Validating Composed Types
-
-**🔴 Design Debt**: Re-validating after Zod parse or branded type construction
-```typescript
-// ❌ Re-validates composed types
-function createUser(email: Email, id: UserId) {
-  if (!email.includes('@')) { ... }  // EmailSchema already validated this
-}
-
-// ✅ Trusts validated types
-function createUser(email: Email, id: UserId) {
-  return { email, id, createdAt: new Date() }
-}
-```
-
-Each type must own its validation — callers of validated types should trust them.
-
-#### Relies on Upstream Validation
-
-**🔴 Design Debt**: Type with no schema or constructor — relies on callers to validate
-```typescript
-// ❌ No validation — every caller must remember to check
-interface UserInput {
-  email: string
-  age: number
-}
-
-// ✅ Owns its own validation
-const UserInputSchema = z.object({
-  email: z.string().email(),
-  age: z.number().min(0).max(150),
-})
-type UserInput = z.infer<typeof UserInputSchema>
-```
-
-#### Number Primitives
-
-**🔴 Design Debt**:
-```typescript
-interface Product {
-  price: number       // Negative? Too large?
-  quantity: number    // Negative? Zero?
-  rating: number      // Range? Decimal places?
-}
-```
-
-**✅ Better**:
-```typescript
-const PriceSchema = z.number().positive().max(1000000)
-const QuantitySchema = z.number().int().nonnegative()
-const RatingSchema = z.number().min(0).max(5)
-
-type Price = z.infer<typeof PriceSchema>
-type Quantity = z.infer<typeof QuantitySchema>
-type Rating = z.infer<typeof RatingSchema>
-```
-
-#### Boolean State Machines
-
-**🟡 Readability Debt**:
-```typescript
-const [isLoading, setIsLoading] = useState(false)
-const [isSuccess, setIsSuccess] = useState(false)
-const [isError, setIsError] = useState(false)
-
-// Can have invalid states: isLoading && isSuccess
-```
-
-**✅ Better**: Discriminated union
-```typescript
-type State =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: T }
-  | { status: 'error'; error: Error }
-
-// Impossible states are impossible
-```
-
-### 3. Component Design
-
-#### Prop Drilling
-
-**🔴 Design Debt**: State passed through 3+ levels
-```typescript
-<GrandParent user={user}>
-  <Parent user={user} onUpdate={onUpdate}>
-    <Child user={user} onUpdate={onUpdate}>
-      <GrandChild user={user} onUpdate={onUpdate} />
-    </Child>
-  </Parent>
-</GrandParent>
+🔗 CLUSTER: Alert.Channel
+   Convergence: 4 findings — R1, R11, R2, R7
+   Hypothesis: missing domain concept — a Channel type wants to exist
+   Skeptic: CONFIRMED (score 6: switched in 3 files, +2 unrepresentable — the
+   unknown-channel default at notify.ts:71 goes; +2 noun — Send/Deliver)
+   Routing: design-first — @code-designing (cluster-scoped), then @refactoring
+   implements; do NOT fix members independently (partial fixes undo each other)
 ```
 
-**✅ Fix options**:
-1. Context for truly global state
-2. Composition to avoid passing props
-3. Accept prop drilling for 1-2 levels (it's fine!)
+Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
+anchor: two findings or twenty, the largest and the smallest alike. The title is the
+anchor itself — the type, field, function or package name the findings share
+(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`,
+`🔗 CLUSTER: internal/common, internal/utils`), never a description of the problem;
+the description is the Hypothesis line beneath it. When the skeptic
+reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
+type routes design-first as above; a REFUTED one keeps the cluster (the convergence
+is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no
+extraction was proposed at the anchor (a function three rules converged on, say) the
+entry carries no verdict and routes to @refactoring. The example shows one cluster; a
+whole-repository review commonly has six or more, and the pass is not done until each
+anchor that two rules converged on has its own entry. Member findings still appear
+under their categories below, each as its own line tagged `[cluster: <anchor>]`: the
+cluster's Evidence line is an index, and a member that appears only there — a
+production sleep named in the cluster's prose and nowhere under 🔴 — is a finding the
+report dropped. Each member sits under the rule whose falsifying question its evidence
+answers, never under the cluster's lead rule: the sentinel `0` a config reader returns
+is R2's question even when R1 owns the cluster. Clustering is *reporting*
+— this skill still never edits and never invokes fix skills; the caller routes.
 
-#### Mixed Concerns
+Category mapping:
 
-**🟡 Readability Debt**: UI + business logic mixed
-```typescript
-function UserProfile() {
-  // 50 lines of data fetching
-  // 30 lines of validation
-  // 40 lines of state management
-  // 80 lines of JSX
-  // Total: 200 lines, hard to test
-}
+- 🐛 **Bugs** — will fail at runtime regardless of rule (undefined returned as a value,
+  cancellation severed by a manufactured root context, R10 async task leaks and
+  unguarded concurrent writes): fix immediately.
+- 🟠 **New Practice (when in Rome)** — the when-in-Rome check's findings: a
+  mechanism, dependency, framework, or convention the host repo does not already
+  use, introduced without discussion. Advisory like everything else, but flag it
+  loudly: reviewers reject these threads hardest, and the fix (owner buy-in or a
+  separate PR) is cheap before pushing and expensive after.
+- 🔴 **Design Debt** — R1, R2, R4, R6, R7, R8, R10's non-crash findings (production
+  sleeps, fire-and-forget ownership, mutex placement), R11 (duplicated discriminators,
+  boundary leaks), R12 (leaked mutable internals, unvalidated setters), and R5
+  (advisory — never blocks; the user may have valid reasons): fix before commit
+  recommended.
+- 🟡 **Readability Debt** — R3, R9, unclear naming, and the comment-critic's
+  non-KEEP verdicts (trash or over-budget or hard-to-read comments): improves
+  maintainability.
+- 🟢 **Polish** — minor idiomatic improvements, the skeptic's cheaper alternatives.
+
+**One line per finding, anchored and answered.** Every finding a hunter returned and
+the skeptic did not kill, every cheaper alternative the skeptic shipped in a refuted
+type's place, and every non-KEEP verdict the comment critic returned renders as its
+own line in the hunter's shape, `file:line | evidence | fix | effort` (a critic line's
+evidence is its verdict and reason, its fix the REWRITE text or DELETE, and its effort
+S — a comment edit is always small; a `DELETE → route R3` verdict merges into the R3
+finding on those lines and takes that finding's effort), as the report example below shows:
+
+- The line opens with the `file:line` anchor the hunter cited. A finding without its
+  anchor is a claim, not a finding.
+- The evidence cell names the rule and the falsifying question the finding answers,
+  by number and in the question's own words — `R1 Q5: host, port and tls travel
+  together across three signatures` — so the reader can open the rule and check.
+  When the question asks about text in the code — a block comment, a docstring, a
+  suppression directive — the cell quotes that text, not its line number alone:
+  `R3 Q3: three section comments name unextracted blocks — "# parse the line" (101),
+  "# look up or create device" (129), "# transitions" (149)`. The quoted comment is
+  the evidence and the name of the function to extract. The same for a function, a
+  signature or a call the finding is about: the cell quotes it as the code writes it
+  — `dial(host string, port int, tls bool)`, `dial(c.host, c.port, c.tls)` — never the
+  bare name, so a reader can grep the report for the call.
+- The fix cell names the move exactly as the rule's **Fix pattern** section spells it
+  (`Introduce Parameter Object`, `Name the Container`, `Name enum strings`,
+  `Extract Leaf Type`, `Introduce Null Object`); a paraphrase of the move belongs in the evidence, never in
+  its place. The skeptic's verdict and score follow the move when one applies.
+- Effort carries over from the hunter (S/M/L).
+
+A count is never a finding. `R9 (46 findings)` or `R1 (8 findings): highlights …`
+drops the anchors a reader needs to act on and is forbidden as a rendering, whatever
+the scope. The unit that must never be lost is the anchor: every finding's `file:line`
+appears in the report, heading its own line, or — when several findings share one
+shape (thirty restating comments, say) — listed on one shared-shape line that names
+every anchor and the shared evidence and fix once. Either way the anchors rendered
+equal the findings returned. Length is never a reason to roll up: a whole-repository
+review with a hundred and thirty findings renders a hundred and thirty anchors,
+grouped under their categories and rules.
+
+**Reconcile before emitting.** Every hunter ends with one tally per rule it was given
+(`R<N>: <M> finding(s)`). The report header carries, per rule, that tally beside the
+number of its anchors rendered below (own line or shared-shape line alike) —
+`Hunters: R1 8/8 · R7 7/7 · R9 53/53 · R4–R6 skipped` — and the two numbers agree for
+every rule before the report is emitted; a rendered count below the tally means a
+finding was dropped in the merge, and the fix is to render it, never to adjust the
+tally. A finding the skeptic refuted still counts as rendered when its
+cheaper alternative is on the page. The receipts are reconciled the same way, against
+the counts table step 1 printed: for every rule a hunter was given, each question
+with a pattern has a receipt carrying the table's number, and each `judgment` row a
+`judgment` receipt. A receipt that reads `<judged> of <hits> hit(s) judged`, a receipt
+below the table's count, or a question with no receipt is coverage the review did
+not have: the header renders it beside that rule's tally — `R1 8/8 (Q1: 40 of 44
+judged)` — and the Scope line reads `PARTIAL coverage`, whatever the hunter's own
+`not reached:` line says. A hunter, the skeptic or the critic that returned
+a `not reached:` line has it rendered verbatim in the header beside its tally — a
+family hunter's beside the tallies of the rules it hunted —
+`R9 12/12 (not reached: internal/store, internal/api)`, `Skeptic: 3 CONFIRMED · 1 not
+reached` — and the Scope line then reads `Mode: FULL · PARTIAL coverage`. A hunter's
+`R<N>: rule unreadable at <path>` line renders the same way, verbatim in that rule's
+place in the header — `R4: rule unreadable at <path>` — never as `R4 skipped` and never
+as a tally, and the Scope line reads `PARTIAL coverage`: a rule with hits that no hunter
+read is ground the review did not cover. A header without those words asserts that
+every agent covered the whole scope.
+Fix routing is each rule file's **Fix pattern** section; cite it, don't restate it.
+Issues noticed outside the diff scope go in a BROADER CONTEXT section, not as findings.
+
+**The report is the message.** The report is emitted as the text of the message that
+ends the review — never written to a file, never attached, never replaced by a summary
+that points at a file or at "the report I sent". Length is no reason: a
+whole-repository report of thirty kilobytes is the normal size and goes in the message
+whole, under its categories. Besides the scope bundle the scripts write, this skill has
+nothing to write to disk; a Write call during a review is the report leaving the page.
+
+## Report example
+
 ```
+📊 CODE REVIEW REPORT
+Scope: user/service.ts, user/auth.ts (+ tests) · Mode: FULL
+Hunters: R1 2/2 · R2 1/1 · R3 1/1 (findings returned/rendered) · R4–R8 skipped
+         (a hunter's not-reached line, when it returned one, follows its tally here)
+Skeptic: 1 extraction CONFIRMED, 1 REFUTED (score 1 → rename instead)
+Critic: 14 comments reviewed — 11 KEEP · 2 REWRITE · 1 DELETE
 
-**✅ Better**: Separated concerns
-```typescript
-// testable business logic
-function useUserProfile(userId) {
-  // fetch, validate, manage state
-  return { user, isLoading, error, actions }
-}
+🔴 DESIGN DEBT                       (one finding per line, never wrapped)
+user/service.ts:67 | R1 Q1: the session token is validated inline as a raw string, no ParseX owns it; Q2: the same emptiness predicate at user/auth.ts:41 — two owners | Replace Primitive with Domain Type: SessionToken — skeptic CONFIRMED (score 5) | M
+user/auth.ts:34 | R2 Q1: Authenticator.HashCost is exported, so a literal builds an invalid Authenticator; Q2: Verify re-checks the range at auth.ts:52 | Add validating constructor: NewAuthenticator | S
 
-// testable UI
-function UserProfile({ userId }) {
-  const { user, isLoading, error, actions } = useUserProfile(userId)
+🟡 READABILITY DEBT
+user/auth.ts:89 | R3 Q2: Authenticate mixes the auth flow with bcrypt byte handling in one body; Q3: the block comment `// compare password` names the section | Extract Function named after the comment: comparePassword | S
+user/service.ts:15 | critic: the JSDoc restates the name ("UserService provides user services") — toolbox-value floor, no toolbox item delivered | REWRITE → wider context: "Every user mutation flows through this service — auth, quota, and audit hooks attach here." | S
 
-  if (isLoading) return <Spinner />
-  if (error) return <ErrorDisplay error={error} />
-  return <UserDisplay user={user} actions={actions} />
-}
+🟢 POLISH
+user/auth.ts:12 | ComparePasswordWithHash → PasswordMatches — skeptic's cheaper alternative to REFUTED PasswordHash wrapper (score 1: only method unwraps) | S
+
+📝 BROADER CONTEXT
+user/service.ts:23 — email still a raw string (outside diff scope; same R1 pattern).
+
+Caller decides: commit as-is · fix 🔴 first · fix all. Findings are advisory.
 ```
-
-#### God Components
-
-**🔴 Design Debt**: Component doing too much (>200 lines)
-
-**Signs**:
-- Multiple state variables (5+)
-- Many useEffect hooks
-- Complex conditional rendering
-- Mixed abstraction levels
-
-**Fix**: Extract components and hooks
-
-### 4. Hook Design
-
-#### Hook Extraction
-
-**🟡 Readability Debt**: Logic that should be a hook
-```typescript
-function Component() {
-  // 50 lines of reusable logic
-  // directly in component
-}
-```
-
-**✅ Better**:
-```typescript
-function useFeature() {
-  // extracted, testable, reusable
-}
-
-function Component() {
-  const feature = useFeature()
-  return <UI feature={feature} />
-}
-```
-
-#### Hook Dependencies
-
-**🟡 Readability Debt**: Complex dependencies
-```typescript
-useEffect(() => {
-  fetchData(id, filters.category, filters.price, sort, page)
-}, [id, filters, filters.category, filters.price, sort, page]) // Redundant, complex
-```
-
-**✅ Better**:
-```typescript
-const params = useMemo(
-  () => ({ id, category: filters.category, price: filters.price, sort, page }),
-  [id, filters.category, filters.price, sort, page]
-)
-
-useEffect(() => {
-  fetchData(params)
-}, [params])
-
-// Or extract to custom hook
-function useData(id, filters, sort, page) {
-  useEffect(() => {
-    fetchData(id, filters, sort, page)
-  }, [id, filters, sort, page])
-}
-```
-
-### 5. Accessibility Review
-
-#### Semantic HTML
-
-| ❌ Don't Use | ✅ Use Instead | Why |
-|-------------|--------------|-----|
-| `<div onClick>` | `<button>` | Keyboard accessible, screen reader friendly |
-| `<div>` for text | `<p>`, `<span>` | Proper semantics |
-| `<div>` for navigation | `<nav>` | Landmark for screen readers |
-| `<div>` for lists | `<ul>`, `<ol>` | Proper list semantics |
-| `<div>` for headings | `<h1>`-`<h6>` | Document outline |
-
-#### Form Accessibility
-
-**🔴 Design Debt**: Missing labels
-```typescript
-<input type="text" placeholder="Email" />
-<input type="password" placeholder="Password" />
-```
-
-**✅ Better**:
-```typescript
-<label htmlFor="email">Email</label>
-<input id="email" type="text" />
-
-<label htmlFor="password">Password</label>
-<input id="password" type="password" />
-```
-
-**🟢 Polish**: Enhanced with descriptions
-```typescript
-<label htmlFor="email">Email</label>
-<input
-  id="email"
-  type="email"
-  aria-describedby="email-hint"
-  aria-required="true"
-/>
-<span id="email-hint">We'll never share your email.</span>
-```
-
-#### Interactive Elements
-
-**🔴 Design Debt**: Non-semantic interactive elements
-```typescript
-<div onClick={handleClick}>
-  Click me
-</div>
-```
-
-**✅ Better**: Semantic button
-```typescript
-<button onClick={handleClick}>
-  Click me
-</button>
-```
-
-**If div required**:
-```typescript
-<div
-  role="button"
-  tabIndex={0}
-  onClick={handleClick}
-  onKeyDown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      handleClick()
-    }
-  }}
->
-  Click me
-</div>
-```
-
-#### Images and Media
-
-**🔴 Design Debt**: Missing alt text
-```typescript
-<img src="avatar.jpg" />
-```
-
-**🟢 Polish**: Generic alt text
-```typescript
-<img src="avatar.jpg" alt="avatar" />
-```
-
-**✅ Better**: Descriptive alt text
-```typescript
-<img src="avatar.jpg" alt="John Doe's profile picture" />
-```
-
-**Decorative images**:
-```typescript
-<img src="decoration.svg" alt="" role="presentation" />
-```
-
-#### Dynamic Content
-
-**🟢 Polish**: Loading without announcement
-```typescript
-{isLoading && <Spinner />}
-```
-
-**✅ Better**: Announced loading
-```typescript
-{isLoading && (
-  <div role="status" aria-live="polite">
-    <span className="sr-only">Loading user data...</span>
-    <Spinner aria-hidden="true" />
-  </div>
-)}
-```
-
-**Error announcements**:
-```typescript
-{error && (
-  <div role="alert" aria-live="assertive">
-    {error.message}
-  </div>
-)}
-```
-
-#### Modal Accessibility
-
-**🔴 Design Debt**: Basic modal
-```typescript
-{isOpen && (
-  <div className="modal">
-    <div className="content">
-      <h2>Title</h2>
-      <p>Content</p>
-      <button onClick={onClose}>Close</button>
-    </div>
-  </div>
-)}
-```
-
-**✅ Better**: Accessible modal
-```typescript
-{isOpen && (
-  <div
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="modal-title"
-    onKeyDown={(e) => e.key === 'Escape' && onClose()}
-  >
-    <div className="content">
-      <h2 id="modal-title">Title</h2>
-      <p>Content</p>
-      <button onClick={onClose} aria-label="Close dialog">
-        Close
-      </button>
-    </div>
-  </div>
-)}
-```
-
-**With focus management**:
-```typescript
-function Modal({ isOpen, onClose, children }) {
-  const modalRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (isOpen && modalRef.current) {
-      const previousActiveElement = document.activeElement
-      modalRef.current.focus()
-
-      return () => {
-        previousActiveElement?.focus()
-      }
-    }
-  }, [isOpen])
-
-  // ... rest of modal
-}
-```
-
-#### Color and Contrast
-
-**🟡 Readability Debt**: Color-only indicators
-```typescript
-<span style={{ color: 'red' }}>Error</span>
-<span style={{ color: 'green' }}>Success</span>
-```
-
-**✅ Better**: Multiple indicators
-```typescript
-<span style={{ color: 'red' }}>
-  <ErrorIcon aria-hidden="true" />
-  <span>Error</span>
-</span>
-```
-
-**With ARIA**:
-```typescript
-<span
-  style={{ color: 'red' }}
-  role="alert"
-  aria-label="Error"
->
-  <ErrorIcon aria-hidden="true" />
-  <span>Invalid email address</span>
-</span>
-```
-
-### 6. TypeScript Usage
-
-#### Type Safety
-
-**🔴 Design Debt**: Using `any`
-```typescript
-function processData(data: any) {
-  // No type safety
-}
-```
-
-**✅ Better**: Proper types or `unknown` with validation
-```typescript
-const DataSchema = z.object({
-  id: z.string(),
-  name: z.string()
-})
-
-function processData(data: unknown) {
-  const validated = DataSchema.parse(data) // Throws on invalid
-  // validated is now typed
-}
-```
-
-#### Props Interfaces
-
-**🟡 Readability Debt**: Inline props type
-```typescript
-function Button(props: {
-  label: string
-  onClick: () => void
-  variant?: 'primary' | 'secondary'
-}) {
-  // ...
-}
-```
-
-**✅ Better**: Named interface
-```typescript
-interface ButtonProps {
-  label: string
-  onClick: () => void
-  variant?: 'primary' | 'secondary'
-}
-
-function Button({ label, onClick, variant = 'primary' }: ButtonProps) {
-  // ...
-}
-```
-
-#### Discriminated Unions
-
-**🟡 Readability Debt**: Multiple booleans for state
-```typescript
-interface State {
-  isLoading: boolean
-  isSuccess: boolean
-  isError: boolean
-  data?: Data
-  error?: Error
-}
-```
-
-**✅ Better**: Discriminated union
-```typescript
-type State =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'success'; data: Data }
-  | { status: 'error'; error: Error }
-
-// Type narrowing works automatically
-if (state.status === 'success') {
-  state.data // Available, typed correctly
-}
-```
-
-### 7. Testing Implications
-
-#### Testability
-
-**🔴 Design Debt**: Untestable component
-```typescript
-function Component() {
-  // 200 lines of tightly coupled logic
-  // Can't test without implementation details
-}
-```
-
-**✅ Better**: Separated, testable
-```typescript
-// testable hook
-function useLogic() {
-  return { state, actions }
-}
-
-// testable component
-function Component() {
-  const { state, actions } = useLogic()
-  return <UI state={state} actions={actions} />
-}
-```
-
-### 8. Error Handling
-
-#### Missing Error Boundaries
-
-**🔴 Design Debt**: No error handling
-```typescript
-function AsyncComponent() {
-  const data = useAsyncData() // Can throw
-  return <Display data={data} />
-}
-```
-
-**✅ Better**: Error boundary wrapper
-```typescript
-<ErrorBoundary fallback={<ErrorDisplay />}>
-  <AsyncComponent />
-</ErrorBoundary>
-```
-
-**Or component-level handling**:
-```typescript
-function AsyncComponent() {
-  const { data, error, isLoading } = useAsyncData()
-
-  if (isLoading) return <Spinner />
-  if (error) return <ErrorDisplay error={error} />
-  if (!data) return <NotFound />
-
-  return <Display data={data} />
-}
-```
-
-## Review Priority
-
-### Must Review (🔴 Design Debt)
-1. Primitive obsession
-2. Prop drilling (3+ levels)
-3. Missing error boundaries
-4. Non-semantic interactive elements
-5. Missing form labels
-6. Using `any` without validation
-
-### Should Review (🟡 Readability Debt)
-1. Mixed abstractions
-2. Complex conditions
-3. God components (>200 lines)
-4. Missing hook extraction
-5. Inline complex logic
-
-### Nice to Review (🟢 Polish)
-1. Missing JSDoc
-2. Accessibility enhancements
-3. Type improvements
-4. Performance optimizations
-
-## Advisory Stance
-
-**Remember**: This is advisory, not blocking.
-
-**User decides**:
-- Accept debt (with awareness)
-- Fix critical (design debt)
-- Fix all
-- Expand scope
-
-**Always acknowledge**:
-- Time constraints are real
-- Team decisions are valid
-- Consistency matters
-- Sometimes "good enough" is right choice
-
-**Provide options, not mandates**.

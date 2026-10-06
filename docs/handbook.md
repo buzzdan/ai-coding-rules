@@ -76,7 +76,10 @@ the include name. The shared house rules render from core defaults, and a bindin
 adds `handbook/Hn/spelling.md` to replace the neutral spelling note with its own and
 to word the review question in its terms.
 
-All three bindings render a handbook. The generic binding's, `coding-rules/generic.md`,
+All four bindings render a handbook. The ts-react binding's, `coding-rules/ts-react.md`,
+carries the TypeScript house rules `T1`–`T5` (the type system is the contract,
+`readonly` props and returns, one named function component per file, MSW as the
+boundary, an effect returns its cleanup). The generic binding's, `coding-rules/generic.md`,
 is the core defaults end to end: the pseudocode examples, the neutral spelling
 asides for H1 and H2, and, from `lang/generic/handbook/`, the two house rules that
 exist because no binding knows the repository's language (`A1`, the repository's
