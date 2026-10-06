@@ -12,11 +12,7 @@ export const env = {
 import { env } from '../config/env'
 
 export const apiClient = new ApiClient(env.apiUrl)           // built at import, from a global
-let queryClient: QueryClient | undefined                     // stashed so non-React code can reach it
-
-export function setQueryClient(client: QueryClient): void {
-  queryClient = client
-}
+let queryClient: QueryClient | undefined                     // stashed by main.tsx so non-React code can reach it
 
 export async function renameDevice(id: DeviceId, name: string): Promise<void> {
   await apiClient.post(`/devices/${id}`, { name })           // global reached from a leaf
@@ -76,6 +72,5 @@ imports. What is allowed only in the composition root (`main.tsx` / `App.tsx`): 
 QueryClient()`, the router, the provider tree, `import.meta.env` and
 `window.__RUNTIME_ENV__` read once into an `AppConfig`, a registry filled by hand.
 Reported anywhere else: a module-level `let`, `new ApiClient()` at import, a
-`QueryClient` stashed in a module, a registry filled at import time,
-`import.meta.env` inside a hook or service, `localStorage` read at module scope, a
-lazily built singleton behind a getter.
+`QueryClient` stashed in a module, a registry filled at import time, `import.meta.env`
+inside a hook or service, `localStorage` read at module scope, a lazy singleton getter.

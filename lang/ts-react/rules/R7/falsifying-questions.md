@@ -1,6 +1,6 @@
 1. **Does any test case body contain a conditional?**
    Detection: `grep -rn -A12 -E '(it|test)\.each\(' --include='*.test.ts' --include='*.test.tsx' --exclude-dir=node_modules . | grep -E '^\S+-[0-9]+-\s+(if |switch |\? )'`
-   and `grep -rnE 'expectError|expectErr|shouldFail|shouldThrow|throws: (true|false)|toThrow\(\) *: *expect' --include='*.test.ts' --include='*.test.tsx' --exclude-dir=node_modules .`
+   and `grep -rnE 'expectError|expectErr|shouldFail|shouldThrow|throws: (true|false)' --include='*.test.ts' --include='*.test.tsx' --exclude-dir=node_modules .`
    Violation: any conditional inside a test body or an `it.each` callback, or a
    success-or-error column in the row table (an `expectError` boolean, an expected
    error class beside an expected value) — success and error cases are fused; split

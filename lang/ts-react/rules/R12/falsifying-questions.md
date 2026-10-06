@@ -44,7 +44,7 @@
    the setter re-check? In state: `setState((d) => { d.status = x; return d })`
    mutates the previous state and returns the same reference, so React skips the
    render (`react/no-direct-mutation-state` catches the class-component form; the
-   hook form is read).
+   hook form is review-only).
    Violation: a setter, or a mutable field, that assigns unchecked on a
    factory-validated type — Remove Setting Method (and `readonly`, so `port.number
    = 0` fails under `tsc`); an updater that mutates — return a new object
