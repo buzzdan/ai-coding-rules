@@ -1,12 +1,18 @@
 ---
 name: py-ldd-autopilot
 description: Start complete linter-driven autopilot workflow (Phases 1-5, incl. the autonomous PREPARE sub-phase 1.5)
-argument-hint: ""
+argument-hint: "[what to build or fix]"
 allowed-tools:
   - Skill(python-linter-driven-development:linter-driven-development)
 ---
 
 **Use the Skill tool** to invoke `Skill(python-linter-driven-development:linter-driven-development)` to run the complete workflow — Phases 1–5 plus the autonomous PREPARE sub-phase (1.5) — from design through commit-ready.
+
+**The request** is `$ARGUMENTS` when given — "fix the retry bug in the API client", "add
+rate limiting to the upload handler" — else the request already in the conversation.
+Hand it to the skill as the change to deliver. With no argument and no request in the
+conversation, ask what to build before pre-flight; never start the workflow over an
+empty request.
 
 ⏱️ **Estimated Duration**: 5-15 minutes (depends on feature complexity and issues found)
 

@@ -4,6 +4,7 @@ okf_version: "0.2"
 # Repo Map
 
 - [conventions.md](conventions.md) — how to maintain this doc root (read before editing docs)
+- [quick-start.md](quick-start.md) — how to start working with a linter-driven-development plugin — from the one-line prompt that runs the whole workflow, through reviewing and fixing code you already wrote, to feeding it a plan, running it from a subagent, and sharing a repository between two language plugins
 - [generator.md](generator.md) — how the plugin directories are generated from core/ and one binding under lang/, and the checks that keep them honest
 - [language-residue.md](language-residue.md) — how Go idioms left in core prose are rendered per language binding — the five outcomes (rewrite, scalar, include, aside, override), the seam rules, the generic binding's instruction-with-examples shape, the Python binding's eight positions, the ts-react binding's nine, and the Claude Code names a second plugin must not collide on
 - [handbook.md](handbook.md) — the coding-rules handbook — the standalone document a team reads without the plugin, how it is generated from the same rules, what a binding writes for it, and how to consume and measure it
