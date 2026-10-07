@@ -87,6 +87,14 @@ tooling is the tooling; `A2`, spell the shape in the repository's idiom) and the
 mechanics rows about discovering the commands. It is the document for a team whose
 language has no binding, and the reference rendering of what core says on its own.
 
+## The implementer digest
+
+The handbook is the document for people and for teams without the plugin. A session
+that writes code needs less: the mindset Asks, the move names, the questions for the
+rules a linter cannot hold, under about 2k tokens. That second document, generated
+from the same sources by a second template, is designed in
+[linter-authority.md](linter-authority.md) and does not exist yet.
+
 ## Measuring it
 
 The behavioral evals ([eval-harness.md](eval-harness.md)) measure the plugin on

@@ -260,7 +260,9 @@ described in [handbook.md](handbook.md). That pairing, the handbook plus the rul
 greps wired into golangci-lint and ruff or hooks at zero model cost, is the
 handbook-plus-lint-gates arm of [eval-return-experiments.md](eval-return-experiments.md);
 this analyzer is the mechanism behind it. Like S5 it runs only after that order's
-gate 1.
+gate 1. The seam itself lands earlier and smaller: a `Detect-script` kind that
+runs a shell gap linter for the thresholds no linter holds, in
+[linter-authority.md](linter-authority.md).
 
 ### S7 — the skeptic's budget holds
 
