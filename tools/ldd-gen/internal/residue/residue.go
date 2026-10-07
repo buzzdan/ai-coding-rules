@@ -26,6 +26,17 @@ const (
 // README.md holds this report, so scanning it would hit its own output.
 const coreReadme = "README.md"
 
+// ExemptMarker, on a line in the first exemptHead lines of a file, keeps hard
+// tokens from being reported for that file: the file names every language on
+// purpose and renders the same in every plugin — the language table the review
+// scripts share, the mixed-repository fixture their tests build, a test that
+// names the sibling plugins it routes to. The line says why, after the colon.
+// Soft tokens are still reported.
+const (
+	ExemptMarker = "residue-exempt:"
+	exemptHead   = 20
+)
+
 // Token is one pattern the scan looks for, named the way the report shows it.
 type Token struct {
 	Name string
@@ -136,7 +147,8 @@ type Report struct {
 // Scan walks every file under core except its README and records each token
 // hit. maxims.md is exempt from hard tokens and its attributed quotes (lines
 // starting with an em dash) from soft ones too: the proverbs and the author's
-// illustrations of them are quoted text, portable as quotation.
+// illustrations of them are quoted text, portable as quotation. A file whose
+// head carries ExemptMarker is exempt from hard tokens as well.
 func Scan(core fs.FS) (Report, error) {
 	var r Report
 	err := fs.WalkDir(core, ".", func(path string, d fs.DirEntry, err error) error {
@@ -159,16 +171,31 @@ func Scan(core fs.FS) (Report, error) {
 
 func (r *Report) scanFile(path, text string) {
 	maxims := path == "maxims.md"
+	lines := strings.Split(text, "\n")
+	noHard := maxims || exempt(lines)
 	hard, soft := HardTokens(), SoftTokens()
-	for i, line := range strings.Split(text, "\n") {
+	for i, line := range lines {
 		if maxims && strings.HasPrefix(line, "— ") {
 			continue
 		}
-		if !maxims {
+		if !noHard {
 			r.Hard = append(r.Hard, hitsOn(hard, path, i+1, line)...)
 		}
 		r.Soft = append(r.Soft, hitsOn(soft, path, i+1, line)...)
 	}
+}
+
+// exempt reports whether the file's head carries ExemptMarker.
+func exempt(lines []string) bool {
+	for i, line := range lines {
+		if i == exemptHead {
+			break
+		}
+		if strings.Contains(line, ExemptMarker) {
+			return true
+		}
+	}
+	return false
 }
 
 func hitsOn(tokens []Token, path string, n int, line string) []Hit {

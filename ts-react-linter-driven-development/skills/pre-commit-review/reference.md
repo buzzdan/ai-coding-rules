@@ -157,6 +157,19 @@ four jurisdictions). Render each cluster as a first-class entry above the catego
    implements; do NOT fix members independently (partial fixes undo each other)
 ```
 
+**Several languages:** when step 1's scope script split the scope into language
+groups, the report is still one message. Its `Scope:` line lists the groups and who
+reviewed each — `Scope: --base main · d (this plugin) · go (<the Go plugin>) · python
+(excluded: no language block matched (.py)) · Mode: FULL`. Then one section
+per group, in `groups.txt` order, headed `## <language> — <plugin>`, each carrying
+its own `Hunters:`, `Skeptic:` and `Critic:` lines and its own clusters and
+categories exactly as below, anchors unchanged (a `file:line` already says which
+language it is in). A group whose detection pass counted no hit renders as its
+heading and one line, `no hits — <n> files, no hunter spawned`; a group the scope
+script excluded renders as its heading and the script's reason. Clusters never
+cross a group: a Go type and a Python class are different anchors. `BROADER CONTEXT`
+and the closing `Caller decides` line come once, after the last group.
+
 Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
 anchor: two findings or twenty, the largest and the smallest alike. The title is the
 anchor itself — the type, field, function or package name the findings share

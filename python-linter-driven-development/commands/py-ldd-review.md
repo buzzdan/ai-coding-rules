@@ -49,7 +49,11 @@ Execute these steps:
    range, never the branch's files as a list, so the diff and the comment lines are
    the branch's. It orchestrates parallel `python-linter-driven-development:rule-hunter` agents
    (one per rule family with hits, four at most) + the `python-linter-driven-development:overabstraction-skeptic`
-   and reports — it never edits, and it never widens the scope.
+   and reports — it never edits, and it never widens the scope. A scope written in
+   several languages is split by the language of each file, each group reviewed by
+   the plugin installed for it, and reported in one report with a section per
+   language; a file in a language no installed plugin reviews is named with that
+   reason, never dropped.
    Its report renders inside this command's final message, whole: never written to a
    file, never summarised with a pointer to one, however long a `--all` report runs.
 3. **Generate commit readiness report**:
