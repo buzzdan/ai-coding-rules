@@ -46,9 +46,9 @@ refactor code starts the workflow on its own. The command makes it explicit. The
 2. **Implement.** The plugin runs alone: a preparatory refactor when needed, then one
    failing test, the code that passes it, and a lint pass, per behavior. Do not
    interrupt. `/go-ldd-status` tells you where it is.
-3. **Review.** You get an advisory report. Fix 🐛 Bugs now. Fix 🔴 Design Debt
-   before the commit. 🟡 and 🟢 are your call: say "fix all" or "defer the yellow
-   ones".
+3. **Review.** You get an advisory report. Nothing in it blocks the commit. Fix 🐛
+   Bugs now. The report recommends fixing 🔴 Design Debt before the commit; you may
+   commit as is. 🟡 and 🟢 are your call: say "fix all" or "defer the yellow ones".
 4. **Ship.** Documentation and a commit. You get the hash.
 
 A bug fix differs only in the first step: the plan is short, and the first failing
@@ -108,8 +108,10 @@ Keep doing that. The plan and the DESIGN PLAN answer different questions:
 - **The DESIGN PLAN says how the code is shaped**: the types, their constructors,
   the package layout, where each helper lives.
 
-Save the plan outside git, for example under `.planning/` or `~/.claude/plans/`.
-Then start the workflow and point at it:
+Save the plan where git does not track it: outside the repository, for example
+under `~/.claude/plans/`, or in a directory your repository ignores. A plan
+directory inside the repository is only safe once it is listed in the ignore file;
+check before the first commit. Then start the workflow and point at it:
 
 ```
 implement .planning/rate-limit.md with ldd
@@ -137,32 +139,40 @@ Things to watch:
 
 Some plans are executed by subagents, one per step, often on a cheaper model. The
 plugin works there, with one limit: **a subagent cannot spawn subagents.** The
-workflow spawns agents in three places: the preparatory refactor's skeptic, the full
-lint pass and the review. Inside a subagent those phases lose their isolated
-context. The review degrades to a self-review, which is weaker: a fresh context is
-what makes the review's findings trustworthy.
+workflow spawns agents in several places: the preparatory refactor's skeptic, every
+refactoring step's comment critic, the full lint pass and the review. Inside a
+subagent those steps lose their isolated context. The review degrades to a
+self-review, which is weaker: a fresh context is what makes the review's findings
+trustworthy.
 
 Split the work by where agents can be spawned:
 
-**In the subagent**: design and implementation. This is the test-code-lint loop, the
-token-heavy part. A cheaper model does it well. Paste this into each plan step:
+**In the subagent**: the design, and the failing test and the code that passes it,
+per behavior. This is the token-heavy part. A cheaper model does it well. The
+subagent does not refactor: the preparatory refactor and the refactoring step after
+each green test spawn agents, so they move to the main session. Paste this into
+each plan step:
 
 ```
 Implementation: invoke the skill go-linter-driven-development:linter-driven-development.
-Run the design and implementation phases only. The DESIGN PLAN is pre-approved by
-this step; do not wait for user OK. Do not spawn agents, do not run the lint, review
-or ship phases, do not commit. Report the files touched and the behaviors delivered.
+Run the design phase, then for each behavior only the failing test and the code
+that passes it. The DESIGN PLAN is pre-approved by this step; do not wait for user
+OK. Skip the preparatory refactor and the refactoring step. Do not spawn agents, do
+not run the lint, review or ship phases, do not commit. Report the files touched
+and the behaviors delivered.
 ```
 
 **In the main session**, after each step returns:
 
-```
-/go-ldd-quickfix <files from the report>
-```
+1. `/go-ldd-quickfix <files from the report>`. Lint, review, the refactoring moves
+   the lint and the review call for, and the commit, with the agents in their own
+   contexts.
+2. "Use the documentation skill to document <the step's behavior>", then commit.
+   The quickfix command does not write feature documentation; the full workflow
+   does this in its ship phase, so the main session does it here.
 
-Lint, review, fixes and the commit, with the agents in their own contexts. Give the
-commit one owner: the step text above tells the subagent not to commit, and your
-plan executor must not commit either, because this command does.
+Give the commit one owner: the step text above tells the subagent not to commit,
+and your plan executor must not commit either, because the quickfix command does.
 
 At the end of the whole plan, with a clean tree, `/go-ldd-review` runs the branch
 review from section 2.
@@ -202,8 +212,12 @@ touches the other language. The consequences:
   parent. When
   the backend and the frontend live in sibling directories, open the session in the
   directory you work on, or add it to the session, so the plugin finds its marker.
-- **Wire the documentation once.** Both plugins offer `/wire-repo-brain`. It wires
-  the repository's documentation network, not a language. Run it from either.
+- **Wire the documentation from both plugins.** Each plugin's `/wire-repo-brain`
+  wires the repository's documentation structure, plus the code-to-docs edges and
+  the sub-project doc roots of its own language only. It reports the other
+  language's sub-projects instead of wiring them. Run the Go plugin's pass and the
+  TypeScript plugin's pass; the structure work is the same, so the second run has
+  little left to do there.
 
 ## Rules of thumb
 
