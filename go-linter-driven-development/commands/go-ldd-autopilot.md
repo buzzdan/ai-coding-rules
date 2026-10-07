@@ -8,7 +8,7 @@ allowed-tools:
 
 **Use the Skill tool** to invoke `Skill(go-linter-driven-development:linter-driven-development)` to run the complete workflow — Phases 1–5 plus the autonomous PREPARE sub-phase (1.5) — from design through commit-ready.
 
-**The request** is `$ARGUMENTS` when given — "fix the retry bug in client.go", "add
+**The request** is `$ARGUMENTS` when given — "fix the retry bug in the API client", "add
 rate limiting to the upload handler" — else the request already in the conversation.
 Hand it to the skill as the change to deliver. With no argument and no request in the
 conversation, ask what to build before pre-flight; never start the workflow over an
