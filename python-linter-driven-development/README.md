@@ -166,7 +166,7 @@ is the meta-orchestrator:
 
 | Command | Purpose | Auto-Fix |
 |---------|---------|----------|
-| `/py-ldd-autopilot` | Full workflow (Phases 1–5) | ✅ Yes |
+| `/py-ldd-autopilot [request]` | Full workflow (Phases 1–5) | ✅ Yes |
 | `/py-ldd-quickfix [files \| --all]` | Quality-gates loop until green over the files you are working on | ✅ Yes |
 | `/py-ldd-prepare <change> [files]` | Preparatory refactoring ahead of a planned change | ✅ Yes |
 | `/py-ldd-analyze [files \| --all]` | Tests + lint + review, combined report | ❌ No |
@@ -186,6 +186,8 @@ command. Installed side by side, both do the same structural work.
 ```
 
 Verify with `/plugin list`; it should show `python-linter-driven-development (enabled)`.
+
+**First steps:** [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) — the scenario guide, easiest start first.
 
 ## How Auto-Detection Works
 
