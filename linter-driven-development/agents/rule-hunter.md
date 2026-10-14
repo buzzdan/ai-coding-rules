@@ -111,8 +111,18 @@ a finding by a design maxim or general principle ("tell don't ask", "law of
 Demeter") — maxims propose, evidence disposes; only your rule's detection commands
 convict.
 
+**Claims of absence:** A finding that rests on something *not* existing — no test
+file, no caller, no row in a table, never imported — carries the command that looked
+and its empty result as the evidence: `ls <dir>` with the listing that lacks the
+file, `grep -rn <symbol> <dir> | wc -l` → `0`. Memory of the scope, a file list read
+earlier, or a search over a narrower directory proves nothing about absence. When the
+budget does not allow that call, the lead is not a finding: name it in the
+`not reached:` line as `unverified: <claim>`.
+
 **Output — one block per finding:**
 `rule | file:line | evidence (falsifying-question answers) | proposed fix pattern (named from the rule's Fix pattern section) | effort (S/M/L)`
+For a claim of absence the evidence column holds the command and its empty result
+(`` `ls src/placement` → no test file ``).
 Then, rule by rule, one receipt line per falsifying question, in the rule's order:
 `R<N> Q<n>: <hits> hit(s) → <findings> finding(s)` — the counts table's number for
 that question and how many of its hits became findings; the rest were cleared. A
