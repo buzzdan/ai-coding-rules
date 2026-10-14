@@ -316,7 +316,7 @@ Select "go-linter-driven-development" and choose "Uninstall".
 
 ## License
 
-MIT — Use it however you want!
+Apache-2.0. Use it anywhere, for any code, commercial or not. The code you write with this plugin is yours.
 
 ---
 

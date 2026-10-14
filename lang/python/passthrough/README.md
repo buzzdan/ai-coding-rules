@@ -215,4 +215,4 @@ an idea? [Open an issue](https://github.com/buzzdan/ai-coding-rules/issues).
 
 ## License
 
-MIT
+Apache-2.0. Use it anywhere, for any code, commercial or not. The code you write with this plugin is yours.
