@@ -26,7 +26,11 @@ and the linter.
 
 1. **An argument names it.** A file pattern reviews those files. `--all` — or an explicit
    request to audit the whole repository — reviews every `detected-language source` file. The whole
-   repository is never reviewed without being asked for.
+   repository is never reviewed without being asked for. On a repository larger than a
+   few dozen source files, `--all` reports `PARTIAL coverage`: each hunter's budget
+   reaches a few directories, and the report names the rest as not reached. Full
+   coverage there is one review per directory (`/ldd-review <dir>`); a
+   directory argument reviews the source files under it.
 2. **The working tree.** Files changed against `HEAD`: staged, unstaged and untracked.
 3. **The current PR.** With a clean tree, the files changed on this branch since its base
    (the merge-base with `origin/main`, `main` or `master`, as the preamble above shows).
