@@ -5,6 +5,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Fixed
+
+- **A claim that something is missing needs a listing.** A rule hunter that reports
+  a missing test file, doc, case or cleanup now carries the `ls`, `find` or `grep`
+  command that looked for it, run over the repository and not only the review's
+  bundle, and that command's output. Without the listing there is no finding. A
+  hunter once reported a test file as missing when it existed outside the scope.
+
 ## [2.15.1] - 2026-10-15
 
 ### Added

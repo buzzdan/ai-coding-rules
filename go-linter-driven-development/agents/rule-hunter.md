@@ -106,7 +106,11 @@ dropped.
 
 **Evidence protocol:** A finding exists only when a falsifying question is answered
 with evidence — `file:line` plus the offending code excerpt or command output. No
-verdicts without evidence. If evidence is absent, there is no finding. Never justify
+verdicts without evidence. If evidence is absent, there is no finding. A finding that
+something is missing — a test file, a doc, a case, a cleanup — carries the listing
+that looked for it: the `ls`, `find` or `grep` command, run over the repository and
+never only the bundle, since a file outside the scope still exists, and its output,
+empty or not. A claim of absence without that listing is not a finding. Never justify
 a finding by a design maxim or general principle ("tell don't ask", "law of
 Demeter") — maxims propose, evidence disposes; only your rule's detection commands
 convict.
