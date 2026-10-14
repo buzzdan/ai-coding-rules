@@ -8,9 +8,14 @@
    Detect: judgment
    Detection: for each feature noun in the diff,
    `grep -rln '<feature>' --include='*.go' . | xargs -n1 dirname | sort -u` — count
-   distinct layer-named directories.
+   distinct layer-named directories. The inverse shape is the god file, and it needs
+   no feature noun: `xargs wc -l < files.txt | sort -n | tail -6` over the scope's
+   file list names the longest files; check each against revive's
+   `file-length-limit` (450 lines).
    Violation: the same feature living in `handlers/` and `services/` (etc.) — it is
-   horizontally scattered.
+   horizontally scattered; or one file over 450 lines, or with a `//nolint` silencing
+   the limit, standing in for the whole slice — split it by role (file-per-type)
+   inside the package.
 
 3. **Does the diff add a new file into a layer directory instead of a slice?**
    Detect: judgment

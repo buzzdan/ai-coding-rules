@@ -9,9 +9,13 @@
    Detect: judgment
    Detection: for each feature noun in the diff,
    `grep -rli '<feature>' --include='*.py' . | xargs -n1 dirname | sort -u` — count
-   distinct layer-named directories.
+   distinct layer-named directories. The inverse shape is the god file, and it needs
+   no feature noun: `xargs wc -l < files.txt | sort -n | tail -6` over the scope's
+   file list names the longest modules. ruff has no file-length rule, so this
+   question is the only check: 450 lines is the limit.
    Violation: the same feature living in `handlers/` and `services/` (etc.) — it is
-   horizontally scattered.
+   horizontally scattered; or one module over 450 lines standing in for the whole
+   slice — split it by role inside the package.
 
 3. **Does the diff add a new file into a layer directory instead of a slice?**
    Detect: judgment

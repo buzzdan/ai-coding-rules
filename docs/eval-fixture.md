@@ -109,7 +109,9 @@ The manifest has three consumers, so a fact lives once:
 1. **The whole-repo review's graders.** `gen-review-graders.sh` (`task go:graders`)
    writes one recall grader per plant (the report must name the plant's file by
    basename; a plant may carry `recall_match` when reports name it another way, such
-   as by its symbol), one cluster grader per declared cluster (the word "cluster" in
+   as by its symbol, or `recall_own` when its file name alone cannot prove it found —
+   the god file, named in every report for other reasons — which gives it a grader of
+   its own with that pattern), one cluster grader per declared cluster (the word "cluster" in
    any case, then on the same line the anchor or, for a dotted anchor, its last
    segment alone; a plant may carry `cluster_match` when reports spell the cluster
    in more than one way), and one precision grader per control (the report must not
