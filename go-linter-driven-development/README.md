@@ -124,7 +124,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 
 | Command | Purpose | Auto-Fix | File targeting |
 |---------|---------|----------|----------------|
-| [`/go-ldd-autopilot`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
+| [`/go-ldd-autopilot [request]`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
 | [`/go-ldd-quickfix [files \| --all]`](commands/go-ldd-quickfix.md) | Quality-gates loop until green over the scope you are working on: an argument, else the working tree, else the branch; never the whole repository unasked | ✅ Yes | ✅ Optional |
 | [`/go-ldd-prepare <change> [files]`](commands/go-ldd-prepare.md) | Preparatory refactoring: reshape what a planned change touches, so it lands add-only | ✅ Yes | ✅ Optional |
 | [`/go-ldd-analyze [files | --all]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
@@ -207,6 +207,8 @@ Should show: `go-linter-driven-development (enabled)`
 
 ## Quick Start
 
+The scenario guide — the easiest start first, then code you already wrote, a plan you already have, and running the plugin from a subagent — is [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) in the main repository.
+
 **Zero configuration required.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
 
 ### The Easiest Way: Just Talk to It
@@ -251,14 +253,15 @@ The plugin recognizes these phrases and **automatically engages the five-phase w
 
 ### Need Just One Piece? Use Individual Skills
 
-Skills are expert consultants you can call on demand:
+Skills are expert consultants you can call on demand. Name the skill in plain words
+(the `@` sign is Claude Code's file mention, not a skill call):
 
 ```
-"Use @code-designing to plan types for payment processing"
-"Use @testing to structure tests for UserService"
-"Use @refactoring to reduce complexity in HandleRequest"
-"Use @pre-commit-review to validate this code"
-"Use @documentation to document the auth feature"
+"Use the code-designing skill to plan types for payment processing"
+"Use the testing skill to structure tests for UserService"
+"Use the refactoring skill to reduce complexity in HandleRequest"
+"Use the pre-commit-review skill to validate this code"
+"Use the documentation skill to document the auth feature"
 ```
 
 ## How the Plugin Categorizes Issues

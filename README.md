@@ -61,6 +61,8 @@ The same core rendered for a React single-page application in TypeScript: every 
 
 **Verify:** `/plugin list` should show the plugin as `enabled`.
 
+**First steps:** [docs/quick-start.md](docs/quick-start.md) — from the one-line prompt that runs the whole workflow to a repository shared by two language plugins.
+
 **Update later:**
 ```
 /plugin update go-linter-driven-development@ai-coding-rules

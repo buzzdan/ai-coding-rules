@@ -220,7 +220,7 @@ is the meta-orchestrator:
 
 | Command | Purpose | Auto-Fix |
 |---------|---------|----------|
-| `/tsr-ldd-autopilot` | Full workflow (Phases 1–5) | ✅ Yes |
+| `/tsr-ldd-autopilot [request]` | Full workflow (Phases 1–5) | ✅ Yes |
 | `/tsr-ldd-quickfix [files \| --all]` | Quality-gates loop until green over the files you are working on | ✅ Yes |
 | `/tsr-ldd-prepare <change> [files]` | Preparatory refactoring ahead of a planned change | ✅ Yes |
 | `/tsr-ldd-analyze [files \| --all]` | Tests + lint + review, combined report | ❌ No |
@@ -240,6 +240,8 @@ the same command. Installed side by side, all do the same structural work.
 ```
 
 Verify with `/plugin list`; it should show `ts-react-linter-driven-development (enabled)`.
+
+**First steps:** [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) — the scenario guide, easiest start first.
 
 ## How Auto-Detection Works
 
