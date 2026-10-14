@@ -5,6 +5,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [2.15.1] - 2026-10-14
+
+### Changed
+
+- **`/go-ldd-autopilot` takes the request as its argument.**
+  `/go-ldd-autopilot fix the retry bug in the API client` hands the words after the
+  command to the workflow as the change to deliver. Without an argument the command
+  uses the request already in the conversation, and asks what to build when there
+  is none; it never starts the workflow over an empty request.
+
 ## [2.15.0] - 2026-10-06
 
 ### Added
