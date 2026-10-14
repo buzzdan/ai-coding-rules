@@ -148,7 +148,7 @@ primitive, R11's the duplicated switch, R2's the ownerless validation: one disea
 four jurisdictions). Render each cluster as a first-class entry above the categories:
 
 ```
-🔗 CLUSTER: Alert.Channel
+🔗 CLUSTER: Alert.Channel — R1, R11, R2, R7
    Convergence: 4 findings — R1, R11, R2, R7
    Hypothesis: missing domain concept — a Channel type wants to exist
    Skeptic: CONFIRMED (score 6: switched in 3 files, +2 unrepresentable — the
@@ -157,12 +157,14 @@ four jurisdictions). Render each cluster as a first-class entry above the catego
    implements; do NOT fix members independently (partial fixes undo each other)
 ```
 
-Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor>` line per converged
-anchor: two findings or twenty, the largest and the smallest alike. The title is the
+Render *every* cluster the pass finds, one `🔗 CLUSTER: <anchor> — <rules>` line per converged
+anchor: two findings or twenty, the largest and the smallest alike. The title names the
 anchor itself — the type, field, function or package name the findings share
-(`🔗 CLUSTER: ProcessHeartbeat`, `🔗 CLUSTER: Catalog.Find`,
-`🔗 CLUSTER: internal/common, internal/utils`), never a description of the problem;
-the description is the Hypothesis line beneath it. When the skeptic
+(`🔗 CLUSTER: ProcessHeartbeat — R3, R11, R12`, `🔗 CLUSTER: Catalog.Find — R1, R2`,
+`🔗 CLUSTER: internal/common, internal/utils — R4, R5`), never a description of the problem;
+the description is the Hypothesis line beneath it. The rules after the dash are the ids
+of the rules that converged on the anchor, on the title line itself, never on the
+lines below. When the skeptic
 reviewed an extraction at that anchor, the entry carries its verdict — a CONFIRMED
 type routes design-first as above; a REFUTED one keeps the cluster (the convergence
 is still real) and routes to the cheaper alternative, which ships as 🟢 Polish. When no
