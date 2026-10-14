@@ -95,4 +95,4 @@ Team members then install with the same `/plugin install` commands above.
 
 ## License
 
-MIT
+Apache-2.0, copyright WekaIO Ltd. Use it anywhere, for any code, commercial or not. The code you write with these plugins is yours. See [LICENSE](LICENSE).
