@@ -263,7 +263,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    synchronization, and stays.
 
 7. **Does a mutant survive a leaf type's tests?**
-   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*\.length\b)|\.length *(<=?|>=?|===|!==)`
+   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*\.length\b)|\.length *(<=?|>=?|===|!==)` exclude-path=\.tsx$,(^|/)components/,(^|/)hooks/,(^|/)context/
    Detection: for each new or changed leaf module, `npx stryker run` with a
    `stryker.config.mjs` whose `mutate` lists that module only (`.ts` leaves —
    parsers, reducers, a pure hook's helpers — never `.tsx` components, whose mutants
@@ -278,6 +278,12 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    may run, take the hand check instead: list the leaf's comparisons and boolean
    conditions, check the `it.each` table for a row at each boundary value and on
    each side of each condition, and name the row that is missing.
+   On a whole-repository review this question is not judged: a mutation run or a
+   hand check over every leaf does not fit a hunter's budget. The receipt reads
+   `R7 Q7: <hits> hit(s) → per-leaf, not judged`, R7's tally takes the partial form,
+   and the `not reached:` line names the three leaf directories with the most hits,
+   each as the review that judges it: `R7 Q7: /tsr-ldd-review <dir>`. On a
+   scoped review the question is judged in full.
    Violation: any surviving mutant on a leaf module that is not recorded as
    equivalent — a missing `it.each` row or dead logic; name the mutant (file, line,
    replacement from the `Survived` line) and the row that would kill it.

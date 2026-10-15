@@ -120,8 +120,9 @@ question the table marks `judgment` reads `R<N> Q<n>: judgment → <findings>
 finding(s)`. When your budget ended before every counted hit was read, the receipt
 says so — `R<N> Q<n>: <judged> of <hits> hit(s) judged → <findings> finding(s)` — and
 the parent renders the review as partial; a receipt that carries the table's number
-over hits you did not read is a false verdict. A question with no receipt was not
-run. Then one tally line per rule you were given, always:
+over hits you did not read is a false verdict. A question its rule leaves unjudged
+on a whole-repository review reads `R<N> Q<n>: <hits> hit(s) → per-leaf, not
+judged`, as the rule spells it. A question with no receipt was not run. Then one tally line per rule you were given, always:
 `R<N>: <M> finding(s)`, or when that rule is clean:
 `R<N>: hunted clean — <K> hits judged, every question receipted over the full scope`.
 When the budget ended the hunt, each rule's tally is instead `R<N>: <M> finding(s) in
