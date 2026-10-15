@@ -16,7 +16,9 @@ allowed-tools:
 Verify a finished diff against the plugin's rules (R1–R12) with evidence, by orchestrating
 four parallel rule-family hunters, one over-abstraction skeptic and one comment
 critic — the agents `linter-driven-development:rule-hunter`, `linter-driven-development:overabstraction-skeptic` and
-`linter-driven-development:comment-critic`, spawned by those names and no others. Pure orchestration
+`linter-driven-development:comment-critic`, spawned by those names and no others; a language group
+another plugin reviews (step 1) gets that plugin's agents of the same three names, and
+this plugin's when that name does not resolve. Pure orchestration
 and reporting: this skill spawns agents and reports; it never edits code, never fixes
 findings, never blocks a commit. Rule knowledge lives once in `../../rules/`; agents get
 the paths of their rules and read them themselves in their first turn — the parent never
@@ -38,7 +40,10 @@ mid-implementation net; this pass is the verification net on finished work.
   against its base as a range (`--base <merge-base>`), and the whole repository
   (`--all`) only when asked for explicitly. Step 1 hands that rung to `ldd-scope.sh`,
   which resolves it; the scope is never widened here, and an empty scope is reported
-  as "nothing to review", never as a clean verdict.
+  as "nothing to review", never as a clean verdict. A scope whose files are written
+  in several languages is one review: the scope script splits it by the language of
+  each file and sends each group to the plugin installed for that language, and the
+  report is one report with a section per language.
 - **Mode**: `FULL` (first run) or `INCREMENTAL` (re-run after fixes; needs the previous
   report's findings).
 </inputs>
@@ -49,7 +54,7 @@ mid-implementation net; this pass is the verification net on finished work.
 In-context, cheap, no agents yet. One Bash command resolves the scope, writes the scope
 bundle and runs the detection pass over it — the plugin's two review scripts, never a
 recipe or a grep composed here in their place:
-`S=<this skill dir>/../../scripts; out=$(bash "$S/ldd-scope.sh" <rung>); echo "$out"; case "$out" in *'nothing to review') ;; *) B=${out##* }; bash "$S/ldd-detect.sh" "$B" && sed -n '/^## Hunt focus/,/^## Waiting for agents/p' <this skill dir>/reference.md ;; esac`
+`S=<this skill dir>/../../scripts; out=$(bash "$S/ldd-scope.sh" <rung>); code=$?; echo "$out"; case "$out" in *'nothing to review') ;; *) (( code == 0 )) && { B=${out##* }; bash "$S/ldd-detect.sh" "$B" && sed -n '/^## Hunt focus/,/^## Waiting for agents/p' <this skill dir>/reference.md; } ;; esac`
 `<rung>` is the scope from `<inputs>` as `ldd-scope.sh` takes it: the explicit files
 or directories as arguments (a directory stands for the source files under it),
 `--base <ref>` for the branch against its base, `--all` for the whole repository,
@@ -57,6 +62,18 @@ nothing for the working tree against `HEAD` with untracked files. The scope scri
 prints one summary line — files bundled, files listed with a not-bundled reason, the
 diff's size, the comment lines found — whose last word is the bundle path `B`; when
 it prints `ldd-scope: nothing to review` instead, the review ends with that report.
+When the scope spans several languages it prints one such line per **language
+group** first — `ldd-scope[d]: …`, `ldd-scope[go via <the Go plugin>]: …`, or `ldd-scope[<id>]: <n> files excluded: no language block matched (.<ext>)` for
+a language no installed plugin reviews — and a last line `ldd-scope: <g> language
+groups (…) → B` where `B/groups.txt` names, per group, the plugin that reviews it,
+that plugin's directory and the group's own bundle. A non-zero exit with no
+"nothing to review" line is a scope every installed plugin excluded: report its
+stderr (one line per file and why) and stop. The detection script then runs once per
+group, under a `== <id> — <plugin> ==` line each, with that plugin's own rules — an
+excluded group prints `== <id> — not reviewed: <why> ==` and nothing else — and
+everything below is done **per group**: `B`, the rule paths and the agents are that
+group's plugin's, and a group whose counts table has no hit spawns nothing and is
+reported as such.
 The detection script runs every falsifying question's detect line over the scope,
 writes `hits.tsv`, `hits-all.tsv` and `counts.tsv` into the bundle, and prints the
 **counts table** — one row per question, `rule q kind hits`, a `judgment` row for a
@@ -149,7 +166,9 @@ and their mechanical questions receipt `0 hit(s)`. Each spawn prompt MUST contai
 
 Every path is absolute (the hunter runs in the reviewed project's cwd): resolve
 `../../rules/R<N>-….md` and any case file the rule cites from this skill's own
-location, then `ls` every resolved path before spawning — listing is not reading; a
+location — for a group `groups.txt` gives to another plugin, from that plugin's
+directory in the same row, so a Go group reads the Go plugin's rules and a Python
+group the Python plugin's — then `ls` every resolved path before spawning — listing is not reading; a
 path that does not list is fixed here, never handed to a hunter. Each hunter returns
 finding blocks (`rule | file:line | evidence | fix pattern | effort`), one receipt per
 falsifying question of each rule it was given (`R<N> Q<n>: <hits> hit(s) → <findings>
@@ -262,7 +281,13 @@ once, now. The contract it spells out, kept whatever the scope:
   categories, each tagged `[cluster: <anchor>]`.
 - **The first line is `📊 CODE REVIEW REPORT`**, then the `Scope:`, `Hunters:`,
   `Skeptic:` and `Critic:` lines as the example shows — before any cluster, never
-  under a title of the review's own.
+  under a title of the review's own. A scope of several language groups keeps one
+  report: the `Scope:` line names every group and the plugin that reviewed it, and
+  the `Hunters:`, `Skeptic:` and `Critic:` lines, the clusters and the categories
+  are repeated under one `## <language> — <plugin>` heading per group, in the order
+  of `groups.txt`. A group with no hit is one line under its heading — `no hits —
+  <n> files` — and an excluded group one line with the scope script's reason; neither
+  is ever left out ("Several languages", read in `reference.md` before writing).
 - **Categories**: 🐛 Bugs · 🟠 New Practice · 🔴 Design Debt · 🟡 Readability Debt (R3,
   R9, the critic's non-KEEP verdicts) · 🟢 Polish (the skeptic's cheaper alternatives).
 - **One line per finding**: `file:line | R<N> Q<n>: evidence in the question's own

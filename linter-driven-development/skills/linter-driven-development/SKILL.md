@@ -79,8 +79,10 @@ Refactor-only request (no new behavior): 1.5 via @refactoring → 3 → 4 → 5
    `//`, `eslint-disable`); `Cargo.toml` → Rust (`*.rs`, `#[cfg(test)]` modules, `//`,
    `#[allow(...)]`); `pom.xml` or `build.gradle` → Java or Kotlin (`*.java`/`*.kt`,
    `src/test/`, `//`, `@SuppressWarnings`); a `.csproj` → C# (`*.cs`, `*.Tests`
-   projects, `//`, `#pragma warning disable`). Several markers → one language at a
-   time, each with its own row. No marker and no source files → say so and stop;
+   projects, `//`, `#pragma warning disable`). Several markers → implement one
+   language at a time, each with its own row; the review (Phase 4) takes the whole
+   diff, splits it by the language of each file and sends each group to the plugin
+   installed for that language. No marker and no source files → say so and stop;
    there is no code for the workflow to work on. Where a language-specific
    linter-driven-development plugin is installed for the detected language, hand
    over to it: its rows are knowledge, these are detection.
@@ -235,7 +237,10 @@ or until the respawn ceiling ends it with that list.
 <phase_4_review>
 Per completed vertical slice (multi-slice work reviews each slice as it completes),
 invoke @pre-commit-review — it orchestrates parallel rule hunters plus the
-over-abstraction skeptic; it spawns agents and reports, **never edits**.
+over-abstraction skeptic; it spawns agents and reports, **never edits**. A slice
+whose files are written in several languages is still one review: the review's scope
+script splits the diff by the language of each file and sends each group to the
+plugin installed for that language, and the report has a section per language.
 
 NOT mid-implementation (its `<timing>` contract): GREEN-step code is supposed to
 look under-designed, so reviewing it produces false positives — and the hunters'

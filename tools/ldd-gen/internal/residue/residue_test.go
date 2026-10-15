@@ -33,6 +33,23 @@ func TestScan(t *testing.T) {
 	}, r.Soft)
 }
 
+func TestScan_ExemptFile(t *testing.T) {
+	t.Parallel()
+	core := fstest.MapFS{
+		"includes/scripts/table.sh": {Data: []byte("# the table\n# residue-exempt: names every language on purpose\n*.go) Go ;;\nsee go-linter-driven-development\n")},
+		"scripts/late.sh":           {Data: []byte(strings.Repeat("x\n", 20) + "# residue-exempt: too late\n*.go) Go ;;\n")},
+	}
+	r, err := residue.Scan(core)
+	require.NoError(t, err)
+	assert.Equal(t, []residue.Hit{
+		{Path: "scripts/late.sh", Line: 22, Token: ".go suffix", Text: "*.go) Go ;;"},
+	}, r.Hard, "a marker in the first 20 lines exempts the file from hard tokens; a later one does not")
+	assert.Equal(t, []residue.Hit{
+		{Path: "includes/scripts/table.sh", Line: 3, Token: "Go (the word)", Text: "*.go) Go ;;"},
+		{Path: "scripts/late.sh", Line: 22, Token: "Go (the word)", Text: "*.go) Go ;;"},
+	}, r.Soft, "soft tokens are still reported")
+}
+
 func scanLine(t *testing.T, line string) residue.Report {
 	t.Helper()
 	r, err := residue.Scan(fstest.MapFS{"x.md": {Data: []byte(line + "\n")}})

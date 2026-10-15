@@ -161,7 +161,9 @@ ts-react-linter-driven-development/
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in TypeScript)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with the TypeScript adapter
-                  ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
+                  ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass;
+                  a diff that also touches another language is split by file and
+                  that group reviewed by the plugin installed for its language
 coding-rules/ts-react.md   the handbook — the same rules as one document, outside the plugin
 ```
 
