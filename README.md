@@ -61,6 +61,8 @@ The same core rendered for a React single-page application in TypeScript: every 
 
 **Verify:** `/plugin list` should show the plugin as `enabled`.
 
+**First steps:** [docs/quick-start.md](docs/quick-start.md) — from the one-line prompt that runs the whole workflow to a repository shared by two language plugins.
+
 **Update later:**
 ```
 /plugin update go-linter-driven-development@ai-coding-rules
@@ -95,4 +97,4 @@ Team members then install with the same `/plugin install` commands above.
 
 ## License
 
-MIT
+Apache-2.0, copyright WekaIO Ltd. Use it anywhere, for any code, commercial or not. The code you write with these plugins is yours. See [LICENSE](LICENSE).

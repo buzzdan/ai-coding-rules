@@ -117,7 +117,10 @@ passes 21 of 29 cheap runs against the Go plugin's 22 with every scoped-review
 difference inside the noise floor. The Python suite has no baseline yet: its first
 run is the generic plugin over py-mini, and its README will carry the parity report,
 per rule, of recall on py-mini against recall on go-mini. The TypeScript suite's
-first run is the comparison its `neutral` cases exist for: the hand-written 1.x
+first run was the comparison its `neutral` cases exist for: the hand-written 1.x
 plugin and the generated 2.0 plugin on the same fixture, graded only by anchors and
 the generated recall and precision graders, since the 1.x plugin has no commands
-and no report contract.
+and no report contract; its baseline is
+[`baselines/ts-react-2.0.0-b64f8a8/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/ts-react-2.0.0-b64f8a8),
+the cheap tier against the merged plugin, whose README names the recall misses,
+the cluster-header inconsistency and the partial whole-repository coverage.
