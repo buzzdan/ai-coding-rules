@@ -5,7 +5,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
-## [0.4.1] - 2026-10-06
+## [0.4.1] - 2026-10-15
 
 ### Added
 
@@ -19,6 +19,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   section per language. A Python-only diff writes the same flat bundle as before.
   `--lang` reviews one group only, the flag a plugin passes when it routes a group
   here. `scripts/ldd-scope_test.sh` is the scope script's own fixture matrix.
+
+### Changed
+
+- **`/py-ldd-autopilot` takes the request as its argument.**
+  `/py-ldd-autopilot fix the retry bug in the API client` hands the words after the
+  command to the workflow as the change to deliver. Without an argument the command
+  uses the request already in the conversation, and asks what to build when there
+  is none; it never starts the workflow over an empty request.
 
 ## [0.4.0] - 2026-10-06
 

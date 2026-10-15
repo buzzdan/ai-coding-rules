@@ -5,7 +5,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-10-06
+## [0.5.0] - 2026-10-15
 
 ### Added
 
@@ -34,6 +34,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the marker-file detection is gone from the review scripts. `ldd-detect.sh` reads
   the bundle's `language.txt`, or tells the language from the scope list, and
   refuses a list that spans several languages.
+
+### Changed
+
+- **`/ldd-autopilot` takes the request as its argument.**
+  `/ldd-autopilot fix the retry bug in the API client` hands the words after the
+  command to the workflow as the change to deliver. Without an argument the command
+  uses the request already in the conversation, and asks what to build when there
+  is none; it never starts the workflow over an empty request.
 
 ## [0.4.0] - 2026-10-06
 
