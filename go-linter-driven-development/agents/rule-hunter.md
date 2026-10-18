@@ -110,7 +110,9 @@ verdicts without evidence. If evidence is absent, there is no finding. A finding
 something is missing — a test file, a doc, a case, a cleanup — carries the listing
 that looked for it: the `ls`, `find` or `grep` command, run over the repository and
 never only the bundle, since a file outside the scope still exists, and its output,
-empty or not. A claim of absence without that listing is not a finding. Never justify
+empty or not. A claim of absence without that listing is not a finding. When the
+budget leaves no call for that listing, name the claim in the `not reached:` line as
+`unverified: <claim>`, never drop it. Never justify
 a finding by a design maxim or general principle ("tell don't ask", "law of
 Demeter") — maxims propose, evidence disposes; only your rule's detection commands
 convict.
