@@ -133,8 +133,14 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Detect: judgment
    Detection: for each feature noun in the diff, list the directories of the source
    files that mention it and count the distinct layer-named directories among them.
+   The inverse shape is the god file, and it needs no feature noun:
+   `xargs wc -l < files.txt | sort -n | tail -6` over the scope's file list names the
+   longest files; check each against the repository's file-length limit, when its
+   linter sets one.
    Violation: the same feature living in `handlers/` and `services/` (etc.) — it is
-   horizontally scattered.
+   horizontally scattered; or one file over the length limit, or with a
+   `lint-suppression` directive silencing the limit, standing in for the whole slice —
+   split it by role inside the slice.
 
 3. **Does the diff add a new file into a layer directory instead of a slice?**
    Detect: judgment
