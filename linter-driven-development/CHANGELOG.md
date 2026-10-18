@@ -33,6 +33,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   gap linter applies: the repository linter's rule where it has one, else 450
   code lines per file and 8 and 13 files per directory. The package-size
   procedure runs the gap linter in place of a hand-written `find` command.
+- **A scoped review runs the documentation gate on its scope only.** The gate
+  checks the docs the diff touches in full. In a doc that names a scope file or
+  cites a symbol the diff removes, it reports only those links and symbols. A
+  code-only diff that no doc cites skips the doc checks. On a 6-file diff in a
+  large monorepo, the detection pass took 46 seconds, down from about 90 minutes.
+- **Doc symbols resolve in one pass over the repository.** In a git work tree the
+  gate reads the tracked files, submodule files and untracked files that git does
+  not ignore. Outside git it skips `bazel-*`, `node_modules` and other build
+  output directories.
+- **`ldd-detect.sh --gate-budget <seconds>`** stops a gate that runs too long and
+  counts its questions `inconclusive`, never 0.
+- **The two review scripts cannot disagree.** `ldd-detect.sh` reads the
+  `--test-re` that `ldd-scope.sh` used. A `--glob` or `--test-re` that differs
+  from the bundle is a usage error. A scope whose files are not source files of
+  its language is an error, not a table of zeros.
+- **`comments.txt` skips string literals.** A `#` or `//` inside a string literal
+  is not a comment line.
 
 ### Fixed
 
@@ -44,6 +61,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `ldd-detect.sh` or `ldd-scope.sh` got an option such as `--root` or `--base` as
   its last argument, the script looped forever. It now stops with "<option> needs
   a value" and exit 2, the documented usage error.
+- **The documentation gate checks code in a git repository.** It found no code
+  in a git repository, so it skipped every check between code and docs. Such a
+  repository can now report violations that it did not report before.
 
 ## [0.6.0] - 2026-10-18
 
