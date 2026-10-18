@@ -39,7 +39,7 @@
    Violation: any hit — replace with channels/wait groups.
 
 7. **Does a mutant survive a leaf type's tests?**
-   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*[Ll]en\b)|\b[Ll]en\([^)]*\) *(<=?|>=?|==|!=)`
+   Detect-grep: `(<=?|>=?) *('.'|-?[0-9]+|[a-zA-Z_.]*[Ll]en\b)|\b[Ll]en\([^)]*\) *(<=?|>=?|==|!=)` exclude-path=(^|/)cmd/,(^|/)main\.go$,(^|/)handlers/
    Detection: for each new or changed leaf package,
    `gremlins unleash ./path/to/leaf | grep -E '^\s*LIVED'`; skip orchestrators, the
    top rung and any package that does I/O. `gremlins` not on `PATH`: propose the
@@ -49,6 +49,12 @@
    leaf's comparisons and boolean conditions, check the table for a row at each
    boundary value and on each side of each condition, and name the row that is
    missing.
+   On a whole-repository review this question is not judged: a mutation run or a
+   hand check over every leaf does not fit a hunter's budget. The receipt reads
+   `R7 Q7: <hits> hit(s) → per-leaf, not judged`, R7's tally takes the partial form,
+   and the `not reached:` line names the three leaf directories with the most hits,
+   each as the review that judges it: `R7 Q7: /{{.CmdPrefix}}-review <dir>`. On a
+   scoped review the question is judged in full.
    Violation: any `LIVED` line on a leaf package that is not recorded as an
    equivalent mutant — a missing table row or dead logic; name the mutant (file,
    line, mutation) and the row that would kill it.

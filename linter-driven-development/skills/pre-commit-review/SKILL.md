@@ -174,7 +174,9 @@ finding blocks (`rule | file:line | evidence | fix pattern | effort`), one recei
 falsifying question of each rule it was given (`R<N> Q<n>: <hits> hit(s) → <findings>
 finding(s)` with the counts table's number; `R<N> Q<n>: judgment → <findings>
 finding(s)` for a judgment question; `R<N> Q<n>: <judged> of <hits> hit(s) judged →
-<findings> finding(s)` when its budget ended before every hit was read), one tally
+<findings> finding(s)` when its budget ended before every hit was read; `R<N> Q<n>:
+<hits> hit(s) → per-leaf, not judged` for a question its rule leaves to a scoped
+review on a whole-repository one), one tally
 per rule — or, for a rule file that did not read, `R<N>: rule unreadable at <path>`
 in the tally's place — and, when its budget ended the hunt, one `not reached:` line.
 A question with no receipt was not run. Findings, receipts, tallies (or unreadable

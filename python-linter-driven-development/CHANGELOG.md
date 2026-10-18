@@ -32,6 +32,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   command that looked for it, run over the repository and not only the review's
   bundle, and that command's output. Without the listing there is no finding. A
   hunter once reported a test file as missing when it existed outside the scope.
+  When the hunter's budget leaves no call for the listing, the claim appears in the
+  hunter's `not reached:` line as `unverified`; the report never drops it.
 
 ## [0.4.1] - 2026-10-15
 

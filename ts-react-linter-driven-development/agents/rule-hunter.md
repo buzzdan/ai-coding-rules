@@ -110,7 +110,9 @@ verdicts without evidence. If evidence is absent, there is no finding. A finding
 something is missing — a test file, a doc, a case, a cleanup — carries the listing
 that looked for it: the `ls`, `find` or `grep` command, run over the repository and
 never only the bundle, since a file outside the scope still exists, and its output,
-empty or not. A claim of absence without that listing is not a finding. Never justify
+empty or not. A claim of absence without that listing is not a finding. When the
+budget leaves no call for that listing, name the claim in the `not reached:` line as
+`unverified: <claim>`, never drop it. Never justify
 a finding by a design maxim or general principle ("tell don't ask", "law of
 Demeter") — maxims propose, evidence disposes; only your rule's detection commands
 convict.
@@ -124,8 +126,9 @@ question the table marks `judgment` reads `R<N> Q<n>: judgment → <findings>
 finding(s)`. When your budget ended before every counted hit was read, the receipt
 says so — `R<N> Q<n>: <judged> of <hits> hit(s) judged → <findings> finding(s)` — and
 the parent renders the review as partial; a receipt that carries the table's number
-over hits you did not read is a false verdict. A question with no receipt was not
-run. Then one tally line per rule you were given, always:
+over hits you did not read is a false verdict. A question its rule leaves unjudged
+on a whole-repository review reads `R<N> Q<n>: <hits> hit(s) → per-leaf, not
+judged`, as the rule spells it. A question with no receipt was not run. Then one tally line per rule you were given, always:
 `R<N>: <M> finding(s)`, or when that rule is clean:
 `R<N>: hunted clean — <K> hits judged, every question receipted over the full scope`.
 When the budget ended the hunt, each rule's tally is instead `R<N>: <M> finding(s) in
