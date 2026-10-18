@@ -116,7 +116,7 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #   FX_LINE_COMMENT    a comment-only line
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
-#   FX_SKIP_FILE       a source file name a directory count leaves out
+#   FX_SKIP_FILES      source file names a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
 #   FX_LINTER_CONFIG   the path, under the repository root, of the file that
 #                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
@@ -125,6 +125,8 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #                                    the language's file-length rule
 #   fx_write_linter_config_other     a linter config that names a rule of a
 #                                    similar name and no file-length rule
+#   fx_write_linter_config_in_comment  a linter config that names the file-length
+#                                    rule only inside comments
 FX_ROWS="typescript"
 FX_NATIVE="typescript"
 
@@ -138,7 +140,7 @@ use_row() {
   FX_LINE_COMMENT='// note'
   FX_BLOCK_OPEN='/*'
   FX_BLOCK_CLOSE='*/'
-  FX_SKIP_FILE='index.ts'
+  FX_SKIP_FILES='index.ts card.stories.ts'
   FX_GLOB='*.ts'
   FX_SRC_FILE="services/worker.ts"
   FX_SUPPRESS_LINE='// eslint-disable-next-line import/no-mutable-exports'
@@ -177,6 +179,10 @@ fx_test_file() { printf '%s/m%s.test.ts' "$1" "$2"; }
 
 fx_write_linter_config() {
   printf "export default [{\n  rules: {\n    'sonarjs/max-lines': ['error', { maximum: 400 }],\n  },\n}]\n" > "$REPO/eslint.config.mjs"
+}
+
+fx_write_linter_config_in_comment() {
+  printf "export default [{\n  rules: {\n    /* 'sonarjs/max-lines': ['error', { maximum: 400 }],\n       'max-lines': ['error', 400], */\n    'no-console': 'error', // 'max-lines': ['error', 400]\n  },\n}]\n" > "$REPO/eslint.config.mjs"
 }
 
 # max-lines-per-function limits a function, not a file.

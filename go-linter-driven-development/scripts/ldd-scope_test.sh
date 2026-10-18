@@ -116,7 +116,7 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #   FX_LINE_COMMENT    a comment-only line
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
-#   FX_SKIP_FILE       a source file name a directory count leaves out
+#   FX_SKIP_FILES      source file names a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
 #   FX_LINTER_CONFIG   the path, under the repository root, of the file that
 #                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
@@ -125,6 +125,8 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #                                    the language's file-length rule
 #   fx_write_linter_config_other     a linter config that names a rule of a
 #                                    similar name and no file-length rule
+#   fx_write_linter_config_in_comment  a linter config that names the file-length
+#                                    rule only inside comments
 FX_ROWS="go"
 FX_NATIVE="go"
 
@@ -135,7 +137,7 @@ use_row() {
   FX_LINE_COMMENT='// note'
   FX_BLOCK_OPEN='/*'
   FX_BLOCK_CLOSE='*/'
-  FX_SKIP_FILE='api.pb.go'
+  FX_SKIP_FILES='api.pb.go store_gen.go'
   FX_GLOB='*.go'
   FX_SRC_FILE="services/worker.go"
   FX_SUPPRESS_LINE='var cache = map[string]string{} //nolint:gochecknoglobals // TODO'
@@ -180,6 +182,10 @@ fx_test_file() { printf '%s/m%s_test.go' "$1" "$2"; }
 
 fx_write_linter_config() {
   printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments: [{max: 400}]\n' > "$REPO/.golangci.yaml"
+}
+
+fx_write_linter_config_in_comment() {
+  printf 'version: "2" # consider file-length-limit\nlinters:\n  default: standard # "#" in a string: file-length-limit\n' > "$REPO/.golangci.yaml"
 }
 
 fx_write_linter_config_other() {

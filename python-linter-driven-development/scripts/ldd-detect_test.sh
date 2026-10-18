@@ -140,7 +140,7 @@ questions_in_rules() {
 #   FX_LINE_COMMENT    a comment-only line
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
-#   FX_SKIP_FILE       a source file name a directory count leaves out
+#   FX_SKIP_FILES      source file names a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
 #   FX_LINTER_CONFIG   the path, under the repository root, of the file that
 #                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
@@ -149,6 +149,8 @@ questions_in_rules() {
 #                                    the language's file-length rule
 #   fx_write_linter_config_other     a linter config that names a rule of a
 #                                    similar name and no file-length rule
+#   fx_write_linter_config_in_comment  a linter config that names the file-length
+#                                    rule only inside comments
 FX_ROWS="python"
 FX_NATIVE="python"
 
@@ -159,7 +161,7 @@ use_row() {
   FX_LINE_COMMENT='# note'
   FX_BLOCK_OPEN=''
   FX_BLOCK_CLOSE=''
-  FX_SKIP_FILE='__init__.py'
+  FX_SKIP_FILES='__init__.py api_pb2.py'
   FX_GLOB='*.py'
   FX_SRC_FILE="services/worker.py"
   FX_SUPPRESS_LINE='CACHE: dict[str, str] = {}  # noqa: PLW0603'
@@ -198,6 +200,10 @@ fx_test_file() { printf '%s/test_m%s.py' "$1" "$2"; }
 
 fx_write_linter_config() {
   printf '[tool.pylint.format]\nmax-module-lines = 400\n' > "$REPO/pyproject.toml"
+}
+
+fx_write_linter_config_in_comment() {
+  printf '[tool.pylint.design]\nmax-args = 4  # max-module-lines = 400 later\n' > "$REPO/pyproject.toml"
 }
 
 fx_write_linter_config_other() {

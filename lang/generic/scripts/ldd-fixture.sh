@@ -17,7 +17,7 @@
 #   FX_LINE_COMMENT    a comment-only line
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
-#   FX_SKIP_FILE       a source file name a directory count leaves out
+#   FX_SKIP_FILES      source file names a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
 #   FX_LINTER_CONFIG   the path, under the repository root, of the file that
 #                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
@@ -26,6 +26,8 @@
 #                                    the language's file-length rule
 #   fx_write_linter_config_other     a linter config that names a rule of a
 #                                    similar name and no file-length rule
+#   fx_write_linter_config_in_comment  a linter config that names the file-length
+#                                    rule only inside comments
 FX_ROWS="go python"
 FX_NATIVE="go python d typescript"
 
@@ -38,7 +40,7 @@ use_row() {
       FX_LINE_COMMENT='// note'
       FX_BLOCK_OPEN='/*'
       FX_BLOCK_CLOSE='*/'
-      FX_SKIP_FILE='api.pb.go'
+      FX_SKIP_FILES='api.pb.go store_gen.go'
       FX_GLOB='*.go'
       FX_SRC_FILE="services/worker.go"
       FX_SUPPRESS_LINE='var cache = map[string]string{} //nolint:gochecknoglobals // TODO'
@@ -50,7 +52,7 @@ use_row() {
       FX_LINE_COMMENT='# note'
       FX_BLOCK_OPEN=''
       FX_BLOCK_CLOSE=''
-      FX_SKIP_FILE='__init__.py'
+      FX_SKIP_FILES='__init__.py api_pb2.py'
       FX_GLOB='*.py'
       FX_SRC_FILE="services/worker.py"
       FX_SUPPRESS_LINE='CACHE: dict[str, str] = {}  # noqa: PLW0603'
@@ -135,6 +137,13 @@ fx_write_linter_config() {
   case "$ROW" in
     go)     printf 'linters-settings:\n  revive:\n    rules:\n      - name: file-length-limit\n        arguments:\n          - max: 400\n' > "$REPO/.golangci.yml" ;;
     python) printf '[MAIN]\nmax-module-lines=400\n' > "$REPO/.pylintrc" ;;
+  esac
+}
+
+fx_write_linter_config_in_comment() {
+  case "$ROW" in
+    go)     printf 'version: "2" # consider file-length-limit\n' > "$REPO/.golangci.yml" ;;
+    python) printf '[MAIN]\nmax-args=4  # max-module-lines=400 later\n' > "$REPO/.pylintrc" ;;
   esac
 }
 

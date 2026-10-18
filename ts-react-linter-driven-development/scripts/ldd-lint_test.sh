@@ -104,7 +104,7 @@ fill_dir() {
 #   FX_LINE_COMMENT    a comment-only line
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
-#   FX_SKIP_FILE       a source file name a directory count leaves out
+#   FX_SKIP_FILES      source file names a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
 #   FX_LINTER_CONFIG   the path, under the repository root, of the file that
 #                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
@@ -113,6 +113,8 @@ fill_dir() {
 #                                    the language's file-length rule
 #   fx_write_linter_config_other     a linter config that names a rule of a
 #                                    similar name and no file-length rule
+#   fx_write_linter_config_in_comment  a linter config that names the file-length
+#                                    rule only inside comments
 FX_ROWS="typescript"
 FX_NATIVE="typescript"
 
@@ -126,7 +128,7 @@ use_row() {
   FX_LINE_COMMENT='// note'
   FX_BLOCK_OPEN='/*'
   FX_BLOCK_CLOSE='*/'
-  FX_SKIP_FILE='index.ts'
+  FX_SKIP_FILES='index.ts card.stories.ts'
   FX_GLOB='*.ts'
   FX_SRC_FILE="services/worker.ts"
   FX_SUPPRESS_LINE='// eslint-disable-next-line import/no-mutable-exports'
@@ -167,6 +169,10 @@ fx_write_linter_config() {
   printf "export default [{\n  rules: {\n    'sonarjs/max-lines': ['error', { maximum: 400 }],\n  },\n}]\n" > "$REPO/eslint.config.mjs"
 }
 
+fx_write_linter_config_in_comment() {
+  printf "export default [{\n  rules: {\n    /* 'sonarjs/max-lines': ['error', { maximum: 400 }],\n       'max-lines': ['error', 400], */\n    'no-console': 'error', // 'max-lines': ['error', 400]\n  },\n}]\n" > "$REPO/eslint.config.mjs"
+}
+
 # max-lines-per-function limits a function, not a file.
 fx_write_linter_config_other() {
   printf "export default [{\n  rules: {\n    'max-lines-per-function': ['error', 50],\n    'sonarjs/max-lines-per-function': ['error', { maximum: 50 }],\n  },\n}]\n" > "$REPO/eslint.config.mjs"
@@ -196,6 +202,24 @@ else
   expect_exit 0 && expect_no_finding && ok
   finish
 fi
+
+begin "a block comment opened after code ends the code on that line"
+if [[ -z "$FX_BLOCK_OPEN" ]]; then skip "the language has no block comment"; finish
+else
+  mkdir -p "$REPO/src"
+  { printf 'v0 = 1 %s note\n' "$FX_BLOCK_OPEN"; for (( i = 1; i <= 40; i++ )); do printf '   inside the block\n'; done
+    printf '%s\n' "$FX_BLOCK_CLOSE"; for (( i = 1; i <= MAX_LINES - 1; i++ )); do printf 'v%d = %d\n' "$i" "$i"; done; } > "$REPO/src/a$FX_EXT"
+  run_lint file-length
+  expect_exit 0 && expect_no_finding && ok
+  finish
+fi
+
+begin "a comment marker inside a string literal is code"
+mkdir -p "$REPO/src"
+for (( i = 1; i <= MAX_LINES + 1; i++ )); do printf 's%d = "a//b#c/*d"\n' "$i"; done > "$REPO/src/a$FX_EXT"
+run_lint file-length
+expect_exit 0 && expect_has "src/a$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
+finish
 
 begin "a test file over the limit is not measured"
 write_src "$(fx_test_file src 1)" $((MAX_LINES + 50))
@@ -238,6 +262,13 @@ run_lint file-length
 expect_exit 0 && expect_not "held by " && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
 finish
 
+begin "a file-length rule named only inside comments leaves file length to the gap linter"
+fx_write_linter_config_in_comment
+write_src "src/over$FX_EXT" $((MAX_LINES + 1))
+run_lint file-length
+expect_exit 0 && expect_not "held by " && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
+finish
+
 begin ".ldd-lint.yaml sets the limit when the linter holds none"
 printf 'file_max_lines: 100  # this repository\n' > "$REPO/.ldd-lint.yaml"
 write_src "src/a$FX_EXT" 101
@@ -254,7 +285,7 @@ finish
 
 begin "a directory below the warning size is not a finding"
 fill_dir pkg $((WARN_FILES - 1)) 3
-write_src "pkg/$FX_SKIP_FILE" 1
+for f in $FX_SKIP_FILES; do write_src "pkg/$f" 1; done
 run_lint package-size
 expect_exit 0 && expect_no_finding && ok
 finish
@@ -311,6 +342,21 @@ expect_exit 0 && { [[ "$first" == *"-pkg: $MAX_FILES source files"* ]] || bad "t
   && [[ "$first" == *"-pkg: $MAX_FILES source files"* ]] && expect_has "-src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
 finish
 
+begin "in a git repository an ignored source file is not counted in its directory"
+fill_dir pkg "$MAX_FILES"
+printf 'pkg/*\n!pkg/m1%s\n' "$FX_EXT" > "$REPO/.gitignore"
+(cd "$REPO" && git init -q)
+run_lint package-size
+expect_exit 0 && expect_no_finding && ok
+finish
+
+begin "--files picks the directories, and each is counted in full"
+fill_dir pkg "$MAX_FILES"
+printf 'pkg/m1%s\n' "$FX_EXT" > "$REPO/files.txt"
+run_lint package-size --files files.txt
+expect_exit 0 && expect_has "pkg: $MAX_FILES source files (limit $MAX_FILES, profile default)" && ok
+finish
+
 begin "two runs print the same output"
 write_src "src/over$FX_EXT" $((MAX_LINES + 1)); fill_dir pkg "$MAX_FILES"
 run_lint package-size; first="$OUT"
@@ -342,6 +388,24 @@ begin "a --files list that does not exist is a usage error (exit 2)"
 run_lint file-length --files no-such-list.txt
 expect_exit 2 && expect_has "no such file list" && ok
 finish
+
+# run_bounded <args...> — runs the script without the harness's --root, and
+# stops it after five seconds, so a regression that loops fails, never hangs
+run_bounded() {
+  local outf pid i; outf=$(mktemp)
+  ( cd "$REPO" && exec bash "$LINT" "$@" ) > "$outf" 2>&1 &
+  pid=$!
+  for (( i = 0; i < 50; i++ )); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; CODE=124; else wait "$pid"; CODE=$?; fi
+  OUT=$(cat "$outf"); ERR=""; rm -f "$outf"
+}
+
+for opt in --root --files --glob --test-re; do
+  begin "$opt without its value is a usage error (exit 2)"
+  run_bounded file-length "$opt"
+  expect_exit 2 && expect_has "$opt needs a value" && ok
+  finish
+done
 
 # ========================= summary =========================
 echo

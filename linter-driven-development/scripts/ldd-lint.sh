@@ -35,9 +35,12 @@
 # What is measured: the language's source files, minus test files, generated
 # files and the directories the language block excludes. A directory count
 # also leaves out the files the linter table names (an index module, a package
-# marker, generated stubs). A file is over the limit when its count is above
-# it; a directory is in the warning zone at the warning size and over the
-# limit at the limit.
+# marker, generated stubs, stories). Code lines are the lines that keep code
+# once comments are removed; a comment marker inside a string literal is code.
+# In a git repository an ignored file is never measured or counted, and a
+# --files run counts each directory it names in full. A file is over the limit
+# when its count is above it; a directory is in the warning zone at the
+# warning size and over the limit at the limit.
 #
 # Exit codes: 0 measured, with or without findings · 2 usage error, a --files
 #             list that does not exist, or a .ldd-lint.yaml value that is not a
@@ -63,14 +66,17 @@ SUBCOMMAND=""
 usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 die() { echo "$SCRIPT_NAME: $*" >&2; exit 2; }
 
+# value <option> <remaining argument count> — a value-taking option needs one
+value() { (( $2 >= 2 )) || die "$1 needs a value"; }
+
 while (( $# > 0 )); do
   case "$1" in
     file-length|package-size) [[ -n "$SUBCOMMAND" ]] && die "one subcommand, got also: $1"; SUBCOMMAND="$1"; shift ;;
-    --root)    ROOT="${2:-}"; shift 2 ;;
-    --files)   FILES_LIST="${2:-}"; shift 2 ;;
+    --root)    value "$1" $#; ROOT="$2"; shift 2 ;;
+    --files)   value "$1" $#; FILES_LIST="$2"; shift 2 ;;
     --tsv)     TSV=1; shift ;;
-    --glob)    OPT_GLOB="${2:-}"; shift 2 ;;
-    --test-re) OPT_TEST_RE="${2:-}"; shift 2 ;;
+    --glob)    value "$1" $#; OPT_GLOB="$2"; shift 2 ;;
+    --test-re) value "$1" $#; OPT_TEST_RE="$2"; shift 2 ;;
     -h|--help) usage ;;
     *)         die "unknown argument: $1 (see --help)" ;;
   esac
@@ -318,12 +324,17 @@ lang_is_test() {
 # purpose, the same in every rendering.
 #
 #   lint_comment_style <id>         c (// and /* */), d (also /+ +/) or hash (#)
+#   lint_strip_comments <style> <file>  the file with every comment removed and
+#                                   string literals kept, one output line per
+#                                   input line: a comment-only line prints empty.
+#                                   Styles: c, d, hash (# and triple-quoted
+#                                   strings), ini (# and a leading ;)
 #   lint_package_skip_re <id>       ERE over a relative path: source files a
 #                                   directory count leaves out (an index module,
 #                                   a package marker, generated stubs); "" for none
 #   lint_file_length_rule <id>      "<rule> in <config file>" when a linter config
 #                                   at the repository root names a file-length
-#                                   rule on a line that is not a comment, else
+#                                   rule outside a comment, else
 #                                   nothing. A named rule belongs to the linter:
 #                                   its limit, its counting and whether it is on
 #                                   are the repository's decision.
@@ -343,18 +354,70 @@ lint_package_skip_re() {
   case "$1" in
     go)                    printf '%s' '(_gen|\.pb)\.go$' ;;
     python)                printf '%s' '(^|/)(__init__|conftest)\.py$|_pb2(_grpc)?\.py$' ;;
-    typescript|javascript) printf '%s' '(^|/)index\.[cm]?[jt]sx?$' ;;
+    typescript|javascript) printf '%s' '(^|/)index\.[cm]?[jt]sx?$|\.stories\.[cm]?[jt]sx?$' ;;
   esac
   return 0
 }
 
-# _lint_names <ERE> <file>... — print the first file that matches the pattern
-# on a line that is not a comment
+# LINT_STRIP_AWK walks each line one character at a time. A quote opens a
+# string that a comment marker cannot end; single and double quotes close at
+# the end of the line, a backtick string (c and d) and a triple-quoted string
+# (hash) run on. A block comment may open after code and run on. The awk uses
+# substr and string compares only, so mawk, gawk and BSD awk read it alike.
+LINT_STRIP_AWK='
+BEGIN { bq = sprintf("%c", 96); sq = sprintf("%c", 39); dq = "\"" }
+{
+  line = $0; out = ""; n = length(line); i = 1
+  if (q == dq || q == sq) q = ""
+  while (i <= n) {
+    if (inblock) {
+      if (substr(line, i, length(closer)) == closer) { inblock = 0; i += length(closer); out = out " "; continue }
+      i++; continue
+    }
+    ch = substr(line, i, 1)
+    if (q != "") {
+      if (ch == "\\" && (q == dq || q == sq)) { out = out substr(line, i, 2); i += 2; continue }
+      if (substr(line, i, length(q)) == q) { out = out q; i += length(q); q = ""; continue }
+      out = out ch; i++; continue
+    }
+    if (style == "hash" || style == "ini") {
+      if (ch == "#") break
+      if (style == "ini" && ch == ";" && out ~ /^[ \t]*$/) break
+      three = substr(line, i, 3)
+      if (style == "hash" && (three == dq dq dq || three == sq sq sq)) { q = three; out = out three; i += 3; continue }
+    } else {
+      two = substr(line, i, 2)
+      if (two == "//") break
+      if (two == "/*" || (style == "d" && two == "/+")) { inblock = 1; closer = (two == "/+") ? "+/" : "*/"; out = out " "; i += 2; continue }
+      if (ch == bq) { q = bq; out = out ch; i++; continue }
+    }
+    if (ch == dq || ch == sq) { q = ch; out = out ch; i++; continue }
+    out = out ch; i++
+  }
+  print out
+}
+'
+
+lint_strip_comments() { # <style> <file>
+  awk -v style="$1" "$LINT_STRIP_AWK" "$2"
+}
+
+# _lint_config_style <config file> — how that config format writes a comment
+_lint_config_style() {
+  case "$1" in
+    *.yaml|*.yml|*.toml) printf 'hash' ;;
+    *.cfg|*.ini|.pylintrc|pylintrc) printf 'ini' ;;
+    *) printf 'c' ;;
+  esac
+}
+
+# _lint_names <ERE> <file>... — print the first file whose text outside its
+# comments matches the pattern
 _lint_names() {
   local re="$1" f; shift
   for f in "$@"; do
     [[ -f "$f" ]] || continue
-    grep -vE '^[[:space:]]*(#|//|;)' -- "$f" 2>/dev/null | grep -qE -- "$re" && { printf '%s' "$f"; return 0; }
+    lint_strip_comments "$(_lint_config_style "$f")" "./$f" 2>/dev/null | grep -qE -- "$re" && { printf '%s' "$f"; return 0; }
   done
   return 1
 }
@@ -418,27 +481,44 @@ override() {
 }
 
 # ---------- the scope ----------
-# One "id TAB path" line per source file of a language this plugin reviews,
-# sorted, so two runs over one tree print the same thing.
-list_candidates() {
-  if [[ -n "$FILES_LIST" ]]; then
-    sed -e 's/ (not bundled:.*$//' -e 's|^\./||' "$FILES_LIST"
-  elif git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+# SCOPE: one "id TAB path" line per source file the run measures. INVENTORY:
+# the same for every source file of the repository, which a directory count
+# reads, so a scoped run still counts a directory's files outside its list.
+# Both come from git when the root is a repository, so an ignored file is in
+# neither. Sorted, so two runs over one tree print the same thing.
+list_repo() {
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     git ls-files -co --exclude-standard
   else
     find . -type f -not -path './.git/*' | sed 's|^\./||'
   fi
 }
 
+list_candidates() {
+  if [[ -n "$FILES_LIST" ]]; then
+    sed -e 's/ (not bundled:.*$//' -e 's|^\./||' "$FILES_LIST"
+  else
+    list_repo
+  fi
+}
+
+# by_language — reads paths, prints "id TAB path" for this plugin's languages
+by_language() {
+  local f id
+  while IFS= read -r f; do
+    [[ -n "$f" && -f "$f" ]] || continue
+    id=$(lang_of_path "$f")
+    [[ -n "$id" ]] || continue
+    case " $LANG_NATIVE " in *" $id "*) ;; *) continue ;; esac
+    printf '%s\t%s\n' "$id" "$f"
+  done | LC_ALL=C sort -u
+}
+
 SCOPE=$(mktemp)
-trap 'rm -f "$SCOPE"' EXIT
-while IFS= read -r f; do
-  [[ -n "$f" && -f "$f" ]] || continue
-  id=$(lang_of_path "$f")
-  [[ -n "$id" ]] || continue
-  case " $LANG_NATIVE " in *" $id "*) ;; *) continue ;; esac
-  printf '%s\t%s\n' "$id" "$f"
-done < <(list_candidates) | LC_ALL=C sort -u > "$SCOPE"
+INVENTORY=$(mktemp)
+trap 'rm -f "$SCOPE" "$INVENTORY"' EXIT
+list_candidates | by_language > "$SCOPE"
+if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
 
 # measured <path> — exit 0 when the file counts for this language: not under
 # an excluded directory, not a test, not generated. Every path the script
@@ -453,33 +533,10 @@ measured() {
 }
 
 # ---------- file-length ----------
-# COUNT_AWK prints a file's code lines under the style's comment syntax: blank
-# lines and comment-only lines, block comments included, are not counted.
-COUNT_AWK='
-function comment_only(t,    rest, i) {
-  if (inblock) {
-    i = index(t, closer)
-    if (i == 0) return 1
-    inblock = 0
-    rest = substr(t, i + length(closer)); sub(/^[[:space:]]+/, "", rest)
-    return rest == "" || comment_only(rest)
-  }
-  if (style == "hash") return substr(t, 1, 1) == "#"
-  if (substr(t, 1, 2) == "//") return 1
-  if (substr(t, 1, 2) == "/*" || (style == "d" && substr(t, 1, 2) == "/+")) {
-    closer = (substr(t, 2, 1) == "+") ? "+/" : "*/"
-    inblock = 1
-    return comment_only(substr(t, 3))
-  }
-  return 0
+# code_lines <id> <path> — the lines that keep code after comments are removed
+code_lines() {
+  lint_strip_comments "$(lint_comment_style "$1")" "./$2" | awk 'NF { n++ } END { print n + 0 }'
 }
-{
-  t = $0; sub(/^[[:space:]]+/, "", t); sub(/[[:space:]]+$/, "", t)
-  if (t == "" || comment_only(t)) next
-  n++
-}
-END { print n + 0 }
-'
 
 run_file_length() { # <id> — every measured file of that language
   local id="$1" rule max src f n o
@@ -498,14 +555,14 @@ run_file_length() { # <id> — every measured file of that language
   fi
   while IFS=$'\t' read -r _ f; do
     measured "$f" || continue
-    n=$(awk -v style="$(lint_comment_style "$id")" "$COUNT_AWK" "./$f")
+    n=$(code_lines "$id" "$f")
     (( n > max )) && finding "$f" "$n code lines (limit $max, $src)"
   done < <(awk -F'\t' -v id="$id" '$1 == id' "$SCOPE")
 }
 
 # ---------- package-size ----------
 run_package_size() { # <id> — every directory that holds a measured file of that language
-  local id="$1" warn lim src ow om skip d n f
+  local id="$1" warn lim src ow om skip d n
   ow=$(override package_warn_files) || exit 2
   om=$(override package_max_files) || exit 2
   warn="${ow:-$DEFAULT_PACKAGE_WARN_FILES}"; lim="${om:-$DEFAULT_PACKAGE_MAX_FILES}"
@@ -513,15 +570,16 @@ run_package_size() { # <id> — every directory that holds a measured file of th
   if [[ -n "$ow$om" ]]; then src="$OVERRIDE_FILE"; else src="profile default"; fi
   say "threshold: $id package size — $src (warning at $warn source files per directory, limit $lim); no linter counts files per directory"
   skip=$(lint_package_skip_re "$id")
+  local counts; counts=$(mktemp)
+  # one "dir TAB count" line per directory of the inventory
+  awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$INVENTORY" | while IFS= read -r f; do
+    [[ -n "$skip" ]] && printf '%s\n' "$f" | grep -qE -- "$skip" && continue
+    measured "$f" || continue
+    case "$f" in */*) printf '%s\n' "${f%/*}" ;; *) printf '.\n' ;; esac
+  done | LC_ALL=C sort | uniq -c | awk '{ n = $1; sub(/^[ \t]*[0-9]+[ \t]/, ""); print $0 "\t" n }' > "$counts"
   while IFS= read -r d; do
-    n=0
-    while IFS= read -r f; do
-      f="${f#./}"; f="${f#./}"
-      [[ "$(lang_of_path "$f")" == "$id" ]] || continue
-      [[ -n "$skip" ]] && printf '%s\n' "$f" | grep -qE -- "$skip" && continue
-      measured "$f" || continue
-      n=$((n + 1))
-    done < <(find "./$d" -maxdepth 1 -type f | LC_ALL=C sort)
+    n=$(awk -F'\t' -v d="$d" '$1 == d { print $2; exit }' "$counts")
+    n="${n:-0}"
     if (( n >= lim )); then
       finding "$d" "$n source files (limit $lim, $src)"
     elif (( n >= warn )); then
@@ -531,6 +589,7 @@ run_package_size() { # <id> — every directory that holds a measured file of th
              measured "$f" || continue
              case "$f" in */*) printf '%s\n' "${f%/*}" ;; *) printf '.\n' ;; esac
            done | LC_ALL=C sort -u)
+  rm -f "$counts"
 }
 
 # ---------- run ----------
