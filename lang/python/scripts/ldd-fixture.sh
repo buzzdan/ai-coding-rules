@@ -19,19 +19,19 @@
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
 #   FX_SKIP_FILE       a source file name a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
-#   fx_write_linter_config <max>       the repository linter config that holds
-#                                      the file-length limit at <max>, counting
-#                                      every line
-#   fx_write_linter_config_code <max>  the config of a linter that counts only
-#                                      code lines, holding the limit at <max>;
-#                                      exit 1 when the language has none
-#   fx_write_linter_config_unreadable  a config that names the rule with a limit
-#                                      the linter table cannot read; exit 1 when
-#                                      every config form is readable
+#   FX_LINTER_CONFIG   the path, under the repository root, of the file that
+#                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
+#                      marker that turns one of its lines into a comment
+#   fx_write_linter_config           the repository linter config that names
+#                                    the language's file-length rule
+#   fx_write_linter_config_other     a linter config that names a rule of a
+#                                    similar name and no file-length rule
 FX_ROWS="python"
 FX_NATIVE="python"
 
 use_row() {
+  FX_LINTER_CONFIG='pyproject.toml'
+  FX_LINTER_COMMENT='#'
   FX_EXT='.py'
   FX_LINE_COMMENT='# note'
   FX_BLOCK_OPEN=''
@@ -73,13 +73,10 @@ PY
 
 fx_test_file() { printf '%s/test_m%s.py' "$1" "$2"; }
 
-fx_write_linter_config() { # <max>
-  printf '[tool.pylint.format]\nmax-module-lines = %s\n' "$1" > "$REPO/pyproject.toml"
+fx_write_linter_config() {
+  printf '[tool.pylint.format]\nmax-module-lines = 400\n' > "$REPO/pyproject.toml"
 }
 
-# pylint counts every line; ruff has no file-length rule.
-fx_write_linter_config_code() { return 1; }
-
-fx_write_linter_config_unreadable() {
-  printf '[tool.pylint.format]\nmax-module-lines = "${MODULE_LIMIT}"\n' > "$REPO/pyproject.toml"
+fx_write_linter_config_other() {
+  printf '[tool.pylint.design]\nmax-args = 4\n' > "$REPO/pyproject.toml"
 }

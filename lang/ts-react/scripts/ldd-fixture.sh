@@ -19,15 +19,13 @@
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
 #   FX_SKIP_FILE       a source file name a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
-#   fx_write_linter_config <max>       the repository linter config that holds
-#                                      the file-length limit at <max>, counting
-#                                      every line
-#   fx_write_linter_config_code <max>  the config of a linter that counts only
-#                                      code lines, holding the limit at <max>;
-#                                      exit 1 when the language has none
-#   fx_write_linter_config_unreadable  a config that names the rule with a limit
-#                                      the linter table cannot read; exit 1 when
-#                                      every config form is readable
+#   FX_LINTER_CONFIG   the path, under the repository root, of the file that
+#                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
+#                      marker that turns one of its lines into a comment
+#   fx_write_linter_config           the repository linter config that names
+#                                    the language's file-length rule
+#   fx_write_linter_config_other     a linter config that names a rule of a
+#                                    similar name and no file-length rule
 FX_ROWS="typescript"
 FX_NATIVE="typescript"
 
@@ -35,6 +33,8 @@ FX_NATIVE="typescript"
 # names for the files it creates from it, and `fresh.ts*` is no file name.
 # Every file the row writes is a `.ts` file, so both globs select the same set.
 use_row() {
+  FX_LINTER_CONFIG='eslint.config.mjs'
+  FX_LINTER_COMMENT='//'
   FX_EXT='.ts'
   FX_LINE_COMMENT='// note'
   FX_BLOCK_OPEN='/*'
@@ -76,16 +76,11 @@ TS
 
 fx_test_file() { printf '%s/m%s.test.ts' "$1" "$2"; }
 
-# ESLint's own max-lines counts every line unless told to skip comments.
-fx_write_linter_config() { # <max>
-  printf "export default [{\n  rules: {\n    'max-lines': ['error', { max: %s }],\n  },\n}]\n" "$1" > "$REPO/eslint.config.mjs"
+fx_write_linter_config() {
+  printf "export default [{\n  rules: {\n    'sonarjs/max-lines': ['error', { maximum: 400 }],\n  },\n}]\n" > "$REPO/eslint.config.mjs"
 }
 
-# sonarjs/max-lines counts only code lines.
-fx_write_linter_config_code() { # <max>
-  printf "export default [{\n  rules: {\n    'sonarjs/max-lines': ['error', { maximum: %s }],\n    'max-lines-per-function': ['error', 50],\n  },\n}]\n" "$1" > "$REPO/eslint.config.mjs"
+# max-lines-per-function limits a function, not a file.
+fx_write_linter_config_other() {
+  printf "export default [{\n  rules: {\n    'max-lines-per-function': ['error', 50],\n    'sonarjs/max-lines-per-function': ['error', { maximum: 50 }],\n  },\n}]\n" > "$REPO/eslint.config.mjs"
 }
-
-# Every ESLint config form resolves: a rule named without a limit takes
-# ESLint's documented default.
-fx_write_linter_config_unreadable() { return 1; }

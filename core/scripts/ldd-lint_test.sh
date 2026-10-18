@@ -131,31 +131,27 @@ run_lint file-length
 expect_exit 0 && expect_has "profile default ($MAX_LINES code lines)" && expect_has "a setting to propose, never to add on your own: " && ok
 finish
 
-begin "a linter that skips comments and blank lines is counted its way"
-if ! fx_write_linter_config_code 100; then skip "no linter of this language counts only code lines"; finish
-else
-  write_src "src/a$FX_EXT" 90 20 20
-  run_lint file-length
-  expect_exit 0 && expect_has "covered by" && expect_no_finding && ok
-  finish
-fi
-
-begin "the repository's linter config holds the limit and is counted its way"
-fx_write_linter_config 100
-write_src "src/a$FX_EXT" 90 20
+begin "a file-length rule in the linter config hands file length to the linter"
+fx_write_linter_config
+write_src "src/over$FX_EXT" $((MAX_LINES + 50))
 run_lint file-length
-expect_exit 0 && expect_has "covered by" && expect_has "src/a$FX_EXT: 110 lines (limit 100, " && ok
+expect_exit 0 && expect_has "held by " && expect_no_finding && ok
 finish
 
-begin "a linter config whose limit cannot be read is named, and the next source applies"
-if ! fx_write_linter_config_unreadable; then skip "every config form of this language is readable"; finish
-else
-  write_src "src/over$FX_EXT" $((MAX_LINES + 1))
-  run_lint file-length
-  expect_exit 0 && expect_has "its limit cannot be read here" \
-    && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines (limit $MAX_LINES, profile default)" && ok
-  finish
-fi
+begin "a similar rule of another name leaves file length to the gap linter"
+fx_write_linter_config_other
+write_src "src/over$FX_EXT" $((MAX_LINES + 1))
+run_lint file-length
+expect_exit 0 && expect_not "held by " && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
+finish
+
+begin "a file-length rule that is commented out leaves file length to the gap linter"
+fx_write_linter_config
+sed "s|^|$FX_LINTER_COMMENT |" "$REPO/$FX_LINTER_CONFIG" > "$REPO/cfg.tmp" && mv "$REPO/cfg.tmp" "$REPO/$FX_LINTER_CONFIG"
+write_src "src/over$FX_EXT" $((MAX_LINES + 1))
+run_lint file-length
+expect_exit 0 && expect_not "held by " && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
+finish
 
 begin ".ldd-lint.yaml sets the limit when the linter holds none"
 printf 'file_max_lines: 100  # this repository\n' > "$REPO/.ldd-lint.yaml"

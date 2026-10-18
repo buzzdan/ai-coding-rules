@@ -1,4 +1,4 @@
-**A module over the file-length limit** — pylint's `max-module-lines` where the repository sets it (ruff has no file-length rule), else {{.FileMaxLines}} code lines; `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them and names the limit it applied:
+**A module over the file-length limit** — pylint's `max-module-lines` where the repository sets it (ruff has no file-length rule), else {{.FileMaxLines}} code lines; `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them, or names the linter rule that holds the limit:
 
 | File pattern | Action |
 |---|---|

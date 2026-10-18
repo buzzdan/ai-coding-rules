@@ -65,7 +65,7 @@ decomposition): "Multi-rule procedures", below.
 ## File and package routing
 
 <file_and_package_routing>
-**A file over the file-length limit** — the repository linter's limit where it sets one, else 450 code lines; `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them and names the limit it applied:
+**A file over the file-length limit** — the repository linter reports it where the linter has a file-length rule; elsewhere a file over 450 code lines is one, and `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them, or names the linter rule that holds the limit:
 
 | File pattern | Action |
 |---|---|

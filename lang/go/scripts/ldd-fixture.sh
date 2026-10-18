@@ -19,19 +19,19 @@
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
 #   FX_SKIP_FILE       a source file name a directory count leaves out
 #   fx_test_file <dir> <n>             a test file's path in <dir>
-#   fx_write_linter_config <max>       the repository linter config that holds
-#                                      the file-length limit at <max>, counting
-#                                      every line
-#   fx_write_linter_config_code <max>  the config of a linter that counts only
-#                                      code lines, holding the limit at <max>;
-#                                      exit 1 when the language has none
-#   fx_write_linter_config_unreadable  a config that names the rule with a limit
-#                                      the linter table cannot read; exit 1 when
-#                                      every config form is readable
+#   FX_LINTER_CONFIG   the path, under the repository root, of the file that
+#                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
+#                      marker that turns one of its lines into a comment
+#   fx_write_linter_config           the repository linter config that names
+#                                    the language's file-length rule
+#   fx_write_linter_config_other     a linter config that names a rule of a
+#                                    similar name and no file-length rule
 FX_ROWS="go"
 FX_NATIVE="go"
 
 use_row() {
+  FX_LINTER_CONFIG='.golangci.yaml'
+  FX_LINTER_COMMENT='#'
   FX_EXT='.go'
   FX_LINE_COMMENT='// note'
   FX_BLOCK_OPEN='/*'
@@ -79,15 +79,10 @@ GO
 
 fx_test_file() { printf '%s/m%s_test.go' "$1" "$2"; }
 
-# The bare-number form; the generic plugin's Go row writes the map form.
-fx_write_linter_config() { # <max>
-  printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments: [%s]\n        - name: exported\n' "$1" > "$REPO/.golangci.yaml"
+fx_write_linter_config() {
+  printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments: [{max: 400}]\n' > "$REPO/.golangci.yaml"
 }
 
-fx_write_linter_config_code() { # <max>
-  printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments: [{max: %s, skip-comments: true, skip-blank-lines: true}]\n' "$1" > "$REPO/.golangci.yaml"
-}
-
-fx_write_linter_config_unreadable() {
-  printf '[[linters.settings.revive.rules]]\nname = "file-length-limit"\narguments = [{max = 100}]\n' > "$REPO/.golangci.toml"
+fx_write_linter_config_other() {
+  printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: argument-limit\n          arguments: [4]\n' > "$REPO/.golangci.yaml"
 }

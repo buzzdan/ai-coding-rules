@@ -182,11 +182,14 @@ differently from the other bindings:
   source files per directory, where the repository's linter does not hold them. It
   reads the language table and the language block, and a third include with a core
   default, `scripts/ldd-lint-langs.sh`, the linter table: per language id, the
-  comment syntax, the files a directory count leaves out, and where the repository's
-  own linter config sets a file-length limit and how that linter counts. The table is
-  the one place core names linters, and its `residue-exempt:` marker says so. The
+  comment syntax, the files a directory count leaves out, and whether the
+  repository's own linter config names a file-length rule. A named rule belongs to
+  the linter, so the script reads no limit out of a config and copies no linter's way
+  of counting. The table is the one place core names linters, and its
+  `residue-exempt:` marker says so. The
   matrix reads the binding's `scripts/ldd-fixture.sh` for the source suffix, the
-  comment forms, a test file's name and the linter configs per row.
+  comment forms, a test file's name and two linter configs per row: one that names the
+  file-length rule and one that names a rule of a similar name.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The

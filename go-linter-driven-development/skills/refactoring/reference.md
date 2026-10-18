@@ -66,7 +66,7 @@ decomposition): "Multi-rule procedures", below.
 ## File and package routing
 
 <file_and_package_routing>
-**revive `file-length-limit`, or a file over 450 code lines where the repository sets no limit** — `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them and names the limit it applied:
+**revive `file-length-limit`, or a file over 450 code lines where the repository's config has no such rule** — `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them, or names the linter rule that holds the limit:
 
 | File pattern | Action |
 |---|---|

@@ -3,8 +3,8 @@
 #
 # Measures the design triggers no linter holds, or that the repository's linter
 # does not hold yet: lines per source file and source files per directory. It
-# never edits a file. Where the repository's linter holds a limit, that limit
-# is the one applied, counted the way that linter counts.
+# never edits a file. Where the repository's linter has a file-length rule, the
+# linter owns file length and this script leaves it alone.
 #
 # Usage:  bash scripts/ldd-lint.sh <subcommand> [options]
 #   file-length            source files over the file-length limit
@@ -20,18 +20,17 @@
 #                          know ({{.Lang}} block below)
 #   --test-re <ERE>        test-file pattern over relative paths
 #
-# Thresholds, per language, first that applies — the "threshold:" line says
-# which one a run used:
-#   1. the repository's linter config holds the rule: its limit, counted the
-#      way that linter counts (file-length only; no linter counts files per
-#      directory); a config the table cannot read is named, then skipped
-#   2. .ldd-lint.yaml at the repository root: file_max_lines,
-#      package_warn_files, package_max_files, each a positive integer
-#   3. the plugin's defaults: {{.FileMaxLines}} code lines per file (blank and
-#      comment-only lines not counted); a warning at {{.PackageWarnFiles}} source files per
-#      directory and the limit at {{.PackageMaxFiles}}; for file-length, the line also
+# Thresholds, per language — the "threshold:" line says which one a run used:
+#   file-length: when a linter config at the repository root names a
+#      file-length rule, the linter holds it: the line names the rule and the
+#      script measures nothing more. Else the limit is file_max_lines in
+#      .ldd-lint.yaml, else the plugin's default, {{.FileMaxLines}} code lines (blank and
+#      comment-only lines are not counted); with the default, the line also
 #      prints the linter setting that would hold the limit, as a proposal for
 #      the repository's owners: the script and its caller never edit a config
+#   package-size: no linter counts files per directory. package_warn_files and
+#      package_max_files in .ldd-lint.yaml, else the plugin's defaults: a
+#      warning at {{.PackageWarnFiles}} source files per directory and the limit at {{.PackageMaxFiles}}
 #
 # What is measured: the language's source files, minus test files, generated
 # files and the directories the language block excludes. A directory count
@@ -153,8 +152,8 @@ measured() {
 }
 
 # ---------- file-length ----------
-# COUNT_AWK prints a file's line count under the style's comment syntax:
-# skipc drops comment-only lines (block comments included), skipb blank lines.
+# COUNT_AWK prints a file's code lines under the style's comment syntax: blank
+# lines and comment-only lines, block comments included, are not counted.
 COUNT_AWK='
 function comment_only(t,    rest, i) {
   if (inblock) {
@@ -175,45 +174,31 @@ function comment_only(t,    rest, i) {
 }
 {
   t = $0; sub(/^[[:space:]]+/, "", t); sub(/[[:space:]]+$/, "", t)
-  if (t == "") { if (inblock) { if (!skipc) n++ } else if (!skipb) n++; next }
-  c = comment_only(t)
-  if (c && skipc) next
+  if (t == "" || comment_only(t)) next
   n++
 }
 END { print n + 0 }
 '
 
 run_file_length() { # <id> — every measured file of that language
-  local id="$1" cfg status max sc sb label src unit f n o
-  cfg=$(lint_file_length_config "$id")
-  IFS=$'\t' read -r status max sc sb label <<< "$cfg"
-  if [[ "$status" == "unreadable" ]]; then
-    # an unreadable row carries the rule and file in its second field
-    say "threshold: $id file length — $max is set, but its limit cannot be read here; the next source applies"
-    status=none
+  local id="$1" rule max src f n o
+  rule=$(lint_file_length_rule "$id")
+  if [[ -n "$rule" ]]; then
+    say "threshold: $id file length — held by $rule; the repository's linter reports long files, so this script measures none"
+    return 0
   fi
-  if [[ "$status" == "covered" ]]; then
-    src="$label"
-    say "threshold: $id file length — covered by $label (limit $max)"
+  o=$(override file_max_lines) || exit 2
+  if [[ -n "$o" ]]; then
+    max="$o"; src="$OVERRIDE_FILE"
+    say "threshold: $id file length — set by $OVERRIDE_FILE ($max code lines)"
   else
-    sc=1; sb=1
-    o=$(override file_max_lines) || exit 2
-    if [[ -n "$o" ]]; then
-      max="$o"; src="$OVERRIDE_FILE"
-      say "threshold: $id file length — set by $OVERRIDE_FILE ($max code lines)"
-    else
-      max="$DEFAULT_FILE_MAX_LINES"; src="profile default"
-      say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; a setting to propose, never to add on your own: $(lint_file_length_snippet "$id" "$max")"
-    fi
+    max="$DEFAULT_FILE_MAX_LINES"; src="profile default"
+    say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; a setting to propose, never to add on your own: $(lint_file_length_snippet "$id" "$max")"
   fi
-  unit="lines"
-  (( sc && sb )) && unit="code lines"
-  (( sc && ! sb )) && unit="lines without comments"
-  (( ! sc && sb )) && unit="non-blank lines"
   while IFS=$'\t' read -r _ f; do
     measured "$f" || continue
-    n=$(awk -v style="$(lint_comment_style "$id")" -v skipc="$sc" -v skipb="$sb" "$COUNT_AWK" "./$f")
-    (( n > max )) && finding "$f" "$n $unit (limit $max, $src)"
+    n=$(awk -v style="$(lint_comment_style "$id")" "$COUNT_AWK" "./$f")
+    (( n > max )) && finding "$f" "$n code lines (limit $max, $src)"
   done < <(awk -F'\t' -v id="$id" '$1 == id' "$SCOPE")
 }
 
