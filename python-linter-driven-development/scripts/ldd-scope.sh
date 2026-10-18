@@ -390,11 +390,13 @@ write_bundle() {
   # comments.txt — the critic's inventory: on a scoped rung the diff's added
   # comment lines plus every comment line of a bundled file the diff does not
   # touch (untracked, or committed and named on the command line); every comment
-  # line of the bundle on --all; directives never count.
+  # line of the bundle on --all; directives never count. A marker counts at the
+  # line start or after whitespace only, so a # or // inside a string literal
+  # (a trace format string) is not a comment.
   # comment_lines_of <file>... — every comment line of the files, grep -nH shape
   comment_lines_of() {
     (( $# > 0 )) || return 0
-    LC_ALL=C grep -nHE -e "$LANG_COMMENT_RE" -- "$@" 2>/dev/null | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE"
+    LC_ALL=C grep -nHE -e "(^|[[:space:]])($LANG_COMMENT_RE)" -- "$@" 2>/dev/null | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE"
   }
   : > "$OUT/comments.txt"
   if [[ "$RUNG" == "all" ]]; then
@@ -408,7 +410,7 @@ write_bundle() {
         /^\+/ { n++; print f ":" n ":" substr($0, 2); next }
         /^-/ { next }
         { n++ }
-      ' "$OUT/diff.patch" | LC_ALL=C grep -E -- "^[^:]*:[0-9]+:.*($LANG_COMMENT_RE)" | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE" >> "$OUT/comments.txt"
+      ' "$OUT/diff.patch" | LC_ALL=C grep -E -- "^[^:]*:[0-9]+:(.*[[:space:]])?($LANG_COMMENT_RE)" | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE" >> "$OUT/comments.txt"
     fi
     # a bundled file the diff does not touch has no added lines: every comment
     # line of it is the critic's (an untracked file, or a committed file named
