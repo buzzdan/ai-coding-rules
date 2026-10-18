@@ -72,7 +72,9 @@ isolated context, spawned with the package list)
 
 **Phase 4 — REVIEW over the scope's diff** (via @pre-commit-review)
 - @pre-commit-review orchestrates parallel `ts-react-linter-driven-development:rule-hunter` agents + the
-  `ts-react-linter-driven-development:overabstraction-skeptic` against the diff; it reports, never edits, never widens
+  `ts-react-linter-driven-development:overabstraction-skeptic` against the diff; it reports, never edits, never widens;
+  a diff in several languages is split by file and each group reviewed by the plugin
+  installed for its language, in one report with a section per language
 - Findings return categorized (Bugs / Design Debt / Readability Debt / Polish), all
   advisory
 - 🔗 CLUSTER entries (≥2 rules converging on one anchor) are fixed design-first:

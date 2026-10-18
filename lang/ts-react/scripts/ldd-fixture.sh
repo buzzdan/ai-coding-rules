@@ -3,13 +3,16 @@
 # the fx_* builders write that language's files; the cases read only these.
 #
 #   FX_ROWS            the row ids, space-separated
+#   FX_NATIVE          of the mixed repository's languages (d, go, python,
+#                      typescript), the ones this plugin's block reviews itself
 #   FX_GLOB            find(1) -name pattern for the row's source files
 #   FX_SRC_FILE        the production file under a layer directory: two sleep
 #                      calls and one suppression directive
 #   FX_SUPPRESS_LINE   the suppression directive's line, as the diff adds it
 #   fx_write_marker <dir> <module>   write the project marker for a (sub-)project
 #   fx_write_code                    write $FX_SRC_FILE and a test file with a sleep
-FX_ROWS="ts-react"
+FX_ROWS="typescript"
+FX_NATIVE="typescript"
 
 # The row's glob is `*.ts`, not the block's `*.ts*`: the matrix derives file
 # names for the files it creates from it, and `fresh.ts*` is no file name.
