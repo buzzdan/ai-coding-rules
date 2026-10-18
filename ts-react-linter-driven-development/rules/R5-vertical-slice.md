@@ -142,7 +142,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    Detection: for each feature noun in the diff,
    `grep -rli '<feature>' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules src | xargs -n1 dirname | sort -u`
    — count distinct layer-named directories. The inverse shape is the god file:
-   `sonarjs/max-lines` (600) on a `Performance.tsx` of 1,199 lines holding the page,
+   `sonarjs/max-lines` on a `Performance.tsx` of 1,199 lines holding the page,
    its hooks, its API calls and its types in one module.
    Violation: the same feature living in `components/`, `hooks/`, `services/` and
    `types/` — four top-level directories for one page — it is horizontally

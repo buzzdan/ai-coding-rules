@@ -1,4 +1,4 @@
-**A file-length limit (the linter's, or ~450 lines when it has none):**
+**A file over the file-length limit** — the repository linter's limit where it sets one, else {{.FileMaxLines}} code lines; `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them and names the limit it applied:
 
 | File pattern | Action |
 |---|---|
@@ -7,15 +7,19 @@
 | Long functions, few types | Storify → extract functions (R3) |
 
 <package_decomposition>
-**Package-size zones** — count the non-test, non-generated source files in one
-directory:
+**Package-size zones** — source files per directory:
 
 ```
-find <dir> -maxdepth 1 -type f -name '{{.SrcGlob}}' -not -name '*{{.TestGlob}}' | wc -l
+bash <this skill dir>/../../scripts/ldd-lint.sh package-size --root .
 ```
 
-≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —
-**must decompose**. Either zone: run the 3-step design review under "Package
-decomposition", printed with this range (it is a *design* review — missing domain types are the
+The gap linter counts the non-test, non-generated source files of each directory;
+a `.ldd-lint.yaml` at the repository root sets other sizes, and the first line of
+its output says which sizes applied.
+
+Below {{.PackageWarnFiles}} files green — fine. {{.PackageWarnFiles}} or more yellow — design review
+*before the next file lands*. {{.PackageMaxFiles}} or more red — **must decompose**. Either
+zone: run the 3-step design review under "Package decomposition", printed with this
+range (it is a *design* review — missing domain types are the
 disease, file count the symptom). Invoke @code-designing to validate extracted types.
 </package_decomposition>

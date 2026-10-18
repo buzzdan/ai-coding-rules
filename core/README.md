@@ -31,12 +31,16 @@ Go `text/template` with the default delimiters. Core files use only two construc
 - `{{.Plugin}}`, `{{.Lang}}`, `{{.CmdPrefix}}`, `{{.SrcGlob}}`, `{{.TestGlob}}`,
   `{{.ProjectMarker}}`, `{{.Nolint}}`, `{{.CommentPrefix}}`, `{{.DefaultTest}}`,
   `{{.DefaultLint}}`, `{{.DefaultLintFix}}`, `{{.Nil}}`, `{{.Task}}`, `{{.DocForm}}`,
-  `{{.DocComment}}`, `{{.SrcExt}}`, `{{.Unexported}}` — scalars from `profile.yaml`.
-  The last six are single words core prose uses as common nouns (the missing value, a
-  unit of concurrent work, the documentation comment form, the source-file suffix,
-  the visibility of a non-public symbol); which sentences use them, and which Go
-  idioms are includes instead, is recorded in `docs/language-residue.md`. A template that names a scalar the profile does not
-  define fails to render.
+  `{{.DocComment}}`, `{{.SrcExt}}`, `{{.Unexported}}`, `{{.FileMaxLines}}`,
+  `{{.PackageWarnFiles}}`, `{{.PackageMaxFiles}}` — scalars from `profile.yaml`.
+  Six are single words core prose uses as common nouns (the missing value, a unit of
+  concurrent work, the documentation comment form, the source-file suffix, the
+  visibility of a non-public symbol); which sentences use them, and which Go idioms
+  are includes instead, is recorded in `docs/language-residue.md`. The last three
+  are the gap linter's thresholds, positive integers with the warning below the
+  limit, so the prose that names a limit and the script that applies it cannot
+  disagree. A template that names a scalar the profile does not define fails to
+  render.
 - `{{include "rules/R1/canonical-example.md"}}` — the body of that file under
   `lang/<lang>/`, with exactly one trailing newline removed. When the binding has no
   file of that name, the body comes from `core/includes/` under the same path: the
@@ -128,8 +132,8 @@ unchanged. Promotion into `core/` happens when a second language needs the text:
   own that says so and points at the repository's test utilities; the Python binding
   ships a short pytest catalogue in the same shape, and the ts-react binding a
   Vitest, React Testing Library and MSW catalogue.
-- `README.md`, `CHANGELOG.md`, `.claude-plugin/plugin.json`, `hooks/`: describe or
-  configure the Go plugin itself.
+- `README.md`, `CHANGELOG.md`, `.claude-plugin/plugin.json`: describe or configure
+  the Go plugin itself.
 
 Three promoted pieces carry a note here because the Go plugin renders them
 differently from the other bindings:
@@ -173,6 +177,16 @@ differently from the other bindings:
   by the language of each file, a group goes to the plugin installed for its
   language, else to this plugin's block, else to the generic plugin, else it is
   excluded and every file of it named.
+- `scripts/ldd-lint.sh` and `scripts/ldd-lint_test.sh`, the gap linter and its
+  fixture matrix, are core templates. The linter measures lines per source file and
+  source files per directory, where the repository's linter does not hold them. It
+  reads the language table and the language block, and a third include with a core
+  default, `scripts/ldd-lint-langs.sh`, the linter table: per language id, the
+  comment syntax, the files a directory count leaves out, and where the repository's
+  own linter config sets a file-length limit and how that linter counts. The table is
+  the one place core names linters, and its `residue-exempt:` marker says so. The
+  matrix reads the binding's `scripts/ldd-fixture.sh` for the source suffix, the
+  comment forms, a test file's name and a linter config per row.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The

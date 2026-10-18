@@ -71,10 +71,9 @@ Ground rules, all enforced:
 - **House style is plain.** Standard-library testing and logging (pytest in
   Python), a Taskfile, no assertion library. Anything the agent introduces beyond
   that is a when-in-Rome finding it must raise on itself.
-- **Everything lives under `internal/`, `cmd/` and `pkg/`** in go-mini because the
-  Go plugin's package-size hook scans only those directories; py-mini keeps
-  `internal/` and puts the entry point in `svc/`, since a top-level `cmd` package
-  would shadow the standard library module of that name.
+- **Everything lives under `internal/`, `cmd/` and `pkg/`** in go-mini, the usual Go
+  layout; py-mini keeps `internal/` and puts the entry point in `svc/`, since a
+  top-level `cmd` package would shadow the standard library module of that name.
 
 ## The manifest
 `go/violations.yaml`, beside the fixture, is the answer key, kept outside the scaffolded tree. One

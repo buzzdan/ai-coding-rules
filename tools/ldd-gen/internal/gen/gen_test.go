@@ -30,6 +30,9 @@ doc_form: docstring
 doc_comment: doc comment
 src_ext: .p
 unexported: hidden
+file_max_lines: "450"
+package_warn_files: "8"
+package_max_files: "13"
 ignore: ["evals/*"]
 `
 

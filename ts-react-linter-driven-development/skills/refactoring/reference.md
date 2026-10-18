@@ -72,7 +72,7 @@ decomposition): "Multi-rule procedures", below.
 ## File and package routing
 
 <file_and_package_routing>
-**`sonarjs/max-lines` (600; or a module over ~450 lines where the repository sets no limit — count):**
+**`sonarjs/max-lines`, or a module over 450 code lines where the repository sets no limit** — `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them and names the limit it applied:
 
 | File pattern | Action |
 |---|---|
@@ -82,15 +82,20 @@ decomposition): "Multi-rule procedures", below.
 | Several components in one file (`react/no-multi-comp`) | One component per file; the page folder decides where the second lands (R4, R5) |
 
 <package_decomposition>
-**Package-size zones** — count non-test `.ts`/`.tsx` modules per directory:
+**Package-size zones** — non-test `.ts`/`.tsx` modules per directory, `index.ts`, declaration files and stories left out:
 
 ```
-find <dir> -maxdepth 1 -type f \( -name '*.ts' -o -name '*.tsx' \) -not -name '*.test.*' -not -name '*.spec.*' -not -name '*.stories.*' -not -name '*.d.ts' -not -name 'index.ts' | wc -l
+bash <this skill dir>/../../scripts/ldd-lint.sh package-size --root .
 ```
 
-≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —
-**must decompose**. Either zone: run the 3-step design review under "Package
-decomposition", printed with this range (it is a *design* review — missing domain types are the
+The gap linter counts the non-test, non-generated source files of each directory;
+a `.ldd-lint.yaml` at the repository root sets other sizes, and the first line of
+its output says which sizes applied.
+
+Below 8 files green — fine. 8 or more yellow — design review
+*before the next file lands*. 13 or more red — **must decompose**. Either
+zone: run the 3-step design review under "Package decomposition", printed with this
+range (it is a *design* review — missing domain types are the
 disease, file count the symptom). Invoke @code-designing to validate extracted types.
 </package_decomposition>
 </file_and_package_routing>
@@ -272,9 +277,9 @@ composition: @code-designing.
 
 ### Package decomposition
 
-Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `.ts`
-files at one directory level) or yellow zone (8–12) — detection command and zone
-table in `<package_decomposition>` above.
+Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (13 or more non-test
+`.ts` files at one directory level) or yellow zone (8 or more) — the
+measuring command and the zones are in `<package_decomposition>` above.
 
 **A package-size violation is a design review, not a mechanical file split.** File
 count is the symptom; the disease is usually missing domain types or multiple

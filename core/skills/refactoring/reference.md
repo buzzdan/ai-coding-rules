@@ -243,9 +243,9 @@ composition: @code-designing.
 
 ### Package decomposition
 
-Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `{{.SrcExt}}`
-files at one directory level) or yellow zone (8–12) — detection command and zone
-table in `<package_decomposition>` above.
+Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone ({{.PackageMaxFiles}} or more non-test
+`{{.SrcExt}}` files at one directory level) or yellow zone ({{.PackageWarnFiles}} or more) — the
+measuring command and the zones are in `<package_decomposition>` above.
 
 **A package-size violation is a design review, not a mechanical file split.** File
 count is the symptom; the disease is usually missing domain types or multiple

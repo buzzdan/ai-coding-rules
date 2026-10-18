@@ -5,6 +5,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+
+- **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
+  measures lines per source file (`file-length`) and source files per directory
+  (`package-size`). Where the repository's linter config holds the file-length
+  limit, the script uses that limit and counts lines the way that linter counts.
+  Otherwise a `.ldd-lint.yaml` at the repository root sets the limits, and
+  otherwise the plugin's defaults apply: 450 code lines per file, a warning at 8
+  source files per directory and the limit at 13. The first line of the output
+  names the limit that applied; with the defaults it also prints the setting that
+  makes the repository's linter hold the limit. `--tsv` writes findings as rows.
+  The script never edits a file.
+
+### Changed
+
+- **One set of thresholds.** The skills and routing tables name the same limits the
+  gap linter applies: the repository linter's limit where it sets one, else
+  450 code lines per file and 8 and 13 files per directory. The package-size
+  procedure runs the gap linter in place of a hand-written `find` command.
+
+### Removed
+
+- **`hooks/check-package-sizes.sh`.** The hook was never registered, so it never
+  ran. The gap linter's `package-size` measures the same zones for every source
+  directory.
+
 ### Fixed
 
 - **A claim that something is missing needs a listing.** A rule hunter that reports

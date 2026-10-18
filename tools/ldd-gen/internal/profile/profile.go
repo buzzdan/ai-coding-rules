@@ -10,6 +10,7 @@ import (
 	"path"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -40,6 +41,13 @@ type Vars struct {
 	DocComment     string `yaml:"doc_comment"`
 	SrcExt         string `yaml:"src_ext"`
 	Unexported     string `yaml:"unexported"`
+	// The thresholds the gap linter applies where the repository's linter
+	// holds none: code lines per source file, and source files per directory
+	// that start the warning zone and the limit. Each is a positive integer,
+	// and the warning starts below the limit.
+	FileMaxLines     string `yaml:"file_max_lines"`
+	PackageWarnFiles string `yaml:"package_warn_files"`
+	PackageMaxFiles  string `yaml:"package_max_files"`
 }
 
 // Profile is a parsed profile.yaml. Plugin doubles as the output directory
@@ -174,6 +182,29 @@ func (v Vars) validate() error {
 	}
 	if len(missing) > 0 {
 		return errors.New("profile: missing " + strings.Join(missing, ", "))
+	}
+	return v.validateThresholds()
+}
+
+// validateThresholds accepts positive integers only, with the package
+// warning below the package limit: the scripts compare them as numbers, and
+// a warning zone that starts at or above the limit is empty.
+func (v Vars) validateThresholds() error {
+	values := map[string]string{
+		"file_max_lines":     v.FileMaxLines,
+		"package_warn_files": v.PackageWarnFiles,
+		"package_max_files":  v.PackageMaxFiles,
+	}
+	numbers := make(map[string]int, len(values))
+	for _, key := range []string{"file_max_lines", "package_warn_files", "package_max_files"} {
+		n, err := strconv.Atoi(values[key])
+		if err != nil || n <= 0 {
+			return fmt.Errorf("profile: %s %q must be a positive integer", key, values[key])
+		}
+		numbers[key] = n
+	}
+	if numbers["package_warn_files"] >= numbers["package_max_files"] {
+		return fmt.Errorf("profile: package_warn_files %d must be below package_max_files %d", numbers["package_warn_files"], numbers["package_max_files"])
 	}
 	return nil
 }

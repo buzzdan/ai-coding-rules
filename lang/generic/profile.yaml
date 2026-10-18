@@ -26,6 +26,13 @@ doc_form: doc comment
 doc_comment: doc comment
 src_ext: ".<ext>"
 unexported: internal
+# The gap linter's thresholds, where the repository's linter holds none: code
+# lines per source file (blank and comment-only lines are not counted), and
+# source files per directory that start the warning zone and the limit. A
+# repository's linter config, then its .ldd-lint.yaml, wins over these.
+file_max_lines: "450"
+package_warn_files: "8"
+package_max_files: "13"
 # The standalone coding-rules document rendered from core/handbook/: the twelve
 # rules with the core pseudocode examples and this binding's house rules and
 # mechanics under handbook/, written outside the plugin directory.
