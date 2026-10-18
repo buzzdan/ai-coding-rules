@@ -58,7 +58,8 @@
    and boolean conditions, check the parametrize table for a row at each boundary
    value and on each side of each condition, and name the row that is missing. Open
    the leaf's test file for this, also when the file is outside the review's scope.
-   Then read each error assertion. An assertion that matches only a word all the
+   Then read each error assertion of each leaf in scope, once per leaf file and not
+   only where a hit row points. An assertion that matches only a word all the
    leaf's errors share (`match="tenant"`) cannot tell one error path from another, so
    a removed check or a changed message survives.
    On a whole-repository review this question is not judged: a mutation run or a
