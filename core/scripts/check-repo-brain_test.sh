@@ -373,7 +373,7 @@ finish
 
 begin "Q7 root index with an extra key is reported"
 mk_conformant
-sed -i 's/^okf_version: "0.2"$/okf_version: "0.2"\ntimestamp: 2026-01-01/' "$REPO/docs/index.md"
+awk '{ print } /^okf_version: "0.2"$/ { print "timestamp: 2026-01-01" }' "$REPO/docs/index.md" > "$REPO/docs/index.md.tmp" && mv "$REPO/docs/index.md.tmp" "$REPO/docs/index.md"
 run_gate
 expect_exit 1 && expect_has "root index frontmatter carries 'timestamp:'" && ok
 finish
@@ -387,7 +387,7 @@ finish
 
 begin "Q7 drifted index line fails; --fix rewrites it; re-check is clean"
 mk_conformant
-sed -i 's/ — why retries use capped full jitter; `Policy` API$/ — retries, old wording/' "$REPO/docs/index.md"
+sed -i.bak 's/ — why retries use capped full jitter; `Policy` API$/ — retries, old wording/' "$REPO/docs/index.md"; rm -f "$REPO/docs/index.md.bak"
 run_gate
 if expect_exit 1 && expect_has "[Q7] docs/index.md:" && expect_has "drifted from retry-policy.md's description"; then
   run_gate --fix
