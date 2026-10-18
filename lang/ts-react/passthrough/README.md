@@ -230,6 +230,11 @@ is the meta-orchestrator:
 | `/tsr-ldd-status` | Show current phase + progress | N/A |
 | `/wire-repo-brain [path]` | Wire the documentation network in one pass | ✅ Wiring only |
 
+On a repository larger than a few dozen source files, `--all` reports `PARTIAL
+coverage`: each hunter's budget reaches a few directories, and the report names the
+rest as not reached. For full coverage, review one directory at a time
+(`/tsr-ldd-review src/pages/Devices`).
+
 `/wire-repo-brain` carries no prefix: the documentation network it wires is a
 property of the repository, not of a language, and the Go and Python plugins offer
 the same command. Installed side by side, all do the same structural work.
