@@ -31,6 +31,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   ran. The gap linter's `package-size` measures the same zones for every source
   directory.
 
+### Fixed
+
+- **A value-taking option given last no longer hangs the review scripts.** When
+  `ldd-detect.sh` or `ldd-scope.sh` got an option such as `--root` or `--base` as
+  its last argument, the script looped forever. It now stops with "<option> needs
+  a value" and exit 2, the documented usage error.
+
 ## [2.16.0] - 2026-10-18
 
 ### Changed

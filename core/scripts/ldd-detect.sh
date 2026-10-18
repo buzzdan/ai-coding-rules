@@ -82,15 +82,18 @@ BUNDLE=""
 usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 die() { echo "$SCRIPT_NAME: $*" >&2; exit 2; }
 
+# value <option> <remaining argument count> — a value-taking option needs one
+value() { (( $2 >= 2 )) || die "$1 needs a value"; }
+
 while (( $# > 0 )); do
   case "$1" in
-    --files)   FILES_LIST="${2:-}"; shift 2 ;;
-    --root)    ROOT="${2:-}"; shift 2 ;;
-    --rules)   RULES_DIR="${2:-}"; shift 2 ;;
-    --cap)     CAP="${2:-}"; shift 2 ;;
+    --files)   value "$1" $#; FILES_LIST="$2"; shift 2 ;;
+    --root)    value "$1" $#; ROOT="$2"; shift 2 ;;
+    --rules)   value "$1" $#; RULES_DIR="$2"; shift 2 ;;
+    --cap)     value "$1" $#; CAP="$2"; shift 2 ;;
     --plan)    PLAN=1; shift ;;
-    --glob)    OPT_GLOB="${2:-}"; shift 2 ;;
-    --test-re) OPT_TEST_RE="${2:-}"; shift 2 ;;
+    --glob)    value "$1" $#; OPT_GLOB="$2"; shift 2 ;;
+    --test-re) value "$1" $#; OPT_TEST_RE="$2"; shift 2 ;;
     -h|--help) usage ;;
     --*)       die "unknown option: $1" ;;
     *)         [[ -n "$BUNDLE" ]] && die "one bundle directory, got also: $1"; BUNDLE="$1"; shift ;;

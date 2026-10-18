@@ -657,6 +657,25 @@ expect_exit 0 && expect_flat custom && expect_has "1 files bundled" \
   && [[ "$(cat "$BUNDLE/scope-out/files.txt")" == "$MIXED_D" ]] && ok
 finish
 
+# run_bounded <args...> — runs the script with exactly these arguments and
+# stops it after five seconds, so a regression that loops fails, never hangs
+run_bounded() {
+  local outf pid i; outf=$(mktemp)
+  ( cd "$REPO" && exec bash "$SCOPE_SH" "$@" ) > "$outf" 2>&1 &
+  pid=$!
+  for (( i = 0; i < 50; i++ )); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; CODE=124; else wait "$pid"; CODE=$?; fi
+  OUT=$(cat "$outf"); ERR=""; rm -f "$outf"
+}
+
+ROW=""
+for opt in --root --out --max-lines --glob --test-re --lang --base; do
+  begin "$opt without its value is a usage error (exit 2)"
+  run_bounded "$opt"
+  expect_exit 2 && expect_has "$opt needs a value" && ok
+  finish
+done
+
 # ========================= summary =========================
 echo
 echo "ldd-scope_test: $pass passed, $failed failed, $skipped skipped"

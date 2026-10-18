@@ -106,15 +106,18 @@ EXPLICIT=()
 usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 die() { echo "$SCRIPT_NAME: $*" >&2; exit 2; }
 
+# value <option> <remaining argument count> — a value-taking option needs one
+value() { (( $2 >= 2 )) || die "$1 needs a value"; }
+
 while (( $# > 0 )); do
   case "$1" in
-    --root)      ROOT="${2:-}"; shift 2 ;;
-    --out)       OUT="${2:-}"; shift 2 ;;
-    --max-lines) MAX_LINES="${2:-}"; shift 2 ;;
-    --glob)      OPT_GLOB="${2:-}"; shift 2 ;;
-    --test-re)   OPT_TEST_RE="${2:-}"; shift 2 ;;
-    --lang)      OPT_LANG="${2:-}"; shift 2 ;;
-    --base)      RUNG="base"; BASE="${2:-}"; shift 2 ;;
+    --root)      value "$1" $#; ROOT="$2"; shift 2 ;;
+    --out)       value "$1" $#; OUT="$2"; shift 2 ;;
+    --max-lines) value "$1" $#; MAX_LINES="$2"; shift 2 ;;
+    --glob)      value "$1" $#; OPT_GLOB="$2"; shift 2 ;;
+    --test-re)   value "$1" $#; OPT_TEST_RE="$2"; shift 2 ;;
+    --lang)      value "$1" $#; OPT_LANG="$2"; shift 2 ;;
+    --base)      value "$1" $#; RUNG="base"; BASE="$2"; shift 2 ;;
     --all)       RUNG="all"; shift ;;
     -h|--help)   usage ;;
     --)          shift; while (( $# > 0 )); do EXPLICIT+=("$1"); shift; done ;;
