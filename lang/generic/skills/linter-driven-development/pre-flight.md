@@ -6,8 +6,10 @@
    `//`, `eslint-disable`); `Cargo.toml` → Rust (`*.rs`, `#[cfg(test)]` modules, `//`,
    `#[allow(...)]`); `pom.xml` or `build.gradle` → Java or Kotlin (`*.java`/`*.kt`,
    `src/test/`, `//`, `@SuppressWarnings`); a `.csproj` → C# (`*.cs`, `*.Tests`
-   projects, `//`, `#pragma warning disable`). Several markers → one language at a
-   time, each with its own row. No marker and no source files → say so and stop;
+   projects, `//`, `#pragma warning disable`). Several markers → implement one
+   language at a time, each with its own row; the review (Phase 4) takes the whole
+   diff, splits it by the language of each file and sends each group to the plugin
+   installed for that language. No marker and no source files → say so and stop;
    there is no code for the workflow to work on. Where a language-specific
    linter-driven-development plugin is installed for the detected language, hand
    over to it: its rows are knowledge, these are detection.

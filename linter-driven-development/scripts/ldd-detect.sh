@@ -11,16 +11,25 @@
 #
 # Usage:  bash scripts/ldd-detect.sh [options] <bundle-dir>
 #         <bundle-dir>      the bundle ldd-scope.sh wrote; its files.txt is the
-#                           scope, hits.tsv and counts.tsv are written beside it
+#                           scope, hits.tsv and counts.tsv are written beside it.
+#                           A directory holding groups.txt is a scope split by
+#                           language: every group's bundle is run in turn by the
+#                           ldd-detect.sh of the plugin that reviews it, under a
+#                           "== <id> — <plugin> ==" line, and an excluded group
+#                           says why it was not reviewed
 #   --files <list>          read the scope from this file instead of files.txt
 #   --root <dir>            the reviewed repository (default: cwd); scope paths
 #                           are relative to it
 #   --rules <dir>           the rule files (default: ../rules beside this script)
 #   --cap <n>               hits kept per question in hits.tsv (default 40)
 #   --plan                  print the parsed detect lines and exit; nothing runs
-#   --glob <pattern>        source-file glob, when the language block cannot
-#                           tell it from the repository (any-language block below)
+#   --glob <pattern>        the scope is one group of a language the table
+#                           does not know, matched by this glob
 #   --test-re <ERE>         test-file pattern over relative paths, same case
+#
+# The scope's language is the bundle's language.txt; without it, the files in
+# files.txt tell it by extension, and a list that spans several languages is
+# refused: ldd-scope.sh writes one bundle per language.
 #
 # Detect lines — one per numbered question under "## Falsifying questions":
 #   Detect-grep: `<ERE>` [files=src|test|all] [exclude-path=<ERE>,<ERE>] [context=<n>]
@@ -95,86 +104,227 @@ if (( ! PLAN )); then
   [[ -d "$BUNDLE" ]] || die "not a directory: $BUNDLE"
   BUNDLE=$(cd "$BUNDLE" && pwd)
   [[ -z "$FILES_LIST" ]] && FILES_LIST="$BUNDLE/files.txt"
-  [[ -f "$FILES_LIST" ]] || die "no scope list: $FILES_LIST"
+  [[ -f "$FILES_LIST" || -f "$BUNDLE/groups.txt" ]] || die "no scope list: $FILES_LIST"
   FILES_LIST=$(cd "$(dirname "$FILES_LIST")" && pwd)/$(basename "$FILES_LIST")
   [[ -d "$ROOT" ]] || die "not a directory: $ROOT"
   cd "$ROOT" || exit 2
 fi
 
-# ==================== language block: detected ====================
-# Everything language-specific the review scripts need. The driver calls only
-# the LANG_* variables and lang_* functions defined here. This is the generic
-# plugin's block: it picks a language from the repository's marker file at run
-# time — go.mod selects Go, pyproject.toml (or setup.cfg / setup.py) selects
-# Python — and a repository with neither takes the source glob from --glob and
-# the test-file pattern from --test-re.
+# ==================== language table ====================
+# How a file's language is told, and which plugin owns a language. The same
+# table is rendered into every plugin, so two plugins that split one scope
+# agree on every file. The language block below says which of these ids this
+# plugin reviews itself; the rest are routed to the plugin that owns them.
+# residue-exempt: the table names every language's extension and plugin on
+# purpose, the same in every rendering.
 #
-# Contract:
-#   LANG_SRC_GLOB       find(1) -name pattern for the language's source files
-#   LANG_EXCLUDE_RE     ERE over a relative path: directories never in scope
-#   LANG_SUPPRESS_RE    ERE: a lint-suppression directive on a source line
-#   LANG_COMMENT_RE     ERE: a source line that carries a comment
-#   LANG_DIRECTIVE_RE   ERE: a comment line that is a directive, not prose
-#   LANG_GENERATED_RE   ERE: a marker in a file's head that says it is generated
-#   lang_configure      reads OPT_GLOB / OPT_TEST_RE (set by --glob / --test-re)
-#   lang_is_test <path> exit 0 iff the path is a test file
-detect_language() {
-  if [[ -f go.mod ]]; then printf 'go\n'; return; fi
-  if [[ -f pyproject.toml || -f setup.cfg || -f setup.py ]]; then printf 'python\n'; return; fi
-  if find . -name go.mod -not -path '*/vendor/*' -not -path './.git/*' -print -quit 2>/dev/null | grep -q .; then
-    printf 'go\n'; return
+#   lang_of_path <path>       the language id of a source file, by extension:
+#                             "custom" for a file matching --glob (then nothing
+#                             else is a source file), "" for a file that is not
+#                             source (a manifest, a doc, a build file)
+#   dedicated_plugin_for <id> the plugin written for that language, or ""
+#   GENERIC_PLUGIN            the plugin that reviews any language
+#   installed_plugin_dir <n>  where plugin <n> is installed, from the
+#                             installed-plugins file, or "" when it is not;
+#                             LDD_INSTALLED_PLUGINS names another file
+GENERIC_PLUGIN='linter-driven-development'
+
+# A .h header is C++ when the repository has C++ sources, C otherwise.
+HEADER_LANG=""
+header_lang() {
+  [[ -n "$HEADER_LANG" ]] && { printf '%s' "$HEADER_LANG"; return; }
+  if { git ls-files -- '*.cpp' '*.cc' '*.cxx' '*.hpp' 2>/dev/null || find . -type f \( -name '*.cpp' -o -name '*.cc' -o -name '*.cxx' -o -name '*.hpp' \) -not -path './.git/*' 2>/dev/null; } | head -1 | grep -q .; then
+    HEADER_LANG=cpp
+  else
+    HEADER_LANG=c
   fi
-  if find . \( -name pyproject.toml -o -name setup.cfg -o -name setup.py \) \
-       -not -path '*/.venv/*' -not -path '*/node_modules/*' -not -path './.git/*' -print -quit 2>/dev/null | grep -q .; then
-    printf 'python\n'; return
-  fi
-  printf 'unknown\n'
+  printf '%s' "$HEADER_LANG"
 }
 
-DETECTED_LANGUAGE=""
+lang_of_path() {
+  local b="${1##*/}"
+  if [[ -n "${OPT_GLOB:-}" ]]; then
+    case "$b" in $OPT_GLOB) printf 'custom' ;; esac
+    return 0
+  fi
+  case "$b" in
+    *.go)                                   printf 'go' ;;
+    *.py)                                   printf 'python' ;;
+    *.d|*.di)                               printf 'd' ;;
+    *.rs)                                   printf 'rust' ;;
+    *.c)                                    printf 'c' ;;
+    *.h)                                    header_lang ;;
+    *.cpp|*.cc|*.cxx|*.hpp|*.hh|*.hxx)      printf 'cpp' ;;
+    *.java)                                 printf 'java' ;;
+    *.kt|*.kts)                             printf 'kotlin' ;;
+    *.rb)                                   printf 'ruby' ;;
+    *.sh|*.bash)                            printf 'shell' ;;
+    *.ts|*.tsx)                             printf 'typescript' ;;
+    *.js|*.jsx|*.mjs|*.cjs)                 printf 'javascript' ;;
+    *.cs)                                   printf 'csharp' ;;
+  esac
+  return 0
+}
+
+dedicated_plugin_for() {
+  case "$1" in
+    go|python)              printf '%s-linter-driven-development' "$1" ;;
+    typescript|javascript)  printf 'ts-react-linter-driven-development' ;;
+  esac
+  return 0
+}
+
+installed_plugin_dir() {
+  local f="${LDD_INSTALLED_PLUGINS:-$HOME/.claude/plugins/installed_plugins.json}"
+  [[ -f "$f" ]] || return 0
+  awk -v key="\"$1@" '
+    index($0, key) { found = 1; next }
+    found && /"installPath"/ { sub(/^[^:]*:[ \t]*"/, ""); sub(/".*$/, ""); print; exit }
+  ' "$f"
+}
+# ================== end language table ==================
+
+# ==================== language block: any language ====================
+# Everything language-specific the review scripts need. The driver calls only
+# the LANG_* variables and lang_* functions defined here. This is the generic
+# plugin's block: one row per language the language table above names, so a
+# group of any of them is reviewed here when no plugin written for that
+# language is installed. Which file is which language is the table, shared by
+# every plugin; this block only says how each language writes a comment, a
+# suppression directive and a test file.
+#
+# Contract:
+#   LANG_NATIVE         the language ids this plugin reviews itself; a group of
+#                       any other id is routed to the plugin that owns it
+#   lang_configure <id> sets the variables below for that id; "custom" is the
+#                       --glob override: a language the table does not know,
+#                       reviewed with the broad row at the end;
+#                       exit 2 for an id this block has no row for
+#   LANG_EXCLUDE_RE     ERE over a relative path: directories never in scope
+#   LANG_SUPPRESS_RE    ERE: a lint-suppression directive on a source line
+#   LANG_COMMENT_RE     ERE: a source line that carries a comment (bracket
+#                       expressions, no backslashes: the driver hands it to
+#                       awk -v, which eats `\*` under gawk)
+#   LANG_DIRECTIVE_RE   ERE: a comment line that is a directive, not prose
+#   LANG_GENERATED_RE   ERE: a marker in a file's head that says it is generated
+#   lang_is_test <path> exit 0 iff the path is a test file (--test-re overrides)
+LANG_NATIVE="go python d rust c cpp java kotlin ruby shell typescript javascript csharp custom"
+LANG_ID=""
+
 lang_configure() {
-  DETECTED_LANGUAGE=$(detect_language)
-  case "$DETECTED_LANGUAGE" in
+  LANG_ID="$1"
+  LANG_GENERATED_RE='Code generated .* DO NOT EDIT|DO NOT EDIT|@generated|automatically generated|Generated by'
+  case "$1" in
     go)
-      LANG_SRC_GLOB='*.go'
       LANG_EXCLUDE_RE='(^|/)(vendor|\.git|testdata)/'
       LANG_SUPPRESS_RE='//nolint'
       LANG_COMMENT_RE='//'
       LANG_DIRECTIVE_RE='//(go:|nolint| Output:|line |export |extern )'
-      LANG_GENERATED_RE='Code generated .* DO NOT EDIT|DO NOT EDIT|@generated'
       ;;
     python)
-      LANG_SRC_GLOB='*.py'
       LANG_EXCLUDE_RE='(^|/)(\.venv|venv|\.git|node_modules|__pycache__|\.tox|build|dist)/'
       LANG_SUPPRESS_RE='#\s*(noqa|type:\s*ignore|ty:\s*ignore)'
       LANG_COMMENT_RE='(#|""")'
       LANG_DIRECTIVE_RE='#\s*(noqa|type:|ty:|pragma|fmt:|pylint:|ruff:|isort:|!)|>>>'
-      LANG_GENERATED_RE='Generated by|DO NOT EDIT|@generated|automatically generated'
       ;;
-    *)
-      if [[ -z "${OPT_GLOB:-}" ]]; then
-        echo "$SCRIPT_NAME: no go.mod or pyproject.toml found; pass --glob '<source glob>' (and --test-re '<ERE>' for test files)" >&2
-        return 2
-      fi
-      LANG_SRC_GLOB="$OPT_GLOB"
+    d)
+      # D comments: // line, /* block */ and /+ nested +/. D-Scanner's
+      # suppression is a comment: // @suppress(dscanner.<check>). A file's
+      # inline `unittest` blocks test the production code beside them and keep
+      # the file a production file; a test file is one under a test directory
+      # or named *_test.d.
+      LANG_EXCLUDE_RE='(^|/)(\.git|\.dub|vendor)/'
+      LANG_SUPPRESS_RE='@suppress\('
+      LANG_COMMENT_RE='(//|/[*]|/[+])'
+      LANG_DIRECTIVE_RE='@suppress\(|dfmt (on|off)|#!'
+      ;;
+    rust)
+      LANG_EXCLUDE_RE='(^|/)(\.git|target|vendor)/'
+      LANG_SUPPRESS_RE='#!?\[allow\('
+      LANG_COMMENT_RE='(//|/[*])'
+      LANG_DIRECTIVE_RE='rustfmt::skip|clippy::'
+      ;;
+    c|cpp)
+      LANG_EXCLUDE_RE='(^|/)(\.git|third_party|vendor)/'
+      LANG_SUPPRESS_RE='NOLINT|cppcheck-suppress|#pragma (warning\s*\(\s*disable|GCC diagnostic ignored|clang diagnostic ignored)'
+      LANG_COMMENT_RE='(//|/[*])'
+      LANG_DIRECTIVE_RE='NOLINT|cppcheck-suppress|clang-format (on|off)|IWYU'
+      ;;
+    java|kotlin)
+      LANG_EXCLUDE_RE='(^|/)(\.git|target|build|\.gradle)/'
+      LANG_SUPPRESS_RE='@Suppress(Warnings)?\(|NOSONAR|noinspection|CHECKSTYLE:OFF|ktlint-disable|detekt:'
+      LANG_COMMENT_RE='(//|/[*])'
+      LANG_DIRECTIVE_RE='noinspection|CHECKSTYLE|NOSONAR|@formatter:|ktlint-|detekt:'
+      ;;
+    ruby)
+      LANG_EXCLUDE_RE='(^|/)(\.git|vendor/bundle|tmp)/'
+      LANG_SUPPRESS_RE='rubocop:disable|steep:ignore'
+      LANG_COMMENT_RE='(#|=begin)'
+      LANG_DIRECTIVE_RE='rubocop:|frozen_string_literal|encoding:|#!'
+      ;;
+    shell)
+      LANG_EXCLUDE_RE='(^|/)(\.git)/'
+      LANG_SUPPRESS_RE='shellcheck disable'
+      LANG_COMMENT_RE='#'
+      LANG_DIRECTIVE_RE='shellcheck|#!'
+      ;;
+    typescript|javascript)
+      LANG_EXCLUDE_RE='(^|/)(\.git|node_modules|dist)/'
+      LANG_SUPPRESS_RE='eslint-disable|@ts-(ignore|expect-error|nocheck)|biome-ignore'
+      LANG_COMMENT_RE='(//|/[*])'
+      LANG_DIRECTIVE_RE='eslint-|@ts-|prettier-ignore|biome-ignore|/// *<reference|#!'
+      ;;
+    csharp)
+      LANG_EXCLUDE_RE='(^|/)(\.git|bin|obj)/'
+      LANG_SUPPRESS_RE='#pragma warning disable|\[SuppressMessage'
+      LANG_COMMENT_RE='(//|/[*])'
+      LANG_DIRECTIVE_RE='ReSharper|#pragma'
+      ;;
+    custom)
+      # A language the table does not know: every common comment marker and
+      # suppression spelling, so --glob reviews it without a row of its own.
       LANG_EXCLUDE_RE='(^|/)(vendor|\.git|node_modules|\.venv|target|build|dist)/'
-      LANG_SUPPRESS_RE='nolint|noqa|eslint-disable|#\[allow\(|@SuppressWarnings|type:\s*ignore|NOSONAR|rubocop:disable'
-      LANG_COMMENT_RE='(//|#|/\*|--|""")'
+      LANG_SUPPRESS_RE='nolint|noqa|eslint-disable|#\[allow\(|@SuppressWarnings|type:\s*ignore|NOSONAR|rubocop:disable|shellcheck disable'
+      LANG_COMMENT_RE='(//|#|/[*]|--|""")'
       LANG_DIRECTIVE_RE='//go:|nolint|#\s*(noqa|type:|pragma|!)|eslint-|@ts-|pragma'
-      LANG_GENERATED_RE='DO NOT EDIT|@generated|automatically generated|Generated by'
       ;;
+    *) return 2 ;;
   esac
-  [[ -n "${OPT_GLOB:-}" ]] && LANG_SRC_GLOB="$OPT_GLOB"
   return 0
 }
 
 lang_is_test() {
   [[ -n "${OPT_TEST_RE:-}" ]] && { printf '%s\n' "$1" | grep -qE -- "$OPT_TEST_RE"; return; }
-  case "$DETECTED_LANGUAGE" in
+  case "$LANG_ID" in
     go) [[ "$1" == *_test.go ]] ;;
     python)
       case "$1" in
         *_test.py|test_*.py|*/test_*.py|conftest.py|*/conftest.py|tests/*|*/tests/*) return 0 ;;
+      esac
+      return 1 ;;
+    d)
+      case "$1" in
+        *_test.d|test/*|*/test/*|tests/*|*/tests/*|testing/*|*/testing/*) return 0 ;;
+      esac
+      return 1 ;;
+    rust)
+      case "$1" in
+        *_test.rs|tests/*|*/tests/*|benches/*|*/benches/*) return 0 ;;
+      esac
+      return 1 ;;
+    java|kotlin)
+      case "$1" in
+        *Test.java|*Tests.java|*IT.java|*Test.kt|*Tests.kt|src/test/*|*/src/test/*|src/*Test/*|*/src/*Test/*) return 0 ;;
+      esac
+      return 1 ;;
+    ruby)
+      case "$1" in
+        *_spec.rb|*_test.rb|spec/*|*/spec/*|test/*|*/test/*) return 0 ;;
+      esac
+      return 1 ;;
+    csharp)
+      case "$1" in
+        *Test.cs|*Tests.cs|*.Tests/*|*/*.Tests/*|test/*|*/test/*|tests/*|*/tests/*) return 0 ;;
       esac
       return 1 ;;
     *)
@@ -184,11 +334,58 @@ lang_is_test() {
       return 1 ;;
   esac
 }
-# ================== end language block: detected ==================
+# ================== end language block: any language ==================
 
+# ---------- a scope split by language: one run per group ----------
+if (( ! PLAN )) && [[ -f "$BUNDLE/groups.txt" ]]; then
+  failed=0
+  while IFS=$'\t' read -r id plugin plugin_dir bundle note; do
+    [[ -n "$id" ]] || continue
+    if [[ "$bundle" == "-" ]]; then
+      echo "== $id — not reviewed: $note =="
+      echo
+      continue
+    fi
+    echo "== $id — $plugin${note:+ ($note)} =="
+    script="$plugin_dir/scripts/ldd-detect.sh"
+    if [[ ! -f "$script" ]]; then
+      echo "$SCRIPT_NAME: $plugin has no ldd-detect.sh at $script; the $id group is inconclusive" >&2
+      failed=1
+      continue
+    fi
+    args=(--root "$ROOT" --cap "$CAP")
+    [[ -n "$OPT_TEST_RE" ]] && args+=(--test-re "$OPT_TEST_RE")
+    bash "$script" "${args[@]}" "$bundle" || { failed=1; echo "$SCRIPT_NAME: the $id group's detection pass failed; it is inconclusive" >&2; }
+    echo
+  done < "$BUNDLE/groups.txt"
+  (( failed == 0 )) || exit 2
+  exit 0
+fi
+
+# ---------- the scope's language ----------
 # --plan parses the rules and never touches the tree, so the language block is
 # configured only for a run.
-(( PLAN )) || lang_configure || exit 2
+LANG_ID=""
+if (( ! PLAN )); then
+  if [[ -f "$BUNDLE/language.txt" ]]; then
+    IFS=$'\t' read -r LANG_ID glob < "$BUNDLE/language.txt"
+    [[ "$LANG_ID" == "custom" && -z "$OPT_GLOB" ]] && OPT_GLOB="$glob"
+  else
+    ids=""
+    while IFS= read -r line; do
+      f="${line%% (not bundled:*}"; f="${f#./}"
+      [[ -n "$f" ]] || continue
+      id=$(lang_of_path "$f")
+      [[ -n "$id" ]] || continue
+      case " $ids " in *" $id "*) ;; *) ids="$ids $id" ;; esac
+    done < "$FILES_LIST"
+    ids="${ids# }"
+    [[ -n "$ids" ]] || die "no source file in the scope list $FILES_LIST (pass --glob '<pattern>' for a language the table does not know)"
+    [[ "$ids" == *" "* ]] && die "the scope list spans several languages ($ids); ldd-scope.sh writes one bundle per language"
+    LANG_ID="$ids"
+  fi
+  lang_configure "$LANG_ID" || die "this plugin has no language block for $LANG_ID"
+fi
 
 # ---------- the plan: every detect line, parsed ----------
 # One row per question: rule TAB question TAB kind TAB pattern TAB flags.
@@ -252,9 +449,9 @@ fi
 
 # ---------- the scope ----------
 # files.txt lines are "path" or "path (not bundled: <reason>)"; a not-bundled
-# file still exists for grep unless it was deleted. Only the language's source
-# files count, excluded directories are dropped, order is fixed for identical
-# tables across runs.
+# file still exists for grep unless it was deleted. Only the scope language's
+# source files count, excluded directories are dropped, order is fixed for
+# identical tables across runs.
 SRC_FILES=()
 TEST_FILES=()
 ALL_FILES=()
@@ -263,7 +460,7 @@ while IFS= read -r line; do
   f="${f#./}"
   [[ -z "$f" ]] && continue
   [[ -f "$f" ]] || continue
-  case "$(basename "$f")" in $LANG_SRC_GLOB) ;; *) continue ;; esac
+  [[ "$(lang_of_path "$f")" == "$LANG_ID" ]] || continue
   printf '%s\n' "$f" | grep -qE -- "$LANG_EXCLUDE_RE" && continue
   ALL_FILES+=("$f")
 done < <(LC_ALL=C sort -u "$FILES_LIST")

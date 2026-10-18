@@ -1,6 +1,6 @@
 {
   "name": "ts-react-linter-driven-development",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Rules-as-data linter-driven development workflow for TypeScript + React: the same 12 rules, thin directional skills (design, TDD implementation, refactoring, testing, review, documentation) and hunter/skeptic/critic review as the Go plugin, rendered with TypeScript and React knowledge — ESLint and SonarJS routing, Vitest with React Testing Library and MSW, discriminated unions and `readonly` types, effects and query ownership, JSDoc; plus an OKF-conformant repo brain with a shippable CI conformance gate",
   "author": {
     "name": "Dan Mordechay"

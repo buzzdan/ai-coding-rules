@@ -115,8 +115,12 @@ installs:
   parser per language. The generic binding's adapter block is a dispatch on the
   detected marker — `go.mod` selects the Go block, `pyproject.toml` the Python block —
   and an unknown marker keeps the structure checks (frontmatter, index, reachability,
-  drift) while reporting code edges as unverified. This is the one place in the
-  generic plugin where a lookup table is real, and it is code, not prose.
+  drift) while reporting code edges as unverified. The review scripts are the other
+  such place: the language table every plugin shares tells a file's language by its
+  extension, and the generic block carries one row per language — comment marker,
+  suppression directive, test-file test — so a group of any of them is reviewed
+  here when no plugin written for that language is installed. Both are code, not
+  prose.
 
 Its includes are the core defaults wherever core has one. That is what keeps the
 generic binding a profile plus a handful of files rather than a second copy of core:

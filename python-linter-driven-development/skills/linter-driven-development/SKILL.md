@@ -223,7 +223,10 @@ or until the respawn ceiling ends it with that list.
 <phase_4_review>
 Per completed vertical slice (multi-slice work reviews each slice as it completes),
 invoke @pre-commit-review — it orchestrates parallel rule hunters plus the
-over-abstraction skeptic; it spawns agents and reports, **never edits**.
+over-abstraction skeptic; it spawns agents and reports, **never edits**. A slice
+whose files are written in several languages is still one review: the review's scope
+script splits the diff by the language of each file and sends each group to the
+plugin installed for that language, and the report has a section per language.
 
 NOT mid-implementation (its `<timing>` contract): GREEN-step code is supposed to
 look under-designed, so reviewing it produces false positives — and the hunters'

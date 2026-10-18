@@ -5,6 +5,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Fixed
+
+- **A claim that something is missing needs a listing.** A rule hunter that reports
+  a missing test file, doc, case or cleanup now carries the `ls`, `find` or `grep`
+  command that looked for it, run over the repository and not only the review's
+  bundle, and that command's output. Without the listing there is no finding. A
+  hunter once reported a test file as missing when it existed outside the scope.
+
+## [2.15.1] - 2026-10-15
+
+### Added
+
+- **The review routes files of another language to the plugin installed for it.**
+  The scope script tells each file's language by its extension and writes one bundle
+  per language group: Go is reviewed here; Python goes to
+  `python-linter-driven-development` when installed, TypeScript to `ts-react-linter-driven-development`; any other
+  language goes to `linter-driven-development` when installed; a group no installed plugin reviews is
+  named file by file with the reason, never dropped. The detection pass runs once per
+  group with the reviewing plugin's rules, and the report is one report with a
+  section per language. A Go-only diff writes the same flat bundle as before.
+  `--lang` reviews one group only, the flag a plugin passes when it routes a group
+  here. `scripts/ldd-scope_test.sh` is the scope script's own fixture matrix.
+
+### Changed
+
+- **`/go-ldd-autopilot` takes the request as its argument.**
+  `/go-ldd-autopilot fix the retry bug in the API client` hands the words after the
+  command to the workflow as the change to deliver. Without an argument the command
+  uses the request already in the conversation, and asks what to build when there
+  is none; it never starts the workflow over an empty request.
+
 ## [2.15.0] - 2026-10-06
 
 ### Added

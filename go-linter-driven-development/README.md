@@ -65,7 +65,7 @@ Design happens once, up front (Phase 1); the RED test's shape carries that desig
 
 Phase 4 ([`@pre-commit-review`](skills/pre-commit-review/SKILL.md)) is pure orchestration — it spawns agents and reports, but **never edits code and never blocks a commit**:
 
-1. **Detection pass** (in-context, cheap, one Bash call): [`scripts/ldd-scope.sh`](scripts/ldd-scope.sh) writes the scope bundle once — the file list, the diff, one numbered file per source file, and the comment lines the critic judges — and [`scripts/ldd-detect.sh`](scripts/ldd-detect.sh) runs every falsifying question's detect line over it and prints the counts table: one row per question, its hit count, or `judgment` for a question only a hunter's reading answers. A rule with zero hits gets no hunter. Hunters and the critic read the bundle in one command instead of one file per turn.
+1. **Detection pass** (in-context, cheap, one Bash call): [`scripts/ldd-scope.sh`](scripts/ldd-scope.sh) writes the scope bundle once — the file list, the diff, one numbered file per source file, and the comment lines the critic judges — and [`scripts/ldd-detect.sh`](scripts/ldd-detect.sh) runs every falsifying question's detect line over it and prints the counts table: one row per question, its hit count, or `judgment` for a question only a hunter's reading answers. A rule with zero hits gets no hunter. Hunters and the critic read the bundle in one command instead of one file per turn. A diff that also touches files in another language is split by the language of each file: that group is reviewed by the plugin installed for its language (`linter-driven-development` for a language with no plugin of its own), and the one report has a section per language.
 2. **Parallel hunters**: for every rule *family* with hits — types (R1, R2, R11, R12), structure (R3, R4, R5), tests and dependencies (R6, R7, R8, R10), documentation (R9, beside the comment critic) — spawn one [`rule-hunter`](agents/rule-hunter.md), four at most: one family of rules as its whole obsession, the family's rule files with hits read whole in its first turn as its entire rulebook, the scope read from the bundle in that same turn, a stated tool-call budget with a stated exit — as foreground calls issued together, so they run in parallel and return in the same message. Each returns evidence-backed findings (`rule | file:line | falsifying-question answers | fix pattern | effort`), one receipt per falsifying question and one tally per rule, and nothing else — about 3k tokens.
 3. **Skeptic pass**: every "create a type/package" proposal goes to one [`overabstraction-skeptic`](agents/overabstraction-skeptic.md), which tries to *kill* each extraction using R1's juiciness scorecard and the CIDR case file. A refuted proposal ships only its cheaper alternative (better naming, private fields + accessors).
 4. **Merged report**: surviving findings categorized as 🐛 Bugs / 🔴 Design Debt / 🟡 Readability Debt / 🟢 Polish. All advisory — the caller decides what to fix. Every finding renders with its `file:line` anchor, the rule and the falsifying question it answers (by number, in the question's own words), the move named as the rule's Fix pattern spells it, and effort — on its own line, or on a shared-shape line that lists every anchor when many findings share one shape; never a per-rule count, whatever the scope, and the header reconciles each hunter's tally with the anchors rendered. Findings from *different* rules converging on one anchor (the same type, field, or function) are additionally reported as a 🔗 **CLUSTER**, one entry per converged anchor — each hunter is blind to the others, so independent convergence is evidence of a missing domain concept, and the cluster routes design-first (`@code-designing` scoped to the concept, then `@refactoring` implements) instead of being fixed member-by-member.
@@ -124,7 +124,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 
 | Command | Purpose | Auto-Fix | File targeting |
 |---------|---------|----------|----------------|
-| [`/go-ldd-autopilot`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
+| [`/go-ldd-autopilot [request]`](commands/go-ldd-autopilot.md) | Full workflow (Phases 1–5) | ✅ Yes | — |
 | [`/go-ldd-quickfix [files \| --all]`](commands/go-ldd-quickfix.md) | Quality-gates loop until green over the scope you are working on: an argument, else the working tree, else the branch; never the whole repository unasked | ✅ Yes | ✅ Optional |
 | [`/go-ldd-prepare <change> [files]`](commands/go-ldd-prepare.md) | Preparatory refactoring: reshape what a planned change touches, so it lands add-only | ✅ Yes | ✅ Optional |
 | [`/go-ldd-analyze [files | --all]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
@@ -207,6 +207,8 @@ Should show: `go-linter-driven-development (enabled)`
 
 ## Quick Start
 
+The scenario guide — the easiest start first, then code you already wrote, a plan you already have, and running the plugin from a subagent — is [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) in the main repository.
+
 **Zero configuration required.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
 
 ### The Easiest Way: Just Talk to It
@@ -251,14 +253,15 @@ The plugin recognizes these phrases and **automatically engages the five-phase w
 
 ### Need Just One Piece? Use Individual Skills
 
-Skills are expert consultants you can call on demand:
+Skills are expert consultants you can call on demand. Name the skill in plain words
+(the `@` sign is Claude Code's file mention, not a skill call):
 
 ```
-"Use @code-designing to plan types for payment processing"
-"Use @testing to structure tests for UserService"
-"Use @refactoring to reduce complexity in HandleRequest"
-"Use @pre-commit-review to validate this code"
-"Use @documentation to document the auth feature"
+"Use the code-designing skill to plan types for payment processing"
+"Use the testing skill to structure tests for UserService"
+"Use the refactoring skill to reduce complexity in HandleRequest"
+"Use the pre-commit-review skill to validate this code"
+"Use the documentation skill to document the auth feature"
 ```
 
 ## How the Plugin Categorizes Issues
