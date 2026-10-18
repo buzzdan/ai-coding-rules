@@ -107,8 +107,8 @@ linter-driven-development/
   code is Go, for demonstration only; each opens with that note. The move and the
   reasoning hold in any language — read the Go as the shape and spell it in yours.
 
-Not shipped here, because they are Go-specific rather than Go-illustrated: the
-test-harness catalogue and the package-size hook.
+Not shipped here, because it is Go-specific rather than Go-illustrated: the
+test-harness catalogue.
 
 ## Mixed repositories
 

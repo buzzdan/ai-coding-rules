@@ -470,10 +470,11 @@ coupling point, whether or not it looks like language:
   `ESCALATED:`, `LINT STATUS:`, the `Stop check` lines, `R<N>: <M> finding(s)`, the
   category headers, `🔗 CLUSTER:` — are the report contract; no binding include
   rewrites them.
-- **Hooks and the repo-brain adapter are binding files**, not core.
-  `hooks/check-package-sizes.sh` counts Go files; the gate's adapter block hardcodes
-  the same globs and marker the profile holds. A binding that ships either writes its
-  own; the generic binding's adapter dispatches on the detected language.
+- **The repo-brain adapter is a binding file**, not core. The gate's adapter block
+  hardcodes the same globs and marker the profile holds; a binding writes its own,
+  and the generic binding's adapter dispatches on the detected language. The gap
+  linter is core: what it needs per language, linter names included, sits in one
+  shared table keyed by language id, the way the language table does.
 
 ## How the scanner enforces this
 

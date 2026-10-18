@@ -66,7 +66,7 @@ decomposition): "Multi-rule procedures", below.
 ## File and package routing
 
 <file_and_package_routing>
-**`file-length-limit` (>450 lines):**
+**revive `file-length-limit`, or a file over 450 code lines where the repository's config has no such rule** — `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them, or names the linter rule that holds the limit:
 
 | File pattern | Action |
 |---|---|
@@ -75,15 +75,20 @@ decomposition): "Multi-rule procedures", below.
 | Long functions, few types | Storify → extract functions (R3) |
 
 <package_decomposition>
-**Package-size zones** — count non-test `.go` files per directory:
+**Package-size zones** — non-test `.go` files per directory, no linter counts them:
 
 ```
-find <dir> -maxdepth 1 -type f -name '*.go' -not -name '*_test.go' -not -name '*_gen.go' -not -name '*.pb.go' | wc -l
+bash <this skill dir>/../../scripts/ldd-lint.sh package-size --root .
 ```
 
-≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —
-**must decompose**. Either zone: run the 3-step design review under "Package
-decomposition", printed with this range (it is a *design* review — missing domain types are the
+The gap linter counts the non-test, non-generated source files of each directory;
+a `.ldd-lint.yaml` at the repository root sets other sizes, and the first line of
+its output says which sizes applied.
+
+Below 8 files green — fine. 8 or more yellow — design review
+*before the next file lands*. 13 or more red — **must decompose**. Either
+zone: run the 3-step design review under "Package decomposition", printed with this
+range (it is a *design* review — missing domain types are the
 disease, file count the symptom). Invoke @code-designing to validate extracted types.
 </package_decomposition>
 </file_and_package_routing>
@@ -265,9 +270,9 @@ composition: @code-designing.
 
 ### Package decomposition
 
-Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `.go`
-files at one directory level) or yellow zone (8–12) — detection command and zone
-table in `<package_decomposition>` above.
+Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (13 or more non-test
+`.go` files at one directory level) or yellow zone (8 or more) — the
+measuring command and the zones are in `<package_decomposition>` above.
 
 **A package-size violation is a design review, not a mechanical file split.** File
 count is the symptom; the disease is usually missing domain types or multiple

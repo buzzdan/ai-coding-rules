@@ -136,7 +136,7 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    The inverse shape is the god file, and it needs no feature noun:
    `xargs wc -l < files.txt | sort -n | tail -6` over the scope's file list names the
    longest files; check each against the repository's file-length limit, when its
-   linter sets one.
+   linter sets one, else 450 code lines.
    Violation: the same feature living in `handlers/` and `services/` (etc.) — it is
    horizontally scattered; or one file over the length limit, or with a
    `lint-suppression` directive silencing the limit, standing in for the whole slice —

@@ -13,7 +13,7 @@
    The inverse shape is the god file, and it needs no feature noun:
    `xargs wc -l < files.txt | sort -n | tail -6` over the scope's file list names the
    longest files; check each against the repository's file-length limit, when its
-   linter sets one.
+   linter sets one, else {{.FileMaxLines}} code lines.
    Violation: the same feature living in `handlers/` and `services/` (etc.) — it is
    horizontally scattered; or one file over the length limit, or with a
    `{{.Nolint}}` directive silencing the limit, standing in for the whole slice —

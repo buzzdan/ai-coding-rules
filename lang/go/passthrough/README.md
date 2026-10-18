@@ -26,7 +26,7 @@ go-linter-driven-development/
 ├── commands/     go-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
 ├── scripts/      check-repo-brain.sh — repo-brain conformance gate, installed into target repos by /wire-repo-brain
 │                 ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
-└── hooks/        package-size gate
+│                 ldd-lint.sh — the gap linter: file length and package size where no linter holds them
 ```
 
 **Five layers, one fact per fact:**

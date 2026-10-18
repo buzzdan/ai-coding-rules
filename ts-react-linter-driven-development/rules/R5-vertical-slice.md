@@ -143,12 +143,12 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    `grep -rli '<feature>' --include='*.ts' --include='*.tsx' --exclude-dir=node_modules src | xargs -n1 dirname | sort -u`
    — count distinct layer-named directories. The inverse shape is the god file, and
    it needs no feature noun: `xargs wc -l < files.txt | sort -n | tail -6` over the
-   scope's file list names the longest files; check each against `sonarjs/max-lines`
-   (600) — a `Performance.tsx` of 1,199 lines holding the page, its hooks, its API
+   scope's file list names the longest files; check each against the repository's
+   `sonarjs/max-lines` limit, or 450 code lines where it sets none — a `Performance.tsx` of 1,199 lines holding the page, its hooks, its API
    calls and its types in one module.
    Violation: the same feature living in `components/`, `hooks/`, `services/` and
    `types/` — four top-level directories for one page — it is horizontally
-   scattered; or one file over 600 lines, or with a `max-lines` directive silencing
+   scattered; or one file over that limit, or with a `max-lines` directive silencing
    the rule, standing in for the whole slice — split it by role inside the page
    folder.
 

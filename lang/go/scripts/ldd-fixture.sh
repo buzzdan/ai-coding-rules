@@ -11,10 +11,34 @@
 #   FX_SUPPRESS_LINE   the suppression directive's line, as the diff adds it
 #   fx_write_marker <dir> <module>   write the project marker for a (sub-)project
 #   fx_write_code                    write $FX_SRC_FILE and a test file with a sleep
+#
+# The gap linter's matrix (ldd-lint_test.sh) reads these as well:
+#   FX_EXT             the source suffix of the files the lint cases write
+#   FX_LINE_COMMENT    a comment-only line
+#   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
+#   FX_BLOCK_CLOSE     language has none, and the line that closes it
+#   FX_SKIP_FILES      source file names a directory count leaves out
+#   fx_test_file <dir> <n>             a test file's path in <dir>
+#   FX_LINTER_CONFIG   the path, under the repository root, of the file that
+#                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
+#                      marker that turns one of its lines into a comment
+#   fx_write_linter_config           the repository linter config that names
+#                                    the language's file-length rule
+#   fx_write_linter_config_other     a linter config that names a rule of a
+#                                    similar name and no file-length rule
+#   fx_write_linter_config_in_comment  a linter config that names the file-length
+#                                    rule only inside comments
 FX_ROWS="go"
 FX_NATIVE="go"
 
 use_row() {
+  FX_LINTER_CONFIG='.golangci.yaml'
+  FX_LINTER_COMMENT='#'
+  FX_EXT='.go'
+  FX_LINE_COMMENT='// note'
+  FX_BLOCK_OPEN='/*'
+  FX_BLOCK_CLOSE='*/'
+  FX_SKIP_FILES='api.pb.go store_gen.go'
   FX_GLOB='*.go'
   FX_SRC_FILE="services/worker.go"
   FX_SUPPRESS_LINE='var cache = map[string]string{} //nolint:gochecknoglobals // TODO'
@@ -53,4 +77,18 @@ func TestRun(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 }
 GO
+}
+
+fx_test_file() { printf '%s/m%s_test.go' "$1" "$2"; }
+
+fx_write_linter_config() {
+  printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments: [{max: 400}]\n' > "$REPO/.golangci.yaml"
+}
+
+fx_write_linter_config_in_comment() {
+  printf 'version: "2" # consider file-length-limit\nlinters:\n  default: standard # "#" in a string: file-length-limit\n' > "$REPO/.golangci.yaml"
+}
+
+fx_write_linter_config_other() {
+  printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: argument-limit\n          arguments: [4]\n' > "$REPO/.golangci.yaml"
 }

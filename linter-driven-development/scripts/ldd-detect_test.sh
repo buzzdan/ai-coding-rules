@@ -134,17 +134,48 @@ questions_in_rules() {
 #   FX_SUPPRESS_LINE   the suppression directive's line, as the diff adds it
 #   fx_write_marker <dir> <module>   write the project marker for a (sub-)project
 #   fx_write_code                    write $FX_SRC_FILE and a test file with a sleep
+#
+# The gap linter's matrix (ldd-lint_test.sh) reads these as well:
+#   FX_EXT             the source suffix of the files the lint cases write
+#   FX_LINE_COMMENT    a comment-only line
+#   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
+#   FX_BLOCK_CLOSE     language has none, and the line that closes it
+#   FX_SKIP_FILES      source file names a directory count leaves out
+#   fx_test_file <dir> <n>             a test file's path in <dir>
+#   FX_LINTER_CONFIG   the path, under the repository root, of the file that
+#                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
+#                      marker that turns one of its lines into a comment
+#   fx_write_linter_config           the repository linter config that names
+#                                    the language's file-length rule
+#   fx_write_linter_config_other     a linter config that names a rule of a
+#                                    similar name and no file-length rule
+#   fx_write_linter_config_in_comment  a linter config that names the file-length
+#                                    rule only inside comments
 FX_ROWS="go python"
 FX_NATIVE="go python d typescript"
 
 use_row() {
   case "$1" in
     go)
+      FX_LINTER_CONFIG='.golangci.yml'
+      FX_LINTER_COMMENT='#'
+      FX_EXT='.go'
+      FX_LINE_COMMENT='// note'
+      FX_BLOCK_OPEN='/*'
+      FX_BLOCK_CLOSE='*/'
+      FX_SKIP_FILES='api.pb.go store_gen.go'
       FX_GLOB='*.go'
       FX_SRC_FILE="services/worker.go"
       FX_SUPPRESS_LINE='var cache = map[string]string{} //nolint:gochecknoglobals // TODO'
       ;;
     python)
+      FX_LINTER_CONFIG='.pylintrc'
+      FX_LINTER_COMMENT=';'
+      FX_EXT='.py'
+      FX_LINE_COMMENT='# note'
+      FX_BLOCK_OPEN=''
+      FX_BLOCK_CLOSE=''
+      FX_SKIP_FILES='__init__.py api_pb2.py'
       FX_GLOB='*.py'
       FX_SRC_FILE="services/worker.py"
       FX_SUPPRESS_LINE='CACHE: dict[str, str] = {}  # noqa: PLW0603'
@@ -215,6 +246,34 @@ def test_run() -> None:
     time.sleep(0.01)
 PY
       ;;
+  esac
+}
+
+fx_test_file() {
+  case "$ROW" in
+    go)     printf '%s/m%s_test.go' "$1" "$2" ;;
+    python) printf '%s/test_m%s.py' "$1" "$2" ;;
+  esac
+}
+
+fx_write_linter_config() {
+  case "$ROW" in
+    go)     printf 'linters-settings:\n  revive:\n    rules:\n      - name: file-length-limit\n        arguments:\n          - max: 400\n' > "$REPO/.golangci.yml" ;;
+    python) printf '[MAIN]\nmax-module-lines=400\n' > "$REPO/.pylintrc" ;;
+  esac
+}
+
+fx_write_linter_config_in_comment() {
+  case "$ROW" in
+    go)     printf 'version: "2" # consider file-length-limit\n' > "$REPO/.golangci.yml" ;;
+    python) printf '[MAIN]\nmax-args=4  # max-module-lines=400 later\n' > "$REPO/.pylintrc" ;;
+  esac
+}
+
+fx_write_linter_config_other() {
+  case "$ROW" in
+    go)     printf 'linters-settings:\n  revive:\n    rules:\n      - name: argument-limit\n        arguments: [4]\n' > "$REPO/.golangci.yml" ;;
+    python) printf '[MAIN]\nmax-args=4\n' > "$REPO/.pylintrc" ;;
   esac
 }
 

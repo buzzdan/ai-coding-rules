@@ -58,9 +58,8 @@ plugin's `evals/` directory at run time, are left alone by both `check` and
 ## The generator
 
 `ldd-gen` is a small Go module under `tools/ldd-gen` with its own `go.mod`, so the
-repository root stays free of any Go module or workspace file: the plugin's own
-package-size hook stays quiet here, and Go modules checked out below the root (the
-evals clone, the eval fixture) build normally. The tasks run the tool from its own
+repository root stays free of any Go module or workspace file, and Go modules
+checked out below the root (the evals clone, the eval fixture) build normally. The tasks run the tool from its own
 directory and pass the repository root with `-root`. Inside, `Profile` parses and validates the binding's scalars, `Binding` resolves
 includes, overrides and passthrough files, `Render` produces the plugin tree in
 memory, and `Compare` and `Write` sync that tree with the directory on disk.

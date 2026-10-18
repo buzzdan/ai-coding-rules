@@ -244,7 +244,8 @@ it.
 
 ### S6 — the mechanical questions become a program
 
-A Go analyzer, `ldd-lint` *(planned)* under `tools/`, answers the falsifying
+A Go analyzer under `tools/` *(planned)*, a different program from the plugin's gap
+linter `scripts/ldd-lint.sh`, answers the falsifying
 questions that are AST facts: package-level mutable state and manufactured root
 contexts (R8), test placement (R7), function and file length (R3), the mechanical
 halves of concurrency safety (R10) and mutation discipline (R12). It emits findings
@@ -346,7 +347,7 @@ count. A procedure the model paraphrases is a procedure that drifts.
 
 The plugin already ships the pattern. R9's gate is `check-repo-brain.sh`, a core
 template rendered per binding with the language adapter as an include and tested by
-its own fixture matrix; the package-size gate is a hook. S8 adds two scripts of the
+its own fixture matrix. S8 adds two scripts of the
 same shape under the plugin's scripts directory, and the machine-readable contract
 they need in the rules' question files.
 

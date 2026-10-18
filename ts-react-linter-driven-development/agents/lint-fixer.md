@@ -75,7 +75,7 @@ this table:
 | `sonarjs/no-duplicate-string` on an enum-shaped literal / `no-magic-numbers` on a domain value / `sonarjs/max-union-size` | rules/R1-primitive-obsession.md ("Name enum strings" move, or a named type) |
 | A tuple return (`[T, boolean]`, `[Data, Error]`); a `Record<string, string>`, `string[]` or `Map` of primitives crossing a function boundary or nested in a type (review-only — no ESLint rule) | rules/R1-primitive-obsession.md ("Name the Container" move — Q7 nested, Q8 flat across a boundary) |
 | `sonarjs/no-identical-functions` | rules/R1-primitive-obsession.md (extract shared type/logic); duplicated `switch`/if-chains on one discriminant → rules/R11-conditional-dispatch.md |
-| `sonarjs/max-lines` (600) | rules/R5-vertical-slice.md |
+| `sonarjs/max-lines`; `scripts/ldd-lint.sh file-length` and `package-size` findings | rules/R5-vertical-slice.md |
 | `react/no-multi-comp` | rules/R5-vertical-slice.md (one component per file; the page folder decides where the second goes) |
 | `@typescript-eslint/no-explicit-any` / `no-unsafe-*` / `no-non-null-assertion` / `no-unnecessary-condition` at a boundary | rules/R2-self-validating-types.md (parse at the boundary — a guard, not an assertion) |
 | `@typescript-eslint/switch-exhaustiveness-check` / `sonarjs/no-nested-switch` / `sonarjs/max-switch-cases` / `sonarjs/no-small-switch` | rules/R11-conditional-dispatch.md (via @refactoring) |

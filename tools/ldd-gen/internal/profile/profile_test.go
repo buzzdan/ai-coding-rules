@@ -27,6 +27,9 @@ doc_form: godoc
 doc_comment: godoc comment
 src_ext: .go
 unexported: unexported
+file_max_lines: "450"
+package_warn_files: "8"
+package_max_files: "13"
 ignore:
   - evals/*
   - .DS_Store
@@ -83,6 +86,9 @@ func TestParse_Errors(t *testing.T) {
 	withPrefix := func(prefix string) string {
 		return strings.Replace(full, "cmd_prefix: go-ldd", "cmd_prefix: "+prefix, 1)
 	}
+	withScalar := func(line, replacement string) string {
+		return strings.Replace(full, line, replacement, 1)
+	}
 	cases := []struct {
 		name  string
 		input string
@@ -109,6 +115,10 @@ func TestParse_Errors(t *testing.T) {
 		{name: "include_fallback without under", input: full + "include_fallback: {from: go}\n", want: "include_fallback.under"},
 		{name: "include_fallback.under without slash", input: full + "include_fallback: {from: go, under: examples}\n", want: "include_fallback.under"},
 		{name: "include_fallback.under escapes", input: full + "include_fallback: {from: go, under: ../examples/}\n", want: "include_fallback.under"},
+		{name: "file_max_lines not a number", input: withScalar(`file_max_lines: "450"`, `file_max_lines: "lots"`), want: `file_max_lines "lots" must be a positive integer`},
+		{name: "file_max_lines zero", input: withScalar(`file_max_lines: "450"`, `file_max_lines: "0"`), want: "file_max_lines"},
+		{name: "package_max_files negative", input: withScalar(`package_max_files: "13"`, `package_max_files: "-1"`), want: "package_max_files"},
+		{name: "package warning at the limit", input: withScalar(`package_warn_files: "8"`, `package_warn_files: "13"`), want: "package_warn_files 13 must be below package_max_files 13"},
 		{name: "include_fallback.under absolute", input: full + "include_fallback: {from: go, under: /examples/}\n", want: "include_fallback.under"},
 	}
 	for _, tc := range cases {

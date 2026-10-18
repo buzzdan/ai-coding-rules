@@ -70,7 +70,7 @@ decomposition): "Multi-rule procedures", below.
 ## File and package routing
 
 <file_and_package_routing>
-**A module over ~450 lines (ruff has no file-length rule — count):**
+**A module over the file-length limit** — pylint's `max-module-lines` where the repository sets it (ruff has no file-length rule), else 450 code lines; `bash <this skill dir>/../../scripts/ldd-lint.sh file-length --root .` lists them, or names the linter rule that holds the limit:
 
 | File pattern | Action |
 |---|---|
@@ -79,15 +79,20 @@ decomposition): "Multi-rule procedures", below.
 | Long functions, few types | Storify → extract functions (R3) |
 
 <package_decomposition>
-**Package-size zones** — count non-test `.py` modules per package directory:
+**Package-size zones** — non-test `.py` modules per package directory, `__init__.py`, `conftest.py` and generated stubs left out:
 
 ```
-find <dir> -maxdepth 1 -type f -name '*.py' -not -name 'test_*.py' -not -name '*_test.py' -not -name 'conftest.py' -not -name '__init__.py' -not -name '*_pb2.py' -not -name '*_pb2_grpc.py' | wc -l
+bash <this skill dir>/../../scripts/ldd-lint.sh package-size --root .
 ```
 
-≤7 green — fine. 8–12 yellow — design review *before the next file lands*. ≥13 red —
-**must decompose**. Either zone: run the 3-step design review under "Package
-decomposition", printed with this range (it is a *design* review — missing domain types are the
+The gap linter counts the non-test, non-generated source files of each directory;
+a `.ldd-lint.yaml` at the repository root sets other sizes, and the first line of
+its output says which sizes applied.
+
+Below 8 files green — fine. 8 or more yellow — design review
+*before the next file lands*. 13 or more red — **must decompose**. Either
+zone: run the 3-step design review under "Package decomposition", printed with this
+range (it is a *design* review — missing domain types are the
 disease, file count the symptom). Invoke @code-designing to validate extracted types.
 </package_decomposition>
 </file_and_package_routing>
@@ -269,9 +274,9 @@ composition: @code-designing.
 
 ### Package decomposition
 
-Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (≥13 non-test `.py`
-files at one directory level) or yellow zone (8–12) — detection command and zone
-table in `<package_decomposition>` above.
+Spans R5 × R4 × R1 × R2. **Trigger**: package-size red zone (13 or more non-test
+`.py` files at one directory level) or yellow zone (8 or more) — the
+measuring command and the zones are in `<package_decomposition>` above.
 
 **A package-size violation is a design review, not a mechanical file split.** File
 count is the symptom; the disease is usually missing domain types or multiple
