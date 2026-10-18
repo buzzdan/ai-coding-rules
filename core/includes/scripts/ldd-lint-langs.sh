@@ -15,9 +15,9 @@
 #                                     <skip-blank 0|1> TAB <rule and file>
 #                                   unreadable TAB <rule and file>
 #                                   none
-#   lint_file_length_snippet <id> <max>  the setting that makes the repository's
-#                                   linter hold the limit, or how to set it when
-#                                   no linter rule is known
+#   lint_file_length_snippet <id> <max>  the linter setting that would hold the
+#                                   limit, or the .ldd-lint.yaml entry when no
+#                                   linter rule is known: text to propose
 
 lint_comment_style() {
   case "$1" in
@@ -151,7 +151,7 @@ lint_file_length_snippet() {
     go)                    printf "revive in .golangci.yaml: - name: file-length-limit, arguments: [{max: %s, skip-comments: true, skip-blank-lines: true}]" "$2" ;;
     typescript|javascript) printf "the eslint config: 'sonarjs/max-lines': ['error', { maximum: %s }]" "$2" ;;
     python)                printf "pyproject.toml: [tool.pylint.format] max-module-lines = %s (pylint counts every line, comments and blank lines too)" "$2" ;;
-    *)                     printf "no linter rule is known for %s; set file_max_lines: %s in .ldd-lint.yaml to keep this limit" "$1" "$2" ;;
+    *)                     printf "no linter rule is known for %s; a .ldd-lint.yaml entry file_max_lines: %s would state this limit" "$1" "$2" ;;
   esac
 }
 # ================== end linter table ==================

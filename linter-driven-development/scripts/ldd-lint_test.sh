@@ -109,6 +109,9 @@ fill_dir() {
 #   fx_write_linter_config <max>       the repository linter config that holds
 #                                      the file-length limit at <max>, counting
 #                                      every line
+#   fx_write_linter_config_code <max>  the config of a linter that counts only
+#                                      code lines, holding the limit at <max>;
+#                                      exit 1 when the language has none
 #   fx_write_linter_config_unreadable  a config that names the rule with a limit
 #                                      the linter table cannot read; exit 1 when
 #                                      every config form is readable
@@ -220,6 +223,13 @@ fx_write_linter_config() { # <max>
   esac
 }
 
+fx_write_linter_config_code() { # <max>
+  case "$ROW" in
+    go)     printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments: [{max: %s, skip-comments: true, skip-blank-lines: true}]\n' "$1" > "$REPO/.golangci.yaml" ;;
+    python) return 1 ;;
+  esac
+}
+
 fx_write_linter_config_unreadable() {
   case "$ROW" in
     go)     printf '[[linters.settings.revive.rules]]\nname = "file-length-limit"\narguments = [{max = 100}]\n' > "$REPO/.golangci.toml" ;;
@@ -265,11 +275,20 @@ run_lint file-length
 expect_exit 0 && expect_no_finding && ok
 finish
 
-begin "the plugin's default names the setting that makes the linter hold it"
+begin "the plugin's default names a linter setting to propose, never to add"
 write_src "src/a$FX_EXT" 1
 run_lint file-length
-expect_exit 0 && expect_has "profile default ($MAX_LINES code lines)" && expect_has "; add " && ok
+expect_exit 0 && expect_has "profile default ($MAX_LINES code lines)" && expect_has "a setting to propose, never to add on your own: " && ok
 finish
+
+begin "a linter that skips comments and blank lines is counted its way"
+if ! fx_write_linter_config_code 100; then skip "no linter of this language counts only code lines"; finish
+else
+  write_src "src/a$FX_EXT" 90 20 20
+  run_lint file-length
+  expect_exit 0 && expect_has "covered by" && expect_no_finding && ok
+  finish
+fi
 
 begin "the repository's linter config holds the limit and is counted its way"
 fx_write_linter_config 100
@@ -351,6 +370,14 @@ printf 'build/\n' > "$REPO/.gitignore"
 (cd "$REPO" && git init -q)
 run_lint file-length
 expect_exit 0 && expect_has "src/kept$FX_EXT:" && expect_not "build/out$FX_EXT:" && ok
+finish
+
+begin "a path that starts with a dash is measured, never read as an option"
+fill_dir "-pkg" "$MAX_FILES"; write_src "-src/over$FX_EXT" $((MAX_LINES + 1))
+run_lint package-size; first="$OUT"
+run_lint file-length
+expect_exit 0 && { [[ "$first" == *"-pkg: $MAX_FILES source files"* ]] || bad "the dash-named directory was not counted"; } \
+  && [[ "$first" == *"-pkg: $MAX_FILES source files"* ]] && expect_has "-src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
 finish
 
 begin "two runs print the same output"

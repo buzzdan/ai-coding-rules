@@ -121,6 +121,9 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #   fx_write_linter_config <max>       the repository linter config that holds
 #                                      the file-length limit at <max>, counting
 #                                      every line
+#   fx_write_linter_config_code <max>  the config of a linter that counts only
+#                                      code lines, holding the limit at <max>;
+#                                      exit 1 when the language has none
 #   fx_write_linter_config_unreadable  a config that names the rule with a limit
 #                                      the linter table cannot read; exit 1 when
 #                                      every config form is readable
@@ -175,6 +178,11 @@ fx_test_file() { printf '%s/m%s.test.ts' "$1" "$2"; }
 # ESLint's own max-lines counts every line unless told to skip comments.
 fx_write_linter_config() { # <max>
   printf "export default [{\n  rules: {\n    'max-lines': ['error', { max: %s }],\n  },\n}]\n" "$1" > "$REPO/eslint.config.mjs"
+}
+
+# sonarjs/max-lines counts only code lines.
+fx_write_linter_config_code() { # <max>
+  printf "export default [{\n  rules: {\n    'sonarjs/max-lines': ['error', { maximum: %s }],\n    'max-lines-per-function': ['error', 50],\n  },\n}]\n" "$1" > "$REPO/eslint.config.mjs"
 }
 
 # Every ESLint config form resolves: a rule named without a limit takes

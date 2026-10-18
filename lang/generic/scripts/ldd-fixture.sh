@@ -22,6 +22,9 @@
 #   fx_write_linter_config <max>       the repository linter config that holds
 #                                      the file-length limit at <max>, counting
 #                                      every line
+#   fx_write_linter_config_code <max>  the config of a linter that counts only
+#                                      code lines, holding the limit at <max>;
+#                                      exit 1 when the language has none
 #   fx_write_linter_config_unreadable  a config that names the rule with a limit
 #                                      the linter table cannot read; exit 1 when
 #                                      every config form is readable
@@ -130,6 +133,13 @@ fx_write_linter_config() { # <max>
   case "$ROW" in
     go)     printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments:\n            - max: %s\n' "$1" > "$REPO/.golangci.yaml" ;;
     python) printf '[tool.pylint.format]\nmax-module-lines = %s\n' "$1" > "$REPO/pyproject.toml" ;;
+  esac
+}
+
+fx_write_linter_config_code() { # <max>
+  case "$ROW" in
+    go)     printf 'version: "2"\nlinters:\n  settings:\n    revive:\n      rules:\n        - name: file-length-limit\n          arguments: [{max: %s, skip-comments: true, skip-blank-lines: true}]\n' "$1" > "$REPO/.golangci.yaml" ;;
+    python) return 1 ;;
   esac
 }
 

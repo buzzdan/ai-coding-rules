@@ -244,7 +244,8 @@ it.
 
 ### S6 — the mechanical questions become a program
 
-A Go analyzer, `ldd-lint` *(planned)* under `tools/`, answers the falsifying
+A Go analyzer under `tools/` *(planned)*, a different program from the plugin's gap
+linter `scripts/ldd-lint.sh`, answers the falsifying
 questions that are AST facts: package-level mutable state and manufactured root
 contexts (R8), test placement (R7), function and file length (R3), the mechanical
 halves of concurrency safety (R10) and mutation discipline (R12). It emits findings

@@ -30,7 +30,8 @@
 #   3. the plugin's defaults: {{.FileMaxLines}} code lines per file (blank and
 #      comment-only lines not counted); a warning at {{.PackageWarnFiles}} source files per
 #      directory and the limit at {{.PackageMaxFiles}}; for file-length, the line also
-#      prints the setting that makes the repository's linter hold the limit
+#      prints the linter setting that would hold the limit, as a proposal for
+#      the repository's owners: the script and its caller never edit a config
 #
 # What is measured: the language's source files, minus test files, generated
 # files and the directories the language block excludes. A directory count
@@ -79,7 +80,7 @@ done
 [[ -d "$ROOT" ]] || die "not a directory: $ROOT"
 if [[ -n "$FILES_LIST" ]]; then
   [[ -f "$FILES_LIST" ]] || die "no such file list: $FILES_LIST"
-  FILES_LIST=$(cd "$(dirname "$FILES_LIST")" && pwd)/$(basename "$FILES_LIST")
+  [[ "$FILES_LIST" == /* ]] || FILES_LIST="$(pwd)/$FILES_LIST"
 fi
 cd "$ROOT" || exit 2
 
@@ -140,11 +141,14 @@ while IFS= read -r f; do
 done < <(list_candidates) | LC_ALL=C sort -u > "$SCOPE"
 
 # measured <path> — exit 0 when the file counts for this language: not under
-# an excluded directory, not a test, not generated.
+# an excluded directory, not a test, not generated. Every path the script
+# hands to find, head or awk starts with "./", and a directory is cut from a
+# path by parameter expansion, so a name that starts with "-" is never read as
+# an option.
 measured() {
   printf '%s\n' "$1" | grep -qE -- "$LANG_EXCLUDE_RE" && return 1
   lang_is_test "$1" && return 1
-  head -20 "$1" 2>/dev/null | grep -qE -- "$LANG_GENERATED_RE" && return 1
+  head -20 "./$1" 2>/dev/null | grep -qE -- "$LANG_GENERATED_RE" && return 1
   return 0
 }
 
@@ -199,7 +203,7 @@ run_file_length() { # <id> — every measured file of that language
       say "threshold: $id file length — set by $OVERRIDE_FILE ($max code lines)"
     else
       max="$DEFAULT_FILE_MAX_LINES"; src="profile default"
-      say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; add $(lint_file_length_snippet "$id" "$max")"
+      say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; a setting to propose, never to add on your own: $(lint_file_length_snippet "$id" "$max")"
     fi
   fi
   unit="lines"
@@ -208,7 +212,7 @@ run_file_length() { # <id> — every measured file of that language
   (( ! sc && sb )) && unit="non-blank lines"
   while IFS=$'\t' read -r _ f; do
     measured "$f" || continue
-    n=$(awk -v style="$(lint_comment_style "$id")" -v skipc="$sc" -v skipb="$sb" "$COUNT_AWK" "$f")
+    n=$(awk -v style="$(lint_comment_style "$id")" -v skipc="$sc" -v skipb="$sb" "$COUNT_AWK" "./$f")
     (( n > max )) && finding "$f" "$n $unit (limit $max, $src)"
   done < <(awk -F'\t' -v id="$id" '$1 == id' "$SCOPE")
 }
@@ -226,18 +230,21 @@ run_package_size() { # <id> — every directory that holds a measured file of th
   while IFS= read -r d; do
     n=0
     while IFS= read -r f; do
-      f="${f#./}"
+      f="${f#./}"; f="${f#./}"
       [[ "$(lang_of_path "$f")" == "$id" ]] || continue
       [[ -n "$skip" ]] && printf '%s\n' "$f" | grep -qE -- "$skip" && continue
       measured "$f" || continue
       n=$((n + 1))
-    done < <(find "$d" -maxdepth 1 -type f | LC_ALL=C sort)
+    done < <(find "./$d" -maxdepth 1 -type f | LC_ALL=C sort)
     if (( n >= lim )); then
       finding "$d" "$n source files (limit $lim, $src)"
     elif (( n >= warn )); then
       finding "$d" "$n source files (warning at $warn, $src)"
     fi
-  done < <(awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$SCOPE" | while IFS= read -r f; do measured "$f" && dirname "$f"; done | LC_ALL=C sort -u)
+  done < <(awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$SCOPE" | while IFS= read -r f; do
+             measured "$f" || continue
+             case "$f" in */*) printf '%s\n' "${f%/*}" ;; *) printf '.\n' ;; esac
+           done | LC_ALL=C sort -u)
 }
 
 # ---------- run ----------

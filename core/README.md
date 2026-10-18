@@ -186,7 +186,7 @@ differently from the other bindings:
   own linter config sets a file-length limit and how that linter counts. The table is
   the one place core names linters, and its `residue-exempt:` marker says so. The
   matrix reads the binding's `scripts/ldd-fixture.sh` for the source suffix, the
-  comment forms, a test file's name and a linter config per row.
+  comment forms, a test file's name and the linter configs per row.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The
