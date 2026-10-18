@@ -722,6 +722,42 @@ append_index "- [dotted.md](dotted.md) — dotted names"
 run_gate
 expect_exit 1 && expect_has "\`Cfg.MaxRetri\` does not resolve" && expect_not "\`Cfg.MaxRetries\` does not resolve" && ok
 finish
+begin "Q2 two files with no final newline do not fuse their last and first words"
+mk_conformant
+printf 'FirstToken' > "$REPO/a.yaml"; printf 'SecondToken' > "$REPO/b.yaml"
+mk_doc fused "fused names" "Fires \`FirstToken\` and \`SecondToken\`."
+append_index "- [fused.md](fused.md) — fused names"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "--scope --words: a doc citing Type.Method is checked when the diff removes the type"
+mk_conformant
+mk_doc renamed "a renamed type" "Calls \`OldType.Run\`."
+append_index "- [renamed.md](renamed.md) — a renamed type"
+printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"; printf 'OldType\n' > "$LISTS/words.txt"
+run_gate --scope "$LISTS/scope.txt" --words "$LISTS/words.txt"
+expect_exit 1 && expect_has "backticked \`OldType.Run\` does not resolve" && ok
+finish
+
+begin "--scope: a citing doc reports a link to the listed doc, never a link to a same-named doc elsewhere"
+mk_conformant
+mk_doc linker2 "links two guides" "See [old](a/guide.md \"Title\") and [other](b/guide.md)."
+append_index "- [linker2.md](linker2.md) — links two guides"
+printf '%s\n' "$FX_CODE_FILE" docs/a/guide.md > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "[Q2] docs/linker2.md — link target does not exist: a/guide.md" \
+  && expect_not "b/guide.md" && ok
+finish
+
+begin "--scope: a touched doc's new description is checked against the index that lists it"
+mk_conformant
+sed 's/^description: .*/description: a new description/' "$REPO/docs/retry-policy.md" > "$REPO/docs/rp.tmp" && mv "$REPO/docs/rp.tmp" "$REPO/docs/retry-policy.md"
+printf '%s\n' docs/retry-policy.md > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "[Q7] docs/index.md:" && expect_has "drifted from retry-policy.md" && ok
+finish
+
 rm -rf "$LISTS"
 
 } # run_row_cases

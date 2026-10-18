@@ -16,9 +16,9 @@
 # --scope <list>  a review's scope: one path per line, relative to repo-root
 #         (code files and docs, deleted ones included). The gate then checks
 #         only the docs in scope. A listed doc gets every check. A doc whose
-#         text names a listed file's basename, or that cites a word of
-#         --words, reports only its links into a listed file and its
-#         backticked --words.
+#         text names a listed file's basename, or that cites a token with a
+#         dot-separated part in --words, reports only its links into a listed
+#         file, those tokens, and (an index) its lines to the listed docs.
 #         Code edges are checked for the listed code files only, Q3 is skipped
 #         (root wiring is the repository's state, not a diff's), and with no
 #         doc in scope the doc checks are skipped. One stdout line says which:
@@ -516,33 +516,43 @@ repo_files() {
        -o -type f ! -name '*.md' -print0
 }
 
+# repo_words — the repository's distinct words (runs of [A-Za-z0-9_.$]) in
+# its non-markdown text files, one per line, read once per gate run and kept.
+# grep ends every file's last line, so two files never fuse into one word, and
+# skips binary files.
+REPO_WORDS="$WORK/repo-words"
+repo_words() {
+  if [[ ! -f "$REPO_WORDS" ]]; then
+    repo_files | xargs -0 grep -Ih -e '' -- 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.$' '\n' \
+      | LC_ALL=C awk '!seen[$0]++' > "$REPO_WORDS"
+  fi
+  cat "$REPO_WORDS"
+}
+
 # resolve_words <tokens-file> — the tokens that occur as a whole word in any
-# non-markdown repository file, one per line. The repository is read once
-# into words (runs of [A-Za-z0-9_.$]); a dotted token such as `Type.Method`
-# matches any run of whole dot-separated parts, as grep -w would match it, and
-# a word that carries $ (a JavaScript identifier) also offers its $-free parts.
-# One pass over the text is linear in its size, where a fixed-string grep for
-# hundreds of tokens is not.
+# non-markdown repository file, one per line. A dotted token such as
+# `Type.Method` matches any run of whole dot-separated parts of a word, as
+# grep -w would match it, and a word that carries $ (a JavaScript identifier)
+# also offers its $-free parts. A lookup in the word set is linear in the
+# repository's size, where a fixed-string grep for hundreds of tokens is not.
 resolve_words() {
-  repo_files | xargs -0 cat 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.$' '\n' \
-    | LC_ALL=C awk -v list="$1" '
-        BEGIN { while ((getline t < list) > 0) if (t != "") want[t] = 1 }
-        seen[$0]++ { next }
-        {
-          n = split($0, p, ".")
-          for (i = 1; i <= n; i++) {
-            s = p[i]
+  repo_words | LC_ALL=C awk -v list="$1" '
+      BEGIN { while ((getline t < list) > 0) if (t != "") want[t] = 1 }
+      {
+        n = split($0, p, ".")
+        for (i = 1; i <= n; i++) {
+          s = p[i]
+          if (s in want) { print s; delete want[s] }
+          for (j = i + 1; j <= n; j++) {
+            s = s "." p[j]
             if (s in want) { print s; delete want[s] }
-            for (j = i + 1; j <= n; j++) {
-              s = s "." p[j]
-              if (s in want) { print s; delete want[s] }
-            }
           }
-          if (index($0, "$") > 0) {
-            n = split($0, p, /[$.]/)
-            for (i = 1; i <= n; i++) if (p[i] in want) { print p[i]; delete want[p[i]] }
-          }
-        }'
+        }
+        if (index($0, "$") > 0) {
+          n = split($0, p, /[$.]/)
+          for (i = 1; i <= n; i++) if (p[i] in want) { print p[i]; delete want[p[i]] }
+        }
+      }'
   return 0
 }
 
@@ -589,8 +599,10 @@ FNR == 1 { fence = 0 }
 # only cites the scope — its text names the basename of a listed file as a
 # whole word, or it cites in backticks a word the change removes (a symbol the
 # diff renames or deletes) — reports only what the scope can break in it: a
-# doc link into a listed file, and the backticked removed words. Its other
-# findings are the repository's state, for a whole-repository run.
+# doc link into a listed file, the backticked tokens that carry a removed
+# word, and an index line to a listed doc (whose description the diff can
+# change). Its other findings are the repository's state, for a
+# whole-repository run.
 # Every list below holds relative paths as find(1) prints them under a root.
 SCOPE_DOCS="$WORK/scope-docs"      # every doc a scoped run reads
 FULL_DOCS="$WORK/full-docs"        # the listed docs: every check
@@ -612,7 +624,8 @@ if (( SCOPED )); then
                        -v sym_re="$LANG_SYMBOL_RE" -v qual_re="$LANG_QUALIFIED_RE" "$DOCSCAN_AWK" \
         | awk -F'\t' -v list="$WORDS_LIST" '
             BEGIN { while ((getline w < list) > 0) want[w] = 1 }
-            $1 == "S" { t = $4; m = t; sub(/^.*\./, "", m); if ((t in want) || (m in want)) print $2 }'
+            $1 == "S" { if ($4 in want) { print $2; next }
+                        n = split($4, part, "."); for (i = 1; i <= n; i++) if (part[i] in want) { print $2; next } }'
     fi
   } | LC_ALL=C sort -u > "$SCOPE_DOCS"
   if [[ -s "$SCOPE_DOCS" ]]; then
@@ -639,6 +652,27 @@ bundle_docs() {
 
 # full_doc <doc> — exit 0 iff the doc gets every check
 full_doc() { (( ! SCOPED )) || grep -qxF -- "$1" "$FULL_DOCS"; }
+
+# link_path <containing-file> <target> <docroot> — the link's target as a
+# repository-relative path, the title and anchor stripped and . and .. folded
+# by text, so a target whose directory does not exist still has a path
+link_path() {
+  local t="${2%%#*}"
+  t="${t%% *}"
+  if [[ "$t" == /* ]]; then t="$3/${t#/}"; else t="$(dirname "$1")/$t"; fi
+  printf '%s\n' "$t" | awk -F/ '{
+    n = 0
+    for (i = 1; i <= NF; i++) {
+      if ($i == "" || $i == ".") continue
+      if ($i == ".." && n > 0 && st[n] != "..") { n--; continue }
+      st[++n] = $i
+    }
+    o = ""; for (i = 1; i <= n; i++) o = o (i > 1 ? "/" : "") st[i]; print o
+  }'
+}
+
+# in_list <path> <list-file> — exit 0 iff the path is a line of the list
+in_list() { grep -qxF -- "$1" "$2"; }
 
 # ---------- Q2: code→docs edges (repo-wide, or the scope's code files on a
 # scoped run; resolved from repo root, then the citing file's own
@@ -722,7 +756,7 @@ check_bundle() { # <project-dir> <docroot>
     while IFS= read -r raw; do
       local t="${raw#](}"; t="${t%)}"
       [[ "$t" == *.md* ]] || continue
-      (( full )) || grep -qxF -- "$(basename "${t%%#*}")" "$BASENAMES" || continue
+      (( full )) || in_list "$(link_path "$md" "$t" "$docroot")" "$SCOPE_PATHS" || continue
       local resolved rc=0
       resolved=$(resolve_link "$md" "$t" "$docroot") || rc=$?
       (( rc == 1 )) && continue
@@ -749,7 +783,8 @@ check_bundle() { # <project-dir> <docroot>
     awk -F'\t' -v full="$FULL_DOCS" -v words="${WORDS_LIST:-/dev/null}" '
       BEGIN { while ((getline l < full) > 0) f[l] = 1; while ((getline l < words) > 0) w[l] = 1 }
       ($2 in f) { print; next }
-      $1 == "S" { m = $4; sub(/^.*\./, "", m); if (($4 in w) || (m in w)) print }' "$scan" > "$scan.kept"
+      $1 == "S" { if ($4 in w) { print; next }
+                  n = split($4, part, "."); for (i = 1; i <= n; i++) if (part[i] in w) { print; next } }' "$scan" > "$scan.kept"
     mv -f "$scan.kept" "$scan"
   fi
   local f ln
@@ -887,9 +922,12 @@ check_bundle() { # <project-dir> <docroot>
   done < <(bundle_docs "$docroot" '*.md' full)
 
   # --- Q7: drift check — index line text == target's description (⚠️ exempt;
-  # --fix rewrites drifted lines after the read loop, never during it) ---
+  # --fix rewrites drifted lines after the read loop, never during it). An
+  # index that only cites the scope checks only its lines to the touched docs,
+  # whose description the diff can change. ---
   while IFS= read -r idx; do
-    local lineno=0 line fixes=""
+    local lineno=0 line fixes="" ifull=0
+    full_doc "$idx" && ifull=1
     while IFS= read -r line; do
       lineno=$((lineno + 1))
       case "$line" in *'⚠️'*) continue ;; esac
@@ -897,6 +935,7 @@ check_bundle() { # <project-dir> <docroot>
       local t; t=$(printf '%s' "$line" | sed -E 's/^- \[[^]]*\]\(([^)]*)\).*/\1/')
       local tail="${line#* — }"
       tail=$(printf '%s' "$tail" | sed -e 's/[[:space:]]*$//')
+      (( ifull )) || in_list "$(link_path "$idx" "$t" "$docroot")" "$FULL_DOCS" || continue
       local resolved
       resolved=$(resolve_link "$idx" "$t" "$docroot") || continue  # broken links are Q2's report
       [[ -f "$resolved" ]] || continue
@@ -922,7 +961,7 @@ check_bundle() { # <project-dir> <docroot>
         echo "  fixed: $idx:$n — index line rewritten from its target's description"
       done <<< "$fixes"
     fi
-  done < <(bundle_docs "$docroot" index.md full)
+  done < <(bundle_docs "$docroot" index.md)
 
   # --- Q7: no log.md ---
   while IFS= read -r lg; do

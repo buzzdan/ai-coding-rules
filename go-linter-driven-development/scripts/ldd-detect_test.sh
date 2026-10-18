@@ -570,6 +570,12 @@ expect_exit 2 && expect_has "the R9 gate failed to run" && ok
 rm -rf "$FAKE"
 finish
 
+begin "a --gate-budget with no value is a usage error (exit 2)"
+mk_repo
+OUT=$(cd "$REPO" && bash "$DETECT" --root . "$BUNDLE" --gate-budget 2>&1); CODE=$?; ERR=""
+expect_exit 2 && expect_has "--gate-budget needs a value" && ok
+finish
+
 } # run_row_cases
 
 write_installed_plugins "$SIBLINGS_FILE" go-linter-driven-development python-linter-driven-development linter-driven-development ts-react-linter-driven-development
