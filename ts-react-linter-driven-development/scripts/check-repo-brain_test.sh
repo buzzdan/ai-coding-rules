@@ -653,6 +653,75 @@ run_gate
 expect_exit 0 && expect_not "does not resolve" && expect_has "check-repo-brain: clean" && ok
 finish
 
+# --- scoped runs (--scope, --words) and the symbol resolver ---
+LISTS=$(mktemp -d) # the scope and word lists live outside the repository they describe
+begin "--scope: a code-only scope that no doc cites skips the doc checks"
+mk_conformant; mk_doc orphan "an unlinked doc" "Nothing links here."
+printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 0 && expect_has "scope — no doc in scope; doc checks skipped" && expect_not "orphan" && ok
+finish
+
+begin "--scope: a listed doc is checked, an unlisted orphan and the root wiring are not"
+mk_conformant; mk_doc orphan "an unlinked doc" "Nothing links here."; mk_doc other "another unlinked doc" "Nothing."
+rm "$REPO/CLAUDE.md" "$REPO/AGENTS.md"
+printf '%s\n' "$FX_CODE_FILE" docs/orphan.md > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "scope — 1 doc(s) to check" && expect_has "[Q1] docs/orphan.md — orphan" \
+  && expect_not "docs/other.md" && expect_not "[Q3]" && ok
+finish
+
+begin "--scope: a doc that names a scope file is checked"
+mk_conformant; mk_doc linker "links the code" "The code lives in [the policy](../$FX_CODE_FILE)."
+printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "[Q1] docs/linker.md — orphan" && ok
+finish
+
+begin "--scope --words: a doc that cites a removed symbol is checked"
+mk_conformant
+mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\`."
+append_index "- [ghost.md](ghost.md) — a ghost symbol"
+printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"; printf 'SnapshotRunner\n' > "$LISTS/words.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 0 && expect_has "no doc in scope" \
+  && { run_gate --scope "$LISTS/scope.txt" --words "$LISTS/words.txt"; expect_exit 1; } \
+  && expect_has "backticked \`SnapshotRunner\` does not resolve" && ok
+finish
+
+begin "Q2 in a git work tree a token resolves from tracked and untracked files, never from ignored ones"
+mk_conformant
+printf 'build/\n' > "$REPO/.gitignore"
+mkdir -p "$REPO/build"; printf 'IgnoredOnlyName\n' > "$REPO/build/gen.yaml"
+printf 'TrackedName\n' > "$REPO/tracked.yaml"
+mk_doc names "alert names" "Fires \`TrackedName\`, \`UntrackedName\` and \`IgnoredOnlyName\`."
+append_index "- [names.md](names.md) — alert names"
+(cd "$REPO" && git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -qm init)
+printf 'UntrackedName\n' > "$REPO/untracked.yaml"
+run_gate
+expect_exit 1 && expect_has "\`IgnoredOnlyName\` does not resolve" \
+  && expect_not "\`TrackedName\` does not resolve" && expect_not "\`UntrackedName\` does not resolve" && ok
+finish
+
+begin "Q2 outside git a token does not resolve from a bazel-* output directory"
+mk_conformant
+mkdir -p "$REPO/bazel-out"; printf 'BazelOnlyName\n' > "$REPO/bazel-out/gen.yaml"
+mk_doc bazel "bazel names" "Fires \`BazelOnlyName\`."
+append_index "- [bazel.md](bazel.md) — bazel names"
+run_gate
+expect_exit 1 && expect_has "\`BazelOnlyName\` does not resolve" && ok
+finish
+
+begin "Q2 a dotted token resolves on whole dot-separated words only"
+mk_conformant
+printf 'limits:\n  key: Cfg.MaxRetries.value\n  other: Cfg.MaxRetriesX\n' > "$REPO/limits.yaml"
+mk_doc dotted "dotted names" "Reads \`Cfg.MaxRetries\`; \`Cfg.MaxRetri\` is a typo."
+append_index "- [dotted.md](dotted.md) — dotted names"
+run_gate
+expect_exit 1 && expect_has "\`Cfg.MaxRetri\` does not resolve" && expect_not "\`Cfg.MaxRetries\` does not resolve" && ok
+finish
+rm -rf "$LISTS"
+
 } # run_row_cases
 
 for ROW in $FX_ROWS; do

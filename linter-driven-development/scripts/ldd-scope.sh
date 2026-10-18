@@ -46,6 +46,11 @@
 #
 # The bundle:
 #   language.txt   the group's language id; "custom TAB <glob>" under --glob
+#   test-re.txt    the --test-re pattern, when one was passed, so ldd-detect.sh
+#                  tells test files the same way
+#   docs.txt       on a scoped rung, the markdown files the rung touches, one
+#                  relative path per line, deleted ones included: the docs the
+#                  R9 gate checks in full; --all writes none
 #   files.txt      the scope, one relative path per line. A file left out of
 #                  scope/ keeps its line with the reason: (not bundled: deleted),
 #                  (not bundled: binary), (not bundled: <n> lines) over the
@@ -448,6 +453,10 @@ write_bundle() {
   mkdir -p "$OUT/scope"
   if [[ "$GROUP_ID" == "custom" ]]; then printf 'custom\t%s\n' "$OPT_GLOB" > "$OUT/language.txt"
   else printf '%s\n' "$GROUP_ID" > "$OUT/language.txt"; fi
+  [[ -n "$OPT_TEST_RE" ]] && printf '%s\n' "$OPT_TEST_RE" > "$OUT/test-re.txt"
+  if [[ "$RUNG" != "all" ]]; then
+    sed 's|^\./||' "$CANDIDATES" | grep -E '\.md$' | LC_ALL=C sort -u > "$OUT/docs.txt"
+  fi
 
   # not_bundled_reason <file> — prints the reason, or nothing when it is bundled
   not_bundled_reason() {

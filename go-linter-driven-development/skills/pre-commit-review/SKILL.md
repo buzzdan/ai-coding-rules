@@ -80,11 +80,15 @@ writes `hits.tsv`, `hits-all.tsv` and `counts.tsv` into the bundle, and prints t
 question only a hunter's reading answers — then one line per rule family. That
 table, about 300 tokens, is the pre-filter: the parent prints no rule file, composes
 no detection command, and never reads a Falsifying-questions section. On a scoped review the R9
-gate's rows are the scope's own files' — an orphan doc or an unwired root is the
-repository's state, for a `--all` review or BROADER CONTEXT, never this diff's
-finding. When the
+gate checks only the docs the diff touches, the docs that link to a scope file and the
+docs that cite a symbol the diff removes, and its rows are about those docs and the
+scope's own files — an orphan doc elsewhere or an unwired root is the repository's
+state, for a `--all` review or BROADER CONTEXT, never this diff's finding. The line
+`R9 gate: …` under the summary says which docs the gate checked. A gate row whose
+hits cell is `inconclusive` means the gate ran out of its `--gate-budget`: it is not
+a `0`, and the documentation hunter answers that question from the prose. When the
 detection script exits 2 instead — a pattern its grep rejects, the R9 gate failing to
-run — the review did not run: report its message, spawn nothing, and never render a
+run, a scope in which no file matches the source glob — the review did not run: report its message, spawn nothing, and never render a
 rule as `skipped` or compose the pass by hand. A rule family none of whose rules has
 a hit — `0` on every row of theirs that is not `judgment` — is skipped: no hunter for
 it.
@@ -110,7 +114,8 @@ zero prior use; the fix is a discussion or a separate PR, never silent inclusion
 <step_2_spawn_hunters>
 The bundle exists (step 1 wrote it: `files.txt`, `diff.patch` on a scoped review,
 `scope/<path>.txt` per bundled file with the file's own line numbers, `dirs.txt` on
-`--all`, `comments.txt`, `hits.tsv`, `hits-all.tsv`, `counts.tsv`); nothing is
+`--all`, `docs.txt` with the touched docs on a scoped review, `test-re.txt` with the
+test-file pattern when one was passed, `comments.txt`, `hits.tsv`, `hits-all.tsv`, `counts.tsv`); nothing is
 written here. One Bash
 command, only when the scope is not empty, lists every rule path the prompts will
 carry and prints `sed -n '/^## Waiting for agents/,/^## The merged report/p'
