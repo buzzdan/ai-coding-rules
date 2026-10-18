@@ -277,7 +277,11 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    run that did not execute is not a pass. In a read-only review, where no tests
    may run, take the hand check instead: list the leaf's comparisons and boolean
    conditions, check the `it.each` table for a row at each boundary value and on
-   each side of each condition, and name the row that is missing.
+   each side of each condition, and name the row that is missing. Open the leaf's
+   test file for this, also when the file is outside the review's scope. Then read
+   each error assertion. An assertion that matches only a word all the leaf's errors
+   share (`toThrow('tenant')`) cannot tell one error path from another, so a removed
+   check or a changed message survives.
    On a whole-repository review this question is not judged: a mutation run or a
    hand check over every leaf does not fit a hunter's budget. The receipt reads
    `R7 Q7: <hits> hit(s) → per-leaf, not judged`, R7's tally takes the partial form,
@@ -285,5 +289,6 @@ Answer each with evidence (`file:line`, command output) — never a bare verdict
    each as the review that judges it: `R7 Q7: /tsr-ldd-review <dir>`. On a
    scoped review the question is judged in full.
    Violation: any surviving mutant on a leaf module that is not recorded as
-   equivalent — a missing `it.each` row or dead logic; name the mutant (file, line,
+   equivalent — a missing `it.each` row, an assertion on part of the message, or dead
+   logic; name the mutant (file, line,
    replacement from the `Survived` line) and the row that would kill it.
