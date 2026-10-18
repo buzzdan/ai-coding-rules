@@ -209,6 +209,12 @@ Test files are the ones the repository's test runner picks up (`*<test-file suff
    and boolean conditions, check the table for a row at each boundary value and on
    each side of each condition, and hand-flip any operator whose rows are missing
    (`<` to `<=`, `>` to `>=`, a condition negated), run the leaf's tests, revert.
+   On a whole-repository review this question is not judged: a mutation run or a
+   hand check over every leaf does not fit a hunter's budget. The receipt reads
+   `R7 Q7: <hits> hit(s) → per-leaf, not judged`, R7's tally takes the partial form,
+   and the `not reached:` line names the three leaf directories with the most hits,
+   each as the review that judges it: `R7 Q7: /ldd-review <dir>`. On a
+   scoped review the question is judged in full.
    Violation: any survivor on a leaf type that is not recorded as equivalent — a
    missing table row or dead logic; name the mutant (file, line, operator) and the
    row that would kill it.
