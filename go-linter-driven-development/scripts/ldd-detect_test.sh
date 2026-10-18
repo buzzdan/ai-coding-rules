@@ -551,6 +551,25 @@ pkill -f 'sleep 37' 2>/dev/null
 rm -rf "$FAKE"
 finish
 
+begin "a --gate-budget the gate finishes within writes the same counts as no budget"
+mk_repo; : > "$BUNDLE/dirs.txt"; run_detect
+cp "$BUNDLE/counts.tsv" "$BUNDLE/first.tsv"
+run_detect --gate-budget 60
+expect_exit 0 && { cmp -s "$BUNDLE/first.tsv" "$BUNDLE/counts.tsv" || bad "counts.tsv differs under a budget the gate meets"; } \
+  && cmp -s "$BUNDLE/first.tsv" "$BUNDLE/counts.tsv" && ok
+finish
+
+begin "a gate that fails under --gate-budget fails the run (exit 2)"
+mk_repo; : > "$BUNDLE/dirs.txt"
+FAKE=$(mktemp -d)
+cp "$DETECT" "$FAKE/ldd-detect.sh"
+printf '#!/usr/bin/env bash\necho "check-repo-brain: internal scanner error"\nexit 2\n' > "$FAKE/check-repo-brain.sh"
+OUT=$(cd "$REPO" && bash "$FAKE/ldd-detect.sh" --rules "$RULES" --gate-budget 30 --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
+ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+expect_exit 2 && expect_has "the R9 gate failed to run" && ok
+rm -rf "$FAKE"
+finish
+
 } # run_row_cases
 
 write_installed_plugins "$SIBLINGS_FILE" go-linter-driven-development python-linter-driven-development linter-driven-development ts-react-linter-driven-development

@@ -15,8 +15,10 @@
 #         (the one mechanical repair; everything else stays report-only)
 # --scope <list>  a review's scope: one path per line, relative to repo-root
 #         (code files and docs, deleted ones included). The gate then checks
-#         only the docs in scope: the listed docs, the docs whose text names a
-#         listed file's basename, and the docs that cite a word of --words.
+#         only the docs in scope. A listed doc gets every check. A doc whose
+#         text names a listed file's basename, or that cites a word of
+#         --words, reports only its links into a listed file and its
+#         backticked --words.
 #         Code edges are checked for the listed code files only, Q3 is skipped
 #         (root wiring is the repository's state, not a diff's), and with no
 #         doc in scope the doc checks are skipped. One stdout line says which:
@@ -366,13 +368,16 @@ build_declarations() {
 is_repo_pkg() { grep -qxF "$1" "$PKGS" 2>/dev/null; }
 
 # repo_files — the repository's non-markdown files, NUL-separated. A git work
-# tree lists them through git (tracked files plus untracked ones git does not
-# ignore), which never walks build outputs or symlinked caches; elsewhere find
-# skips the directories that hold dependencies and build outputs.
+# tree lists them through git — the tracked files, those of its submodules
+# included, then the untracked ones git does not ignore — which never walks
+# build outputs or symlinked caches; elsewhere find skips the directories that
+# hold dependencies and build outputs.
 repo_files() {
+  local -a spec=(-- . ':(exclude,glob)**/*.md' ':(exclude,glob)**/vendor/**')
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    git ls-files -z --cached --others --exclude-standard -- . \
-      ':(exclude,glob)**/*.md' ':(exclude,glob)**/vendor/**' 2>/dev/null && return 0
+    { git ls-files -z --cached --recurse-submodules "${spec[@]}" 2>/dev/null \
+        || git ls-files -z --cached "${spec[@]}" 2>/dev/null; } \
+      && git ls-files -z --others --exclude-standard "${spec[@]}" 2>/dev/null && return 0
   fi
   find . \( -name .git -o -name vendor -o -name node_modules -o -name 'bazel-*' -o -name .venv \
             -o -name venv -o -name __pycache__ -o -name .tox -o -name dist -o -name target \) -prune \
@@ -381,12 +386,13 @@ repo_files() {
 
 # resolve_words <tokens-file> — the tokens that occur as a whole word in any
 # non-markdown repository file, one per line. The repository is read once
-# into words (runs of [A-Za-z0-9_.]); a dotted token such as `Type.Method`
-# matches any run of whole dot-separated parts, as grep -w would match it.
+# into words (runs of [A-Za-z0-9_.$]); a dotted token such as `Type.Method`
+# matches any run of whole dot-separated parts, as grep -w would match it, and
+# a word that carries $ (a JavaScript identifier) also offers its $-free parts.
 # One pass over the text is linear in its size, where a fixed-string grep for
 # hundreds of tokens is not.
 resolve_words() {
-  repo_files | xargs -0 cat 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.' '\n' \
+  repo_files | xargs -0 cat 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.$' '\n' \
     | LC_ALL=C awk -v list="$1" '
         BEGIN { while ((getline t < list) > 0) if (t != "") want[t] = 1 }
         seen[$0]++ { next }
@@ -400,6 +406,10 @@ resolve_words() {
               if (s in want) { print s; delete want[s] }
             }
           }
+          if (index($0, "$") > 0) {
+            n = split($0, p, /[$.]/)
+            for (i = 1; i <= n; i++) if (p[i] in want) { print p[i]; delete want[p[i]] }
+          }
         }'
   return 0
 }
@@ -408,7 +418,7 @@ resolve_words() {
 #   P <file> <lineno>          — a file:line citation outside fences/URLs/globs
 #   S <file> <lineno> <token>  — a backticked symbol-shaped token to resolve
 # Tokens are then resolved as SETS (one grep against the declaration file, one
-# repo-wide word grep for the whole unresolved batch) — never per token.
+# pass over the repository for the whole unresolved batch) — never per token.
 # Language-specific shapes arrive as -v variables: file_ext, file_re, sym_re, qual_re.
 DOCSCAN_AWK='
 FNR == 1 { fence = 0 }
@@ -442,49 +452,61 @@ FNR == 1 { fence = 0 }
 }
 '
 
-# ---------- the scope: which docs a scoped run checks ----------
-# A doc is in scope when the scope lists it, when its text names the basename
-# of a listed file as a whole word (a link to a touched doc or code file), or
-# when it cites in backticks a word the change removes (a symbol the diff
-# renames or deletes).
+# ---------- the scope: which docs a scoped run checks, and how far ----------
+# A doc the scope lists (a doc the diff touches) gets every check. A doc that
+# only cites the scope — its text names the basename of a listed file as a
+# whole word, or it cites in backticks a word the change removes (a symbol the
+# diff renames or deletes) — reports only what the scope can break in it: a
+# doc link into a listed file, and the backticked removed words. Its other
+# findings are the repository's state, for a whole-repository run.
 # Every list below holds relative paths as find(1) prints them under a root.
-SCOPE_DOCS="$WORK/scope-docs"
+SCOPE_DOCS="$WORK/scope-docs"      # every doc a scoped run reads
+FULL_DOCS="$WORK/full-docs"        # the listed docs: every check
 SCOPE_PATHS="$WORK/scope-paths"
+BASENAMES="$WORK/basenames"
 if (( SCOPED )); then
   sed -e 's|^\./||' -e '/^$/d' "$SCOPE_LIST" | LC_ALL=C sort -u > "$SCOPE_PATHS"
+  sed 's|.*/||' "$SCOPE_PATHS" | LC_ALL=C sort -u > "$BASENAMES"
   for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md'; done | LC_ALL=C sort -u > "$WORK/all-docs"
+  grep -xF -f "$SCOPE_PATHS" "$WORK/all-docs" > "$FULL_DOCS"
   {
-    grep -xF -f "$SCOPE_PATHS" "$WORK/all-docs"
-    sed 's|.*/||' "$SCOPE_PATHS" | LC_ALL=C sort -u > "$WORK/basenames"
-    if [[ -s "$WORK/basenames" && -s "$WORK/all-docs" ]]; then
-      tr '\n' '\0' < "$WORK/all-docs" | xargs -0 grep -lwF -f "$WORK/basenames" 2>/dev/null
+    cat "$FULL_DOCS"
+    if [[ -s "$BASENAMES" && -s "$WORK/all-docs" ]]; then
+      tr '\n' '\0' < "$WORK/all-docs" | xargs -0 grep -lwF -f "$BASENAMES" 2>/dev/null
     fi
     if [[ -n "$WORDS_LIST" && -s "$WORDS_LIST" && -s "$WORK/all-docs" ]]; then
       tr '\n' '\0' < "$WORK/all-docs" \
         | xargs -0 awk -v file_ext="$LANG_FILE_EXT" -v file_re="$LANG_FILE_RE" \
                        -v sym_re="$LANG_SYMBOL_RE" -v qual_re="$LANG_QUALIFIED_RE" "$DOCSCAN_AWK" \
-        | awk -F'\t' 'NR == FNR { w[$0] = 1; next }
-            $1 == "S" { t = $4; m = t; sub(/^.*\./, "", m); if ((t in w) || (m in w)) print $2 }' "$WORDS_LIST" -
+        | awk -F'\t' -v list="$WORDS_LIST" '
+            BEGIN { while ((getline w < list) > 0) want[w] = 1 }
+            $1 == "S" { t = $4; m = t; sub(/^.*\./, "", m); if ((t in want) || (m in want)) print $2 }'
     fi
   } | LC_ALL=C sort -u > "$SCOPE_DOCS"
   if [[ -s "$SCOPE_DOCS" ]]; then
-    echo "check-repo-brain: scope — $(wc -l < "$SCOPE_DOCS" | tr -d ' ') doc(s) to check"
+    echo "check-repo-brain: scope — $(wc -l < "$SCOPE_DOCS" | tr -d ' ') doc(s) to check" \
+      "($(wc -l < "$FULL_DOCS" | tr -d ' ') touched, every check; the rest cite the scope, scope lines only)"
   else
     echo "check-repo-brain: scope — no doc in scope; doc checks skipped"
   fi
 fi
 
-# bundle_docs <docroot> [name] — the docs a run checks under one root: every
-# *.md (or every file of that name), limited to the scope on a scoped run
+# bundle_docs <docroot> [name] [full] — the docs a run checks under one root:
+# every *.md (or every file of that name); on a scoped run only the docs in
+# scope, or with "full" only the docs that get every check
 bundle_docs() {
-  local name="${2:-*.md}"
+  local name="${2:-*.md}" list="$SCOPE_DOCS"
+  [[ "${3:-}" == full ]] && list="$FULL_DOCS"
   if (( SCOPED )); then
-    find "$1" -type f -name "$name" | grep -xF -f "$SCOPE_DOCS"
+    find "$1" -type f -name "$name" | grep -xF -f "$list"
   else
     find "$1" -type f -name "$name"
   fi
   return 0
 }
+
+# full_doc <doc> — exit 0 iff the doc gets every check
+full_doc() { (( ! SCOPED )) || grep -qxF -- "$1" "$FULL_DOCS"; }
 
 # ---------- Q2: code→docs edges (repo-wide, or the scope's code files on a
 # scoped run; resolved from repo root, then the citing file's own
@@ -548,7 +570,7 @@ check_bundle() { # <project-dir> <docroot>
       [[ "$(basename "$resolved")" == "index.md" ]] && queue+=("$resolved")
     done < <(grep -oE '\]\([^)]+\)' "$idx" 2>/dev/null)
   done
-  if [[ ! -f "$root_index" ]]; then
+  if [[ ! -f "$root_index" ]] && [[ -n "$(bundle_docs "$docroot" '*.md' full)" ]]; then
     fail "[Q1] $docroot — no index.md: the bundle has no map"
   fi
   while IFS= read -r doc; do
@@ -558,14 +580,17 @@ check_bundle() { # <project-dir> <docroot>
     case "$reachable" in *"$c"$'\n'*) ;; *)
       fail "[Q1] $doc — orphan: not reachable from $root_index" ;;
     esac
-  done < <(bundle_docs "$docroot")
+  done < <(bundle_docs "$docroot" '*.md' full)
 
   # --- Q2: every doc link resolves (a missing parent directory is just as
-  # broken as a missing file — only URLs/anchors are exempt) ---
+  # broken as a missing file — only URLs/anchors are exempt); a doc that only
+  # cites the scope reports only its links into a listed file ---
   while IFS= read -r md; do
+    local full=0; full_doc "$md" && full=1
     while IFS= read -r raw; do
       local t="${raw#](}"; t="${t%)}"
       [[ "$t" == *.md* ]] || continue
+      (( full )) || grep -qxF -- "$(basename "${t%%#*}")" "$BASENAMES" || continue
       local resolved rc=0
       resolved=$(resolve_link "$md" "$t" "$docroot") || rc=$?
       (( rc == 1 )) && continue
@@ -576,7 +601,8 @@ check_bundle() { # <project-dir> <docroot>
   done < <(bundle_docs "$docroot")
 
   # --- Q2: doc scan — file:line ban + docs→code symbol resolution.
-  # One awk pass extracts; resolution is set-based (see DOCSCAN_AWK above). ---
+  # One awk pass extracts; resolution is set-based (see DOCSCAN_AWK above). A
+  # doc that only cites the scope keeps only its backticked removed words. ---
   local scan; scan=$(mktemp)
   if ! ( set -o pipefail
          bundle_docs "$docroot" | tr '\n' '\0' \
@@ -586,6 +612,13 @@ check_bundle() { # <project-dir> <docroot>
     echo "check-repo-brain: internal scanner error — the doc scan failed in $docroot; treating the run as inconclusive" >&2
     rm -f "$scan"
     exit 2
+  fi
+  if (( SCOPED )); then
+    awk -F'\t' -v full="$FULL_DOCS" -v words="${WORDS_LIST:-/dev/null}" '
+      BEGIN { while ((getline l < full) > 0) f[l] = 1; while ((getline l < words) > 0) w[l] = 1 }
+      ($2 in f) { print; next }
+      $1 == "S" { m = $4; sub(/^.*\./, "", m); if (($4 in w) || (m in w)) print }' "$scan" > "$scan.kept"
+    mv -f "$scan.kept" "$scan"
   fi
   local f ln
   while IFS=$'\t' read -r _ f ln; do
@@ -719,7 +752,7 @@ check_bundle() { # <project-dir> <docroot>
     else
       fail "[Q7] $md — frontmatter missing 'description:'"
     fi
-  done < <(bundle_docs "$docroot")
+  done < <(bundle_docs "$docroot" '*.md' full)
 
   # --- Q7: drift check — index line text == target's description (⚠️ exempt;
   # --fix rewrites drifted lines after the read loop, never during it) ---
@@ -757,12 +790,12 @@ check_bundle() { # <project-dir> <docroot>
         echo "  fixed: $idx:$n — index line rewritten from its target's description"
       done <<< "$fixes"
     fi
-  done < <(bundle_docs "$docroot" index.md)
+  done < <(bundle_docs "$docroot" index.md full)
 
   # --- Q7: no log.md ---
   while IFS= read -r lg; do
     fail "[Q7] $lg — log.md is reserved for change history; docs describe current behavior"
-  done < <(bundle_docs "$docroot" log.md)
+  done < <(bundle_docs "$docroot" log.md full)
 }
 
 for i in "${!PROJS[@]}"; do

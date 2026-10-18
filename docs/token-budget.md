@@ -424,9 +424,9 @@ argument) is still read wherever its family is. The script writes the hits table
 twice, capped per question for the hunter's first turn and uncapped as
 `hits-all.tsv`, so a capped question's remaining hits are one more `awk` and no
 hunter runs a pattern of its own. On a scoped review the detection script runs the R9
-gate over the scope alone — the docs the diff touches, the docs that link to a scope
-file, the docs that cite a symbol the diff removes, and the code edges of the scope's
-own files — so repository-wide doc drift does not spawn the documentation hunter on
+gate over the scope alone — the docs the diff touches in full, only the scope's links
+and removed symbols in the docs that cite the scope, and the code edges of the
+scope's own files — so repository-wide doc drift does not spawn the documentation hunter on
 every file review, and a code-only diff that no doc cites skips the doc checks. Each line of `comments.txt` carries the code line below the comment — the
 declaration it documents — so the critic settles most comments from the inventory
 and opens a scope file only for the ones it does not. The `Hunters:` header keeps its shape and its numbers now come

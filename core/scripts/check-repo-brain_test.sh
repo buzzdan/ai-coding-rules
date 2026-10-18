@@ -563,22 +563,24 @@ expect_exit 1 && expect_has "scope — 1 doc(s) to check" && expect_has "[Q1] do
   && expect_not "docs/other.md" && expect_not "[Q3]" && ok
 finish
 
-begin "--scope: a doc that names a scope file is checked"
-mk_conformant; mk_doc linker "links the code" "The code lives in [the policy](../$FX_CODE_FILE)."
-printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"
+begin "--scope: a doc that only names a scope file reports only its links into the scope"
+mk_conformant
+mk_doc linker "links the scope" "See [the old doc](gone.md) and [a missing one](missing.md); code: \`$FX_CODE_FILE\` at $FX_CODE_FILE:12."
+printf '%s\n' "$FX_CODE_FILE" docs/gone.md > "$LISTS/scope.txt"
 run_gate --scope "$LISTS/scope.txt"
-expect_exit 1 && expect_has "[Q1] docs/linker.md — orphan" && ok
+expect_exit 1 && expect_has "0 touched" && expect_has "[Q2] docs/linker.md — link target does not exist: gone.md" \
+  && expect_not "missing.md" && expect_not "orphan" && expect_not "file path or line number" && ok
 finish
 
 begin "--scope --words: a doc that cites a removed symbol is checked"
 mk_conformant
-mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\`."
+mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\` and \`OtherGhost\`."
 append_index "- [ghost.md](ghost.md) — a ghost symbol"
 printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"; printf 'SnapshotRunner\n' > "$LISTS/words.txt"
 run_gate --scope "$LISTS/scope.txt"
 expect_exit 0 && expect_has "no doc in scope" \
   && { run_gate --scope "$LISTS/scope.txt" --words "$LISTS/words.txt"; expect_exit 1; } \
-  && expect_has "backticked \`SnapshotRunner\` does not resolve" && ok
+  && expect_has "backticked \`SnapshotRunner\` does not resolve" && expect_not "OtherGhost" && ok
 finish
 
 begin "Q2 in a git work tree a token resolves from tracked and untracked files, never from ignored ones"

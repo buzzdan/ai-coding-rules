@@ -80,10 +80,10 @@ writes `hits.tsv`, `hits-all.tsv` and `counts.tsv` into the bundle, and prints t
 question only a hunter's reading answers — then one line per rule family. That
 table, about 300 tokens, is the pre-filter: the parent prints no rule file, composes
 no detection command, and never reads a Falsifying-questions section. On a scoped review the R9
-gate checks only the docs the diff touches, the docs that link to a scope file and the
-docs that cite a symbol the diff removes, and its rows are about those docs and the
-scope's own files — an orphan doc elsewhere or an unwired root is the repository's
-state, for a `--all` review or BROADER CONTEXT, never this diff's finding. The line
+gate checks the docs the diff touches in full; in a doc that links to a scope file
+or cites a symbol the diff removes it checks only those links and symbols; and it
+checks the code edges of the scope's own files — an orphan doc elsewhere, a citing
+doc's older drift or an unwired root is the repository's state, for a `--all` review or BROADER CONTEXT, never this diff's finding. The line
 `R9 gate: …` under the summary says which docs the gate checked. A gate row whose
 hits cell is `inconclusive` means the gate ran out of its `--gate-budget`: it is not
 a `0`, and the documentation hunter answers that question from the prose. When the

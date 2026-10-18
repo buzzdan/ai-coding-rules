@@ -48,11 +48,11 @@
 #   Detect-gate: Q<n>      the R9 gate's [Q<n>] report lines, from one run of
 #                check-repo-brain.sh beside this script over --root. On a
 #                scoped bundle (no dirs.txt) the gate runs with --scope: it
-#                checks only the bundle's docs (docs.txt), the docs that
-#                link to a scope file and the docs that cite a symbol the
-#                diff removes, the code edges of the scope's code files,
-#                and no root wiring; with no such doc its doc checks are
-#                skipped. The repository-wide findings belong to a
+#                checks the bundle's docs (docs.txt) in full, and in the
+#                docs that name a scope file or cite a symbol the diff
+#                removes only those links and symbols; it checks the code
+#                edges of the scope's code files and no root wiring; with
+#                no such doc its doc checks are skipped. The repository-wide findings belong to a
 #                whole-repository review
 #   Detect: judgment       no mechanical lead; the hunter runs the prose
 # A question with no detect line, two of them, or a malformed one is an error:
@@ -511,7 +511,8 @@ run_path() { # <rule> <q> <pattern>
 # of docs.txt; and the identifiers the diff removes — on its removed lines and
 # on none of its added ones — the symbols a renamed or deleted declaration
 # takes away from the docs that cite them. Comment lines (a line that opens
-# with //, #, /*, *, -- or """) carry prose, not symbols, and are skipped.
+# with //, #, /*, *, -- or """) carry prose, not symbols, and are skipped,
+# and a word the scope's files still carry after the change is not removed.
 gate_scope_lists() {
   local scope="$1" words="$2" line f
   {
@@ -533,7 +534,18 @@ gate_scope_lists() {
             if (s == "+") add[w] = 1; else del[w] = 1
           }
         }
-        END { for (w in del) if (!(w in add)) print w }' | LC_ALL=C sort > "$words"
+        END { for (w in del) if (!(w in add)) print w }' \
+    | LC_ALL=C sort > "$words.removed"
+  if (( ${#ALL_FILES[@]} > 0 )); then
+    cat -- "${ALL_FILES[@]}" | LC_ALL=C tr -cs 'A-Za-z0-9_' '\n' \
+      | LC_ALL=C awk -v list="$words.removed" '
+          BEGIN { while ((getline w < list) > 0) gone[w] = 1 }
+          ($0 in gone) { delete gone[$0] }
+          END { for (w in gone) print w }' | LC_ALL=C sort > "$words"
+  else
+    cp "$words.removed" "$words"
+  fi
+  rm -f "$words.removed"
 }
 
 # The R9 gate runs once, lazily; its [Q<n>] lines are split by question. With
