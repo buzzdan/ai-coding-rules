@@ -5,6 +5,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-18
+
+### Changed
+
+- **A whole-repository review leaves the mutant question to scoped reviews.** On
+  `--all`, the hunter does not judge the question "does a mutant survive a leaf's
+  tests?". Its receipt reads `per-leaf, not judged`, and its `not reached:` line names
+  the three leaf directories with the most hits, each as the scoped review that
+  judges it (`/py-ldd-review <dir>`). A scoped review judges the question in full. The lead for
+  the mutant question also skips `handlers/`, `__main__.py`, `main.py` and `cli.py`.
+- **The god file has a mechanical lead.** The question "is one feature's code spread
+  across layer directories?" lists the longest files in scope with `wc -l` and checks
+  each against 450 lines (ruff has no file-length rule). A file over the limit is a violation when it stands in for the
+  whole slice.
+- **The review command says how to cover a large repository.** On a repository
+  larger than a few dozen source files, `--all` reports `PARTIAL coverage`. The
+  command names the form that covers everything: one review per directory
+  (`/py-ldd-review <dir>`).
+
 ### Fixed
 
 - **A claim that something is missing needs a listing.** A rule hunter that reports
@@ -14,6 +33,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   hunter once reported a test file as missing when it existed outside the scope.
   When the hunter's budget leaves no call for the listing, the claim appears in the
   hunter's `not reached:` line as `unverified`; the report never drops it.
+- **A cluster title carries its rule ids.** The review reference shows every cluster
+  title as `🔗 CLUSTER: <anchor> — <rules>`, the same form as the skill. Agents
+  followed the reference, so the rule ids were on the lines below the title, and the
+  report graders missed correct clusters.
+- **The mutant hand check reads the error assertions.** The hand check opens the
+  leaf's test file, also when the file is outside the review's scope, and reads each
+  error assertion. An assertion that matches only a word all the leaf's errors share
+  (`match="tenant"`) lets a removed check or a changed message survive, and it is a
+  violation. The check runs once for each leaf file in scope, not only where a hit row points.
 
 ## [0.4.1] - 2026-10-15
 
