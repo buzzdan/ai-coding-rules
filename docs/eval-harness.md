@@ -123,4 +123,8 @@ the generated recall and precision graders, since the 1.x plugin has no commands
 and no report contract; its baseline is
 [`baselines/ts-react-2.0.0-b64f8a8/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/ts-react-2.0.0-b64f8a8),
 the cheap tier against the merged plugin, whose README names the recall misses,
-the cluster-header inconsistency and the partial whole-repository coverage.
+the cluster-header inconsistency and the partial whole-repository coverage. The
+current baseline is
+[`baselines/ts-react-2.1.0-4077431/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/ts-react-2.1.0-4077431),
+the 2.1.0 plugin with those fixes; its README reads each change against 2.0.0 and
+names the three suspects of the remaining coverage loss.
