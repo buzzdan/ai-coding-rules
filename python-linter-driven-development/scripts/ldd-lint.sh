@@ -225,9 +225,15 @@ lang_is_test() {
 #                                   nothing. A named rule belongs to the linter:
 #                                   its limit, its counting and whether it is on
 #                                   are the repository's decision.
-#   lint_file_length_snippet <id> <max>  the linter setting that would hold the
-#                                   limit, or the .ldd-lint.yaml entry when no
-#                                   linter rule is known: text to propose
+#   lint_setup_files                one line per recommended config under the
+#                                   plugin's setup/: file TAB the tool that checks it
+#   lint_setup_check <file> <setup dir> <work dir>  run that tool's own check of
+#                                   the file; exit 0 when the tool accepts it
+#   lint_file_length_proposal <id>  what would hold the limit in the
+#                                   repository's linter: the rule, named after
+#                                   the plugin's recommended config under setup/
+#                                   that sets it, or the .ldd-lint.yaml entry when
+#                                   the language's linter has no such rule
 
 lint_comment_style() {
   case "$1" in
@@ -316,8 +322,10 @@ lint_file_length_rule() {
       f=$(_lint_names 'file-length-limit' .golangci.yaml .golangci.yml .golangci.toml .golangci.json) \
         && printf 'revive file-length-limit in %s' "$f" ;;
     typescript|javascript)
+      # eslint.config.ldd.mjs is the plugin's recommended fragment: a repository
+      # that adopts it keeps it beside eslint.config.js and imports it.
       local configs=(eslint.config.js eslint.config.mjs eslint.config.cjs eslint.config.ts eslint.config.mts eslint.config.cts
-                     .eslintrc .eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yml .eslintrc.yaml)
+                     eslint.config.ldd.mjs .eslintrc .eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yml .eslintrc.yaml)
       if f=$(_lint_names 'sonarjs/max-lines([^-a-zA-Z]|$)' "${configs[@]}"); then
         printf 'sonarjs/max-lines in %s' "$f"
       elif f=$(_lint_names '(^|[^-/a-zA-Z])max-lines([^-a-zA-Z]|$)' "${configs[@]}"); then
@@ -330,12 +338,27 @@ lint_file_length_rule() {
   return 0
 }
 
-lint_file_length_snippet() {
+lint_setup_files() {
+  printf 'golangci.yaml\tgolangci-lint\n'
+  printf 'ruff.toml\truff\n'
+  printf 'eslint.config.ldd.mjs\tnode\n'
+}
+
+lint_setup_check() { # <file> <setup dir> <work dir>
   case "$1" in
-    go)                    printf "revive in .golangci.yaml: - name: file-length-limit, arguments: [{max: %s, skip-comments: true, skip-blank-lines: true}]" "$2" ;;
-    typescript|javascript) printf "the eslint config: 'sonarjs/max-lines': ['error', { maximum: %s }]" "$2" ;;
-    python)                printf "pyproject.toml: [tool.pylint.format] max-module-lines = %s (pylint counts every line, comments and blank lines too)" "$2" ;;
-    *)                     printf "no linter rule is known for %s; a .ldd-lint.yaml entry file_max_lines: %s would state this limit" "$1" "$2" ;;
+    golangci.yaml)         golangci-lint config verify -c "$2/$1" ;;
+    ruff.toml)             printf 'x = 1\n' > "$3/ldd_setup_check.py" && (cd "$3" && ruff check --no-cache --config "$2/$1" ldd_setup_check.py) ;;
+    eslint.config.ldd.mjs) node --check "$2/$1" ;;
+    *)                     return 2 ;;
+  esac
+}
+
+lint_file_length_proposal() {
+  case "$1" in
+    go)                    printf "a setting to propose, never to add on your own: revive file-length-limit, as the plugin's setup/golangci.yaml sets it" ;;
+    typescript|javascript) printf "a setting to propose, never to add on your own: sonarjs/max-lines, as the plugin's setup/eslint.config.ldd.mjs sets it" ;;
+    python)                printf "ruff has no file-length rule, so this script holds the limit; a .ldd-lint.yaml entry file_max_lines: <n> states another" ;;
+    *)                     printf "no linter rule is known for %s; a .ldd-lint.yaml entry file_max_lines: <n> states another limit" "$1" ;;
   esac
 }
 # ================== end linter table ==================
@@ -407,6 +430,16 @@ trap 'rm -f "$SCOPE" "$INVENTORY"' EXIT
 list_candidates | by_language > "$SCOPE"
 if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
 
+# dir_of <path> — the directory part of a relative path, "." for a file at
+# the root. A function, because bash 3.2 misreads a case pattern's ")" inside
+# a process substitution.
+dir_of() {
+  case "$1" in
+    */*) printf '%s\n' "${1%/*}" ;;
+    *)   printf '.\n' ;;
+  esac
+}
+
 # measured <path> — exit 0 when the file counts for this language: not under
 # an excluded directory, not a test, not generated. Every path the script
 # hands to find, head or awk starts with "./", and a directory is cut from a
@@ -438,7 +471,7 @@ run_file_length() { # <id> — every measured file of that language
     say "threshold: $id file length — set by $OVERRIDE_FILE ($max code lines)"
   else
     max="$DEFAULT_FILE_MAX_LINES"; src="profile default"
-    say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; a setting to propose, never to add on your own: $(lint_file_length_snippet "$id" "$max")"
+    say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; $(lint_file_length_proposal "$id")"
   fi
   while IFS=$'\t' read -r _ f; do
     measured "$f" || continue
@@ -462,7 +495,7 @@ run_package_size() { # <id> — every directory that holds a measured file of th
   awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$INVENTORY" | while IFS= read -r f; do
     [[ -n "$skip" ]] && printf '%s\n' "$f" | grep -qE -- "$skip" && continue
     measured "$f" || continue
-    case "$f" in */*) printf '%s\n' "${f%/*}" ;; *) printf '.\n' ;; esac
+    dir_of "$f"
   done | LC_ALL=C sort | uniq -c | awk '{ n = $1; sub(/^[ \t]*[0-9]+[ \t]/, ""); print $0 "\t" n }' > "$counts"
   while IFS= read -r d; do
     n=$(awk -F'\t' -v d="$d" '$1 == d { print $2; exit }' "$counts")
@@ -473,8 +506,7 @@ run_package_size() { # <id> — every directory that holds a measured file of th
       finding "$d" "$n source files (warning at $warn, $src)"
     fi
   done < <(awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$SCOPE" | while IFS= read -r f; do
-             measured "$f" || continue
-             case "$f" in */*) printf '%s\n' "${f%/*}" ;; *) printf '.\n' ;; esac
+             measured "$f" && dir_of "$f"
            done | LC_ALL=C sort -u)
   rm -f "$counts"
 }

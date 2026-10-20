@@ -1,0 +1,58 @@
+# Recommended ruff configuration of the linter-driven-development plugins:
+# every rule the plugin's routing table routes to one of the twelve design
+# rules, at the limits the rules name. Each rule says which rule its failures
+# feed. The plugin never writes this file into a repository: the repository's
+# owners copy it, or the parts they want, into ruff.toml, or into
+# pyproject.toml with each table name prefixed by "tool.ruff." ([lint] becomes
+# [tool.ruff.lint]).
+# residue-exempt: a ruff configuration names its rule codes on purpose.
+#
+# Limits a repository already sets stay the repository's: the linter is the
+# authority for every threshold it holds. Rules this file leaves out (style,
+# docstrings, imports) are the repository's own choice. ruff has no file-length
+# rule: the plugin's gap linter, scripts/ldd-lint.sh file-length, holds that
+# limit at 450 code lines.
+#
+# Adopt it on an existing codebase one change at a time: run ruff on the files
+# changed since the merge base with main, so old code is not a wall of
+# findings on day one:
+#   git diff -z --name-only --diff-filter=d "$(git merge-base HEAD main)" -- '*.py' \
+#     | xargs -0 sh -c '[ "$#" -eq 0 ] || ruff check "$@"' sh
+# The sh guard keeps an empty change list from checking the whole repository,
+# and -z with -0 keeps a path with spaces whole.
+
+[lint]
+# PLR1702 (nested blocks) is a preview rule. Preview mode also turns on preview
+# behavior of the stable rules a repository already selects; a repository that
+# does not want that drops these two lines and PLR1702.
+preview = true
+explicit-preview-rules = true
+extend-select = [
+  "C901",     # R3 storifying: complexity
+  "PLR0911",  # R3 storifying: too many returns
+  "PLR0912",  # R3 storifying: too many branches
+  "PLR0915",  # R3 storifying: too many statements
+  "PLR1702",  # R3 storifying: nesting
+  "PLR0913",  # R1 types: too many arguments wants a parameter object
+  "PLR2004",  # R1 types: a magic value; an enum-shaped string is "Name enum strings"
+  "FBT001",   # R11 conditional dispatch: a boolean positional parameter
+  "FBT002",   # R11 conditional dispatch: a boolean default parameter
+  "PLW0603",  # R8 no globals: a global statement
+  "B006",     # R12 mutation discipline: a mutable default argument
+  "B008",     # R12 mutation discipline: a call in a default argument
+]
+
+[lint.mccabe]
+max-complexity = 8
+
+[lint.pylint]
+max-args = 4          # self and cls are not counted
+max-branches = 12
+max-returns = 6
+max-statements = 50
+max-nested-blocks = 2  # R3: more than 2 nesting levels
+
+[lint.per-file-ignores]
+# Tests repeat literals and take many fixtures by design.
+"**/test_*.py" = ["PLR2004", "PLR0913", "FBT001", "FBT002"]
+"**/*_test.py" = ["PLR2004", "PLR0913", "FBT001", "FBT002"]

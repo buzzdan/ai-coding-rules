@@ -87,6 +87,8 @@ fill_dir() {
 
 {{include "scripts/ldd-fixture.sh"}}
 
+{{include "scripts/ldd-lint-langs.sh"}}
+
 # ========================= cases =========================
 run_row_cases() { # runs every case against the current row
 
@@ -146,7 +148,16 @@ finish
 begin "the plugin's default names a linter setting to propose, never to add"
 write_src "src/a$FX_EXT" 1
 run_lint file-length
-expect_exit 0 && expect_has "profile default ($MAX_LINES code lines)" && expect_has "a setting to propose, never to add on your own: " && ok
+SETUP_DIR="$(dirname "$LINT")/../setup"
+if [[ -n "$FX_SETUP_FILE" ]]; then
+  expect_exit 0 && expect_has "profile default ($MAX_LINES code lines)" \
+    && expect_has "a setting to propose, never to add on your own: " \
+    && expect_has "$FX_LENGTH_RULE, as the plugin's setup/$FX_SETUP_FILE sets it" \
+    && { grep -q -- "$FX_LENGTH_RULE" "$SETUP_DIR/$FX_SETUP_FILE" && grep -q -- "$MAX_LINES" "$SETUP_DIR/$FX_SETUP_FILE" || bad "setup/$FX_SETUP_FILE does not set $FX_LENGTH_RULE at $MAX_LINES"; } \
+    && grep -q -- "$FX_LENGTH_RULE" "$SETUP_DIR/$FX_SETUP_FILE" && ok
+else
+  expect_exit 0 && expect_has "profile default ($MAX_LINES code lines)" && expect_has "a .ldd-lint.yaml entry file_max_lines" && ok
+fi
 finish
 
 begin "a file-length rule in the linter config hands file length to the linter"
@@ -177,6 +188,39 @@ write_src "src/over$FX_EXT" $((MAX_LINES + 1))
 run_lint file-length
 expect_exit 0 && expect_not "held by " && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
 finish
+
+begin "the recommended config enables every rule the routing table routes to a design rule"
+if [[ -z "$FX_ROUTED_FILE" ]]; then skip "this plugin's routing table names no linter rule"; finish
+else
+  table=$(grep -l '^| Linter failure | Route |' "$(dirname "$LINT")"/../skills/refactoring/*.md | head -1)
+  missing=""; checked=0
+  while IFS= read -r id; do
+    case " $FX_ROUTED_SKIP " in *" $id "*) continue ;; esac
+    checked=$((checked + 1))
+    case "$id" in
+      *'*') re="(^|[^A-Za-z0-9/@-])${id%\*}" ;;
+      *)    re="(^|[^A-Za-z0-9/@-])${id}([^A-Za-z0-9/-]|\$)" ;;
+    esac
+    grep -qE -- "$re" "$(dirname "$LINT")/../setup/$FX_ROUTED_FILE" || missing="$missing $id"
+  done < <(awk -F'|' '
+      /^\| Linter failure \| Route \|/ { t = 1; next }
+      t && /^\|---/ { next }
+      t && /^\|/ { if ($3 ~ /rules\/R/) { c = $2; while (match(c, /`[^`]+`/)) { print substr(c, RSTART + 1, RLENGTH - 2); c = substr(c, RSTART + RLENGTH) } } next }
+      t { t = 0 }' "$table" | grep -E -- "$FX_RULE_ID_RE" | LC_ALL=C sort -u)
+  { [[ -n "$table" ]] && (( checked > 0 )) || bad "no routed rule id found in the routing table"; } \
+    && { [[ -z "$missing" ]] || bad "setup/$FX_ROUTED_FILE lacks:$missing"; } && [[ -z "$missing" ]] && ok
+  finish
+fi
+
+begin "the recommended fragment, kept as its own file and imported, hands file length to the linter"
+if [[ -z "$FX_ADOPTED_CONFIG" ]]; then skip "this language's setup is copied into the linter's own config"; finish
+else
+  cp "$(dirname "$LINT")/../setup/$FX_ADOPTED_CONFIG" "$REPO/$FX_ADOPTED_CONFIG"
+  write_src "src/over$FX_EXT" $((MAX_LINES + 50))
+  run_lint file-length
+  expect_exit 0 && expect_has "held by " && expect_has "in $FX_ADOPTED_CONFIG" && expect_no_finding && ok
+  finish
+fi
 
 begin ".ldd-lint.yaml sets the limit when the linter holds none"
 printf 'file_max_lines: 100  # this repository\n' > "$REPO/.ldd-lint.yaml"
@@ -315,6 +359,18 @@ for opt in --root --files --glob --test-re; do
   expect_exit 2 && expect_has "$opt needs a value" && ok
   finish
 done
+
+# --- the recommended configs under setup/, checked by their own linters when
+# the machine has them ---
+SETUP_DIR="$(dirname "$LINT")/../setup"
+
+while IFS=$'\t' read -r setup_file setup_tool; do
+  begin "setup/$setup_file passes its own linter's check"
+  if ! command -v "$setup_tool" >/dev/null 2>&1; then skip "$setup_tool is not on PATH"; finish; continue; fi
+  OUT=$(lint_setup_check "$setup_file" "$SETUP_DIR" "$REPO" 2>&1); CODE=$?; ERR=""
+  expect_exit 0 && ok
+  finish
+done < <(lint_setup_files)
 
 # ========================= summary =========================
 echo

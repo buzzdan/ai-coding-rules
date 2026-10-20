@@ -117,6 +117,18 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
 #   FX_SKIP_FILES      source file names a directory count leaves out
+#   FX_ROUTED_FILE     the plugin's recommended config under setup/ for the
+#                      language, which enables every rule id the refactoring
+#                      routing table routes to a design rule; FX_RULE_ID_RE the
+#                      shape of the language's rule ids in that table, and
+#                      FX_ROUTED_SKIP the ids the config leaves out on purpose;
+#                      all "" when the plugin's table names no linter rule
+#   FX_ADOPTED_CONFIG  the name under which a repository keeps the plugin's
+#                      recommended config as its own file and imports it; ""
+#                      when the setup is copied into the linter's own config
+#   FX_SETUP_FILE      the plugin's recommended config under setup/ that holds
+#                      the file-length limit, and FX_LENGTH_RULE its rule; both
+#                      "" when the language's linter has no file-length rule
 #   fx_test_file <dir> <n>             a test file's path in <dir>
 #   FX_LINTER_CONFIG   the path, under the repository root, of the file that
 #                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
@@ -132,6 +144,12 @@ FX_NATIVE="python"
 
 use_row() {
   FX_LINTER_CONFIG='pyproject.toml'
+  FX_SETUP_FILE=''
+  FX_ADOPTED_CONFIG=''
+  FX_ROUTED_FILE='ruff.toml'
+  FX_RULE_ID_RE='^[A-Z]+[0-9]+$'
+  FX_ROUTED_SKIP=''
+  FX_LENGTH_RULE=''
   FX_LINTER_COMMENT='#'
   FX_EXT='.py'
   FX_LINE_COMMENT='# note'

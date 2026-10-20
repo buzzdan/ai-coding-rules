@@ -162,6 +162,16 @@ trap 'rm -f "$SCOPE" "$INVENTORY"' EXIT
 list_candidates | by_language > "$SCOPE"
 if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
 
+# dir_of <path> — the directory part of a relative path, "." for a file at
+# the root. A function, because bash 3.2 misreads a case pattern's ")" inside
+# a process substitution.
+dir_of() {
+  case "$1" in
+    */*) printf '%s\n' "${1%/*}" ;;
+    *)   printf '.\n' ;;
+  esac
+}
+
 # measured <path> — exit 0 when the file counts for this language: not under
 # an excluded directory, not a test, not generated. Every path the script
 # hands to find, head or awk starts with "./", and a directory is cut from a
@@ -193,7 +203,7 @@ run_file_length() { # <id> — every measured file of that language
     say "threshold: $id file length — set by $OVERRIDE_FILE ($max code lines)"
   else
     max="$DEFAULT_FILE_MAX_LINES"; src="profile default"
-    say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; a setting to propose, never to add on your own: $(lint_file_length_snippet "$id" "$max")"
+    say "threshold: $id file length — profile default ($max code lines); the repository's linter does not hold it; $(lint_file_length_proposal "$id")"
   fi
   while IFS=$'\t' read -r _ f; do
     measured "$f" || continue
@@ -217,7 +227,7 @@ run_package_size() { # <id> — every directory that holds a measured file of th
   awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$INVENTORY" | while IFS= read -r f; do
     [[ -n "$skip" ]] && printf '%s\n' "$f" | grep -qE -- "$skip" && continue
     measured "$f" || continue
-    case "$f" in */*) printf '%s\n' "${f%/*}" ;; *) printf '.\n' ;; esac
+    dir_of "$f"
   done | LC_ALL=C sort | uniq -c | awk '{ n = $1; sub(/^[ \t]*[0-9]+[ \t]/, ""); print $0 "\t" n }' > "$counts"
   while IFS= read -r d; do
     n=$(awk -F'\t' -v d="$d" '$1 == d { print $2; exit }' "$counts")
@@ -228,8 +238,7 @@ run_package_size() { # <id> — every directory that holds a measured file of th
       finding "$d" "$n source files (warning at $warn, $src)"
     fi
   done < <(awk -F'\t' -v id="$id" '$1 == id { print $2 }' "$SCOPE" | while IFS= read -r f; do
-             measured "$f" || continue
-             case "$f" in */*) printf '%s\n' "${f%/*}" ;; *) printf '.\n' ;; esac
+             measured "$f" && dir_of "$f"
            done | LC_ALL=C sort -u)
   rm -f "$counts"
 }

@@ -209,7 +209,9 @@ Should show: `go-linter-driven-development (enabled)`
 
 The scenario guide — the easiest start first, then code you already wrote, a plan you already have, and running the plugin from a subagent — is [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) in the main repository.
 
-**Zero configuration required.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
+**Zero configuration to run.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
+
+**The recommended setup makes the design triggers fire.** `setup/golangci.yaml` in the plugin directory enables every linter the routing table routes to a design rule, at the limits the rules name, with a ratchet so only new code fails at first. The plugin never writes it into your repository: copy it, or the parts you want, into `.golangci.yaml`. Limits your configuration already sets stay yours.
 
 ### The Easiest Way: Just Talk to It
 
