@@ -25,6 +25,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   code lines per file and 8 and 13 files per directory. The package-size
   procedure runs the gap linter in place of a hand-written `find` command.
 
+### Fixed
+
+- **A value-taking option given last no longer hangs the review scripts.** When
+  `ldd-detect.sh` or `ldd-scope.sh` got an option such as `--root` or `--base` as
+  its last argument, the script looped forever. It now stops with "<option> needs
+  a value" and exit 2, the documented usage error.
+
 ## [0.6.0] - 2026-10-18
 
 ### Changed
