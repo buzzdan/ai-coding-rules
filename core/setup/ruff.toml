@@ -19,7 +19,9 @@
 #   git diff --name-only --diff-filter=d "$(git merge-base HEAD main)" -- '*.py' | xargs ruff check
 
 [lint]
-# PLR1702 (nested blocks) is a preview rule.
+# PLR1702 (nested blocks) is a preview rule. Preview mode also turns on preview
+# behavior of the stable rules a repository already selects; a repository that
+# does not want that drops these two lines and PLR1702.
 preview = true
 explicit-preview-rules = true
 extend-select = [

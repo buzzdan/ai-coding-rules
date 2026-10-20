@@ -11,7 +11,9 @@
 #
 # Adopt it on an existing codebase with the ratchet below: only issues in code
 # changed since the merge base with main fail, so old code is not a wall of
-# findings on day one. Remove the ratchet once the old findings are gone.
+# findings on day one. CI needs main in the clone for it (fetch-depth: 0 in
+# GitHub Actions). Remove the ratchet once the old findings are gone.
+# gocyclo stands for the routing table's "gocyclo / cyclop": enable one of the two.
 
 version: "2"
 
@@ -19,7 +21,9 @@ issues:
   new-from-merge-base: main
 
 linters:
-  default: none
+  # The standard set (errcheck, govet, ineffassign, staticcheck, unused) stays on;
+  # the linters below are added to it.
+  default: standard
   enable:
     - gocyclo           # R3 storifying: cyclomatic complexity
     - gocognit          # R3 storifying: cognitive complexity

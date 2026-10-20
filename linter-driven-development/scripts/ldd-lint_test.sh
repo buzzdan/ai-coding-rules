@@ -105,6 +105,12 @@ fill_dir() {
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
 #   FX_SKIP_FILES      source file names a directory count leaves out
+#   FX_ROUTED_FILE     the plugin's recommended config under setup/ for the
+#                      language, which enables every rule id the refactoring
+#                      routing table routes to a design rule; FX_RULE_ID_RE the
+#                      shape of the language's rule ids in that table, and
+#                      FX_ROUTED_SKIP the ids the config leaves out on purpose;
+#                      all "" when the plugin's table names no linter rule
 #   FX_SETUP_FILE      the plugin's recommended config under setup/ that holds
 #                      the file-length limit, and FX_LENGTH_RULE its rule; both
 #                      "" when the language's linter has no file-length rule
@@ -126,6 +132,9 @@ use_row() {
     go)
       FX_LINTER_CONFIG='.golangci.yml'
       FX_SETUP_FILE='golangci.yaml'
+      FX_ROUTED_FILE=''
+      FX_RULE_ID_RE=''
+      FX_ROUTED_SKIP=''
       FX_LENGTH_RULE='file-length-limit'
       FX_LINTER_COMMENT='#'
       FX_EXT='.go'
@@ -140,6 +149,9 @@ use_row() {
     python)
       FX_LINTER_CONFIG='.pylintrc'
       FX_SETUP_FILE=''
+      FX_ROUTED_FILE=''
+      FX_RULE_ID_RE=''
+      FX_ROUTED_SKIP=''
       FX_LENGTH_RULE=''
       FX_LINTER_COMMENT=';'
       FX_EXT='.py'
@@ -506,6 +518,29 @@ write_src "src/over$FX_EXT" $((MAX_LINES + 1))
 run_lint file-length
 expect_exit 0 && expect_not "held by " && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
 finish
+
+begin "the recommended config enables every rule the routing table routes to a design rule"
+if [[ -z "$FX_ROUTED_FILE" ]]; then skip "this plugin's routing table names no linter rule"; finish
+else
+  table=$(grep -l '^| Linter failure | Route |' "$(dirname "$LINT")"/../skills/refactoring/*.md | head -1)
+  missing=""; checked=0
+  while IFS= read -r id; do
+    case " $FX_ROUTED_SKIP " in *" $id "*) continue ;; esac
+    checked=$((checked + 1))
+    case "$id" in
+      *'*') re="(^|[^A-Za-z0-9/@-])${id%\*}" ;;
+      *)    re="(^|[^A-Za-z0-9/@-])${id}([^A-Za-z0-9/-]|\$)" ;;
+    esac
+    grep -qE -- "$re" "$(dirname "$LINT")/../setup/$FX_ROUTED_FILE" || missing="$missing $id"
+  done < <(awk -F'|' '
+      /^\| Linter failure \| Route \|/ { t = 1; next }
+      t && /^\|---/ { next }
+      t && /^\|/ { if ($3 ~ /rules\/R/) { c = $2; while (match(c, /`[^`]+`/)) { print substr(c, RSTART + 1, RLENGTH - 2); c = substr(c, RSTART + RLENGTH) } } next }
+      t { t = 0 }' "$table" | grep -E -- "$FX_RULE_ID_RE" | LC_ALL=C sort -u)
+  { [[ -n "$table" ]] && (( checked > 0 )) || bad "no routed rule id found in the routing table"; } \
+    && { [[ -z "$missing" ]] || bad "setup/$FX_ROUTED_FILE lacks:$missing"; } && [[ -z "$missing" ]] && ok
+  finish
+fi
 
 begin ".ldd-lint.yaml sets the limit when the linter holds none"
 printf 'file_max_lines: 100  # this repository\n' > "$REPO/.ldd-lint.yaml"

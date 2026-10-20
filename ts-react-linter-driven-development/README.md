@@ -146,7 +146,8 @@ adds a checker the repository does not use.
   in the plugin directory is a flat-config fragment with every rule the routing
   table routes to a design rule, at the limits the rules name. The plugin never
   writes it into your repository: copy it beside `eslint.config.js` and spread it
-  into the exported array. Limits your configuration already sets stay yours.
+  before your own entries, so every limit your configuration already sets stays
+  yours.
 - **What it does not review.** Accessibility beyond what `jsx-a11y` flags —
   contrast, heading order, focus management, live regions — is the repository's
   axe run, which this plugin does not replace. Error-boundary placement and

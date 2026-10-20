@@ -189,6 +189,29 @@ run_lint file-length
 expect_exit 0 && expect_not "held by " && expect_has "src/over$FX_EXT: $((MAX_LINES + 1)) code lines" && ok
 finish
 
+begin "the recommended config enables every rule the routing table routes to a design rule"
+if [[ -z "$FX_ROUTED_FILE" ]]; then skip "this plugin's routing table names no linter rule"; finish
+else
+  table=$(grep -l '^| Linter failure | Route |' "$(dirname "$LINT")"/../skills/refactoring/*.md | head -1)
+  missing=""; checked=0
+  while IFS= read -r id; do
+    case " $FX_ROUTED_SKIP " in *" $id "*) continue ;; esac
+    checked=$((checked + 1))
+    case "$id" in
+      *'*') re="(^|[^A-Za-z0-9/@-])${id%\*}" ;;
+      *)    re="(^|[^A-Za-z0-9/@-])${id}([^A-Za-z0-9/-]|\$)" ;;
+    esac
+    grep -qE -- "$re" "$(dirname "$LINT")/../setup/$FX_ROUTED_FILE" || missing="$missing $id"
+  done < <(awk -F'|' '
+      /^\| Linter failure \| Route \|/ { t = 1; next }
+      t && /^\|---/ { next }
+      t && /^\|/ { if ($3 ~ /rules\/R/) { c = $2; while (match(c, /`[^`]+`/)) { print substr(c, RSTART + 1, RLENGTH - 2); c = substr(c, RSTART + RLENGTH) } } next }
+      t { t = 0 }' "$table" | grep -E -- "$FX_RULE_ID_RE" | LC_ALL=C sort -u)
+  { [[ -n "$table" ]] && (( checked > 0 )) || bad "no routed rule id found in the routing table"; } \
+    && { [[ -z "$missing" ]] || bad "setup/$FX_ROUTED_FILE lacks:$missing"; } && [[ -z "$missing" ]] && ok
+  finish
+fi
+
 begin ".ldd-lint.yaml sets the limit when the linter holds none"
 printf 'file_max_lines: 100  # this repository\n' > "$REPO/.ldd-lint.yaml"
 write_src "src/a$FX_EXT" 101

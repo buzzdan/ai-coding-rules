@@ -141,6 +141,12 @@ questions_in_rules() {
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
 #   FX_SKIP_FILES      source file names a directory count leaves out
+#   FX_ROUTED_FILE     the plugin's recommended config under setup/ for the
+#                      language, which enables every rule id the refactoring
+#                      routing table routes to a design rule; FX_RULE_ID_RE the
+#                      shape of the language's rule ids in that table, and
+#                      FX_ROUTED_SKIP the ids the config leaves out on purpose;
+#                      all "" when the plugin's table names no linter rule
 #   FX_SETUP_FILE      the plugin's recommended config under setup/ that holds
 #                      the file-length limit, and FX_LENGTH_RULE its rule; both
 #                      "" when the language's linter has no file-length rule
@@ -163,6 +169,11 @@ FX_NATIVE="typescript"
 use_row() {
   FX_LINTER_CONFIG='eslint.config.mjs'
   FX_SETUP_FILE='eslint.config.ldd.mjs'
+  FX_ROUTED_FILE='eslint.config.ldd.mjs'
+  FX_RULE_ID_RE='^(@[a-z-]+/)?[a-z-]+(/[a-z*-]+)?$'
+  # no-restricted-syntax needs the repository's config module path;
+  # package-size is the gap linter's
+  FX_ROUTED_SKIP='no-restricted-syntax package-size'
   FX_LENGTH_RULE='sonarjs/max-lines'
   FX_LINTER_COMMENT='//'
   FX_EXT='.ts'
