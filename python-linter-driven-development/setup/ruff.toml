@@ -16,7 +16,10 @@
 # Adopt it on an existing codebase one change at a time: run ruff on the files
 # changed since the merge base with main, so old code is not a wall of
 # findings on day one:
-#   git diff --name-only --diff-filter=d "$(git merge-base HEAD main)" -- '*.py' | xargs ruff check
+#   git diff -z --name-only --diff-filter=d "$(git merge-base HEAD main)" -- '*.py' \
+#     | xargs -0 sh -c '[ "$#" -eq 0 ] || ruff check "$@"' sh
+# The sh guard keeps an empty change list from checking the whole repository,
+# and -z with -0 keeps a path with spaces whole.
 
 [lint]
 # PLR1702 (nested blocks) is a preview rule. Preview mode also turns on preview
@@ -47,7 +50,7 @@ max-args = 4          # self and cls are not counted
 max-branches = 12
 max-returns = 6
 max-statements = 50
-max-nested-blocks = 5
+max-nested-blocks = 2  # R3: more than 2 nesting levels
 
 [lint.per-file-ignores]
 # Tests repeat literals and take many fixtures by design.

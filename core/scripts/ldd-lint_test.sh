@@ -212,6 +212,16 @@ else
   finish
 fi
 
+begin "the recommended fragment, kept as its own file and imported, hands file length to the linter"
+if [[ -z "$FX_ADOPTED_CONFIG" ]]; then skip "this language's setup is copied into the linter's own config"; finish
+else
+  cp "$(dirname "$LINT")/../setup/$FX_ADOPTED_CONFIG" "$REPO/$FX_ADOPTED_CONFIG"
+  write_src "src/over$FX_EXT" $((MAX_LINES + 50))
+  run_lint file-length
+  expect_exit 0 && expect_has "held by " && expect_has "in $FX_ADOPTED_CONFIG" && expect_no_finding && ok
+  finish
+fi
+
 begin ".ldd-lint.yaml sets the limit when the linter holds none"
 printf 'file_max_lines: 100  # this repository\n' > "$REPO/.ldd-lint.yaml"
 write_src "src/a$FX_EXT" 101

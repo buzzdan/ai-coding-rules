@@ -123,6 +123,9 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #                      shape of the language's rule ids in that table, and
 #                      FX_ROUTED_SKIP the ids the config leaves out on purpose;
 #                      all "" when the plugin's table names no linter rule
+#   FX_ADOPTED_CONFIG  the name under which a repository keeps the plugin's
+#                      recommended config as its own file and imports it; ""
+#                      when the setup is copied into the linter's own config
 #   FX_SETUP_FILE      the plugin's recommended config under setup/ that holds
 #                      the file-length limit, and FX_LENGTH_RULE its rule; both
 #                      "" when the language's linter has no file-length rule
@@ -145,6 +148,7 @@ FX_NATIVE="typescript"
 use_row() {
   FX_LINTER_CONFIG='eslint.config.mjs'
   FX_SETUP_FILE='eslint.config.ldd.mjs'
+  FX_ADOPTED_CONFIG='eslint.config.ldd.mjs'
   FX_ROUTED_FILE='eslint.config.ldd.mjs'
   FX_RULE_ID_RE='^(@[a-z-]+/)?[a-z-]+(/[a-z*-]+)?$'
   # no-restricted-syntax needs the repository's config module path;

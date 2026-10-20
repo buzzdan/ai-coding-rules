@@ -111,6 +111,9 @@ fill_dir() {
 #                      shape of the language's rule ids in that table, and
 #                      FX_ROUTED_SKIP the ids the config leaves out on purpose;
 #                      all "" when the plugin's table names no linter rule
+#   FX_ADOPTED_CONFIG  the name under which a repository keeps the plugin's
+#                      recommended config as its own file and imports it; ""
+#                      when the setup is copied into the linter's own config
 #   FX_SETUP_FILE      the plugin's recommended config under setup/ that holds
 #                      the file-length limit, and FX_LENGTH_RULE its rule; both
 #                      "" when the language's linter has no file-length rule
@@ -132,6 +135,7 @@ use_row() {
     go)
       FX_LINTER_CONFIG='.golangci.yml'
       FX_SETUP_FILE='golangci.yaml'
+      FX_ADOPTED_CONFIG=''
       FX_ROUTED_FILE=''
       FX_RULE_ID_RE=''
       FX_ROUTED_SKIP=''
@@ -149,6 +153,7 @@ use_row() {
     python)
       FX_LINTER_CONFIG='.pylintrc'
       FX_SETUP_FILE=''
+      FX_ADOPTED_CONFIG=''
       FX_ROUTED_FILE=''
       FX_RULE_ID_RE=''
       FX_ROUTED_SKIP=''
@@ -380,8 +385,10 @@ lint_file_length_rule() {
       f=$(_lint_names 'file-length-limit' .golangci.yaml .golangci.yml .golangci.toml .golangci.json) \
         && printf 'revive file-length-limit in %s' "$f" ;;
     typescript|javascript)
+      # eslint.config.ldd.mjs is the plugin's recommended fragment: a repository
+      # that adopts it keeps it beside eslint.config.js and imports it.
       local configs=(eslint.config.js eslint.config.mjs eslint.config.cjs eslint.config.ts eslint.config.mts eslint.config.cts
-                     .eslintrc .eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yml .eslintrc.yaml)
+                     eslint.config.ldd.mjs .eslintrc .eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yml .eslintrc.yaml)
       if f=$(_lint_names 'sonarjs/max-lines([^-a-zA-Z]|$)' "${configs[@]}"); then
         printf 'sonarjs/max-lines in %s' "$f"
       elif f=$(_lint_names '(^|[^-/a-zA-Z])max-lines([^-a-zA-Z]|$)' "${configs[@]}"); then
@@ -539,6 +546,16 @@ else
       t { t = 0 }' "$table" | grep -E -- "$FX_RULE_ID_RE" | LC_ALL=C sort -u)
   { [[ -n "$table" ]] && (( checked > 0 )) || bad "no routed rule id found in the routing table"; } \
     && { [[ -z "$missing" ]] || bad "setup/$FX_ROUTED_FILE lacks:$missing"; } && [[ -z "$missing" ]] && ok
+  finish
+fi
+
+begin "the recommended fragment, kept as its own file and imported, hands file length to the linter"
+if [[ -z "$FX_ADOPTED_CONFIG" ]]; then skip "this language's setup is copied into the linter's own config"; finish
+else
+  cp "$(dirname "$LINT")/../setup/$FX_ADOPTED_CONFIG" "$REPO/$FX_ADOPTED_CONFIG"
+  write_src "src/over$FX_EXT" $((MAX_LINES + 50))
+  run_lint file-length
+  expect_exit 0 && expect_has "held by " && expect_has "in $FX_ADOPTED_CONFIG" && expect_no_finding && ok
   finish
 fi
 

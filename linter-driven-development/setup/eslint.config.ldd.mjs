@@ -48,8 +48,9 @@ export default [
       'sonarjs/cognitive-complexity': ['error', 15],
       'sonarjs/cyclomatic-complexity': ['error', { threshold: 10 }],
       'sonarjs/expression-complexity': ['error', { max: 5 }],
-      'sonarjs/max-lines-per-function': ['error', { maximum: 200 }],
-      'sonarjs/nested-control-flow': ['error', { maximumNestingLevel: 4 }],
+      // R3's limits: more than 50 lines or more than 2 nesting levels
+      'sonarjs/max-lines-per-function': ['error', { maximum: 50 }],
+      'sonarjs/nested-control-flow': ['error', { maximumNestingLevel: 2 }],
       'sonarjs/no-nested-conditional': 'error',
       'sonarjs/no-nested-functions': 'error',
       'sonarjs/elseif-without-else': 'error',

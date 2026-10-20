@@ -118,8 +118,10 @@ lint_file_length_rule() {
       f=$(_lint_names 'file-length-limit' .golangci.yaml .golangci.yml .golangci.toml .golangci.json) \
         && printf 'revive file-length-limit in %s' "$f" ;;
     typescript|javascript)
+      # eslint.config.ldd.mjs is the plugin's recommended fragment: a repository
+      # that adopts it keeps it beside eslint.config.js and imports it.
       local configs=(eslint.config.js eslint.config.mjs eslint.config.cjs eslint.config.ts eslint.config.mts eslint.config.cts
-                     .eslintrc .eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yml .eslintrc.yaml)
+                     eslint.config.ldd.mjs .eslintrc .eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yml .eslintrc.yaml)
       if f=$(_lint_names 'sonarjs/max-lines([^-a-zA-Z]|$)' "${configs[@]}"); then
         printf 'sonarjs/max-lines in %s' "$f"
       elif f=$(_lint_names '(^|[^-/a-zA-Z])max-lines([^-a-zA-Z]|$)' "${configs[@]}"); then

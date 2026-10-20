@@ -147,6 +147,9 @@ questions_in_rules() {
 #                      shape of the language's rule ids in that table, and
 #                      FX_ROUTED_SKIP the ids the config leaves out on purpose;
 #                      all "" when the plugin's table names no linter rule
+#   FX_ADOPTED_CONFIG  the name under which a repository keeps the plugin's
+#                      recommended config as its own file and imports it; ""
+#                      when the setup is copied into the linter's own config
 #   FX_SETUP_FILE      the plugin's recommended config under setup/ that holds
 #                      the file-length limit, and FX_LENGTH_RULE its rule; both
 #                      "" when the language's linter has no file-length rule
@@ -166,6 +169,7 @@ FX_NATIVE="go"
 use_row() {
   FX_LINTER_CONFIG='.golangci.yaml'
   FX_SETUP_FILE='golangci.yaml'
+  FX_ADOPTED_CONFIG=''
   FX_ROUTED_FILE='golangci.yaml'
   FX_RULE_ID_RE='^[a-z][a-z0-9-]*$'
   # cyclop is the alternative to gocyclo; package-size is the gap linter's
