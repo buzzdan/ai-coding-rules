@@ -117,6 +117,9 @@ mk_repo() { fx_write_marker "$REPO" fixture; fx_write_code; mk_docs; }
 #   FX_BLOCK_OPEN      the line that opens a block comment, "" when the
 #   FX_BLOCK_CLOSE     language has none, and the line that closes it
 #   FX_SKIP_FILES      source file names a directory count leaves out
+#   FX_SETUP_FILE      the plugin's recommended config under setup/ that holds
+#                      the file-length limit, and FX_LENGTH_RULE its rule; both
+#                      "" when the language's linter has no file-length rule
 #   fx_test_file <dir> <n>             a test file's path in <dir>
 #   FX_LINTER_CONFIG   the path, under the repository root, of the file that
 #                      fx_write_linter_config writes, and FX_LINTER_COMMENT the
@@ -134,6 +137,8 @@ use_row() {
   case "$1" in
     go)
       FX_LINTER_CONFIG='.golangci.yml'
+      FX_SETUP_FILE='golangci.yaml'
+      FX_LENGTH_RULE='file-length-limit'
       FX_LINTER_COMMENT='#'
       FX_EXT='.go'
       FX_LINE_COMMENT='// note'
@@ -146,6 +151,8 @@ use_row() {
       ;;
     python)
       FX_LINTER_CONFIG='.pylintrc'
+      FX_SETUP_FILE=''
+      FX_LENGTH_RULE=''
       FX_LINTER_COMMENT=';'
       FX_EXT='.py'
       FX_LINE_COMMENT='# note'

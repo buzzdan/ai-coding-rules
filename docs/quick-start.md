@@ -25,8 +25,11 @@ they share it.
 /plugin install go-linter-driven-development@ai-coding-rules
 ```
 
-No configuration. The plugin finds your test and lint commands in the Taskfile,
-Makefile, README or CLAUDE.md. The first time the workflow starts, Claude asks for
+No configuration to run. The plugin finds your test and lint commands in the
+Taskfile, Makefile, README or CLAUDE.md. The plugin's `setup/` directory holds a
+recommended linter configuration for Go, Python and TypeScript; copying it, or the
+parts you want, makes the design triggers fire. The plugin never writes it into
+your repository. The first time the workflow starts, Claude asks for
 permission to use the skill. Choose "Yes, and don't ask again for this directory".
 
 ## 1. A feature or a bug fix, from zero

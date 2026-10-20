@@ -142,6 +142,11 @@ adds a checker the repository does not use.
   `@ts-expect-error`, `@ts-ignore`, `@ts-nocheck` and `// prettier-ignore`. The
   lint-fixer never adds one and never edits `eslint.config.*`, `tsconfig*.json` or
   `.prettierrc*`; a new one in a diff is itself a review finding.
+- **The recommended setup makes the design triggers fire.** `setup/eslint.config.ldd.mjs`
+  in the plugin directory is a flat-config fragment with every rule the routing
+  table routes to a design rule, at the limits the rules name. The plugin never
+  writes it into your repository: copy it beside `eslint.config.js` and spread it
+  into the exported array. Limits your configuration already sets stay yours.
 - **What it does not review.** Accessibility beyond what `jsx-a11y` flags —
   contrast, heading order, focus management, live regions — is the repository's
   axe run, which this plugin does not replace. Error-boundary placement and

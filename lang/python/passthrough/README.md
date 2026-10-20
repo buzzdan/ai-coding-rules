@@ -98,9 +98,15 @@ checker the repository does not use.
   `PLR0913` to R1, `PLW0603` to R8, `FBT` to R11, `B006`/`B008` to R12. The
   mechanical row — `ARG`, `SIM`, `RET`, `B904`, `BLE001`, `PLR2004`, import order,
   style — is fixed by the lint-fixer in an isolated context.
-- **Some findings have no ruff rule.** Duplicated code, file length, a `match`
-  missing enum cases, a `Protocol` with one implementer and shared-state races are
-  review findings: the hunters own them alone.
+- **Some findings have no ruff rule.** Duplicated code, a `match` missing enum
+  cases, a `Protocol` with one implementer and shared-state races are review
+  findings: the hunters own them alone. File length has no ruff rule either: the
+  gap linter, `scripts/ldd-lint.sh file-length`, measures it.
+- **The recommended setup makes the design triggers fire.** `setup/ruff.toml` in the
+  plugin directory selects every ruff rule the routing table routes to a design
+  rule, at the limits the rules name. The plugin never writes it into your
+  repository: copy it, or the parts you want, into `ruff.toml` or `pyproject.toml`.
+  Limits your configuration already sets stay yours.
 - **`# noqa`, `# ty: ignore` and `# type: ignore` are all suppressions.** The lint-fixer
   never adds one and never edits `[tool.ruff]`, `[tool.ty]` or `[tool.mypy]`; a new
   one in a diff is itself a review finding.

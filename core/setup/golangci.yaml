@@ -1,0 +1,82 @@
+# Recommended golangci-lint v2 configuration of the linter-driven-development
+# plugins: every linter rule the plugin's routing table routes to one of the
+# twelve design rules, at the limits the rules name. Each linter line says which
+# rule its failures feed. The plugin never writes this file into a repository:
+# the repository's owners copy it, or the parts they want, into .golangci.yaml.
+# residue-exempt: a golangci-lint configuration names its linters on purpose.
+#
+# Limits a repository already sets stay the repository's: the linter is the
+# authority for every threshold it holds. Rules this file leaves out (style,
+# naming, formatting) are the repository's own choice.
+#
+# Adopt it on an existing codebase with the ratchet below: only issues in code
+# changed since the merge base with main fail, so old code is not a wall of
+# findings on day one. Remove the ratchet once the old findings are gone.
+
+version: "2"
+
+issues:
+  new-from-merge-base: main
+
+linters:
+  default: none
+  enable:
+    - gocyclo           # R3 storifying: cyclomatic complexity
+    - gocognit          # R3 storifying: cognitive complexity
+    - funlen            # R3 storifying: function length
+    - nestif            # R3 storifying: nesting depth
+    - maintidx          # R3 storifying, R1 types: maintainability index
+    - dupl              # R1 types: duplicated logic; a duplicated switch is R11
+    - exhaustive        # R11 conditional dispatch: missing enum cases
+    - gochecknoglobals  # R8 no globals
+    - gochecknoinits    # R8 no globals
+    - ireturn           # R6 test-only interfaces: a constructor that returns an interface
+    - govet             # R10 concurrency: copylocks
+    - revive            # R1 types, R5 vertical slice: the rules below
+    - errcheck          # mechanical: an error that is not handled
+    - wrapcheck         # mechanical: an error without the context of its layer
+    - goconst           # mechanical; an enum-shaped string is R1's "Name enum strings"
+  settings:
+    gocyclo:
+      min-complexity: 10
+    gocognit:
+      min-complexity: 15
+    funlen:
+      lines: 50
+      statements: 40
+    nestif:
+      min-complexity: 2
+    maintidx:
+      under: 20
+    dupl:
+      threshold: 100
+    exhaustive:
+      # A default branch does not count as handling a case: every new case is
+      # handled where the switch is.
+      default-signifies-exhaustive: false
+    govet:
+      enable:
+        - copylocks
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    revive:
+      rules:
+        - name: argument-limit          # R1: more than 4 parameters wants a parameter object
+          arguments: [4]
+        - name: function-result-limit   # R1: more than 3 results wants a named result type
+          arguments: [3]
+        - name: file-length-limit       # R5: one juicy type per file; counts code lines only
+          arguments: [{max: {{.FileMaxLines}}, skip-comments: true, skip-blank-lines: true}]
+        - name: early-return            # mechanical: invert the condition and return early
+  exclusions:
+    rules:
+      # Tests are long and repeat literals by design.
+      - path: _test\.go
+        linters:
+          - funlen
+          - gocognit
+          - gocyclo
+          - maintidx
+          - dupl
+          - goconst

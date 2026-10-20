@@ -7,6 +7,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Added
 
+- **A recommended linter setup.** `setup/golangci.yaml`, `setup/ruff.toml` and
+  `setup/eslint.config.ldd.mjs` enable every linter rule the routing table routes to
+  a design rule, at the limits the rules name, with a way to adopt each on an
+  existing codebase: golangci-lint's merge-base ratchet, ESLint's bulk
+  suppressions, and ruff on changed files. The plugin never writes them into a
+  repository. The gap linter's threshold line names the file and rule that would
+  hold a file-length limit; for Python, where ruff has no file-length rule, it says
+  that the gap linter holds it.
+
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory
   (`package-size`). Where the repository's linter config names a file-length rule,
@@ -26,6 +35,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   procedure runs the gap linter in place of a hand-written `find` command.
 
 ### Fixed
+
+- **The gap linter runs under bash 3.2.** macOS's `/bin/bash` stopped
+  `ldd-lint.sh` with a syntax error: bash 3.2 misreads a `case` pattern inside a
+  process substitution. The script now runs under bash 3.2 and bash 5.
 
 - **A value-taking option given last no longer hangs the review scripts.** When
   `ldd-detect.sh` or `ldd-scope.sh` got an option such as `--root` or `--base` as

@@ -190,6 +190,16 @@ differently from the other bindings:
   matrix reads the binding's `scripts/ldd-fixture.sh` for the source suffix, the
   comment forms, a test file's name and two linter configs per row: one that names the
   file-length rule and one that names a rule of a similar name.
+- `setup/golangci.yaml`, `setup/ruff.toml` and `setup/eslint.config.ldd.mjs`, the
+  recommended linter configurations, are core templates rendered into every plugin,
+  so the generic plugin carries all three for the languages it reviews. Each enables
+  the linter rules the bindings' routing tables route to a design rule, at the
+  limits the rules name, and takes the file-length limit from `{{.FileMaxLines}}`.
+  Each names its linter on purpose and carries a `residue-exempt:` marker. The gap
+  linter's threshold line names the file and rule that would hold a limit, and the
+  `ldd-lint` matrix checks that the file sets that rule at the scalar's value; when
+  `golangci-lint`, `ruff` or `node` is on PATH, the matrix also has each tool check
+  its file.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The
@@ -220,11 +230,11 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (130 lines):
+Soft residue by token (131 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
-| interface | 85 | 24 |
+| interface | 86 | 25 |
 | Go (the word) | 13 | 8 |
 | Go code fence | 12 | 1 |
 | Go stdlib | 9 | 5 |
@@ -234,7 +244,7 @@ Soft residue by token (130 lines):
 | race detector | 2 | 2 |
 | sync. | 1 | 1 |
 
-Soft residue by file (130 lines):
+Soft residue by file (131 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -273,5 +283,6 @@ Soft residue by file (130 lines):
 | `rules/R2-self-validating-types.md` | 1 | 1 |
 | `rules/R7-test-placement.md` | 1 | 1 |
 | `scripts/ldd-scope_test.sh` | 1 | 1 |
+| `setup/golangci.yaml` | 1 | 1 |
 | `skills/linter-driven-development/SKILL.md` | 1 | 1 |
 <!-- residue:end -->
