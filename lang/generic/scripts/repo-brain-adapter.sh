@@ -147,10 +147,10 @@ LANG_FILE_RE='\\.py(:[0-9]+)?$'
 LANG_SYMBOL_RE='^([A-Z][A-Za-z0-9_]*|[a-z_][a-z0-9_]*_[a-z0-9_]*)$'
 LANG_QUALIFIED_RE='^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$'
 
-py_prune() { # find(1) pruning shared by the three walkers
-  printf '%s\n' -not -path '*/.venv/*' -not -path '*/venv/*' -not -path '*/node_modules/*' \
-    -not -path '*/__pycache__/*' -not -path '*/site-packages/*' -not -path './.git/*'
-}
+# find(1) pruning shared by the three walkers; an array, so a pattern such as
+# ./.git/* reaches find as it is and never expands against the tree
+PY_PRUNE=(-not -path '*/.venv/*' -not -path '*/venv/*' -not -path '*/node_modules/*'
+  -not -path '*/__pycache__/*' -not -path '*/site-packages/*' -not -path './.git/*')
 
 lang_project_dirs() {
   local m p
@@ -158,11 +158,11 @@ lang_project_dirs() {
     p=$(dirname "$m"); p="${p#./}"
     [[ "$p" == "." || -z "$p" ]] && continue
     printf '%s\n' "$p"
-  done < <(find . -name "$LANG_PROJECT_MARKER" $(py_prune) 2>/dev/null | sort)
+  done < <(find . -name "$LANG_PROJECT_MARKER" "${PY_PRUNE[@]}" 2>/dev/null | sort)
 }
 
 lang_has_code() {
-  find . -name "$LANG_CODE_GLOB" $(py_prune) -print -quit 2>/dev/null | grep -q .
+  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -print -quit 2>/dev/null | grep -q .
 }
 
 LANG_DECL_AWK='
@@ -213,7 +213,7 @@ FNR == 1 {
 '
 
 lang_declarations() {
-  find . -name "$LANG_CODE_GLOB" $(py_prune) -print0 2>/dev/null \
+  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -print0 2>/dev/null \
     | xargs -0 awk "$LANG_DECL_AWK"
 }
 

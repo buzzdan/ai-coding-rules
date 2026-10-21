@@ -375,7 +375,7 @@ defaults carries one **detect line** beside its prose, of one of four kinds.
 |---|---|
 | `Detect-grep: PATTERN [files=src\|test\|all] [exclude-path=ERE,…] [context=n]` — the pattern an ERE in backticks | `grep -nHE` over the scope's source files — the non-test ones unless `files=` says otherwise, minus paths matching an `exclude-path` entry; `context` appends the next n lines to each hit's excerpt |
 | `Detect-path: PATTERN` | the pattern over the scope's relative paths: layer directories, role-named packages |
-| `Detect-gate: Q<n>` | the R9 gate's `[Q<n>]` report lines, from one run of `check-repo-brain.sh` over the repository |
+| `Detect-gate: Q<n>` | the R9 gate's `[Q<n>]` report lines, from one run of `check-repo-brain.sh` over the repository, or over the scope's docs on a scoped review; `inconclusive` when the run outlives `--gate-budget` |
 | `Detect: judgment` | no mechanical lead; the hunter runs the prose, as it does for a question whose only procedure depends on an earlier hit (R1's second question) or on a read |
 
 A pattern is a literal: the placeholder forms the prose used to carry — `<changed
@@ -423,9 +423,11 @@ violations are judgment questions (R3's function size, R12's aliased constructor
 argument) is still read wherever its family is. The script writes the hits table
 twice, capped per question for the hunter's first turn and uncapped as
 `hits-all.tsv`, so a capped question's remaining hits are one more `awk` and no
-hunter runs a pattern of its own. On a scoped review the detection script keeps only the R9 gate's rows about the
-scope's own files, so repository-wide doc drift does not spawn the documentation
-hunter on every file review. Each line of `comments.txt` carries the code line below the comment — the
+hunter runs a pattern of its own. On a scoped review the detection script runs the R9
+gate over the scope alone — the docs the diff touches in full, only the scope's links
+and removed symbols in the docs that cite the scope, and the code edges of the
+scope's own files — so repository-wide doc drift does not spawn the documentation hunter on
+every file review, and a code-only diff that no doc cites skips the doc checks. Each line of `comments.txt` carries the code line below the comment — the
 declaration it documents — so the critic settles most comments from the inventory
 and opens a scope file only for the ones it does not. The `Hunters:` header keeps its shape and its numbers now come
 from the counts table against the hunter receipts, so a hunter that reports fewer

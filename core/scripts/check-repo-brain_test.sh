@@ -545,6 +545,113 @@ run_gate
 expect_exit 0 && expect_not "does not resolve" && expect_has "check-repo-brain: clean" && ok
 finish
 
+# --- scoped runs (--scope, --words) and the symbol resolver ---
+LISTS=$(mktemp -d) # the scope and word lists live outside the repository they describe
+begin "--scope: a code-only scope that no doc cites skips the doc checks"
+mk_conformant; mk_doc orphan "an unlinked doc" "Nothing links here."
+printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 0 && expect_has "scope — no doc in scope; doc checks skipped" && expect_not "orphan" && ok
+finish
+
+begin "--scope: a listed doc is checked, an unlisted orphan and the root wiring are not"
+mk_conformant; mk_doc orphan "an unlinked doc" "Nothing links here."; mk_doc other "another unlinked doc" "Nothing."
+rm "$REPO/CLAUDE.md" "$REPO/AGENTS.md"
+printf '%s\n' "$FX_CODE_FILE" docs/orphan.md > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "scope — 1 doc(s) to check" && expect_has "[Q1] docs/orphan.md — orphan" \
+  && expect_not "docs/other.md" && expect_not "[Q3]" && ok
+finish
+
+begin "--scope: a doc that only names a scope file reports only its links into the scope"
+mk_conformant
+mk_doc linker "links the scope" "See [the old doc](gone.md) and [a missing one](missing.md); code: \`$FX_CODE_FILE\` at $FX_CODE_FILE:12."
+printf '%s\n' "$FX_CODE_FILE" docs/gone.md > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "0 touched" && expect_has "[Q2] docs/linker.md — link target does not exist: gone.md" \
+  && expect_not "missing.md" && expect_not "orphan" && expect_not "file path or line number" && ok
+finish
+
+begin "--scope --words: a doc that cites a removed symbol is checked"
+mk_conformant
+mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\` and \`OtherGhost\`."
+append_index "- [ghost.md](ghost.md) — a ghost symbol"
+printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"; printf 'SnapshotRunner\n' > "$LISTS/words.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 0 && expect_has "no doc in scope" \
+  && { run_gate --scope "$LISTS/scope.txt" --words "$LISTS/words.txt"; expect_exit 1; } \
+  && expect_has "backticked \`SnapshotRunner\` does not resolve" && expect_not "OtherGhost" && ok
+finish
+
+begin "Q2 in a git work tree a token resolves from tracked and untracked files, never from ignored ones"
+mk_conformant
+printf 'build/\n' > "$REPO/.gitignore"
+mkdir -p "$REPO/build"; printf 'IgnoredOnlyName\n' > "$REPO/build/gen.yaml"
+printf 'TrackedName\n' > "$REPO/tracked.yaml"
+mk_doc names "alert names" "Fires \`TrackedName\`, \`UntrackedName\` and \`IgnoredOnlyName\`."
+append_index "- [names.md](names.md) — alert names"
+(cd "$REPO" && git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -qm init)
+printf 'UntrackedName\n' > "$REPO/untracked.yaml"
+run_gate
+expect_exit 1 && expect_has "\`IgnoredOnlyName\` does not resolve" \
+  && expect_not "\`TrackedName\` does not resolve" && expect_not "\`UntrackedName\` does not resolve" && ok
+finish
+
+begin "Q2 outside git a token does not resolve from a bazel-* output directory"
+mk_conformant
+mkdir -p "$REPO/bazel-out"; printf 'BazelOnlyName\n' > "$REPO/bazel-out/gen.yaml"
+mk_doc bazel "bazel names" "Fires \`BazelOnlyName\`."
+append_index "- [bazel.md](bazel.md) — bazel names"
+run_gate
+expect_exit 1 && expect_has "\`BazelOnlyName\` does not resolve" && ok
+finish
+
+begin "Q2 a dotted token resolves on whole dot-separated words only"
+mk_conformant
+printf 'limits:\n  key: Cfg.MaxRetries.value\n  other: Cfg.MaxRetriesX\n' > "$REPO/limits.yaml"
+mk_doc dotted "dotted names" "Reads \`Cfg.MaxRetries\`; \`Cfg.MaxRetri\` is a typo."
+append_index "- [dotted.md](dotted.md) — dotted names"
+run_gate
+expect_exit 1 && expect_has "\`Cfg.MaxRetri\` does not resolve" && expect_not "\`Cfg.MaxRetries\` does not resolve" && ok
+finish
+begin "Q2 two files with no final newline do not fuse their last and first words"
+mk_conformant
+printf 'FirstToken' > "$REPO/a.yaml"; printf 'SecondToken' > "$REPO/b.yaml"
+mk_doc fused "fused names" "Fires \`FirstToken\` and \`SecondToken\`."
+append_index "- [fused.md](fused.md) — fused names"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "--scope --words: a doc citing Type.Method is checked when the diff removes the type"
+mk_conformant
+mk_doc renamed "a renamed type" "Calls \`OldType.Run\`."
+append_index "- [renamed.md](renamed.md) — a renamed type"
+printf '%s\n' "$FX_CODE_FILE" > "$LISTS/scope.txt"; printf 'OldType\n' > "$LISTS/words.txt"
+run_gate --scope "$LISTS/scope.txt" --words "$LISTS/words.txt"
+expect_exit 1 && expect_has "backticked \`OldType.Run\` does not resolve" && ok
+finish
+
+begin "--scope: a citing doc reports a link to the listed doc, never a link to a same-named doc elsewhere"
+mk_conformant
+mk_doc linker2 "links two guides" "See [old](a/guide.md \"Title\") and [other](b/guide.md)."
+append_index "- [linker2.md](linker2.md) — links two guides"
+printf '%s\n' "$FX_CODE_FILE" docs/a/guide.md > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "[Q2] docs/linker2.md — link target does not exist: a/guide.md" \
+  && expect_not "b/guide.md" && ok
+finish
+
+begin "--scope: a touched doc's new description is checked against the index that lists it"
+mk_conformant
+sed 's/^description: .*/description: a new description/' "$REPO/docs/retry-policy.md" > "$REPO/docs/rp.tmp" && mv "$REPO/docs/rp.tmp" "$REPO/docs/retry-policy.md"
+printf '%s\n' docs/retry-policy.md > "$LISTS/scope.txt"
+run_gate --scope "$LISTS/scope.txt"
+expect_exit 1 && expect_has "[Q7] docs/index.md:" && expect_has "drifted from retry-policy.md" && ok
+finish
+
+rm -rf "$LISTS"
+
 } # run_row_cases
 
 for ROW in $FX_ROWS; do

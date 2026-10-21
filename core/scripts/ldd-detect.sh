@@ -25,7 +25,14 @@
 #   --plan                  print the parsed detect lines and exit; nothing runs
 #   --glob <pattern>        the scope is one group of a language the table
 #                           does not know, matched by this glob
-#   --test-re <ERE>         test-file pattern over relative paths, same case
+#   --test-re <ERE>         test-file pattern over relative paths, same case.
+#                           A bundle carries the pattern ldd-scope.sh used
+#                           (test-re.txt), and a custom group its glob
+#                           (language.txt): the bundle's values win, and a
+#                           --glob or --test-re that differs is a usage error
+#   --gate-budget <s>       wall-clock seconds the R9 gate may run (default: no
+#                           limit); on expiry the gate is stopped and its
+#                           questions are counted "inconclusive", never 0
 #
 # The scope's language is the bundle's language.txt; without it, the files in
 # files.txt tell it by extension, and a list that spans several languages is
@@ -39,10 +46,14 @@
 #   Detect-path: `<ERE>`   over the scope's relative paths (layer directories,
 #                role-named packages); a hit's line is 0
 #   Detect-gate: Q<n>      the R9 gate's [Q<n>] report lines, from one run of
-#                check-repo-brain.sh beside this script over --root; on a
-#                scoped bundle (no dirs.txt) only the lines whose file is in
-#                the scope — the gate's repository-wide findings belong to
-#                a whole-repository review
+#                check-repo-brain.sh beside this script over --root. On a
+#                scoped bundle (no dirs.txt) the gate runs with --scope: it
+#                checks the bundle's docs (docs.txt) in full, and in the
+#                docs that name a scope file or cite a symbol the diff
+#                removes only those links and symbols; it checks the code
+#                edges of the scope's code files and no root wiring; with
+#                no such doc its doc checks are skipped. The repository-wide findings belong to a
+#                whole-repository review
 #   Detect: judgment       no mechanical lead; the hunter runs the prose
 # A question with no detect line, two of them, or a malformed one is an error:
 # the generator's lint-core keeps the rule files honest, and this script refuses
@@ -53,15 +64,18 @@
 #               the overflow row of a capped question: file "-", line 0,
 #               excerpt "+<n> more hit(s) not listed"
 #   hits-all.tsv  the same columns, every hit, no cap and no overflow row
-#   counts.tsv  rule  question  kind  hits      (judgment rows carry "-")
+#   counts.tsv  rule  question  kind  hits      (judgment rows carry "-", gate
+#               rows "inconclusive" when the gate ran out of --gate-budget)
 #               the last row is SUPPRESS  -  grep  <n>: suppression directives
 #               on the diff's added lines when the bundle has a diff.patch,
 #               else over every scope file
 # Two runs over one tree write byte-identical counts.tsv.
 #
 # Exit codes: 0 tables written · 2 usage error, a detect line that does not
-#             parse, a pattern grep rejects, or a gate run that failed
-#             (inconclusive, never silently clean)
+#             parse, a pattern grep rejects, a gate run that failed
+#             (inconclusive, never silently clean), or a non-empty scope in
+#             which no file matches the source glob (a glob mismatch, never
+#             an empty table)
 #
 # Uses only POSIX-portable tools: grep, sed, awk, sort, wc, head. GNU grep's
 # \b and \s are assumed, as the rules already assume them.
@@ -77,6 +91,7 @@ CAP=40
 PLAN=0
 OPT_GLOB=""
 OPT_TEST_RE=""
+GATE_BUDGET=0
 BUNDLE=""
 
 usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
@@ -94,12 +109,14 @@ while (( $# > 0 )); do
     --plan)    PLAN=1; shift ;;
     --glob)    value "$1" $#; OPT_GLOB="$2"; shift 2 ;;
     --test-re) value "$1" $#; OPT_TEST_RE="$2"; shift 2 ;;
+    --gate-budget) value "$1" $#; GATE_BUDGET="$2"; shift 2 ;;
     -h|--help) usage ;;
     --*)       die "unknown option: $1" ;;
     *)         [[ -n "$BUNDLE" ]] && die "one bundle directory, got also: $1"; BUNDLE="$1"; shift ;;
   esac
 done
 [[ "$CAP" =~ ^[0-9]+$ ]] || die "--cap takes a number, got: $CAP"
+[[ "$GATE_BUDGET" =~ ^[0-9]+$ ]] || die "--gate-budget takes a number of seconds, got: $GATE_BUDGET"
 [[ -d "$RULES_DIR" ]] || die "no rules directory: $RULES_DIR"
 RULES_DIR=$(cd "$RULES_DIR" && pwd)
 if (( ! PLAN )); then
@@ -136,6 +153,7 @@ if (( ! PLAN )) && [[ -f "$BUNDLE/groups.txt" ]]; then
     fi
     args=(--root "$ROOT" --cap "$CAP")
     [[ -n "$OPT_TEST_RE" ]] && args+=(--test-re "$OPT_TEST_RE")
+    (( GATE_BUDGET > 0 )) && args+=(--gate-budget "$GATE_BUDGET")
     bash "$script" "${args[@]}" "$bundle" || { failed=1; echo "$SCRIPT_NAME: the $id group's detection pass failed; it is inconclusive" >&2; }
     echo
   done < "$BUNDLE/groups.txt"
@@ -150,7 +168,9 @@ LANG_ID=""
 if (( ! PLAN )); then
   if [[ -f "$BUNDLE/language.txt" ]]; then
     IFS=$'\t' read -r LANG_ID glob < "$BUNDLE/language.txt"
-    [[ "$LANG_ID" == "custom" && -z "$OPT_GLOB" ]] && OPT_GLOB="$glob"
+    [[ "$LANG_ID" == "custom" && -n "$OPT_GLOB" && "$OPT_GLOB" != "$glob" ]] \
+      && die "--glob '$OPT_GLOB' differs from the bundle's glob '$glob' (ldd-scope.sh wrote it; drop --glob)"
+    [[ "$LANG_ID" == "custom" ]] && OPT_GLOB="$glob"
   else
     ids=""
     while IFS= read -r line; do
@@ -164,6 +184,14 @@ if (( ! PLAN )); then
     [[ -n "$ids" ]] || die "no source file in the scope list $FILES_LIST (pass --glob '<pattern>' for a language the table does not know)"
     [[ "$ids" == *" "* ]] && die "the scope list spans several languages ($ids); ldd-scope.sh writes one bundle per language"
     LANG_ID="$ids"
+  fi
+  # the test-file pattern ldd-scope.sh used, so the two scripts cannot disagree
+  # on what a test file is
+  if [[ -f "$BUNDLE/test-re.txt" ]]; then
+    b_test_re=$(cat "$BUNDLE/test-re.txt")
+    [[ -n "$OPT_TEST_RE" && "$OPT_TEST_RE" != "$b_test_re" ]] \
+      && die "--test-re '$OPT_TEST_RE' differs from the bundle's '$b_test_re' (ldd-scope.sh wrote it; drop --test-re)"
+    OPT_TEST_RE="$b_test_re"
   fi
   lang_configure "$LANG_ID" || die "this plugin has no language block for $LANG_ID"
 fi
@@ -210,7 +238,7 @@ END { if (insec) flush() }
 '
 
 plan_file=$(mktemp)
-trap 'rm -f "$plan_file" "${tmp_hits:-}" "${tmp_hits_all:-}" "${tmp_counts:-}" "${gate_out:-}"' EXIT
+trap 'rm -f "$plan_file" "${tmp_hits:-}" "${tmp_hits_all:-}" "${tmp_counts:-}" "${gate_out:-}" "${gate_scope:-}" "${gate_words:-}"' EXIT
 rule_files=$(find "$RULES_DIR" -maxdepth 1 -name 'R*.md' | awk -F/ '{ n = $NF; sub(/^R/, "", n); sub(/-.*$/, "", n); print n "\t" $0 }' | sort -n | cut -f2)
 [[ -n "$rule_files" ]] || die "no rule files (R*.md) under $RULES_DIR"
 while IFS= read -r f; do
@@ -236,11 +264,13 @@ fi
 SRC_FILES=()
 TEST_FILES=()
 ALL_FILES=()
+n_present=0
 while IFS= read -r line; do
   f="${line%% (not bundled:*}"
   f="${f#./}"
   [[ -z "$f" ]] && continue
   [[ -f "$f" ]] || continue
+  n_present=$((n_present + 1))
   [[ "$(lang_of_path "$f")" == "$LANG_ID" ]] || continue
   printf '%s\n' "$f" | grep -qE -- "$LANG_EXCLUDE_RE" && continue
   ALL_FILES+=("$f")
@@ -248,6 +278,12 @@ done < <(LC_ALL=C sort -u "$FILES_LIST")
 for f in ${ALL_FILES[@]+"${ALL_FILES[@]}"}; do
   if lang_is_test "$f"; then TEST_FILES+=("$f"); else SRC_FILES+=("$f"); fi
 done
+# A scope whose files exist but none of which is a source file is a glob
+# mismatch between the scope and this run: an all-zero table would read as a
+# clean review of nothing.
+if (( ${#ALL_FILES[@]} == 0 && n_present > 0 )); then
+  die "0 source + 0 test files: none of the $n_present file(s) in $FILES_LIST is a $LANG_ID source file (pass the --glob ldd-scope.sh used)"
+fi
 
 tmp_hits=$(mktemp)
 tmp_hits_all=$(mktemp)
@@ -361,24 +397,98 @@ run_path() { # <rule> <q> <pattern>
   rm -f "$raw" "$err"
 }
 
-# The R9 gate runs once, lazily; its [Q<n>] lines are split by question.
+# gate_scope_lists <scope-file> <words-file> — what a scoped gate run checks:
+# every path of the scope (deleted ones too: a doc can still link to them) and
+# of docs.txt; and the identifiers the diff removes — on its removed lines and
+# on none of its added ones — the symbols a renamed or deleted declaration
+# takes away from the docs that cite them. Comment lines (a line that opens
+# with //, #, /*, *, -- or """) carry prose, not symbols, and are skipped,
+# and a word the scope's files still carry after the change is not removed.
+gate_scope_lists() {
+  local scope="$1" words="$2" line f
+  {
+    while IFS= read -r line; do
+      f="${line%% (not bundled:*}"; f="${f#./}"
+      [[ -n "$f" ]] && printf '%s\n' "$f"
+    done < "$FILES_LIST"
+    [[ -f "$BUNDLE/docs.txt" ]] && cat "$BUNDLE/docs.txt"
+  } | LC_ALL=C sort -u > "$scope"
+  : > "$words"
+  [[ -s "$BUNDLE/diff.patch" ]] || return 0
+  grep -vE '^(\+\+\+|---) ' "$BUNDLE/diff.patch" | grep -E '^[-+]' \
+    | LC_ALL=C awk '
+        {
+          s = substr($0, 1, 1); t = substr($0, 2)
+          if (t ~ /^[ \t]*(\/\/|#|\/\*|\*|--|""")/) next
+          while (match(t, /[A-Za-z_][A-Za-z0-9_]*/)) {
+            w = substr(t, RSTART, RLENGTH); t = substr(t, RSTART + RLENGTH)
+            if (s == "+") add[w] = 1; else del[w] = 1
+          }
+        }
+        END { for (w in del) if (!(w in add)) print w }' \
+    | LC_ALL=C sort > "$words.removed"
+  if (( ${#ALL_FILES[@]} > 0 )); then
+    cat -- "${ALL_FILES[@]}" | LC_ALL=C tr -cs 'A-Za-z0-9_' '\n' \
+      | LC_ALL=C awk -v list="$words.removed" '
+          BEGIN { while ((getline w < list) > 0) gone[w] = 1 }
+          ($0 in gone) { delete gone[$0] }
+          END { for (w in gone) print w }' | LC_ALL=C sort > "$words"
+  else
+    cp "$words.removed" "$words"
+  fi
+  rm -f "$words.removed"
+}
+
+# The R9 gate runs once, lazily; its [Q<n>] lines are split by question. With
+# --gate-budget the gate runs as its own process group, so expiry stops every
+# process it started, not only its shell.
+GATE_STATE="whole repository"
 run_gate_once() {
   [[ -n "$gate_out" ]] && return 0
   gate_out=$(mktemp)
-  local gate="$SCRIPT_DIR/check-repo-brain.sh" code
+  local gate="$SCRIPT_DIR/check-repo-brain.sh" code=0 start pid scope_line
+  local -a args=()
   [[ -f "$gate" ]] || die "Detect-gate needs $gate beside this script"
-  bash "$gate" "$ROOT" > "$gate_out" 2>&1
-  code=$?
+  if [[ ! -f "$BUNDLE/dirs.txt" ]]; then
+    gate_scope=$(mktemp); gate_words=$(mktemp)
+    gate_scope_lists "$gate_scope" "$gate_words"
+    args=(--scope "$gate_scope" --words "$gate_words")
+  fi
+  if (( GATE_BUDGET == 0 )); then
+    bash "$gate" ${args[@]+"${args[@]}"} "$ROOT" > "$gate_out" 2>&1 || code=$?
+  else
+    start=$SECONDS
+    set -m
+    bash "$gate" ${args[@]+"${args[@]}"} "$ROOT" > "$gate_out" 2>&1 &
+    pid=$!
+    set +m
+    while kill -0 "$pid" 2>/dev/null; do
+      if (( SECONDS - start >= GATE_BUDGET )); then
+        kill -TERM -- "-$pid" 2>/dev/null
+        wait "$pid" 2>/dev/null
+        GATE_STATE="inconclusive — stopped after the ${GATE_BUDGET}s --gate-budget"
+        return 0
+      fi
+      sleep 0.2
+    done
+    wait "$pid" || code=$?
+  fi
   if (( code == 2 )); then
     head -5 "$gate_out" >&2
     die "the R9 gate failed to run (exit 2); its questions are inconclusive"
   fi
+  scope_line=$(grep -m1 '^check-repo-brain: scope — ' "$gate_out")
+  [[ -n "$scope_line" ]] && GATE_STATE="scoped, ${scope_line#check-repo-brain: scope — }"
   return 0
 }
 
 run_gate() { # <rule> <q> <Qn>
   local rule="$1" q="$2" qn="$3" raw tab
   run_gate_once
+  if [[ "$GATE_STATE" == inconclusive* ]]; then
+    printf '%s\t%s\tgate\tinconclusive\n' "$rule" "$q" >> "$tmp_counts"
+    return 0
+  fi
   raw=$(mktemp)
   tab=$(printf '\t')
   # "[Qn] <file>[:line] — <message> — see <conventions>" becomes
@@ -396,15 +506,9 @@ run_gate() { # <rule> <q> <Qn>
         if (match(loc, /:[0-9]+$/)) { file = substr(loc, 1, RSTART - 1); line = substr(loc, RSTART + 1) + 0 }
         print file "\t" line "\t" rest
       }' > "$raw"
-  # A scoped review owns only the gate lines about its own files: an orphan
-  # doc, an unwired root or another file's broken edge is the repository's
-  # state, not the diff's, and is not a lead for this review's hunter.
-  if [[ ! -f "$BUNDLE/dirs.txt" ]] && [[ -s "$raw" ]]; then
-    scoped=$(mktemp); scope_list=$(mktemp)
-    printf '%s\n' ${ALL_FILES[@]+"${ALL_FILES[@]}"} > "$scope_list"
-    awk -F'\t' 'NR == FNR { in_scope[$0] = 1; next } ($1 in in_scope)' "$scope_list" "$raw" > "$scoped"
-    mv "$scoped" "$raw"; rm -f "$scope_list"
-  fi
+  # A scoped review owns only the gate lines about its own files and the docs
+  # that cite them; the gate's --scope run reports nothing else (an orphan doc
+  # elsewhere or an unwired root is the repository's state, not the diff's).
   record "$rule" "$q" gate "$raw" 0
   rm -f "$raw"
 }
@@ -454,6 +558,7 @@ n_gate=$(awk -F'\t' '$3 == "gate"' "$plan_file" | wc -l | tr -d ' ')
 n_judg=$(awk -F'\t' '$3 == "judgment"' "$plan_file" | wc -l | tr -d ' ')
 n_q=$(wc -l < "$plan_file" | tr -d ' ')
 echo "$SCRIPT_NAME: $n_q questions ($n_grep grep, $n_path path, $n_gate gate, $n_judg judgment) over ${#SRC_FILES[@]} source + ${#TEST_FILES[@]} test files → $BUNDLE/hits.tsv, counts.tsv"
+(( n_gate > 0 )) && [[ -n "$gate_out" ]] && echo "R9 gate: $GATE_STATE"
 echo
 awk -F'\t' 'BEGIN { printf "%-9s %-4s %-9s %s\n", "rule", "q", "kind", "hits" }
   { q = ($2 == "-") ? "-" : "Q" $2; printf "%-9s %-4s %-9s %s\n", $1, q, $3, $4 }' "$BUNDLE/counts.tsv"
@@ -473,12 +578,14 @@ awk -F'\t' '
     f = fam[$1]; if (f == "") f = "other"
     nq[f]++
     if ($3 == "judgment") { nj[f]++; next }
+    if ($4 == "inconclusive") { ni[f]++; next }
     if ($4 + 0 > 0) { hits[f] += $4; nh[f]++; rh[f, $1] += $4 }
   }
   END {
     for (i = 1; i <= 4; i++) {
       f = order[i]
       printf "%-15s %5d hit(s) in %d of %d questions, %d judgment", f, hits[f] + 0, nh[f] + 0, nq[f] + 0, nj[f] + 0
+      if (ni[f] + 0 > 0) printf ", %d inconclusive", ni[f]
       per = ""; n = split(rules[f], rs, " ")
       for (j = 1; j <= n; j++) if (rh[f, rs[j]] + 0 > 0) per = per (per == "" ? "" : " · ") rs[j] " " rh[f, rs[j]]
       if (per != "") printf " — %s", per

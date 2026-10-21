@@ -46,6 +46,11 @@
 #
 # The bundle:
 #   language.txt   the group's language id; "custom TAB <glob>" under --glob
+#   test-re.txt    the --test-re pattern, when one was passed, so ldd-detect.sh
+#                  tells test files the same way
+#   docs.txt       on a scoped rung, the markdown files the rung touches, one
+#                  relative path per line, deleted ones included: the docs the
+#                  R9 gate checks in full; --all writes none
 #   files.txt      the scope, one relative path per line. A file left out of
 #                  scope/ keeps its line with the reason: (not bundled: deleted),
 #                  (not bundled: binary), (not bundled: <n> lines) over the
@@ -448,6 +453,10 @@ write_bundle() {
   mkdir -p "$OUT/scope"
   if [[ "$GROUP_ID" == "custom" ]]; then printf 'custom\t%s\n' "$OPT_GLOB" > "$OUT/language.txt"
   else printf '%s\n' "$GROUP_ID" > "$OUT/language.txt"; fi
+  [[ -n "$OPT_TEST_RE" ]] && printf '%s\n' "$OPT_TEST_RE" > "$OUT/test-re.txt"
+  if [[ "$RUNG" != "all" ]]; then
+    sed 's|^\./||' "$CANDIDATES" | grep -E '\.md$' | LC_ALL=C sort -u > "$OUT/docs.txt"
+  fi
 
   # not_bundled_reason <file> — prints the reason, or nothing when it is bundled
   not_bundled_reason() {
@@ -495,10 +504,23 @@ write_bundle() {
   # comment lines plus every comment line of a bundled file the diff does not
   # touch (untracked, or committed and named on the command line); every comment
   # line of the bundle on --all; directives never count.
+  # comment_filter — keeps the "file:line:text" lines whose text carries a
+  # comment marker at the line start or after whitespace, with every
+  # double-quoted string literal blanked first, so a # or // inside a trace
+  # format string is not a comment; a """ docstring marker is kept
+  comment_filter() {
+    LC_ALL=C awk -v re="(^|[[:space:]])($LANG_COMMENT_RE)" '{
+      i = index($0, ":"); rest = substr($0, i + 1); t = substr(rest, index(rest, ":") + 1)
+      gsub(/"""/, "\001", t)
+      gsub(/"([^"\\]|\\.)*"/, "\"\"", t)
+      gsub(/\001/, "\"\"\"", t)
+      if (t ~ re) print
+    }'
+  }
   # comment_lines_of <file>... — every comment line of the files, grep -nH shape
   comment_lines_of() {
     (( $# > 0 )) || return 0
-    LC_ALL=C grep -nHE -e "$LANG_COMMENT_RE" -- "$@" 2>/dev/null | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE"
+    LC_ALL=C grep -nH -e '' -- "$@" 2>/dev/null | comment_filter | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE"
   }
   : > "$OUT/comments.txt"
   if [[ "$RUNG" == "all" ]]; then
@@ -512,7 +534,7 @@ write_bundle() {
         /^\+/ { n++; print f ":" n ":" substr($0, 2); next }
         /^-/ { next }
         { n++ }
-      ' "$OUT/diff.patch" | LC_ALL=C grep -E -- "^[^:]*:[0-9]+:.*($LANG_COMMENT_RE)" | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE" >> "$OUT/comments.txt"
+      ' "$OUT/diff.patch" | comment_filter | LC_ALL=C grep -vE -- "$LANG_DIRECTIVE_RE" >> "$OUT/comments.txt"
     fi
     # a bundled file the diff does not touch has no added lines: every comment
     # line of it is the critic's (an untracked file, or a committed file named

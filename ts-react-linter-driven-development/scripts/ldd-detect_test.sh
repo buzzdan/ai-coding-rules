@@ -49,6 +49,11 @@ run_detect() { # [options...] — runs the script over $REPO with $BUNDLE
   OUT=$(cd "$REPO" && bash "$DETECT" "$@" --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
   ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
 }
+run_detect_bundle() { # <bundle> [options...] — runs the script over $REPO with that bundle
+  local b="$1"; shift
+  OUT=$(cd "$REPO" && bash "$DETECT" "$@" --root . "$b" 2>"$BUNDLE/.stderr"); CODE=$?
+  ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+}
 run_scope() { # [args...] — runs ldd-scope.sh over $REPO into $BUNDLE/scope-out
   rm -rf "$BUNDLE/scope-out"
   OUT=$(cd "$REPO" && bash "$SCOPE_SH" --out "$BUNDLE/scope-out" "$@" 2>"$BUNDLE/.stderr"); CODE=$?
@@ -75,8 +80,9 @@ expect_not() {
   return 0
 }
 expect_quiet() { [[ -z "$ERR" ]] || { bad "stderr not empty"; return 1; }; }
-count_of() { # <rule> <question> — the hits cell of counts.tsv, "-" for judgment
-  awk -F'\t' -v r="$1" -v q="$2" '$1 == r && $2 == q { print $4 }' "$BUNDLE/counts.tsv"
+count_of() { # <rule> <question> — the hits cell of counts.tsv (COUNTS_FILE, default the
+           # case bundle's), "-" for judgment
+  awk -F'\t' -v r="$1" -v q="$2" '$1 == r && $2 == q { print $4 }' "${COUNTS_FILE:-$BUNDLE/counts.tsv}"
 }
 expect_count() { # <rule> <question> <value|>=n>
   local got; got=$(count_of "$1" "$2")
@@ -476,6 +482,97 @@ run_detect
 expect_exit 0 && expect_count SUPPRESS - 1 \
   && { grep -q "^SUPPRESS	-	grep	$FX_SRC_FILE	2	" "$BUNDLE/hits.tsv" || bad "suppression row does not carry the added line's file and number"; } \
   && grep -q "^SUPPRESS	-	grep	$FX_SRC_FILE	2	" "$BUNDLE/hits.tsv" && ok
+finish
+
+# --- the bundle ldd-scope.sh writes, read by detection ---
+SO="" # the scope bundle of the case: $BUNDLE/scope-out
+
+begin "a code-only scoped diff skips the R9 gate's doc checks"
+mk_repo; git_commit_repo
+printf '\n' >> "$REPO/$FX_SRC_FILE"   # a code-only change
+(cd "$REPO" && git -c user.name=t -c user.email=t@t commit -qam change)
+run_scope --base HEAD~1; SO="$BUNDLE/scope-out"
+run_detect_bundle "$SO"
+expect_exit 0 && expect_has "R9 gate: scoped, no doc in scope; doc checks skipped" \
+  && COUNTS_FILE="$SO/counts.tsv" expect_count R9 1 0 && ok
+finish
+
+begin "a scoped diff that touches a doc gets that doc checked by the R9 gate"
+mk_repo; git_commit_repo
+printf '\n' >> "$REPO/$FX_SRC_FILE"   # a code-only change
+printf '\nMore text.\n' >> "$REPO/docs/orphan.md"
+(cd "$REPO" && git -c user.name=t -c user.email=t@t commit -qam change)
+run_scope --base HEAD~1; SO="$BUNDLE/scope-out"
+expect_exit 0 && { grep -qx 'docs/orphan.md' "$SO/docs.txt" || bad "docs.txt lacks the touched doc"; } \
+  && grep -qx 'docs/orphan.md' "$SO/docs.txt" \
+  && { run_detect_bundle "$SO"; expect_exit 0; } \
+  && expect_has "R9 gate: scoped, 1 doc(s) to check" \
+  && COUNTS_FILE="$SO/counts.tsv" expect_count R9 1 1 \
+  && { grep -q "^R9	1	gate	docs/orphan.md	" "$SO/hits.tsv" || bad "no R9 Q1 hit row for docs/orphan.md"; } \
+  && grep -q "^R9	1	gate	docs/orphan.md	" "$SO/hits.tsv" && ok
+finish
+
+begin "detection reads the source glob from the bundle ldd-scope.sh wrote"
+mk_repo; mkdir -p "$REPO/lib"; printf 'thing\n' > "$REPO/lib/thing.zz"; git_commit_repo
+run_scope --glob '*.zz' lib/thing.zz; SO="$BUNDLE/scope-out"
+run_detect_bundle "$SO"
+expect_exit 0 && expect_has "over 1 source + 0 test files" && ok
+finish
+
+begin "a --glob that differs from the bundle's is a usage error (exit 2)"
+mk_repo; mkdir -p "$REPO/lib"; printf 'thing\n' > "$REPO/lib/thing.zz"; git_commit_repo
+run_scope --glob '*.zz' lib/thing.zz; SO="$BUNDLE/scope-out"
+run_detect_bundle "$SO" --glob '*.yy'
+expect_exit 2 && expect_has "differs from the bundle's glob" && ok
+finish
+
+begin "a scope whose files match no source glob is an error, not an all-zero table (exit 2)"
+mk_repo; printf 'notes\n' > "$REPO/notes.txt"; printf 'notes.txt\n' > "$BUNDLE/files.txt"
+printf 'custom\t*.zz\n' > "$BUNDLE/language.txt"
+run_detect
+expect_exit 2 && expect_has "0 source + 0 test files" && ok
+finish
+
+begin "--gate-budget stops a slow gate and its children; the gate questions are inconclusive"
+mk_repo; : > "$BUNDLE/dirs.txt"
+FAKE=$(mktemp -d)
+cp "$DETECT" "$FAKE/ldd-detect.sh"
+printf '#!/usr/bin/env bash\nsleep 37\necho never\n' > "$FAKE/check-repo-brain.sh"
+t0=$SECONDS
+OUT=$(cd "$REPO" && bash "$FAKE/ldd-detect.sh" --rules "$RULES" --gate-budget 1 --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
+ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+took=$((SECONDS - t0))
+expect_exit 0 && { (( took < 15 )) || bad "the run took ${took}s with a 1s gate budget"; } && (( took < 15 )) \
+  && expect_has "R9 gate: inconclusive" && expect_count R9 1 inconclusive && expect_has "inconclusive" \
+  && { ! pgrep -f 'sleep 37' >/dev/null || bad "the gate's child process outlived the budget"; } \
+  && ! pgrep -f 'sleep 37' >/dev/null && ok
+pkill -f 'sleep 37' 2>/dev/null
+rm -rf "$FAKE"
+finish
+
+begin "a --gate-budget the gate finishes within writes the same counts as no budget"
+mk_repo; : > "$BUNDLE/dirs.txt"; run_detect
+cp "$BUNDLE/counts.tsv" "$BUNDLE/first.tsv"
+run_detect --gate-budget 60
+expect_exit 0 && { cmp -s "$BUNDLE/first.tsv" "$BUNDLE/counts.tsv" || bad "counts.tsv differs under a budget the gate meets"; } \
+  && cmp -s "$BUNDLE/first.tsv" "$BUNDLE/counts.tsv" && ok
+finish
+
+begin "a gate that fails under --gate-budget fails the run (exit 2)"
+mk_repo; : > "$BUNDLE/dirs.txt"
+FAKE=$(mktemp -d)
+cp "$DETECT" "$FAKE/ldd-detect.sh"
+printf '#!/usr/bin/env bash\necho "check-repo-brain: internal scanner error"\nexit 2\n' > "$FAKE/check-repo-brain.sh"
+OUT=$(cd "$REPO" && bash "$FAKE/ldd-detect.sh" --rules "$RULES" --gate-budget 30 --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
+ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+expect_exit 2 && expect_has "the R9 gate failed to run" && ok
+rm -rf "$FAKE"
+finish
+
+begin "a --gate-budget with no value is a usage error (exit 2)"
+mk_repo
+OUT=$(cd "$REPO" && bash "$DETECT" --root . "$BUNDLE" --gate-budget 2>&1); CODE=$?; ERR=""
+expect_exit 2 && expect_has "--gate-budget needs a value" && ok
 finish
 
 } # run_row_cases
