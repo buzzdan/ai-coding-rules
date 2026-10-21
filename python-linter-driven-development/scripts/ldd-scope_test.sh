@@ -473,7 +473,7 @@ finish
 
 begin "a comment marker inside a string literal is not a comment line"
 mk_repo; mkdir -p "$REPO/lib"
-{ fx_comment_line; printf 'x = "#tag" + "//tag"\n'; } > "$REPO/lib/thing.zz"
+{ fx_comment_line; printf 'x = "#tag #tag" + "//tag // tag"\n'; } > "$REPO/lib/thing.zz"
 git_commit_repo
 run_scope --glob '*.zz' lib/thing.zz
 expect_exit 0 && { grep -q "added by the test" "$BUNDLE/scope-out/comments.txt" || bad "the real comment line is missing"; } \
