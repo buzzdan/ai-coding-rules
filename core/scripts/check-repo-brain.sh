@@ -504,13 +504,23 @@ docroot_for_file() { # <file> -> docroot of the longest matching project dir
   printf '%s\n' "${best:-${ROOTS[0]}}"
 }
 
-# url_only <file> <lineno> <target> — exit 0 iff the target appears on that
-# line only inside URL spans (a link to another repository's docs, not an edge)
-url_only() {
-  awk -v n="$2" -v t="$3" -v stops=">\"\`" "$URL_AWK"'
-    NR == n { found = index(strip_urls($0, stops), t) > 0; exit }
-    END { exit found }' "$1"
+# URL_ONLY_AWK reads one code file. It exits 0 when `target` appears on line
+# `lineno` only inside URL spans (a link to another repository's docs, not an
+# edge), and 1 when the target is still on the line after the spans go.
+URL_ONLY_AWK="$URL_AWK"'
+NR == lineno {
+  outside_urls = strip_urls($0, stops)
+  target_outside_url = index(outside_urls, target) > 0
+  exit
 }
+END { exit target_outside_url }
+'
+url_only() { # <file> <lineno> <target>
+  awk -v lineno="$2" -v target="$3" -v stops=">\"\`" "$URL_ONLY_AWK" "$1"
+}
+
+# unique_lines — stdin to stdout, every distinct line once, in first-seen order
+unique_lines() { awk '!seen[$0]++'; }
 
 if (( have_code )); then
   while IFS= read -r hit; do
@@ -531,7 +541,7 @@ if (( have_code )); then
                { f = substr($0, 1, index($0, ":") - 1); sub(/^\.\//, "", f); if (f in s) print }'
            else
              lang_code_edges
-           fi | awk '!seen[$0]++')
+           fi | unique_lines)
 fi
 
 # ---------- per-bundle checks ----------
