@@ -655,6 +655,57 @@ $OUT"
   finish
 fi
 
+begin "agree: a rule that runs and is kept as it is turns the row agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "the team keeps it"
+write_record "agreed:
+$OUT"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "agree: current on a rule that does not run is exit 2 and says to use off"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "the team keeps it"
+expect_exit 2 && expect_has "does not run" && expect_has "--decision off" && [[ -z "$OUT" ]] && ok
+finish
+
+begin "agree: off on a rule that does not run turns the row agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "the team does not use it"
+write_record "agreed:
+$OUT"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "agree --fingerprint names a legacy config file"
+if [[ -z "$FAKE_LEGACY_CONFIG" ]]; then skip "the linter has no older config file name"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  rm -f "$REPO/$FAKE_CONFIG"; printf '{}\n' > "$REPO/$FAKE_LEGACY_CONFIG"
+  run_agree --fingerprint
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_LEGACY_CONFIG $(git hash-object "$REPO/$FAKE_LEGACY_CONFIG")\"" && ok
+  finish
+fi
+
+begin "agree --fingerprint names package.json when it holds the linter's config"
+if [[ -z "$FAKE_LEGACY_CONFIG" ]]; then skip "the linter has no older config file name"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  rm -f "$REPO/$FAKE_CONFIG"; printf '{"eslintConfig": {}}\n' > "$REPO/package.json"
+  run_agree --fingerprint
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER package.json $(git hash-object "$REPO/package.json")\"" && ok
+  finish
+fi
+
+begin "agree --fingerprint notes a linter with no compared config file and exits 0"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+rm -f "$REPO/$FAKE_CONFIG"
+run_agree --fingerprint
+expect_exit 0 && [[ -z "$OUT" ]] && expect_has "no config file of $FAKE_LINTER was compared" && ok
+finish
+
 begin "agree for a rule with no row is a usage error (exit 2)"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 run_agree --linter "$FAKE_LINTER" --rule no-such-rule --decision off --reason "typo"

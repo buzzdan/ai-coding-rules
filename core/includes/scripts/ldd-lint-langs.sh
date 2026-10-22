@@ -544,6 +544,19 @@ _lint_eslint_pnp() {
   done
 }
 
+# _lint_eslint_config_file — the repository's own ESLint config in the working
+# directory: a flat config, else a legacy .eslintrc file, else package.json
+# when it has an eslintConfig key; exit 1 when there is none
+_lint_eslint_config_file() {
+  local f
+  for f in "${LINT_ESLINT_CONFIGS[@]}"; do
+    [[ "$f" == eslint.config.ldd.mjs ]] && continue
+    [[ -f "$f" ]] && { printf '%s' "$f"; return 0; }
+  done
+  [[ -f package.json ]] && grep -q '"eslintConfig"[[:space:]]*:' package.json && { printf 'package.json'; return 0; }
+  return 1
+}
+
 _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   local rec="$1" t="$3" bin r ro sev opts state rv cv a b cfg
   if ! bin=$(_lint_eslint_bin); then
@@ -572,9 +585,7 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   fi
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
   grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
-  for cfg in eslint.config.js eslint.config.mjs eslint.config.cjs eslint.config.ts eslint.config.mts eslint.config.cts; do
-    [[ -f "$cfg" ]] && { printf 'config\teslint\t%s\n' "$cfg"; break; }
-  done
+  cfg=$(_lint_eslint_config_file) && printf 'config\teslint\t%s\n' "$cfg"
   printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
   while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing

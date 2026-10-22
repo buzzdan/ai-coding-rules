@@ -744,6 +744,19 @@ _lint_eslint_pnp() {
   done
 }
 
+# _lint_eslint_config_file — the repository's own ESLint config in the working
+# directory: a flat config, else a legacy .eslintrc file, else package.json
+# when it has an eslintConfig key; exit 1 when there is none
+_lint_eslint_config_file() {
+  local f
+  for f in "${LINT_ESLINT_CONFIGS[@]}"; do
+    [[ "$f" == eslint.config.ldd.mjs ]] && continue
+    [[ -f "$f" ]] && { printf '%s' "$f"; return 0; }
+  done
+  [[ -f package.json ]] && grep -q '"eslintConfig"[[:space:]]*:' package.json && { printf 'package.json'; return 0; }
+  return 1
+}
+
 _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   local rec="$1" t="$3" bin r ro sev opts state rv cv a b cfg
   if ! bin=$(_lint_eslint_bin); then
@@ -772,9 +785,7 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   fi
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
   grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
-  for cfg in eslint.config.js eslint.config.mjs eslint.config.cjs eslint.config.ts eslint.config.mts eslint.config.cts; do
-    [[ -f "$cfg" ]] && { printf 'config\teslint\t%s\n' "$cfg"; break; }
-  done
+  cfg=$(_lint_eslint_config_file) && printf 'config\teslint\t%s\n' "$cfg"
   printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
   while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing
@@ -863,6 +874,8 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
 #                    such rule exists
 #   FAKE_SEE_RULE    a rule whose recommended side is a place to read, though
 #                    the linter reports the current setting; "" if none
+#   FAKE_LEGACY_CONFIG an older config file name the doctor also compares (the
+#                    fixture writes it in place of FAKE_CONFIG); "" if none
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
 #                    which the invalid and noschema modes fail; "" if not
 
@@ -871,14 +884,14 @@ fake_doctor_row() {
     go)
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
-      FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
+      FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''; FAKE_LEGACY_CONFIG=''
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
-      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''; FAKE_LEGACY_CONFIG=''
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
@@ -890,7 +903,7 @@ fake_doctor_row() {
       FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
-      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'; FAKE_LEGACY_CONFIG='.eslintrc.json'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
@@ -1610,6 +1623,57 @@ $OUT"
   expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
   finish
 fi
+
+begin "agree: a rule that runs and is kept as it is turns the row agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "the team keeps it"
+write_record "agreed:
+$OUT"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "agree: current on a rule that does not run is exit 2 and says to use off"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "the team keeps it"
+expect_exit 2 && expect_has "does not run" && expect_has "--decision off" && [[ -z "$OUT" ]] && ok
+finish
+
+begin "agree: off on a rule that does not run turns the row agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "the team does not use it"
+write_record "agreed:
+$OUT"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "agree --fingerprint names a legacy config file"
+if [[ -z "$FAKE_LEGACY_CONFIG" ]]; then skip "the linter has no older config file name"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  rm -f "$REPO/$FAKE_CONFIG"; printf '{}\n' > "$REPO/$FAKE_LEGACY_CONFIG"
+  run_agree --fingerprint
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_LEGACY_CONFIG $(git hash-object "$REPO/$FAKE_LEGACY_CONFIG")\"" && ok
+  finish
+fi
+
+begin "agree --fingerprint names package.json when it holds the linter's config"
+if [[ -z "$FAKE_LEGACY_CONFIG" ]]; then skip "the linter has no older config file name"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  rm -f "$REPO/$FAKE_CONFIG"; printf '{"eslintConfig": {}}\n' > "$REPO/package.json"
+  run_agree --fingerprint
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER package.json $(git hash-object "$REPO/package.json")\"" && ok
+  finish
+fi
+
+begin "agree --fingerprint notes a linter with no compared config file and exits 0"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+rm -f "$REPO/$FAKE_CONFIG"
+run_agree --fingerprint
+expect_exit 0 && [[ -z "$OUT" ]] && expect_has "no config file of $FAKE_LINTER was compared" && ok
+finish
 
 begin "agree for a rule with no row is a usage error (exit 2)"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt

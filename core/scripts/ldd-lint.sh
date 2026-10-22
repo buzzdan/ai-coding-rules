@@ -105,9 +105,12 @@
 #       "<l> <r> = <value> | <reason>", where the value is the doctor's current
 #       setting of that rule (current), off or org; every " | " in the reason
 #       becomes " / ". It reads the doctor's rows, so the rule must have one.
+#       A rule in the state missing has no setting: only off is accepted.
 #   agree --fingerprint
 #       "<linter> <path> <hash>" for each config file the doctor compared; the
-#       hash is git hash-object of the file, else the first field of cksum
+#       hash is git hash-object of the file, else the first field of cksum; a
+#       linter the run reports with no config file compared gets a note on
+#       stderr and no line
 #   agree --lint-config <linter> <path>
 #       "<linter> <path>"; the path must be a file
 # A linter that cannot verify gives no row and no config: agree with the rule
@@ -523,7 +526,7 @@ agree_cannot() {
 }
 
 run_agree_rule() {
-  local reason="$AGREE_REASON" value
+  local reason="$AGREE_REASON" value state sel
   [[ -n "$AGREE_LINTER" ]] || die "agree needs --linter"
   [[ -n "$AGREE_RULE" ]] || die "agree needs --rule"
   [[ -n "$AGREE_REASON" ]] || die "agree needs --reason, and it is empty"
@@ -532,9 +535,12 @@ run_agree_rule() {
     *) die "agree needs --decision current, off or org, got: ${AGREE_DECISION:-nothing}" ;;
   esac
   agree_cannot "$AGREE_LINTER"
-  value=$(L="$AGREE_LINTER" R="$AGREE_RULE" awk -F'\t' '
-    $1 == ENVIRON["L"] && $2 == ENVIRON["R"] { print $4; found = 1; exit }
+  sel=$(L="$AGREE_LINTER" R="$AGREE_RULE" awk -F'\t' '
+    $1 == ENVIRON["L"] && $2 == ENVIRON["R"] { print $3 "\t" $4; found = 1; exit }
     END { exit !found }' "$DOCTOR_ROWS") || die "agree: no doctor row for $AGREE_LINTER $AGREE_RULE"
+  state=${sel%%$'\t'*}; value=${sel#*$'\t'}
+  [[ "$AGREE_DECISION" == current && "$state" == missing ]] \
+    && die "agree: $AGREE_LINTER $AGREE_RULE does not run, so it has no setting to keep; use --decision off"
   [[ "$AGREE_DECISION" == current ]] || value="$AGREE_DECISION"
   reason=${reason//$'\n'/ }; reason=${reason//$'\r'/ }; reason=${reason//$'\t'/ }
   while [[ "$reason" == *" | "* ]]; do reason=${reason/ | / / }; done
@@ -544,10 +550,15 @@ run_agree_rule() {
 run_agree_fingerprint() {
   local linter path
   agree_cannot
-  [[ -s "$DOCTOR_CONFIGS" ]] || return 0
-  while IFS=$'\t' read -r linter path; do
+  [[ ! -s "$DOCTOR_CONFIGS" ]] || while IFS=$'\t' read -r linter path; do
     fingerprint_line "$linter" "$path"
   done < "$DOCTOR_CONFIGS"
+  # a linter the run reports, with no config file compared: no line, and a note
+  while IFS= read -r linter; do
+    L="$linter" awk -F'\t' '$1 == ENVIRON["L"] { f = 1 } END { exit !f }' "$DOCTOR_CONFIGS" 2>/dev/null \
+      || echo "agree: no config file of $linter was compared, so there is no fingerprint line for it" >&2
+  done < <(cut -f1 "$DOCTOR_ROWS" | LC_ALL=C sort -u)
+  return 0
 }
 
 # ---------- run ----------
