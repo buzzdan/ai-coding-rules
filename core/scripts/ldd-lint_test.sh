@@ -89,6 +89,20 @@ fill_dir() {
 
 {{include "scripts/ldd-lint-langs.sh"}}
 
+{{include "scripts/ldd-lint-fakes.sh"}}
+
+# run_doctor [options...] — runs the doctor over $REPO with only the fakes in
+# $REPO/.bin and the system directories on PATH, so an installed linter never
+# answers for a fake
+run_doctor() {
+  local errf; errf=$(mktemp)
+  OUT=$(cd "$REPO" && PATH="$REPO/.bin:/usr/bin:/bin" "$BASH" "$LINT" doctor "$@" --root . 2>"$errf"); CODE=$?
+  ERR=$(cat "$errf"); rm -f "$errf"
+}
+
+# tree_sum — one checksum line per file of $REPO, to prove a run wrote nothing
+tree_sum() { (cd "$REPO" && find . -type f -not -path './.bin/*' -exec cksum {} + | LC_ALL=C sort); }
+
 # ========================= cases =========================
 run_row_cases() { # runs every case against the current row
 
@@ -323,6 +337,172 @@ run_lint file-length
 expect_exit 0 && expect_has "no source file in scope" && ok
 finish
 
+# --- doctor ---
+fake_doctor_row
+SETUP_DIR="$(dirname "$LINT")/../setup"
+
+begin "doctor: a repository that adopts the recommended config runs every rule"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_doctor
+expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not ": missing;" \
+  && expect_not ": limit " && expect_not "cannot verify" \
+  && { [[ -z "$FAKE_WARN" ]] || expect_has "$FAKE_WARN"; } && ok
+finish
+
+begin "doctor: a config that loads and sets no rule lists every recommended rule as missing"
+if [[ -z "$FAKE_NORULES" ]]; then skip "the linter has no config without rules to report"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor norules
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: missing;" && expect_not "cannot verify" && expect_not ": runs;" && ok
+  finish
+fi
+
+for fmt in toml json; do
+  begin "doctor: a rule named in a $fmt config is named"
+  case " $FAKE_FORMATS " in
+    *" $fmt "*)
+      write_src "src/a$FX_EXT" 1; fake_doctor "$fmt"
+      run_doctor
+      expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_NAMED_RULE: named;" \
+        && expect_has "$FAKE_LINTER revive early-return: missing;" && ok ;;
+    *) skip "the language's linter has no $fmt config" ;;
+  esac
+  finish
+done
+
+begin "doctor: a rule set with options that are not one limit is options differ, never runs"
+if [[ -z "$FAKE_OPTIONS" ]]; then skip "the linter reports no such options"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor optsdiffer
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_OPTIONS" && ok
+  finish
+fi
+
+begin "doctor: the config is resolved for a source file, not a tool's config at the root"
+if [[ -z "$FAKE_NORULES" ]]; then skip "the linter resolves one config for the repository"; finish
+else
+  write_src "tool.config$FX_EXT" 1; write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_doctor
+  expect_exit 0 && expect_has "the config resolved for src/a$FX_EXT" && ok
+  finish
+fi
+
+begin "doctor: a linter installed only in a project below the root names that project"
+if [[ -z "$FAKE_NORULES" ]]; then skip "the linter is not installed per project"; finish
+else
+  write_src "web/src/a$FX_EXT" 1; fake_doctor adopt
+  mkdir -p "$REPO/web" && mv "$REPO/node_modules" "$REPO/web/node_modules"
+  run_doctor
+  expect_exit 0 && expect_has "but in a project below: web; run the doctor with --root on that project" && ok
+  finish
+fi
+
+begin "doctor: a source file the linter ignores cannot verify"
+if [[ -z "$FAKE_IGNORED" ]]; then skip "the linter resolves its settings for any file"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor ignored
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_IGNORED" && expect_not ": runs;" && ok
+  finish
+fi
+
+begin "doctor: a recommended rule the repository does not run is missing"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_doctor
+expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: missing;" && ok
+finish
+
+begin "doctor: a row shows the recommended setting beside the repository's own"
+write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RELAXED" && ok
+finish
+
+begin "doctor: a limit the repository sets lower than the recommended one is stricter"
+if [[ -z "$FAKE_TIGHTENED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor tightened
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_TIGHTENED" && ok
+  finish
+fi
+
+begin "doctor: a linter the recommended config accepts in place of another runs for it"
+if [[ -z "$FAKE_ALTERNATIVE" ]]; then skip "the recommended config names no alternative"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor alternative
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_ALTERNATIVE" && ok
+  finish
+fi
+
+begin "doctor: a rule named only inside a comment of the repository's config is missing"
+if [[ -z "$FAKE_NAMED_RULE" ]]; then skip "the linter reports every rule itself"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor commented
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_NAMED_RULE: missing;" && ok
+  finish
+fi
+
+begin "doctor: a linter that is not installed cannot verify, never passes"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER -: cannot verify: $FAKE_BIN is not installed" && expect_not ": runs;" && ok
+  finish
+fi
+
+begin "doctor: a linter output the doctor cannot read is cannot verify, never a pass"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor garbled
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER -: cannot verify: cannot read" && expect_not ": runs;" && expect_not ": missing;" && ok
+  finish
+fi
+
+begin "doctor: a linter that rejects the repository's config cannot verify"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor reject
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify: the linter rejects" && expect_not ": runs;" && ok
+  finish
+fi
+
+begin "doctor: --tsv rows have seven fields and the doctor lines go to stderr"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_doctor --tsv
+expect_exit 0 && expect_has "doctor: " \
+  && { [[ -n "$OUT" ]] && printf '%s\n' "$OUT" | awk -F'\t' 'NF != 7 { bad = 1 } END { exit bad }' \
+       || bad "a row without seven fields"; } \
+  && { printf '%s\n' "$OUT" | grep -q "^[a-z]*${TAB}$FAKE_LINTER${TAB}$FAKE_RULE${TAB}missing${TAB}" || bad "no TSV row for $FAKE_RULE"; } \
+  && { printf '%s\n' "$ERR" | grep -q '^doctor: ' || bad "the doctor line is not on stderr"; } && ok
+finish
+
+begin "doctor never edits a file"
+write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+before=$(tree_sum)
+run_doctor
+expect_exit 0 && { [[ "$(tree_sum)" == "$before" ]] || bad "the tree changed"; } && ok
+finish
+
+begin "doctor: the installed linter reads the recommended config adopted as the repository's own"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+elif [[ -z "$FAKE_REAL" ]]; then skip "the linter is installed per project, which the matrix cannot do"; finish
+elif ! command -v "$FAKE_REAL" >/dev/null 2>&1; then skip "$FAKE_REAL is not on PATH"; finish
+else
+  write_src "src/a$FX_EXT" 1; real_doctor_adopt
+  run_lint doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: runs;" && expect_not ": missing;" \
+    && expect_not ": limit " && expect_not "cannot verify" && ok
+  finish
+fi
+
 } # run_row_cases
 
 for ROW in $FX_ROWS; do
@@ -332,6 +512,11 @@ done
 ROW=""
 
 # --- row-independent ---
+begin "doctor: a tree without a source file is inconclusive (exit 2)"
+run_lint doctor
+expect_exit 2 && expect_has "no source file in scope" && ok
+finish
+
 begin "a missing subcommand is a usage error (exit 2)"
 run_lint
 expect_exit 2 && expect_has "name a subcommand" && ok

@@ -4,18 +4,27 @@
 # Measures the design triggers no linter holds, or that the repository's linter
 # does not hold yet: lines per source file and source files per directory. It
 # never edits a file. Where the repository's linter has a file-length rule, the
-# linter owns file length and this script leaves it alone.
+# linter owns file length and this script leaves it alone. Its doctor compares
+# the repository's linter with the plugin's recommended config.
 #
 # Usage:  bash scripts/ldd-lint.sh <subcommand> [options]
 #   file-length            source files over the file-length limit
 #   package-size           directories at or over the warning size or the limit
-#   --root <dir>           the repository (default: cwd)
+#   doctor                 per language of the repository, each rule of the
+#                          plugin's recommended config under setup/: whether
+#                          the repository's linter runs it, and the setting on
+#                          both sides (below)
+#   --root <dir>           the repository, or one project in it, such as a
+#                          front end with its own linter config: every
+#                          lookup starts there (default: cwd)
 #   --files <list>         measure the source files this list names, one
 #                          relative path per line (a scope bundle's files.txt
 #                          works: a "(not bundled: …)" suffix is ignored);
 #                          default: every source file of the repository
 #   --tsv                  findings as rows: path TAB line TAB message, line 0;
-#                          the threshold lines then go to stderr
+#                          the threshold lines then go to stderr. doctor rows:
+#                          language TAB linter TAB rule TAB state TAB
+#                          recommended TAB current TAB source
 #   --glob <pattern>       source-file glob, for a language the table does not
 #                          know ({{.Lang}} block below)
 #   --test-re <ERE>        test-file pattern over relative paths
@@ -42,9 +51,26 @@
 # when its count is above it; a directory is in the warning zone at the
 # warning size and over the limit at the limit.
 #
+# doctor: the rules are the ones the recommended config enables, as the
+# installed linter resolves it, beyond the linter's default set, and the
+# default rules the config names that the repository does not run. Each row
+# has a state: runs, missing, limit looser or limit stricter (the
+# repository's setting lets more code pass, or less, than the recommended
+# one), options differ (the two settings differ in a way that is not one
+# limit), named (the rule is named outside comments in the repository's
+# config; the linter was not asked), or cannot verify, with the reason (the
+# linter is not installed, or rejects a config). recommended and current are
+# the setting as the linter reports it; where the linter cannot report it, they
+# are "see <file>: <key>", the place a reader looks the value up; "-" is no
+# setting. source is "linter" when the linter said whether the rule runs, and
+# "presence check" when the rule was found by name. A linter output the doctor
+# cannot read is "cannot verify", never an empty list. A "doctor:" line per
+# language says which config was compared.
+#
 # Exit codes: 0 measured, with or without findings · 2 usage error, a --files
-#             list that does not exist, or a .ldd-lint.yaml value that is not a
-#             positive integer (inconclusive, never silently clean)
+#             list that does not exist, a .ldd-lint.yaml value that is not a
+#             positive integer, or a doctor run with no language the plugin
+#             recommends a config for (inconclusive, never silently clean)
 #
 # Uses only POSIX-portable tools plus git when the root is a repository:
 # grep, sed, awk, sort, find, head.
@@ -71,7 +97,7 @@ value() { (( $2 >= 2 )) || die "$1 needs a value"; }
 
 while (( $# > 0 )); do
   case "$1" in
-    file-length|package-size) [[ -n "$SUBCOMMAND" ]] && die "one subcommand, got also: $1"; SUBCOMMAND="$1"; shift ;;
+    file-length|package-size|doctor) [[ -n "$SUBCOMMAND" ]] && die "one subcommand, got also: $1"; SUBCOMMAND="$1"; shift ;;
     --root)    value "$1" $#; ROOT="$2"; shift 2 ;;
     --files)   value "$1" $#; FILES_LIST="$2"; shift 2 ;;
     --tsv)     TSV=1; shift ;;
@@ -81,12 +107,13 @@ while (( $# > 0 )); do
     *)         die "unknown argument: $1 (see --help)" ;;
   esac
 done
-[[ -n "$SUBCOMMAND" ]] || die "name a subcommand: file-length or package-size (see --help)"
+[[ -n "$SUBCOMMAND" ]] || die "name a subcommand: file-length, package-size or doctor (see --help)"
 [[ -d "$ROOT" ]] || die "not a directory: $ROOT"
 if [[ -n "$FILES_LIST" ]]; then
   [[ -f "$FILES_LIST" ]] || die "no such file list: $FILES_LIST"
   [[ "$FILES_LIST" == /* ]] || FILES_LIST="$(pwd)/$FILES_LIST"
 fi
+SETUP_DIR="$(cd "$(dirname "$0")/.." && pwd)/setup"
 cd "$ROOT" || exit 2
 
 {{include "scripts/ldd-langs.sh"}}
@@ -158,7 +185,8 @@ by_language() {
 
 SCOPE=$(mktemp)
 INVENTORY=$(mktemp)
-trap 'rm -f "$SCOPE" "$INVENTORY"' EXIT
+LINT_TMP=$(mktemp -d)
+trap 'rm -rf "$SCOPE" "$INVENTORY" "$LINT_TMP"' EXIT
 list_candidates | by_language > "$SCOPE"
 if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
 
@@ -243,17 +271,69 @@ run_package_size() { # <id> — every directory that holds a measured file of th
   rm -f "$counts"
 }
 
+# ---------- doctor ----------
+DOCTOR_DONE=""
+row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
+  if (( TSV )); then printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"
+  else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
+}
+
+# sample_file <id> — the source file a linter resolves its config for, the
+# first that fits best: a measured file in a subdirectory that is not a
+# tool's own config (*.config.*), outside hidden directories (a linter may
+# skip those); else a measured file outside hidden directories; else a
+# measured file; else any file of the language
+sample_file() {
+  local f first="" measured_one="" plain=""
+  while IFS= read -r f; do
+    [[ -z "$first" ]] && first="$f"
+    measured "$f" || continue
+    [[ -z "$measured_one" ]] && measured_one="$f"
+    [[ "/$f" == */.* ]] && continue
+    [[ -z "$plain" ]] && plain="$f"
+    [[ "$f" == */* && "${f##*/}" != *.config.* ]] && { printf '%s' "$f"; return 0; }
+  done < <(awk -F'\t' -v id="$1" '$1 == id { print $2 }' "$SCOPE")
+  printf '%s' "${plain:-${measured_one:-$first}}"
+}
+
+run_doctor() { # <id> — exit 0 when the language has a recommended config
+  local id="$1" linter kind a b c d e f
+  linter=$(lint_doctor_linter "$id")
+  if [[ -z "$linter" ]]; then
+    say "doctor: $id — the plugin recommends no linter config for this language"
+    return 1
+  fi
+  case " $DOCTOR_DONE " in *" $linter "*) return 0 ;; esac
+  # one linter serves both: a TypeScript repository is reported as typescript
+  [[ "$id" == javascript ]] && printf '%s\n' "$ids" | grep -qx typescript && return 0
+  DOCTOR_DONE="$DOCTOR_DONE $linter"
+  while IFS=$'\t' read -r kind a b c d e f; do
+    case "$kind" in
+      note) say "doctor: $id — $a" ;;
+      row)  row "$id" "$a" "$b" "$c" "$d" "$e" "$f" ;;
+    esac
+  done < <(lint_doctor "$id" "$SETUP_DIR" "$(sample_file "$id")")
+}
+
 # ---------- run ----------
 ids=$(cut -f1 "$SCOPE" | LC_ALL=C sort -u)
 if [[ -z "$ids" ]]; then
   say "$SCRIPT_NAME: no source file in scope"
+  [[ "$SUBCOMMAND" == doctor ]] && exit 2
   exit 0
 fi
+[[ "$SUBCOMMAND" != doctor || -d "$SETUP_DIR" ]] || die "no recommended configs at $SETUP_DIR"
+checked=0
 for id in $ids; do
   lang_configure "$id" || continue
   case "$SUBCOMMAND" in
     file-length)  run_file_length "$id" ;;
     package-size) run_package_size "$id" ;;
+    doctor)       run_doctor "$id" && checked=1 ;;
   esac
 done
+if [[ "$SUBCOMMAND" == doctor ]] && (( ! checked )); then
+  say "doctor: no language in scope has a recommended linter config"
+  exit 2
+fi
 exit 0

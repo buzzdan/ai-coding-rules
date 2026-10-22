@@ -185,11 +185,17 @@ differently from the other bindings:
   comment syntax, the files a directory count leaves out, and whether the
   repository's own linter config names a file-length rule. A named rule belongs to
   the linter, so the script reads no limit out of a config and copies no linter's way
-  of counting. The table is the one place core names linters, and its
-  `residue-exempt:` marker says so. The
+  of counting. The table also holds the doctor's part per linter: the commands that
+  ask the installed linter which rules it runs (and, for ruff and ESLint, every
+  setting), and the presence check for revive rules, which golangci-lint does not
+  report. The table is the one place core
+  names linters, and its `residue-exempt:` marker says so. The
   matrix reads the binding's `scripts/ldd-fixture.sh` for the source suffix, the
   comment forms, a test file's name and two linter configs per row: one that names the
-  file-length rule and one that names a rule of a similar name.
+  file-length rule and one that names a rule of a similar name. Its doctor cases read
+  a fourth include, `scripts/ldd-lint-fakes.sh`, also `residue-exempt:`: a fake of
+  each language's linter that prints the real one's output, so the cases run where
+  no linter is installed; where one is, a case checks the doctor against it.
 - `setup/golangci.yaml`, `setup/ruff.toml` and `setup/eslint.config.ldd.mjs`, the
   recommended linter configurations, are core templates rendered into every plugin,
   so the generic plugin carries all three for the languages it reviews. Each enables
