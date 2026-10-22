@@ -19,7 +19,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - **`ldd-lint.sh doctor` compares the repository's linter with the recommended
   setup.** For each language of the repository, it lists each rule of the
   recommended config with a state: runs, missing, limit looser or limit stricter
-  (the repository's setting lets more code pass, or less), named (found by
+  (the repository's setting lets more code pass, or less), options differ (the
+  settings differ in a way that is not one limit), named (found by
   name in the config; the linter was not asked) or cannot verify, with the reason.
   Each row shows the recommended setting and the repository's own. The doctor asks
   the installed linter: ruff and the project's own ESLint (`eslint --print-config`,

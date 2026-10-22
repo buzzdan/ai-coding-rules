@@ -56,7 +56,8 @@
 # default rules the config names that the repository does not run. Each row
 # has a state: runs, missing, limit looser or limit stricter (the
 # repository's setting lets more code pass, or less, than the recommended
-# one), named (the rule is named outside comments in the repository's
+# one), options differ (the two settings differ in a way that is not one
+# limit), named (the rule is named outside comments in the repository's
 # config; the linter was not asked), or cannot verify, with the reason (the
 # linter is not installed, or rejects a config). recommended and current are
 # the setting as the linter reports it; where the linter cannot report it, they
@@ -277,7 +278,9 @@ lang_is_test() {
 #                                   run. state: runs · missing · limit looser
 #                                   or limit stricter (the repository's setting
 #                                   lets more code pass, or less, than the
-#                                   recommended one) · named (the rule is
+#                                   recommended one) · options differ (the two
+#                                   settings differ in a way that is not one
+#                                   limit) · named (the rule is
 #                                   named outside comments in the repository's
 #                                   config; the linter was not asked) · cannot
 #                                   verify: <why>. recommended and current: the
@@ -430,7 +433,8 @@ lint_doctor_linter() {
 }
 
 lint_doctor() { # <id> <setup dir> <file>
-  local t; t=$(mktemp -d)
+  # Under the caller's LINT_TMP when it sets one, so its exit trap removes it
+  local t; t=$(mktemp -d "${LINT_TMP:-${TMPDIR:-/tmp}}/ldd-doctor.XXXXXX")
   case "$1" in
     go)                    _lint_doctor_golangci "$2/golangci.yaml" "$t" ;;
     python)                _lint_doctor_ruff "$2/ruff.toml" "$3" "$t" ;;
@@ -508,7 +512,7 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
   local rec="$1" t="$2" out cfg r re state tuned rv cv here alt held
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
-    || { _lint_doctor_cannot golangci-lint "the linter rejects $rec: $(_lint_first_error "$t/err")"; return 0; }
+    || { _lint_doctor_cannot golangci-lint "golangci-lint cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
   golangci-lint linters --json --no-config > "$t/def.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter fails with no config: $(_lint_first_error "$t/err")"; return 0; }
   # "path" is "" when the linter finds no config from this directory up
@@ -595,10 +599,10 @@ _lint_ruff_setting() {
 
 # _lint_limit_state <recommended> <current> — of a maximum: "runs" when the
 # two are equal, "limit looser" when the current one is larger, "limit
-# stricter" when it is smaller; "limit differs" when one is not a whole number
+# stricter" when it is smaller; "options differ" when one is not a whole number
 _lint_limit_state() {
   if [[ "$1" == "$2" ]]; then printf 'runs'
-  elif [[ ! "$1" =~ ^[0-9]+$ || ! "$2" =~ ^[0-9]+$ ]]; then printf 'limit differs'
+  elif [[ ! "$1" =~ ^[0-9]+$ || ! "$2" =~ ^[0-9]+$ ]]; then printf 'options differ'
   elif (( $2 > $1 )); then printf 'limit looser'
   else printf 'limit stricter'; fi
 }
@@ -608,7 +612,7 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
   command -v ruff >/dev/null 2>&1 || { _lint_doctor_cannot ruff "ruff is not installed"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot ruff "no source file to resolve the settings for"; return 0; }
   ruff check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
-    || { _lint_doctor_cannot ruff "the linter rejects $rec: $(_lint_first_error "$t/err")"; return 0; }
+    || { _lint_doctor_cannot ruff "ruff cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
   ruff check --no-cache --color never --show-settings --isolated "$f" > "$t/def.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "the linter fails with no config: $(_lint_first_error "$t/err")"; return 0; }
   ruff check --no-cache --color never --show-settings "$f" > "$t/repo.txt" 2> "$t/err" \
@@ -697,12 +701,27 @@ _lint_eslint_error() {
   { grep -m1 -i 'error' "$1.lines" || head -1 "$1.lines"; } | tr '\t' ' '
 }
 
-# _lint_one_number <text> — the number in the text when it holds exactly one
-_lint_one_number() {
-  local n
-  n=$(printf '%s\n' "$1" | grep -oE '[0-9]+' | head -2)
-  [[ -n "$n" && "$n" != *$'\n'* ]] && printf '%s' "$n"
-  return 0
+# _lint_eslint_compare <recommended options> <current options> — the state of
+# a rule that runs: runs when the options agree, or when either side sets
+# none; limit looser or limit stricter when the recommended options are one
+# limit (a number, or one key with a number) and the current one holds that
+# limit at another value; options differ otherwise. Each limit is a maximum.
+_lint_eslint_compare() {
+  local rn cn re_num='^[0-9]+$' re_key='^[{]([A-Za-z]+):([0-9]+)[}]$' k n m
+  case "$1" in -|...) printf 'runs'; return 0 ;; esac
+  [[ "$2" == - ]] && { printf 'runs'; return 0; }
+  rn=$(printf '%s' "$1" | tr -d "\"' \t"); cn=$(printf '%s' "$2" | tr -d "\"' \t")
+  [[ "$rn" == "$cn" ]] && { printf 'runs'; return 0; }
+  if [[ "$rn" =~ $re_num ]]; then
+    if [[ "$cn" =~ $re_num ]]; then _lint_limit_state "$rn" "$cn"; else printf 'options differ'; fi
+    return 0
+  fi
+  if [[ "$rn" =~ $re_key ]]; then
+    k="${BASH_REMATCH[1]}"; n="${BASH_REMATCH[2]}"
+    m=$(printf '%s\n' "$cn" | sed -n "s/.*[{,]$k:\([0-9][0-9]*\)[,}].*/\1/p")
+    if [[ -n "$m" && "$m" != "$n" ]]; then _lint_limit_state "$n" "$m"; return 0; fi
+  fi
+  printf 'options differ'
 }
 
 # _lint_eslint_bin — the project's ESLint: node_modules/.bin/eslint in this
@@ -738,10 +757,19 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
     if _lint_eslint_pnp; then
       _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
     else
-      _lint_doctor_cannot eslint "eslint is not installed in this project (no node_modules/.bin/eslint): install its packages"
+      local sub
+      sub=$(find . -maxdepth 4 -path '*/node_modules/.bin/eslint' -not -path '*/node_modules/*/node_modules/*' 2>/dev/null \
+            | sed 's|^\./||; s|/node_modules/\.bin/eslint$||' | LC_ALL=C sort | head -3 | tr '\n' ' ')
+      if [[ -n "$sub" ]]; then
+        _lint_doctor_cannot eslint "eslint is not installed here, but in a project below: ${sub% }; run the doctor with --root on that project"
+      else
+        _lint_doctor_cannot eslint "eslint is not installed in this project (no node_modules/.bin/eslint): install its packages"
+      fi
     fi
     return 0
   fi
+  _lint_eslint_rules "$rec" > "$t/rec"
+  [[ -s "$t/rec" ]] || { _lint_doctor_cannot eslint "cannot read the rules of the recommended config $rec"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot eslint "no source file to resolve the config for"; return 0; }
   "$bin" --print-config "./$2" > "$t/repo.json" 2> "$t/err" \
     || { _lint_doctor_cannot eslint "the linter rejects the repository's config: $(_lint_eslint_error "$t/err")"; return 0; }
@@ -752,7 +780,7 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
   grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
   printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
-  _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r ro; do
+  while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing
     case "$ro" in
       -)    ;;
@@ -765,12 +793,11 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
       *)
         state=runs; cv="$opts"
         [[ "$sev" == 1 || "$sev" == warn ]] && cv="warn; $opts"
-        a=$(_lint_one_number "$ro"); b=$(_lint_one_number "$opts")
-        [[ -n "$a" && -n "$b" ]] && state=$(_lint_limit_state "$a" "$b") ;;
+        state=$(_lint_eslint_compare "$ro" "$opts") ;;
     esac
     sev=""; opts=""
     printf 'row\teslint\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
-  done
+  done < "$t/rec"
 }
 # ================== end linter table ==================
 
@@ -837,7 +864,8 @@ by_language() {
 
 SCOPE=$(mktemp)
 INVENTORY=$(mktemp)
-trap 'rm -f "$SCOPE" "$INVENTORY"' EXIT
+LINT_TMP=$(mktemp -d)
+trap 'rm -rf "$SCOPE" "$INVENTORY" "$LINT_TMP"' EXIT
 list_candidates | by_language > "$SCOPE"
 if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
 
@@ -929,18 +957,22 @@ row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
 }
 
-# sample_file <id> — the source file a linter resolves its config for: the
-# first measured file of the language in scope outside a hidden directory
-# (a linter may skip those), else the first measured one, else the first one
+# sample_file <id> — the source file a linter resolves its config for, the
+# first that fits best: a measured file in a subdirectory that is not a
+# tool's own config (*.config.*), outside hidden directories (a linter may
+# skip those); else a measured file outside hidden directories; else a
+# measured file; else any file of the language
 sample_file() {
-  local f first="" plain=""
+  local f first="" measured_one="" plain=""
   while IFS= read -r f; do
     [[ -z "$first" ]] && first="$f"
     measured "$f" || continue
+    [[ -z "$measured_one" ]] && measured_one="$f"
+    [[ "/$f" == */.* ]] && continue
     [[ -z "$plain" ]] && plain="$f"
-    [[ "/$f" == */.* ]] || { printf '%s' "$f"; return 0; }
+    [[ "$f" == */* && "${f##*/}" != *.config.* ]] && { printf '%s' "$f"; return 0; }
   done < <(awk -F'\t' -v id="$1" '$1 == id { print $2 }' "$SCOPE")
-  printf '%s' "${plain:-$first}"
+  printf '%s' "${plain:-${measured_one:-$first}}"
 }
 
 run_doctor() { # <id> — exit 0 when the language has a recommended config

@@ -56,7 +56,8 @@
 # default rules the config names that the repository does not run. Each row
 # has a state: runs, missing, limit looser or limit stricter (the
 # repository's setting lets more code pass, or less, than the recommended
-# one), named (the rule is named outside comments in the repository's
+# one), options differ (the two settings differ in a way that is not one
+# limit), named (the rule is named outside comments in the repository's
 # config; the linter was not asked), or cannot verify, with the reason (the
 # linter is not installed, or rejects a config). recommended and current are
 # the setting as the linter reports it; where the linter cannot report it, they
@@ -184,7 +185,8 @@ by_language() {
 
 SCOPE=$(mktemp)
 INVENTORY=$(mktemp)
-trap 'rm -f "$SCOPE" "$INVENTORY"' EXIT
+LINT_TMP=$(mktemp -d)
+trap 'rm -rf "$SCOPE" "$INVENTORY" "$LINT_TMP"' EXIT
 list_candidates | by_language > "$SCOPE"
 if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
 
@@ -276,18 +278,22 @@ row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
 }
 
-# sample_file <id> — the source file a linter resolves its config for: the
-# first measured file of the language in scope outside a hidden directory
-# (a linter may skip those), else the first measured one, else the first one
+# sample_file <id> — the source file a linter resolves its config for, the
+# first that fits best: a measured file in a subdirectory that is not a
+# tool's own config (*.config.*), outside hidden directories (a linter may
+# skip those); else a measured file outside hidden directories; else a
+# measured file; else any file of the language
 sample_file() {
-  local f first="" plain=""
+  local f first="" measured_one="" plain=""
   while IFS= read -r f; do
     [[ -z "$first" ]] && first="$f"
     measured "$f" || continue
+    [[ -z "$measured_one" ]] && measured_one="$f"
+    [[ "/$f" == */.* ]] && continue
     [[ -z "$plain" ]] && plain="$f"
-    [[ "/$f" == */.* ]] || { printf '%s' "$f"; return 0; }
+    [[ "$f" == */* && "${f##*/}" != *.config.* ]] && { printf '%s' "$f"; return 0; }
   done < <(awk -F'\t' -v id="$1" '$1 == id { print $2 }' "$SCOPE")
-  printf '%s' "${plain:-$first}"
+  printf '%s' "${plain:-${measured_one:-$first}}"
 }
 
 run_doctor() { # <id> — exit 0 when the language has a recommended config

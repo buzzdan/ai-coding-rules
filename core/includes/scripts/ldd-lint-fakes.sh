@@ -22,7 +22,8 @@
 #                            (the linter rejects the repository's config),
 #                            garbled (the linter prints an output of another
 #                            shape), ignored (the linter skips the file the
-#                            doctor resolves the config for), norules (the
+#                            doctor resolves the config for), optsdiffer
+#                            (a rule set with other options), norules (the
 #                            config loads and sets no rule), toml and json (the
 #                            repository's config is in that format and names
 #                            FAKE_NAMED_RULE)
@@ -47,7 +48,11 @@
 #                    warning; "" when the linter reports no severity
 #   FAKE_IGNORED     the text the doctor prints in the ignored mode; "" when
 #                    the linter resolves its settings for any file
-#   FAKE_NORULES     1 when the linter can report a config with no rule
+#   FAKE_NORULES     1 when the linter can report a config with no rule, is
+#                    installed per project, and resolves its config per file
+#   FAKE_OPTIONS     the text of a row in the optsdiffer mode (a rule set with
+#                    options that are not one limit); "" when the linter
+#                    reports no such options
 #   FAKE_FORMATS     the other config formats the toml and json modes write;
 #                    "" when the language has one
 
@@ -55,20 +60,21 @@ fake_doctor_row() {
   case "$ROW" in
     go)
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
-      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_FORMATS='toml json'
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
-      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_FORMATS=''
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
     typescript)
       FAKE_LINTER='eslint'; FAKE_BIN='eslint'; FAKE_REAL=''; FAKE_RULE='max-params'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
-      FAKE_RELAXED='max-params: limit looser; recommended: 4; current: {"v": 6}'
-      FAKE_TIGHTENED='max-params: limit stricter; recommended: 4; current: {"v": 3}'
+      FAKE_RELAXED='max-params: limit looser; recommended: 4; current: 6'
+      FAKE_TIGHTENED='max-params: limit stricter; recommended: 4; current: 3'
+      FAKE_OPTIONS='no-param-reassign: options differ; recommended: { props: true }; current: {"props": false}'
       FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''
@@ -108,14 +114,17 @@ _fake_bin() { # <name> <script body> [<dir>]
 }
 
 # _fake_eslint_json <mode> — an "eslint --print-config" output, laid out as
-# ESLint lays it out, with every rule the recommended config sets: at its
-# recommended number, if it has one, as an option object over several lines
+# ESLint lays it out, with every rule the recommended config sets at its
+# recommended options: a number on its own line, a one-key limit as an object
+# over several lines, other options left out
 _fake_eslint_json() {
-  local mode="$1" r ro n sev first=1
+  local mode="$1" r ro rn n k sev re_num='^[0-9]+$' re_key='^[{]([A-Za-z]+):([0-9]+)[}]$'
   printf '{\n  "settings": {\n    "react": {\n      "version": "detect"\n    }\n  },\n  "rules": {\n'
   printf '    "constructor-super": [\n      0\n    ]'
   _lint_eslint_rules "$(_fake_setup eslint.config.ldd.mjs)" | while IFS=$'\t' read -r r ro; do
-    n=$(_lint_one_number "$ro"); sev=2
+    rn=$(printf '%s' "$ro" | tr -d "\"' \t"); n=""; k=""; sev=2
+    if [[ "$rn" =~ $re_num ]]; then n="$rn"
+    elif [[ "$rn" =~ $re_key ]]; then k="${BASH_REMATCH[1]}"; n="${BASH_REMATCH[2]}"; fi
     [[ "$r" == sonarjs/elseif-without-else ]] && sev=1
     if [[ "$r" == max-params ]]; then
       case "$mode" in
@@ -125,8 +134,12 @@ _fake_eslint_json() {
       esac
     fi
     printf ',\n'
-    if [[ -n "$n" && "$sev" != 0 ]]; then
-      printf '    "%s": [\n      %s,\n      {\n        "v": %s\n      }\n    ]' "$r" "$sev" "$n"
+    if [[ "$r" == no-param-reassign && "$mode" == optsdiffer ]]; then
+      printf '    "%s": [\n      2,\n      {\n        "props": false\n      }\n    ]' "$r"
+    elif [[ -n "$k" && "$sev" != 0 ]]; then
+      printf '    "%s": [\n      %s,\n      {\n        "%s": %s\n      }\n    ]' "$r" "$sev" "$k" "$n"
+    elif [[ -n "$n" && "$sev" != 0 ]]; then
+      printf '    "%s": [\n      %s,\n      %s\n    ]' "$r" "$sev" "$n"
     else
       printf '    "%s": [\n      %s\n    ]' "$r" "$sev"
     fi

@@ -371,6 +371,34 @@ for fmt in toml json; do
   finish
 done
 
+begin "doctor: a rule set with options that are not one limit is options differ, never runs"
+if [[ -z "$FAKE_OPTIONS" ]]; then skip "the linter reports no such options"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor optsdiffer
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_OPTIONS" && ok
+  finish
+fi
+
+begin "doctor: the config is resolved for a source file, not a tool's config at the root"
+if [[ -z "$FAKE_NORULES" ]]; then skip "the linter resolves one config for the repository"; finish
+else
+  write_src "tool.config$FX_EXT" 1; write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_doctor
+  expect_exit 0 && expect_has "the config resolved for src/a$FX_EXT" && ok
+  finish
+fi
+
+begin "doctor: a linter installed only in a project below the root names that project"
+if [[ -z "$FAKE_NORULES" ]]; then skip "the linter is not installed per project"; finish
+else
+  write_src "web/src/a$FX_EXT" 1; fake_doctor adopt
+  mkdir -p "$REPO/web" && mv "$REPO/node_modules" "$REPO/web/node_modules"
+  run_doctor
+  expect_exit 0 && expect_has "but in a project below: web; run the doctor with --root on that project" && ok
+  finish
+fi
+
 begin "doctor: a source file the linter ignores cannot verify"
 if [[ -z "$FAKE_IGNORED" ]]; then skip "the linter resolves its settings for any file"; finish
 else
