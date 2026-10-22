@@ -42,7 +42,12 @@
 #                                   settings per file. Prints tab-separated
 #                                   records, never an empty field:
 #                                     note TAB <text>
+#                                     config TAB <linter> TAB <path>
 #                                     row TAB <linter> TAB <rule> TAB <state> TAB <recommended> TAB <current> TAB <source>
+#                                   A config record names the repository's own
+#                                   config file the linter read, relative to the
+#                                   working directory; there is none when the
+#                                   linter read no file.
 #                                   The rules: the ones the recommended config
 #                                   enables, as the linter resolves it, beyond
 #                                   the linter's default set, and the default
@@ -311,6 +316,7 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
     fi
     golangci-lint linters --json > "$t/repo.json" 2> "$t/err" \
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }
+    [[ -f "$cfg" ]] && printf 'config\tgolangci-lint\t%s\n' "$cfg"
     printf 'note\tgolangci-lint, the repository config %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$cfg"
     here="see $cfg"
   else
@@ -406,6 +412,7 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
   sp=$(sed -n 's/^Settings path: "\(.*\)"$/\1/p' "$t/repo.txt")
   sp="${sp#"$(pwd -P)"/}"; sp="${sp#"$(pwd)"/}"
   [[ -n "$sp" ]] || sp="no config file, the linter's defaults"
+  [[ -f "$sp" ]] && printf 'config\truff\t%s\n' "$sp"
   printf 'note\truff, the settings resolved for %s from %s\n' "$2" "$sp"
   _lint_ruff_rules "$t/rec.txt" > "$t/rec"
   _lint_ruff_rules "$t/def.txt" > "$t/def"
@@ -538,7 +545,7 @@ _lint_eslint_pnp() {
 }
 
 _lint_doctor_eslint() { # <recommended config> <file> <work dir>
-  local rec="$1" t="$3" bin r ro sev opts state rv cv a b
+  local rec="$1" t="$3" bin r ro sev opts state rv cv a b cfg
   if ! bin=$(_lint_eslint_bin); then
     if _lint_eslint_pnp; then
       _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
@@ -565,6 +572,9 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   fi
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
   grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
+  for cfg in eslint.config.js eslint.config.mjs eslint.config.cjs eslint.config.ts eslint.config.mts eslint.config.cts; do
+    [[ -f "$cfg" ]] && { printf 'config\teslint\t%s\n' "$cfg"; break; }
+  done
   printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
   while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing

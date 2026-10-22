@@ -114,6 +114,24 @@ record_item() {
 # doctor_field <rule> <field number> — one field of the doctor's TSV row
 doctor_field() { printf '%s\n' "$OUT" | awk -F'\t' -v r="$1" -v n="$2" '$3 == r { print $n; exit }'; }
 
+# run_agree [options...] — runs the agree subcommand over $REPO with the doctor's fakes
+run_agree() {
+  local errf; errf=$(mktemp)
+  OUT=$(cd "$REPO" && PATH="$REPO/.bin:/usr/bin:/bin" "$BASH" "$LINT" agree "$@" --root . 2>"$errf"); CODE=$?
+  ERR=$(cat "$errf"); rm -f "$errf"
+}
+
+# record_read <function> [args...] — runs a record reader of the script over
+# the record in $REPO, so a test reads a line back as the doctor reads it
+record_read() {
+  ( cd "$REPO" && OVERRIDE_FILE=.ldd-lint.yaml \
+    && eval "$(sed -n '/^record_has() {/,/^}/p;/^record_items() {/,/^}/p;/^record_agreed() {/,/^}/p' "$LINT")" \
+    && "$@" )
+}
+
+# expect_out <text> — stdout is exactly that text
+expect_out() { [[ "$OUT" == "$1" ]] || { bad "expected output: $1"; return 1; }; }
+
 # tree_sum — one checksum line per file of $REPO, to prove a run wrote nothing
 tree_sum() { (cd "$REPO" && find . -type f -not -path './.bin/*' -exec cksum {} + | LC_ALL=C sort); }
 
@@ -596,6 +614,133 @@ run_lint file-length
 expect_exit 0 && expect_has "src/a$FX_EXT: 101 code lines (limit 100, .ldd-lint.yaml)" && ok
 finish
 
+begin "agree prints the record line with the doctor's current value"
+write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+run_doctor --tsv
+cur=$(doctor_field "$FAKE_RULE" 6)
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "the team keeps it"
+expect_exit 0 && expect_out "$(record_item "$FAKE_LINTER" "$FAKE_RULE" "$cur" "the team keeps it")" && ok
+finish
+
+begin "agree off and org print the decision as the value"
+write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "the team does not use it"
+off_ok=0; expect_exit 0 && expect_out "$(record_item "$FAKE_LINTER" "$FAKE_RULE" off "the team does not use it")" && off_ok=1
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision org --reason "the company plan owns it"
+(( off_ok )) && expect_exit 0 && expect_out "$(record_item "$FAKE_LINTER" "$FAKE_RULE" org "the company plan owns it")" && ok
+finish
+
+begin "a record line with : # | quote and backslash reads back unchanged"
+write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+run_doctor --tsv
+cur=$(doctor_field "$FAKE_RULE" 6)
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason 'a: b # c | "d" \e'
+write_record "agreed:
+$OUT"
+want="$FAKE_LINTER $FAKE_RULE = $cur | "'a: b # c / "d" \e'
+got=$(record_read record_items agreed); val=$(record_read record_agreed "$FAKE_LINTER" "$FAKE_RULE")
+expect_exit 0 && { [[ "$got" == "$want" ]] || bad "read back: $got"; } \
+  && { [[ "$val" == "$cur" ]] || bad "value read back: $val"; } && ok
+finish
+
+begin "agree writes a line the doctor accepts: the row turns agreed"
+if [[ -z "$FAKE_RELAXED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason 'a: b # c | "d" \e'
+  write_record "agreed:
+$OUT"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+  finish
+fi
+
+begin "agree for a rule with no row is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linter "$FAKE_LINTER" --rule no-such-rule --decision off --reason "typo"
+expect_exit 2 && expect_has "no doctor row for $FAKE_LINTER no-such-rule" && [[ -z "$OUT" ]] && ok
+finish
+
+begin "agree with an unknown decision, an empty reason or a missing option is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision maybe --reason "why"
+r1=0 r2=0
+expect_exit 2 && expect_has "decision" && expect_has "maybe" && r1=1
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason ""
+expect_exit 2 && expect_has "reason" && r2=1
+run_agree --linter "$FAKE_LINTER" --decision off --reason "why"
+(( r1 && r2 )) && expect_exit 2 && expect_has "--rule" && ok
+finish
+
+begin "agree for a linter that cannot verify is exit 2 and names the cause"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
+  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not installed" && [[ -z "$OUT" ]] && ok
+  finish
+fi
+
+begin "agree replaces every | of a reason, so the value stays the first part"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "a | | b | c"
+expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_RULE = off | a / / b / c\"" && ok
+finish
+
+begin "agree --fingerprint prints one hash per compared config"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint
+expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\"" && ok
+finish
+
+begin "agree --fingerprint falls back to the checksum when git cannot hash"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+mkdir -p "$REPO/.bin"; printf '#!/bin/sh\nexit 1\n' > "$REPO/.bin/git"; chmod +x "$REPO/.bin/git"
+run_agree --fingerprint
+sum=$(cksum < "$REPO/$FAKE_CONFIG" | cut -d' ' -f1)
+expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $sum\"" && ok
+finish
+
+begin "agree --fingerprint for a linter that cannot verify is exit 2"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1
+  run_agree --fingerprint
+  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not installed" && ok
+  finish
+fi
+
+begin "doctor: a record line that matches no row is named in a warning"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "no-such-rule" "off" "a typo")
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "org" "the company plan owns this value")"
+run_doctor --tsv
+expect_exit 0 && expect_has "doctor: .ldd-lint.yaml: no row for $FAKE_LINTER no-such-rule; the line is ignored" \
+  && expect_not "no row for $FAKE_LINTER $FAKE_RULE;" \
+  && { [[ "$(printf '%s\n' "$OUT" | awk -F'\t' '$4 == "agreed"' | wc -l | tr -d ' ')" == 1 ]] || bad "another row turned agreed"; } \
+  && { printf '%s\n' "$ERR" | grep -q '^doctor: .ldd-lint.yaml: no row' || bad "the warning is not on stderr"; } && ok
+finish
+
+begin "doctor: a record line of a linter the run does not report is not warned about"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed:
+$(record_item "other-linter" "$FAKE_RULE" "off" "the team does not use it")"
+run_doctor
+expect_exit 0 && expect_not "no row for" && ok
+finish
+
+begin "doctor: a linter that cannot verify gets no warning for its record lines"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "the team does not use it")"
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify" && expect_not "no row for" && ok
+  finish
+fi
+
 begin "doctor: a linter that is not installed cannot verify, never passes"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
 else
@@ -685,16 +830,6 @@ run_lint doctor
 expect_exit 2 && expect_has "no source file in scope" && ok
 finish
 
-begin "a missing subcommand is a usage error (exit 2)"
-run_lint
-expect_exit 2 && expect_has "name a subcommand" && ok
-finish
-
-begin "a --files list that does not exist is a usage error (exit 2)"
-run_lint file-length --files no-such-list.txt
-expect_exit 2 && expect_has "no such file list" && ok
-finish
-
 # run_bounded <args...> — runs the script without the harness's --root, and
 # stops it after five seconds, so a regression that loops fails, never hangs
 run_bounded() {
@@ -705,6 +840,55 @@ run_bounded() {
   if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; CODE=124; else wait "$pid"; CODE=$?; fi
   OUT=$(cat "$outf"); ERR=""; rm -f "$outf"
 }
+
+begin "agree --lint-config prints the line and needs no source file"
+mkdir -p "$REPO/sub"; : > "$REPO/sub/strict.yaml"
+run_lint agree --lint-config a-linter sub/strict.yaml
+expect_exit 0 && expect_out '  - "a-linter sub/strict.yaml"' && ok
+finish
+
+begin "agree --lint-config for a path that is not a file is exit 2"
+mkdir -p "$REPO/sub"
+run_lint agree --lint-config a-linter sub
+expect_exit 2 && expect_has "not a file: sub" && [[ -z "$OUT" ]] && ok
+finish
+
+begin "agree --lint-config escapes a quote and a backslash in the path"
+: > "$REPO/a\"b.yaml"
+run_lint agree --lint-config a-linter 'a"b.yaml'
+expect_exit 0 && expect_out '  - "a-linter a\"b.yaml"' && ok
+finish
+
+begin "agree --lint-config without its two values is a usage error (exit 2)"
+run_bounded agree --lint-config a-linter
+expect_exit 2 && expect_has "--lint-config needs" && ok
+finish
+
+begin "agree in a tree without a source file is inconclusive (exit 2)"
+run_lint agree --fingerprint
+expect_exit 2 && expect_has "no source file in scope" && ok
+finish
+
+begin "the record readers: a key kept as an empty list is present, an absent key is not"
+write_record "agreed: []
+lint_config:
+  - \"a-linter x.yaml\""
+record_read record_has agreed; a=$?
+record_read record_has lint_config; b=$?
+record_read record_has lint_fingerprint; c=$?
+rm -f "$REPO/.ldd-lint.yaml"; record_read record_has agreed; d=$?
+(( a == 0 && b == 0 && c != 0 && d != 0 )) && [[ -z "$(record_read record_items agreed)" ]] && ok || bad "has: $a $b $c $d"
+finish
+
+begin "a missing subcommand is a usage error (exit 2)"
+run_lint
+expect_exit 2 && expect_has "name a subcommand" && ok
+finish
+
+begin "a --files list that does not exist is a usage error (exit 2)"
+run_lint file-length --files no-such-list.txt
+expect_exit 2 && expect_has "no such file list" && ok
+finish
 
 for opt in --root --files --glob --test-re; do
   begin "$opt without its value is a usage error (exit 2)"

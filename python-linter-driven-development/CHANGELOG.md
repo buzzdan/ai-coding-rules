@@ -36,7 +36,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   ESLint config. golangci-lint's cyclop counts as gocyclo. The doctor never edits
   a file. The doctor also reads the agreement record in `.ldd-lint.yaml`: a row
   whose rule the team agreed to keep gets the state agreed, and a row whose value
-  differs from the agreed one shows the agreed value beside its own.
+  differs from the agreed one shows the agreed value beside its own. The doctor
+  names an agreed rule that has no row in a warning on stderr. `ldd-lint.sh agree`
+  prints the record lines for `.ldd-lint.yaml`, escaped and ready to copy: a rule
+  with the doctor's current value, `off` or `org`; a fingerprint of each config
+  file the doctor compared (`--fingerprint`); and the line that names a config
+  file (`--lint-config`).
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory

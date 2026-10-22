@@ -14,6 +14,8 @@
 #                          plugin's recommended config under setup/: whether
 #                          the repository's linter runs it, and the setting on
 #                          both sides (below)
+#   agree                  prints agreement-record lines for .ldd-lint.yaml,
+#                          ready to copy unchanged (below)
 #   --root <dir>           the repository, or one project in it, such as a
 #                          front end with its own linter config: every
 #                          lookup starts there (default: cwd)
@@ -25,6 +27,14 @@
 #                          the threshold lines then go to stderr. doctor rows:
 #                          language TAB linter TAB rule TAB state TAB
 #                          recommended TAB current TAB source
+#   --linter <name>        agree: the linter of the rule
+#   --rule <name>          agree: the rule, as the doctor names it
+#   --decision <d>         agree: current (keep the repository's setting), off
+#                          or org (the organization owns the value)
+#   --reason <text>        agree: why the team agreed
+#   --fingerprint          agree: one line per config file the doctor compared
+#   --lint-config <linter> <path>  agree: the line that names a config file
+#                          for that linter
 #   --glob <pattern>       source-file glob, for a language the table does not
 #                          know (any-language block below)
 #   --test-re <ERE>        test-file pattern over relative paths
@@ -84,10 +94,32 @@
 # A row with another value keeps its state, and its current gains
 # "; agreed: <value>". A row that cannot verify is never agreed.
 #
+# The doctor warns on stderr about an item of "agreed" whose linter the run
+# reports with rows and whose rule has no row; it ignores that item. It does not
+# warn about an item of a linter the run does not report, or of a linter that
+# cannot verify. The warning does not change the exit code.
+#
+# agree prints, on stdout, one record line for the skill to copy into
+# .ldd-lint.yaml unchanged. Each line is one escaped item:
+#   agree --linter <l> --rule <r> --decision <d> --reason <text>
+#       "<l> <r> = <value> | <reason>", where the value is the doctor's current
+#       setting of that rule (current), off or org; every " | " in the reason
+#       becomes " / ". It reads the doctor's rows, so the rule must have one.
+#   agree --fingerprint
+#       "<linter> <path> <hash>" for each config file the doctor compared; the
+#       hash is git hash-object of the file, else the first field of cksum
+#   agree --lint-config <linter> <path>
+#       "<linter> <path>"; the path must be a file
+# A linter that cannot verify gives no row and no config: agree with the rule
+# options exits 2 when that linter cannot verify, and agree --fingerprint exits 2
+# when any linter in scope cannot verify. Each names the cause.
+#
 # Exit codes: 0 measured, with or without findings · 2 usage error, a --files
 #             list that does not exist, a .ldd-lint.yaml value that is not a
-#             positive integer, or a doctor run with no language the plugin
-#             recommends a config for (inconclusive, never silently clean)
+#             positive integer, a doctor run with no language the plugin
+#             recommends a config for (inconclusive, never silently clean), or
+#             an agree line the script cannot write: no doctor row for the
+#             rule, a linter that cannot verify, a path that is not a file
 #
 # Uses only POSIX-portable tools plus git when the root is a repository:
 # grep, sed, awk, sort, find, head.
@@ -105,6 +137,14 @@ TSV=0
 OPT_GLOB=""
 OPT_TEST_RE=""
 SUBCOMMAND=""
+AGREE_LINTER=""
+AGREE_RULE=""
+AGREE_DECISION=""
+AGREE_REASON=""
+AGREE_FINGERPRINT=0
+AGREE_CONFIG_LINTER=""
+AGREE_CONFIG_PATH=""
+AGREE_SET=""
 
 usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 die() { echo "$SCRIPT_NAME: $*" >&2; exit 2; }
@@ -114,17 +154,25 @@ value() { (( $2 >= 2 )) || die "$1 needs a value"; }
 
 while (( $# > 0 )); do
   case "$1" in
-    file-length|package-size|doctor) [[ -n "$SUBCOMMAND" ]] && die "one subcommand, got also: $1"; SUBCOMMAND="$1"; shift ;;
+    file-length|package-size|doctor|agree) [[ -n "$SUBCOMMAND" ]] && die "one subcommand, got also: $1"; SUBCOMMAND="$1"; shift ;;
     --root)    value "$1" $#; ROOT="$2"; shift 2 ;;
     --files)   value "$1" $#; FILES_LIST="$2"; shift 2 ;;
     --tsv)     TSV=1; shift ;;
+    --linter)   value "$1" $#; AGREE_LINTER="$2"; AGREE_SET="$AGREE_SET $1"; shift 2 ;;
+    --rule)     value "$1" $#; AGREE_RULE="$2"; AGREE_SET="$AGREE_SET $1"; shift 2 ;;
+    --decision) value "$1" $#; AGREE_DECISION="$2"; AGREE_SET="$AGREE_SET $1"; shift 2 ;;
+    --reason)   value "$1" $#; AGREE_REASON="$2"; AGREE_SET="$AGREE_SET $1"; shift 2 ;;
+    --fingerprint) AGREE_FINGERPRINT=1; AGREE_SET="$AGREE_SET $1"; shift ;;
+    --lint-config) (( $# >= 3 )) || die "$1 needs a linter and a path"
+                   AGREE_CONFIG_LINTER="$2"; AGREE_CONFIG_PATH="$3"; AGREE_SET="$AGREE_SET $1"; shift 3 ;;
     --glob)    value "$1" $#; OPT_GLOB="$2"; shift 2 ;;
     --test-re) value "$1" $#; OPT_TEST_RE="$2"; shift 2 ;;
     -h|--help) usage ;;
     *)         die "unknown argument: $1 (see --help)" ;;
   esac
 done
-[[ -n "$SUBCOMMAND" ]] || die "name a subcommand: file-length, package-size or doctor (see --help)"
+[[ -n "$SUBCOMMAND" ]] || die "name a subcommand: file-length, package-size, doctor or agree (see --help)"
+[[ -z "$AGREE_SET" || "$SUBCOMMAND" == agree ]] || die "only agree takes:$AGREE_SET"
 [[ -d "$ROOT" ]] || die "not a directory: $ROOT"
 if [[ -n "$FILES_LIST" ]]; then
   [[ -f "$FILES_LIST" ]] || die "no such file list: $FILES_LIST"
@@ -403,7 +451,12 @@ lang_is_test() {
 #                                   settings per file. Prints tab-separated
 #                                   records, never an empty field:
 #                                     note TAB <text>
+#                                     config TAB <linter> TAB <path>
 #                                     row TAB <linter> TAB <rule> TAB <state> TAB <recommended> TAB <current> TAB <source>
+#                                   A config record names the repository's own
+#                                   config file the linter read, relative to the
+#                                   working directory; there is none when the
+#                                   linter read no file.
 #                                   The rules: the ones the recommended config
 #                                   enables, as the linter resolves it, beyond
 #                                   the linter's default set, and the default
@@ -672,6 +725,7 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
     fi
     golangci-lint linters --json > "$t/repo.json" 2> "$t/err" \
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }
+    [[ -f "$cfg" ]] && printf 'config\tgolangci-lint\t%s\n' "$cfg"
     printf 'note\tgolangci-lint, the repository config %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$cfg"
     here="see $cfg"
   else
@@ -767,6 +821,7 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
   sp=$(sed -n 's/^Settings path: "\(.*\)"$/\1/p' "$t/repo.txt")
   sp="${sp#"$(pwd -P)"/}"; sp="${sp#"$(pwd)"/}"
   [[ -n "$sp" ]] || sp="no config file, the linter's defaults"
+  [[ -f "$sp" ]] && printf 'config\truff\t%s\n' "$sp"
   printf 'note\truff, the settings resolved for %s from %s\n' "$2" "$sp"
   _lint_ruff_rules "$t/rec.txt" > "$t/rec"
   _lint_ruff_rules "$t/def.txt" > "$t/def"
@@ -899,7 +954,7 @@ _lint_eslint_pnp() {
 }
 
 _lint_doctor_eslint() { # <recommended config> <file> <work dir>
-  local rec="$1" t="$3" bin r ro sev opts state rv cv a b
+  local rec="$1" t="$3" bin r ro sev opts state rv cv a b cfg
   if ! bin=$(_lint_eslint_bin); then
     if _lint_eslint_pnp; then
       _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
@@ -926,6 +981,9 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   fi
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
   grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
+  for cfg in eslint.config.js eslint.config.mjs eslint.config.cjs eslint.config.ts eslint.config.mts eslint.config.cts; do
+    [[ -f "$cfg" ]] && { printf 'config\teslint\t%s\n' "$cfg"; break; }
+  done
   printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
   while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing
@@ -1061,6 +1119,14 @@ agreed_row() {
   printf '%s\t%s; agreed: %s\n' "$3" "$5" "$v"
 }
 
+# record_line <text> — prints the text as one record item: a double-quoted
+# scalar on a line "  - ", with a backslash and a quote escaped
+record_line() {
+  local t="$1"
+  t=${t//\\/\\\\}; t=${t//\"/\\\"}
+  printf '  - "%s"\n' "$t"
+}
+
 # ---------- the scope ----------
 # SCOPE: one "id TAB path" line per source file the run measures. INVENTORY:
 # the same for every source file of the repository, which a directory count
@@ -1185,6 +1251,12 @@ run_package_size() { # <id> — every directory that holds a measured file of th
 
 # ---------- doctor ----------
 DOCTOR_DONE=""
+# The run keeps what agree and the unmatched-line warning read: one line per
+# row, "linter TAB rule TAB state TAB current" with the current setting as the
+# linter reports it, before the record changes it; and one line per config
+# file the doctor compared, "linter TAB path".
+DOCTOR_ROWS="$LINT_TMP/rows"
+DOCTOR_CONFIGS="$LINT_TMP/configs"
 row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   if (( TSV )); then printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
@@ -1222,20 +1294,102 @@ run_doctor() { # <id> — exit 0 when the language has a recommended config
   while IFS=$'\t' read -r kind a b c d e f; do
     case "$kind" in
       note) say "doctor: $id — $a" ;;
-      row)  IFS=$'\t' read -r c e < <(agreed_row "$a" "$b" "$c" "$d" "$e")
+      row)  printf '%s\t%s\t%s\t%s\n' "$a" "$b" "$c" "$e" >> "$DOCTOR_ROWS"
+            IFS=$'\t' read -r c e < <(agreed_row "$a" "$b" "$c" "$d" "$e")
             row "$id" "$a" "$b" "$c" "$d" "$e" "$f" ;;
+      config) printf '%s\t%s\n' "$a" "$b" >> "$DOCTOR_CONFIGS" ;;
     esac
   done < <(lint_doctor "$id" "$SETUP_DIR" "$(sample_file "$id")")
 }
 
+# warn_unmatched — a line on stderr for each item of "agreed" that names a
+# linter this run reported and a rule it has no row for. An item of another
+# linter belongs to another plugin's run, and a linter that cannot verify has
+# no rows to match, so neither is named.
+warn_unmatched() {
+  [[ -s "$DOCTOR_ROWS" ]] || return 0
+  local item head l r
+  while IFS= read -r item; do
+    [[ "$item" == *" = "* ]] || continue
+    head=${item%% = *}
+    [[ "$head" == *" "* ]] || continue
+    l=${head%% *}; r=${head#* }
+    [[ -n "$(L="$l" R="$r" awk -F'\t' '
+      $1 == ENVIRON["L"] { seen = 1 }
+      $1 == ENVIRON["L"] && $3 ~ /^cannot verify/ { cannot = 1 }
+      $1 == ENVIRON["L"] && $2 == ENVIRON["R"] { matched = 1 }
+      END { if (seen && !cannot && !matched) print "warn" }' "$DOCTOR_ROWS")" ]] \
+      && echo "doctor: $OVERRIDE_FILE: no row for $l $r; the line is ignored" >&2
+  done < <(record_items agreed)
+  return 0
+}
+
+# ---------- agree ----------
+# fingerprint_line <linter> <path> — the record line for one config file: its
+# hash is git hash-object, else the first field of cksum
+fingerprint_line() {
+  local h
+  h=$(git hash-object -- "$2" 2>/dev/null) || h=$(cksum < "$2" | cut -d' ' -f1)
+  record_line "$1 $2 $h"
+}
+
+# agree_cannot [<linter>] — dies with the cause when the doctor could not
+# verify that linter, or any linter
+agree_cannot() {
+  local why
+  why=$(L="${1:-}" awk -F'\t' '$3 ~ /^cannot verify/ && (ENVIRON["L"] == "" || $1 == ENVIRON["L"]) { print $1 " " $3; exit }' "$DOCTOR_ROWS")
+  [[ -z "$why" ]] || die "agree: $why"
+}
+
+run_agree_rule() {
+  local reason="$AGREE_REASON" value
+  [[ -n "$AGREE_LINTER" ]] || die "agree needs --linter"
+  [[ -n "$AGREE_RULE" ]] || die "agree needs --rule"
+  [[ -n "$AGREE_REASON" ]] || die "agree needs --reason, and it is empty"
+  case "$AGREE_DECISION" in
+    current|off|org) ;;
+    *) die "agree needs --decision current, off or org, got: ${AGREE_DECISION:-nothing}" ;;
+  esac
+  agree_cannot "$AGREE_LINTER"
+  value=$(L="$AGREE_LINTER" R="$AGREE_RULE" awk -F'\t' '
+    $1 == ENVIRON["L"] && $2 == ENVIRON["R"] { print $4; found = 1; exit }
+    END { exit !found }' "$DOCTOR_ROWS") || die "agree: no doctor row for $AGREE_LINTER $AGREE_RULE"
+  [[ "$AGREE_DECISION" == current ]] || value="$AGREE_DECISION"
+  reason=${reason//$'\n'/ }; reason=${reason//$'\r'/ }; reason=${reason//$'\t'/ }
+  while [[ "$reason" == *" | "* ]]; do reason=${reason/ | / / }; done
+  record_line "$AGREE_LINTER $AGREE_RULE = $value | $reason"
+}
+
+run_agree_fingerprint() {
+  local linter path
+  agree_cannot
+  [[ -s "$DOCTOR_CONFIGS" ]] || return 0
+  while IFS=$'\t' read -r linter path; do
+    fingerprint_line "$linter" "$path"
+  done < "$DOCTOR_CONFIGS"
+}
+
 # ---------- run ----------
+if [[ "$SUBCOMMAND" == agree ]]; then
+  modes=$AGREE_FINGERPRINT
+  [[ -n "$AGREE_CONFIG_LINTER" ]] && modes=$(( modes + 1 ))
+  for o in --linter --rule --decision --reason; do
+    case " $AGREE_SET " in *" $o "*) modes=$(( modes + 1 )); break ;; esac
+  done
+  (( modes <= 1 )) || die "agree takes one of --fingerprint, --lint-config or the rule options"
+  if [[ -n "$AGREE_CONFIG_LINTER" ]]; then
+    [[ -f "$AGREE_CONFIG_PATH" ]] || die "agree --lint-config: not a file: $AGREE_CONFIG_PATH"
+    record_line "$AGREE_CONFIG_LINTER $AGREE_CONFIG_PATH"
+    exit 0
+  fi
+fi
 ids=$(cut -f1 "$SCOPE" | LC_ALL=C sort -u)
 if [[ -z "$ids" ]]; then
   say "$SCRIPT_NAME: no source file in scope"
-  [[ "$SUBCOMMAND" == doctor ]] && exit 2
+  [[ "$SUBCOMMAND" == doctor || "$SUBCOMMAND" == agree ]] && exit 2
   exit 0
 fi
-[[ "$SUBCOMMAND" != doctor || -d "$SETUP_DIR" ]] || die "no recommended configs at $SETUP_DIR"
+[[ "$SUBCOMMAND" != doctor && "$SUBCOMMAND" != agree || -d "$SETUP_DIR" ]] || die "no recommended configs at $SETUP_DIR"
 checked=0
 for id in $ids; do
   lang_configure "$id" || continue
@@ -1243,10 +1397,17 @@ for id in $ids; do
     file-length)  run_file_length "$id" ;;
     package-size) run_package_size "$id" ;;
     doctor)       run_doctor "$id" && checked=1 ;;
+    agree)        run_doctor "$id" > /dev/null 2>&1 && checked=1 ;;
   esac
 done
 if [[ "$SUBCOMMAND" == doctor ]] && (( ! checked )); then
   say "doctor: no language in scope has a recommended linter config"
   exit 2
 fi
+if [[ "$SUBCOMMAND" == agree ]]; then
+  (( checked )) || die "agree: no language in scope has a recommended linter config"
+  if (( AGREE_FINGERPRINT )); then run_agree_fingerprint; else run_agree_rule; fi
+  exit 0
+fi
+[[ "$SUBCOMMAND" == doctor ]] && warn_unmatched
 exit 0
