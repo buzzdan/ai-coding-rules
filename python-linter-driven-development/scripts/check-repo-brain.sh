@@ -64,8 +64,9 @@
 #     stripped); reference-style links are not checked.
 #   - docs→code checks backticked tokens shaped like the language's exported
 #     identifiers (adapter: LANG_SYMBOL_RE, LANG_QUALIFIED_RE) that contain a
-#     lowercase letter; other backticks (paths, flags, ALL-CAPS initialisms,
-#     <placeholders>) are skipped.
+#     lowercase letter, or an uppercase letter and an underscore (an UPPER_SNAKE
+#     constant); other backticks (paths, flags, ALL-CAPS initialisms such as
+#     `API`, <placeholders>) are skipped.
 #   - resolution is against a declaration set built ONCE per run from the
 #     language's code files (adapter: lang_declarations), which carries
 #     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
@@ -73,8 +74,9 @@
 #     member elsewhere. A token missing from the set still resolves when it
 #     appears as a whole word in any non-markdown repo file (config keys,
 #     alert names, test helpers): in a git work tree the tracked and
-#     untracked-but-not-ignored files; elsewhere every file outside the
-#     dependency and build-output directories (bazel-*, node_modules, …).
+#     untracked-but-not-ignored files outside the language's dependency and
+#     build-output directories (adapter: LANG_PRUNE_DIRS); elsewhere every file
+#     outside those directories and the common ones (bazel-*, vendor, …).
 #     A `pkg.Sym` whose package is not declared in this repo is external
 #     (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
@@ -135,6 +137,9 @@ SCOPED=0
 #   LANG_FILE_RE         awk regex a citation span must match to be banned
 #   LANG_SYMBOL_RE       awk regex for a bare backticked symbol worth resolving
 #   LANG_QUALIFIED_RE    awk regex for a module-qualified `mod.sym` token
+#   LANG_PRUNE_DIRS      the dependency and build-output directory names, space-
+#                        separated; the symbol fallback never reads an untracked
+#                        file under one
 #   lang_project_dirs    stdout: one sub-project directory per line, repo root excluded
 #   lang_has_code        exit 0 iff the repo holds at least one code file
 #   lang_declarations    stdout: "pkg:<name>" for every package/module; every
@@ -152,6 +157,7 @@ SCOPED=0
 # directory holding the file, so `retry.parse_policy` resolves whether the
 # function lives in retry/__init__.py or retry/policy.py.
 LANG_PROJECT_MARKER="pyproject.toml"
+LANG_PRUNE_DIRS=".venv venv __pycache__ site-packages .tox node_modules"
 LANG_CODE_GLOB='*.py'
 LANG_FILE_EXT=".py"
 LANG_FILE_RE='\\.py(:[0-9]+)?$'
@@ -320,13 +326,37 @@ fm_close_line() { # <file> -> line number of closing --- (or '')
 fm_block() { # <file> <close-line> -> frontmatter body
   sed -n "2,$(( $2 - 1 ))p" "$1"
 }
-desc_of() { # <file> -> description value ('' if none)
+# desc_of <file> -> description value with its YAML quotes decoded ('' if
+# none): a double-quoted value decodes \" and \\, a single-quoted one decodes
+# ''. rc 3: a form the gate does not read — a block scalar (| or >), an
+# unclosed quote, text after the closing quote, or another escape.
+DESC_AWK='
+/^description:/ {
+  v = $0; sub(/^description:[ \t]*/, "", v); sub(/[ \t]+$/, "", v)
+  q = substr(v, 1, 1)
+  if (q == "|" || q == ">") exit 3
+  if (q != "\"" && q != sq) { print v; exit }
+  o = ""; n = length(v)
+  for (i = 2; i <= n; i++) {
+    c = substr(v, i, 1)
+    if (q == "\"" && c == "\\") {
+      c = substr(v, ++i, 1)
+      if (c != "\"" && c != "\\") exit 3
+    } else if (c == q) {
+      if (q == sq && substr(v, i + 1, 1) == sq) i++
+      else if (i == n) { print o; exit }
+      else exit 3
+    }
+    o = o c
+  }
+  exit 3
+}'
+desc_of() {
   local close
   [[ "$(head -1 "$1" 2>/dev/null)" == "---" ]] || return 0
   close=$(fm_close_line "$1")
   [[ -z "$close" ]] && return 0
-  fm_block "$1" "$close" | grep -m1 '^description:' \
-    | sed -e 's/^description:[[:space:]]*//' -e 's/[[:space:]]*$//'
+  fm_block "$1" "$close" | awk -v sq="'" "$DESC_AWK"
 }
 TODAY=$(date +%F)
 lifecycle_stale() { # <file> -> reason when frontmatter marks the doc stale ('' otherwise)
@@ -371,18 +401,27 @@ is_repo_pkg() { grep -qxF "$1" "$PKGS" 2>/dev/null; }
 # repo_files — the repository's non-markdown files, NUL-separated. A git work
 # tree lists them through git — the tracked files, those of its submodules
 # included, then the untracked ones git does not ignore — which never walks
-# build outputs or symlinked caches; elsewhere find skips the directories that
-# hold dependencies and build outputs.
+# build outputs or symlinked caches. A tracked file is in every checkout, CI
+# included; an untracked file under one of the adapter's LANG_PRUNE_DIRS is an
+# installed dependency or a build output that only this checkout has, so it is
+# left out. Elsewhere find skips the directories that hold dependencies and
+# build outputs.
 repo_files() {
   local -a spec=(-- . ':(exclude,glob)**/*.md' ':(exclude,glob)**/vendor/**')
+  local -a others=("${spec[@]}") prune=(-name .git -o -name vendor -o -name node_modules
+    -o -name 'bazel-*' -o -name .venv -o -name venv -o -name __pycache__ -o -name .tox
+    -o -name dist -o -name target)
+  local d
+  for d in $LANG_PRUNE_DIRS; do
+    others+=(":(exclude,glob)**/$d/**")
+    prune+=(-o -name "$d")
+  done
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     { git ls-files -z --cached --recurse-submodules "${spec[@]}" 2>/dev/null \
         || git ls-files -z --cached "${spec[@]}" 2>/dev/null; } \
-      && git ls-files -z --others --exclude-standard "${spec[@]}" 2>/dev/null && return 0
+      && git ls-files -z --others --exclude-standard "${others[@]}" 2>/dev/null && return 0
   fi
-  find . \( -name .git -o -name vendor -o -name node_modules -o -name 'bazel-*' -o -name .venv \
-            -o -name venv -o -name __pycache__ -o -name .tox -o -name dist -o -name target \) -prune \
-       -o -type f ! -name '*.md' -print0
+  find . \( "${prune[@]}" \) -prune -o -type f ! -name '*.md' -print0
 }
 
 # repo_words — the repository's distinct words (runs of [A-Za-z0-9_.$]) in
@@ -456,7 +495,7 @@ FNR == 1 { fence = 0 }
   m = split(line, seg, /`/)
   for (i = 2; i <= m; i += 2) {
     t = seg[i]
-    if (t !~ /[a-z]/) continue
+    if (t !~ /[a-z]/ && (t !~ /[A-Z]/ || index(t, "_") == 0)) continue
     if (t ~ sym_re || t ~ qual_re)
       print "S\t" FILENAME "\t" FNR "\t" t
   }
@@ -556,6 +595,14 @@ docroot_for_file() { # <file> -> docroot of the longest matching project dir
   printf '%s\n' "${best:-${ROOTS[0]}}"
 }
 
+# url_only <file> <lineno> <target> — exit 0 iff the target appears on that
+# line only inside URL spans (a link to another repository's docs, not an edge)
+url_only() {
+  awk -v n="$2" -v t="$3" -v re="[A-Za-z][A-Za-z0-9+.-]*://[^ )>\"'\`]*" '
+    NR == n { gsub(re, ""); found = index($0, t) > 0; exit }
+    END { exit found }' "$1"
+}
+
 if (( have_code )); then
   while IFS= read -r hit; do
     file="${hit%%:*}"; rest="${hit#*:}"; line="${rest%%:*}"; target="${rest#*:}"
@@ -565,17 +612,17 @@ if (( have_code )); then
       p="${PROJS[$i]}"; [[ "$p" == "." ]] && continue
       case "${file#./}" in "$p"/*) [[ -f "$p/$target" ]] && proj_ok=1 ;; esac
     done
-    if (( ! proj_ok )); then
-      CUR_DOCROOT=$(docroot_for_file "$file")
-      fail "[Q2] $file:$line — code edge points at missing $target"
-    fi
+    (( proj_ok )) && continue
+    url_only "$file" "$line" "$target" && continue
+    CUR_DOCROOT=$(docroot_for_file "$file")
+    fail "[Q2] $file:$line — code edge points at missing $target"
   done < <(if (( SCOPED )); then
              lang_code_edges | awk -v list="$SCOPE_PATHS" '
                BEGIN { while ((getline l < list) > 0) s[l] = 1 }
                { f = substr($0, 1, index($0, ":") - 1); sub(/^\.\//, "", f); if (f in s) print }'
            else
              lang_code_edges
-           fi)
+           fi | awk '!seen[$0]++')
 fi
 
 # ---------- per-bundle checks ----------
@@ -783,8 +830,13 @@ check_bundle() { # <project-dir> <docroot>
       fail "[Q7] $md — frontmatter missing 'type:'"
     fi
     if printf '%s\n' "$fm" | grep -q '^description:'; then
-      printf '%s\n' "$fm" | grep -qE '^description:[[:space:]]*[^[:space:]]' \
-        || fail "[Q7] $md — empty 'description:' (it IS the doc's index line)"
+      local desc drc=0
+      desc=$(desc_of "$md") || drc=$?
+      if (( drc == 3 )); then
+        fail "[Q7] $md — 'description:' is not one plain or quoted line (a block scalar, or an escape other than \\\" and \\\\, is not read)"
+      elif [[ -z "$desc" ]]; then
+        fail "[Q7] $md — empty 'description:' (it IS the doc's index line)"
+      fi
     else
       fail "[Q7] $md — frontmatter missing 'description:'"
     fi
@@ -811,7 +863,9 @@ check_bundle() { # <project-dir> <docroot>
       local lc; lc=$(lifecycle_stale "$resolved")
       [[ -n "$lc" ]] \
         && note "[Q7] $idx:$lineno — $(basename "$resolved") is stale by lifecycle ($lc) but its index line carries no ⚠️ flag"
-      local desc; desc=$(desc_of "$resolved")
+      local desc drc=0
+      desc=$(desc_of "$resolved") || drc=$?
+      (( drc )) && continue  # an unread form is the contract check's report
       [[ -z "$desc" ]] && continue
       if [[ "$tail" != "$desc" ]]; then
         if (( FIX )); then

@@ -15,6 +15,9 @@
 #   LANG_FILE_RE         awk regex a citation span must match to be banned
 #   LANG_SYMBOL_RE       awk regex for a bare backticked symbol worth resolving
 #   LANG_QUALIFIED_RE    awk regex for a package-qualified `pkg.Sym` token
+#   LANG_PRUNE_DIRS      the dependency and build-output directory names, space-
+#                        separated; the symbol fallback never reads an untracked
+#                        file under one
 #   lang_project_dirs    stdout: one sub-project directory per line, repo root excluded
 #   lang_has_code        exit 0 iff the repo holds at least one code file
 #   lang_declarations    stdout: "pkg:<name>" for every package/module; every
@@ -47,6 +50,7 @@ go)
 # upper-case letter; the declaration set covers single-line and grouped
 # `type (`/`var (`/`const (` declarations, functions, and methods.
 LANG_PROJECT_MARKER="go.mod"
+LANG_PRUNE_DIRS="vendor"
 LANG_CODE_GLOB='*.go'
 LANG_FILE_EXT=".go"
 LANG_FILE_RE='\\.go(:[0-9]+)?$'
@@ -141,6 +145,7 @@ python)
 # directory holding the file, so `retry.parse_policy` resolves whether the
 # function lives in retry/__init__.py or retry/policy.py.
 LANG_PROJECT_MARKER="pyproject.toml"
+LANG_PRUNE_DIRS=".venv venv __pycache__ site-packages .tox node_modules"
 LANG_CODE_GLOB='*.py'
 LANG_FILE_EXT=".py"
 LANG_FILE_RE='\\.py(:[0-9]+)?$'
@@ -230,6 +235,7 @@ lang_code_edges() {
 # "the edges were verified".
 echo "check-repo-brain: no supported language marker (go.mod, pyproject.toml) — structure checks only; code<->docs edges are unverified"
 LANG_PROJECT_MARKER="go.mod or pyproject.toml"
+LANG_PRUNE_DIRS=""
 LANG_CODE_GLOB='*.no-source-files-for-an-unknown-language'
 LANG_FILE_EXT=".no-source-files-for-an-unknown-language"
 LANG_FILE_RE='^$'

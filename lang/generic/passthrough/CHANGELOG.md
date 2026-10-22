@@ -72,6 +72,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Fixed
 
+- **The repo-brain gate does not read installed dependencies.** The symbol
+  fallback looked for a backticked token in every untracked file that git does not
+  ignore. A token found only in a local `node_modules/` passed on a developer's
+  machine and failed in CI. The gate now skips untracked files under the
+  language's dependency and build-output directories. Each language adapter names
+  them in `LANG_PRUNE_DIRS`. Tracked files still count, because every checkout
+  has them.
+
+- **A docs path inside a URL in code is not a code edge.** A comment such as
+  `// https://github.com/x/y/blob/main/docs/guide.md` made the repo-brain gate
+  report a missing local `docs/guide.md`. The gate now removes URL spans from the
+  cited line before it reports a code edge, as the doc scan does. A line that
+  cites the same missing path two times gives one report.
+
+- **A quoted `description` matches its index line.** The repo-brain gate compared
+  the raw text after `description:`, so `description: "how to …"` never matched
+  the unquoted index line, and `--fix` copied the quotes into the index. The gate
+  now decodes single-quoted and double-quoted values before the drift check and
+  before `--fix` writes. A block scalar (`|` or `>`) or an escape other than `\"`
+  and `\\` is a Q7 violation that says so. The gate reports `description: ""` as
+  empty.
+
+- **The repo-brain gate checks UPPER_SNAKE constants.** The gate skipped every
+  backticked token with no lowercase letter, so a doc could cite a deleted
+  constant such as `MISSING_METRIC_BASE`. A token with an uppercase letter and an
+  underscore now resolves like any other symbol, where the language's symbol shape
+  accepts it. Initialisms such as `API` and `JSON` stay skipped. A backticked
+  environment variable such as `NODE_ENV` now needs a whole-word match in a
+  non-markdown file of the repository.
+
 - **The gap linter runs under bash 3.2.** macOS's `/bin/bash` stopped
   `ldd-lint.sh` with a syntax error: bash 3.2 misreads a `case` pattern inside a
   process substitution. The script now runs under bash 3.2 and bash 5.
