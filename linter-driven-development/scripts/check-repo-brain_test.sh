@@ -935,6 +935,22 @@ run_gate
 expect_exit 0 && expect_not "[Q2]" && ok
 finish
 
+begin "Q2 a URL span ends at a tab: a local docs path after it is still a code edge"
+mk_conformant
+printf '\n%s See https://example.com/docs/guide.md\tdocs/missing.md here.\n' \
+  "$FX_COMMENT" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 1 && expect_has "code edge points at missing docs/missing.md" && expect_not "missing docs/guide.md" && ok
+finish
+
+begin "Q2 a URL span in a doc ends at a tab: a file:line citation after it is still banned"
+mk_conformant
+mk_doc tabbed "a tab after a URL" "$(printf 'See %s\t%s:12 for it.' "$FX_URL" "$FX_CODE_FILE")"
+append_index "- [tabbed.md](tabbed.md) — a tab after a URL"
+run_gate
+expect_exit 1 && expect_has "[Q2] docs/tabbed.md:" && expect_has "cites a file path or line number" && ok
+finish
+
 begin "Q2 a local docs path next to a URL to the same path is still one code edge"
 mk_conformant
 printf '\n%s See docs/guide.md (https://github.com/x/y/blob/main/docs/guide.md).\n' \
@@ -971,6 +987,25 @@ append_index "- [folded.md](folded.md) — folded text"
 run_gate
 expect_exit 1 && expect_count "docs/folded.md" 1 && expect_has "[Q7] docs/folded.md — 'description:' is not one plain or quoted line" \
   && expect_not "drifted" && ok
+finish
+
+begin "Q7 a quoted description with a trailing space stays clean after --fix"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: "guide text "\n---\n# Sp\n' > "$REPO/docs/sp.md"
+append_index "- [sp.md](sp.md) — old text"
+run_gate --fix
+if expect_exit 0 && expect_has "rewrote 1 drifted index line"; then
+  run_gate
+  expect_exit 0 && expect_not "drifted" && ok
+fi
+finish
+
+begin "Q7 a quoted description of only spaces is reported as empty"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: "   "\n---\n# X\n' > "$REPO/docs/spaces.md"
+append_index "- [spaces.md](spaces.md) — anything"
+run_gate
+expect_exit 1 && expect_has "[Q7] docs/spaces.md — empty 'description:'" && ok
 finish
 
 begin "Q7 an empty quoted description is reported as empty"

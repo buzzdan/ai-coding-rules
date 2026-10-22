@@ -212,8 +212,9 @@ fm_block() { # <file> <close-line> -> frontmatter body
 }
 # desc_of <file> -> description value with its YAML quotes decoded ('' if
 # none): a double-quoted value decodes \" and \\, a single-quoted one decodes
-# ''. rc 3: a form the gate does not read — a block scalar (| or >), an
-# unclosed quote, text after the closing quote, or another escape.
+# ''. Trailing whitespace is trimmed, as it is from an index line. rc 3: a
+# form the gate does not read — a block scalar (| or >), an unclosed quote,
+# text after the closing quote, or another escape.
 DESC_AWK='
 /^description:/ {
   v = $0; sub(/^description:[ \t]*/, "", v); sub(/[ \t]+$/, "", v)
@@ -228,7 +229,7 @@ DESC_AWK='
       if (c != "\"" && c != "\\") exit 3
     } else if (c == q) {
       if (q == sq && substr(v, i + 1, 1) == sq) i++
-      else if (i == n) { print o; exit }
+      else if (i == n) { sub(/[ \t]+$/, "", o); print o; exit }
       else exit 3
     }
     o = o c
@@ -360,7 +361,7 @@ FNR == 1 { fence = 0 }
   line = $0
   if (line ~ /^ ? ? ?(```|~~~)/) { fence = 1 - fence; next }
   if (fence) next
-  gsub(/[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^ )>]*/, "", line)
+  gsub(/[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^ \t)>]*/, "", line)
   pf = 0
   if (index(line, file_ext) > 0) {
     n = split(line, sp, /[^A-Za-z0-9_*\/.~-]+/)
@@ -482,7 +483,7 @@ docroot_for_file() { # <file> -> docroot of the longest matching project dir
 # url_only <file> <lineno> <target> — exit 0 iff the target appears on that
 # line only inside URL spans (a link to another repository's docs, not an edge)
 url_only() {
-  awk -v n="$2" -v t="$3" -v re="[A-Za-z][A-Za-z0-9+.-]*://[^ )>\"'\`]*" '
+  awk -v n="$2" -v t="$3" -v re="[A-Za-z][A-Za-z0-9+.-]*://[^ \t)>\"'\`]*" '
     NR == n { gsub(re, ""); found = index($0, t) > 0; exit }
     END { exit found }' "$1"
 }
