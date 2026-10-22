@@ -75,10 +75,12 @@
 # keys "lint_config" and "lint_fingerprint" hold the config files the agreement
 # was made against.
 #
-# The doctor gives a row the state agreed when its rule is agreed and one of
-# these is true: current equals the agreed value, the agreed value is org, the
-# rule is missing and agreed off, or the recommended or current setting starts
-# with "see " (the linter cannot report the setting, so the rule alone counts).
+# The doctor gives a row the state agreed when its rule is agreed and the
+# agreed value is org, or:
+#   a linter that reports settings: current equals the agreed value, or the
+#     rule is missing and agreed off
+#   a linter that reports no setting (it says only which rules run): the rule
+#     runs and is agreed at any value but off, or it is missing and agreed off
 # A row with another value keeps its state, and its current gains
 # "; agreed: <value>". A row that cannot verify is never agreed.
 #
@@ -391,6 +393,9 @@ lang_is_test() {
 #                                   the language's linter has no such rule
 #   lint_doctor_linter <id>         the linter the doctor compares for the
 #                                   language; "" when the plugin recommends none
+#   lint_reports_settings <linter>  exit 0 when the linter reports the setting
+#                                   of each rule, so the doctor compares values;
+#                                   exit 1 when it reports only which rules run
 #   lint_doctor <id> <setup dir> <file>  compare the repository's linter with
 #                                   the plugin's recommended config for the
 #                                   language. <file> is a source file of the
@@ -556,6 +561,13 @@ lint_doctor_linter() {
     go)                    printf 'golangci-lint' ;;
     python)                printf 'ruff' ;;
     typescript|javascript) printf 'eslint' ;;
+  esac
+  return 0
+}
+
+lint_reports_settings() {
+  case "$1" in
+    golangci-lint) return 1 ;;
   esac
   return 0
 }
@@ -1019,18 +1031,34 @@ agreed_state() {
   return 1
 }
 
+# agreed_by_value <state> <current> <value> — exit 0 when a row of a linter
+# that reports settings is agreed: the value is org or equals current, or the
+# rule is missing and agreed off
+agreed_by_value() {
+  [[ "$3" == org || "$2" == "$3" ]] && return 0
+  [[ "$1" == missing && "$3" == off ]]
+}
+
+# agreed_by_name <state> <value> — exit 0 when a row of a linter that reports
+# no setting is agreed: the value is org, or the rule is missing and agreed off,
+# or the rule runs and is agreed at any value but off
+agreed_by_name() {
+  [[ "$2" == org ]] && return 0
+  if [[ "$1" == missing ]]; then [[ "$2" == off ]]; else [[ "$2" != off ]]; fi
+}
+
 # agreed_row <linter> <rule> <state> <recommended> <current> — prints the
 # row's state and current, as the record changes them, joined by a tab
 agreed_row() {
   local v=""
   [[ -f "$OVERRIDE_FILE" ]] && v=$(record_agreed "$1" "$2")
   if [[ -z "$v" ]] || ! agreed_state "$3"; then printf '%s\t%s\n' "$3" "$5"; return 0; fi
-  if [[ "$v" == org || "$4" == "see "* || "$5" == "see "* || "$5" == "$v" \
-        || ( "$3" == missing && "$v" == off ) ]]; then
-    printf 'agreed\t%s\n' "$5"
+  if lint_reports_settings "$1"; then
+    agreed_by_value "$3" "$5" "$v" && { printf 'agreed\t%s\n' "$5"; return 0; }
   else
-    printf '%s\t%s; agreed: %s\n' "$3" "$5" "$v"
+    agreed_by_name "$3" "$v" && { printf 'agreed\t%s\n' "$5"; return 0; }
   fi
+  printf '%s\t%s; agreed: %s\n' "$3" "$5" "$v"
 }
 
 # ---------- the scope ----------

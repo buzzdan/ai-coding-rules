@@ -233,6 +233,9 @@ fx_write_linter_config_other() {
 #                                   the language's linter has no such rule
 #   lint_doctor_linter <id>         the linter the doctor compares for the
 #                                   language; "" when the plugin recommends none
+#   lint_reports_settings <linter>  exit 0 when the linter reports the setting
+#                                   of each rule, so the doctor compares values;
+#                                   exit 1 when it reports only which rules run
 #   lint_doctor <id> <setup dir> <file>  compare the repository's linter with
 #                                   the plugin's recommended config for the
 #                                   language. <file> is a source file of the
@@ -398,6 +401,13 @@ lint_doctor_linter() {
     go)                    printf 'golangci-lint' ;;
     python)                printf 'ruff' ;;
     typescript|javascript) printf 'eslint' ;;
+  esac
+  return 0
+}
+
+lint_reports_settings() {
+  case "$1" in
+    golangci-lint) return 1 ;;
   esac
   return 0
 }
@@ -837,6 +847,13 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
 #                    reports no such options
 #   FAKE_FORMATS     the other config formats the toml and json modes write;
 #                    "" when the language has one
+#   FAKE_NO_SETTINGS "yes" when the linter reports only which rules run, never
+#                    a setting, so an agreed rule is matched by name; "" if not
+#   FAKE_BARE_RULE   a rule that runs in the adopted config and has no setting
+#                    in its row (recommended and current are "-"); "" when no
+#                    such rule exists
+#   FAKE_SEE_RULE    a rule whose recommended side is a place to read, though
+#                    the linter reports the current setting; "" if none
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
 #                    which the invalid and noschema modes fail; "" if not
 
@@ -845,12 +862,14 @@ fake_doctor_row() {
     go)
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
+      FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
@@ -862,6 +881,7 @@ fake_doctor_row() {
       FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
@@ -1402,7 +1422,7 @@ $(record_item "$FAKE_LINTER" "$FAKE_RULE" "$cur" "the team keeps it | for now")"
 fi
 
 begin "doctor: an agreed rule whose value changed shows both values"
-if [[ -z "$FAKE_RELAXED" || -n "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports no setting to compare"; finish
+if [[ -z "$FAKE_RELAXED" || -n "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports no setting to compare"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor relaxed
   write_record "agreed:
@@ -1421,13 +1441,40 @@ expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && expect_not "$FAKE_RULE: mis
 finish
 
 begin "doctor: a missing rule agreed at a value keeps its state and shows the value"
-if [[ -n "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports a value for each rule"; finish
-else
-  write_src "src/a$FX_EXT" 1; fake_doctor missing
-  write_record "agreed:
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
 $(record_item "$FAKE_LINTER" "$FAKE_RULE" "7" "the team keeps it")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_has "; agreed: 7" && ok
+finish
+
+begin "doctor: a rule that runs and is agreed off keeps its state and shows off"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "the team does not use it")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "; agreed: off" && expect_not "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "doctor: a rule with no setting in its row is agreed at any value but off"
+if [[ -z "$FAKE_BARE_RULE" ]]; then skip "the linter has no rule without a setting"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_BARE_RULE" "an agreed value" "the team keeps it")"
   run_doctor
-  expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_has "; agreed: 7" && ok
+  expect_exit 0 && expect_has "$FAKE_BARE_RULE: agreed;" && ok
+  finish
+fi
+
+begin "doctor: a rule whose recommended side is a place to read still compares the value"
+if [[ -z "$FAKE_SEE_RULE" ]]; then skip "the linter has no such rule"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_SEE_RULE" "an agreed value" "the team keeps it")"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_SEE_RULE: runs;" && expect_has "; agreed: an agreed value" && expect_not "$FAKE_SEE_RULE: agreed;" && ok
   finish
 fi
 
@@ -1451,7 +1498,7 @@ $(record_item "$FAKE_LINTER" "$FAKE_RULE" "org" "the company plan owns this valu
 fi
 
 begin "doctor: a rule agreed by name is agreed whatever its value, when the linter reports no value"
-if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports a value for each rule"; finish
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports a value for each rule"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor relaxed
   write_record "agreed:

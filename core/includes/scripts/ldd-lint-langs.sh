@@ -32,6 +32,9 @@
 #                                   the language's linter has no such rule
 #   lint_doctor_linter <id>         the linter the doctor compares for the
 #                                   language; "" when the plugin recommends none
+#   lint_reports_settings <linter>  exit 0 when the linter reports the setting
+#                                   of each rule, so the doctor compares values;
+#                                   exit 1 when it reports only which rules run
 #   lint_doctor <id> <setup dir> <file>  compare the repository's linter with
 #                                   the plugin's recommended config for the
 #                                   language. <file> is a source file of the
@@ -197,6 +200,13 @@ lint_doctor_linter() {
     go)                    printf 'golangci-lint' ;;
     python)                printf 'ruff' ;;
     typescript|javascript) printf 'eslint' ;;
+  esac
+  return 0
+}
+
+lint_reports_settings() {
+  case "$1" in
+    golangci-lint) return 1 ;;
   esac
   return 0
 }

@@ -475,7 +475,7 @@ $(record_item "$FAKE_LINTER" "$FAKE_RULE" "$cur" "the team keeps it | for now")"
 fi
 
 begin "doctor: an agreed rule whose value changed shows both values"
-if [[ -z "$FAKE_RELAXED" || -n "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports no setting to compare"; finish
+if [[ -z "$FAKE_RELAXED" || -n "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports no setting to compare"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor relaxed
   write_record "agreed:
@@ -494,13 +494,40 @@ expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && expect_not "$FAKE_RULE: mis
 finish
 
 begin "doctor: a missing rule agreed at a value keeps its state and shows the value"
-if [[ -n "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports a value for each rule"; finish
-else
-  write_src "src/a$FX_EXT" 1; fake_doctor missing
-  write_record "agreed:
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
 $(record_item "$FAKE_LINTER" "$FAKE_RULE" "7" "the team keeps it")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_has "; agreed: 7" && ok
+finish
+
+begin "doctor: a rule that runs and is agreed off keeps its state and shows off"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "the team does not use it")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "; agreed: off" && expect_not "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "doctor: a rule with no setting in its row is agreed at any value but off"
+if [[ -z "$FAKE_BARE_RULE" ]]; then skip "the linter has no rule without a setting"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_BARE_RULE" "an agreed value" "the team keeps it")"
   run_doctor
-  expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_has "; agreed: 7" && ok
+  expect_exit 0 && expect_has "$FAKE_BARE_RULE: agreed;" && ok
+  finish
+fi
+
+begin "doctor: a rule whose recommended side is a place to read still compares the value"
+if [[ -z "$FAKE_SEE_RULE" ]]; then skip "the linter has no such rule"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_SEE_RULE" "an agreed value" "the team keeps it")"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_SEE_RULE: runs;" && expect_has "; agreed: an agreed value" && expect_not "$FAKE_SEE_RULE: agreed;" && ok
   finish
 fi
 
@@ -524,7 +551,7 @@ $(record_item "$FAKE_LINTER" "$FAKE_RULE" "org" "the company plan owns this valu
 fi
 
 begin "doctor: a rule agreed by name is agreed whatever its value, when the linter reports no value"
-if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports a value for each rule"; finish
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports a value for each rule"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor relaxed
   write_record "agreed:
