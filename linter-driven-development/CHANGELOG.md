@@ -47,6 +47,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   prints a line for that file and one for the repository's own config. A
   `lint_fingerprint` item whose file changed, or is gone, makes the doctor print
   `doctor: <path> changed since the setup was agreed` on stderr.
+  The generic plugin's doctor skips a language when the plugin written for it is
+  installed. It prints `doctor: <language> — <plugin> is installed and checks this
+  language; run /<prefix>-setup`, gives that language no row, and exits 3 when
+  every language in scope is skipped this way. Exit 2 stays for a run that has a
+  language with no recommended config.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory

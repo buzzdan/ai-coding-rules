@@ -25,6 +25,12 @@ MAX_LINES={{.FileMaxLines}}
 WARN_FILES={{.PackageWarnFiles}}
 MAX_FILES={{.PackageMaxFiles}}
 
+# No test reads the machine's own installed plugins: an installed plugin
+# written for a language changes what the generic doctor does.
+NO_PLUGINS=$(mktemp)
+printf '{ "version": 2, "plugins": {} }\n' > "$NO_PLUGINS"
+export LDD_INSTALLED_PLUGINS="$NO_PLUGINS"
+
 pass=0 failed=0 skipped=0
 CASE=""
 OUT="" ERR="" CODE=0
@@ -1014,6 +1020,9 @@ begin "doctor: a tree without a source file is inconclusive (exit 2)"
 run_lint doctor
 expect_exit 2 && expect_has "no source file in scope" && ok
 finish
+
+PLUGIN_NAME="{{.Plugin}}"
+{{include "scripts/ldd-doctor-skip-cases.sh"}}
 
 # run_bounded <args...> — runs the script without the harness's --root, and
 # stops it after five seconds, so a regression that loops fails, never hangs

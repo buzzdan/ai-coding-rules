@@ -135,13 +135,21 @@
 # options exits 2 when that linter cannot verify, and agree --fingerprint exits 2
 # when any linter in scope cannot verify. Each names the cause.
 #
+# The generic plugin's doctor leaves a language to the plugin written for it
+# when that plugin is installed: it prints
+#   doctor: <language> — <plugin> is installed and checks this language; run /<prefix>-setup
+# and gives that language no row, no config and no agree line. The other plugins
+# check their own language and never skip one this way.
+#
 # Exit codes: 0 measured, with or without findings · 2 usage error, a --files
 #             list that does not exist, a --config that is not a file or that
 #             meets a run with two or more linters, a .ldd-lint.yaml value that
 #             is not a positive integer, a doctor run with no language the plugin
 #             recommends a config for (inconclusive, never silently clean), or
 #             an agree line the script cannot write: no doctor row for the
-#             rule, a linter that cannot verify, a path that is not a file
+#             rule, a linter that cannot verify, a path that is not a file ·
+#             3 a doctor run where the generic plugin left every language in
+#             scope to an installed plugin written for it (nothing to research)
 #
 # Uses only POSIX-portable tools plus git when the root is a repository:
 # grep, sed, awk, sort, find, head.
@@ -149,6 +157,7 @@
 set -u
 
 SCRIPT_NAME="ldd-lint"
+PLUGIN_NAME="{{.Plugin}}"
 DEFAULT_FILE_MAX_LINES={{.FileMaxLines}}
 DEFAULT_PACKAGE_WARN_FILES={{.PackageWarnFiles}}
 DEFAULT_PACKAGE_MAX_FILES={{.PackageMaxFiles}}
@@ -499,8 +508,23 @@ config_for() {
       print substr($0, p + 1); exit }'
 }
 
-run_doctor() { # <id> — exit 0 when the language has a recommended config
-  local id="$1" linter kind a b c d e f
+# left_to_plugin <id> — exit 0 when this is the generic plugin and the plugin
+# written for the language is installed: that plugin checks the language
+left_to_plugin() {
+  [[ "$PLUGIN_NAME" == "$GENERIC_PLUGIN" ]] || return 1
+  local d; d=$(dedicated_plugin_for "$1")
+  [[ -n "$d" && -n "$(installed_plugin_dir "$d")" ]]
+}
+
+# run_doctor <id> — exit 0 when the language has a recommended config, 1 when
+# it has none, 3 when an installed plugin checks the language instead
+run_doctor() {
+  local id="$1" linter kind a b c d e f other
+  if left_to_plugin "$id"; then
+    other=$(dedicated_plugin_for "$id")
+    say "doctor: $id — $other is installed and checks this language; run /$(plugin_cmd_prefix "$other")-setup"
+    return 3
+  fi
   linter=$(lint_doctor_linter "$id")
   if [[ -z "$linter" ]]; then
     say "doctor: $id — the plugin recommends no linter config for this language"
@@ -649,22 +673,34 @@ if [[ -n "$OPT_CONFIG" ]]; then
   names=$(linter_names | tr '\n' ' ')
   [[ "$names" != *" "*" "* ]] || die "--config needs a run with one linter; this run reports: ${names% }"
 fi
-checked=0
+checked=0 left=0 no_config=0
+# tally_doctor <status of run_doctor> — counts the language by what the doctor did
+tally_doctor() {
+  case "$1" in
+    0) checked=1 ;;
+    3) left=1 ;;
+    *) no_config=1 ;;
+  esac
+}
 for id in $ids; do
   lang_configure "$id" || continue
   case "$SUBCOMMAND" in
     file-length)  run_file_length "$id" ;;
     package-size) run_package_size "$id" ;;
-    doctor)       run_doctor "$id" && checked=1 ;;
-    agree)        run_doctor "$id" > /dev/null 2>&1 && checked=1 ;;
+    doctor)       run_doctor "$id"; tally_doctor $? ;;
+    agree)        run_doctor "$id" > /dev/null 2>&1; tally_doctor $? ;;
   esac
 done
 if [[ "$SUBCOMMAND" == doctor ]] && (( ! checked )); then
+  (( left && ! no_config )) && exit 3
   say "doctor: no language in scope has a recommended linter config"
   exit 2
 fi
 if [[ "$SUBCOMMAND" == agree ]]; then
-  (( checked )) || die "agree: no language in scope has a recommended linter config"
+  if (( ! checked )); then
+    (( left && ! no_config )) && die "agree: every language in scope belongs to an installed plugin; run its setup command"
+    die "agree: no language in scope has a recommended linter config"
+  fi
   if (( AGREE_FINGERPRINT )); then run_agree_fingerprint; else run_agree_rule; fi
   exit 0
 fi
