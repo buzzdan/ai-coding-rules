@@ -54,7 +54,7 @@
 # doctor: the rules are the ones the recommended config enables, as the
 # installed linter resolves it, beyond the linter's default set, and the
 # default rules the config names that the repository does not run. Each row
-# has a state: runs, missing, limit looser or limit stricter (the
+# has a state: agreed, runs, missing, limit looser or limit stricter (the
 # repository's setting lets more code pass, or less, than the recommended
 # one), options differ (the two settings differ in a way that is not one
 # limit), named (the rule is named outside comments in the repository's
@@ -66,6 +66,21 @@
 # "presence check" when the rule was found by name. A linter output the doctor
 # cannot read is "cannot verify", never an empty list. A "doctor:" line per
 # language says which config was compared.
+#
+# The agreement record is the file .ldd-lint.yaml, which the lint-setup skill
+# writes. Its key "agreed" lists one item per rule the team agreed to keep. An
+# item is one double-quoted YAML scalar: "<linter> <rule> = <value> | <reason>".
+# A backslash and a quote in it are escaped. The value is the setting as the
+# doctor shows it in current, or "off", or "org" (the organization owns it). The
+# keys "lint_config" and "lint_fingerprint" hold the config files the agreement
+# was made against.
+#
+# The doctor gives a row the state agreed when its rule is agreed and one of
+# these is true: current equals the agreed value, the agreed value is org, the
+# rule is missing and agreed off, or the recommended or current setting starts
+# with "see " (the linter cannot report the setting, so the rule alone counts).
+# A row with another value keeps its state, and its current gains
+# "; agreed: <value>". A row that cannot verify is never agreed.
 #
 # Exit codes: 0 measured, with or without findings · 2 usage error, a --files
 #             list that does not exist, a .ldd-lint.yaml value that is not a
@@ -835,6 +850,76 @@ override() {
   printf '%s' "$v"
 }
 
+# ---------- the agreement record ----------
+# The record is the flat lists of .ldd-lint.yaml; this script reads no other
+# structure from it. An item is one double-quoted scalar on a line "  - ".
+
+# record_has <key> — exit 0 when the record has the key, with items or as "[]"
+record_has() {
+  [[ -f "$OVERRIDE_FILE" ]] && grep -qE -- "^$1[[:space:]]*:" "$OVERRIDE_FILE"
+}
+
+# record_items <key> — each item of the key's list, unquoted and unescaped,
+# one per line; nothing when the key or the file is absent. The list ends at
+# the first line that is not an item. A "#" inside the quotes is data.
+record_items() {
+  [[ -f "$OVERRIDE_FILE" ]] || return 0
+  awk -v k="$1" '
+    function item(line,   out, i, c, n) {
+      sub(/^[ \t]+-[ \t]+"/, "", line)
+      n = length(line); out = ""
+      for (i = 1; i <= n; i++) {
+        c = substr(line, i, 1)
+        if (c == "\\" && i < n) { out = out substr(line, ++i, 1); continue }
+        if (c == "\"") break
+        out = out c
+      }
+      return out
+    }
+    on && $0 ~ /^[ \t]+-[ \t]+"/ { print item($0); next }
+    on { exit }
+    $0 ~ "^" k "[ \t]*:" { on = 1 }
+  ' "$OVERRIDE_FILE"
+}
+
+# record_agreed <linter> <rule> — the agreed value of that rule, "" when the
+# rule is not agreed. An item is "<linter> <rule> = <value> | <reason>": the
+# rule runs to the first " = " and may hold a space; a reason may hold " | ",
+# so the value ends at the first one.
+record_agreed() {
+  record_items agreed | LINTER="$1" RULE="$2" awk '
+    {
+      p = index($0, " = ")
+      if (p == 0 || substr($0, 1, p - 1) != ENVIRON["LINTER"] " " ENVIRON["RULE"]) next
+      v = substr($0, p + 3)
+      q = index(v, " | ")
+      print q ? substr(v, 1, q - 1) : v
+      exit
+    }'
+}
+
+# agreed_state <state> — exit 0 when a row in that state can turn agreed
+agreed_state() {
+  case "$1" in
+    runs|missing|"limit looser"|"limit stricter"|"options differ"|named) return 0 ;;
+  esac
+  return 1
+}
+
+# agreed_row <linter> <rule> <state> <recommended> <current> — prints the
+# row's state and current, as the record changes them, joined by a tab
+agreed_row() {
+  local v=""
+  [[ -f "$OVERRIDE_FILE" ]] && v=$(record_agreed "$1" "$2")
+  if [[ -z "$v" ]] || ! agreed_state "$3"; then printf '%s\t%s\n' "$3" "$5"; return 0; fi
+  if [[ "$v" == org || "$4" == "see "* || "$5" == "see "* || "$5" == "$v" \
+        || ( "$3" == missing && "$v" == off ) ]]; then
+    printf 'agreed\t%s\n' "$5"
+  else
+    printf '%s\t%s; agreed: %s\n' "$3" "$5" "$v"
+  fi
+}
+
 # ---------- the scope ----------
 # SCOPE: one "id TAB path" line per source file the run measures. INVENTORY:
 # the same for every source file of the repository, which a directory count
@@ -996,7 +1081,8 @@ run_doctor() { # <id> — exit 0 when the language has a recommended config
   while IFS=$'\t' read -r kind a b c d e f; do
     case "$kind" in
       note) say "doctor: $id — $a" ;;
-      row)  row "$id" "$a" "$b" "$c" "$d" "$e" "$f" ;;
+      row)  IFS=$'\t' read -r c e < <(agreed_row "$a" "$b" "$c" "$d" "$e")
+            row "$id" "$a" "$b" "$c" "$d" "$e" "$f" ;;
     esac
   done < <(lint_doctor "$id" "$SETUP_DIR" "$(sample_file "$id")")
 }

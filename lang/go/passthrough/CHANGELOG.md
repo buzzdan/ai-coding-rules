@@ -34,7 +34,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `config verify` is "cannot verify", with the linter's message. `--root <dir>`
   points the doctor at one project of a monorepo, such as a front end with its own
   ESLint config. golangci-lint's cyclop counts as gocyclo. The doctor never edits
-  a file.
+  a file. The doctor also reads the agreement record in `.ldd-lint.yaml`: a row
+  whose rule the team agreed to keep gets the state agreed, and a row whose value
+  differs from the agreed one shows the agreed value beside its own.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory

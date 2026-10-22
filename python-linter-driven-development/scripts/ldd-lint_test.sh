@@ -1020,6 +1020,20 @@ run_doctor() {
   ERR=$(cat "$errf"); rm -f "$errf"
 }
 
+# write_record <yaml body> — the agreement record of the repository
+write_record() { printf '%s\n' "$1" > "$REPO/.ldd-lint.yaml"; }
+
+# record_item <linter> <rule> <value> <reason> — one item line, as the
+# record writes it: a double-quoted scalar with a backslash and a quote escaped
+record_item() {
+  local t="$1 $2 = $3 | $4"
+  t=${t//\\/\\\\}; t=${t//\"/\\\"}
+  printf '  - "%s"\n' "$t"
+}
+
+# doctor_field <rule> <field number> — one field of the doctor's TSV row
+doctor_field() { printf '%s\n' "$OUT" | awk -F'\t' -v r="$1" -v n="$2" '$3 == r { print $n; exit }'; }
+
 # tree_sum — one checksum line per file of $REPO, to prove a run wrote nothing
 tree_sum() { (cd "$REPO" && find . -type f -not -path './.bin/*' -exec cksum {} + | LC_ALL=C sort); }
 
@@ -1366,6 +1380,114 @@ else
   expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_NAMED_RULE: missing;" && ok
   finish
 fi
+
+begin "doctor: a rule kept at the agreed value is agreed"
+if [[ -z "$FAKE_RELAXED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+  run_doctor --tsv
+  cur=$(doctor_field "$FAKE_RULE" 6)
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "$cur" "the team keeps it | for now")"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && expect_not "$FAKE_RULE: limit looser" && ok
+  finish
+fi
+
+begin "doctor: an agreed rule whose value changed shows both values"
+if [[ -z "$FAKE_RELAXED" || -n "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "99" "the team keeps it")"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: limit looser;" && expect_has "; agreed: 99" && expect_not "$FAKE_RULE: agreed;" && ok
+  finish
+fi
+
+begin "doctor: a missing rule agreed off is agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "the team does not use it")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && expect_not "$FAKE_RULE: missing" && ok
+finish
+
+begin "doctor: a missing rule agreed at a value keeps its state and shows the value"
+if [[ -n "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports a value for each rule"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor missing
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "7" "the team keeps it")"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_has "; agreed: 7" && ok
+  finish
+fi
+
+begin "doctor: a rule the org owns is agreed at any value"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "org" "the company plan owns this value")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "doctor: a rule the org owns stays agreed when the repository sets another value"
+if [[ -z "$FAKE_RELAXED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "org" "the company plan owns this value")"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+  finish
+fi
+
+begin "doctor: a rule agreed by name is agreed whatever its value, when the linter reports no value"
+if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter reports a value for each rule"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "an old value" "the team keeps it")"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && expect_not "agreed: an old value" && ok
+  finish
+fi
+
+begin "doctor: an item of another linter agrees no row"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "other-linter" "$FAKE_RULE" "off" "the team does not use it")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_not ": agreed;" && ok
+finish
+
+begin "doctor: an empty agreed list agrees no row"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_not ": agreed;" && ok
+finish
+
+begin "doctor: a row that cannot verify is never agreed"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor reject
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "-" "org" "the team keeps it")"
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify" && expect_not ": agreed;" && ok
+  finish
+fi
+
+begin "doctor: file_max_lines still reads beside an agreed list"
+write_record "file_max_lines: 100
+agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "org" "the company plan owns this value")"
+write_src "src/a$FX_EXT" 101
+run_lint file-length
+expect_exit 0 && expect_has "src/a$FX_EXT: 101 code lines (limit 100, .ldd-lint.yaml)" && ok
+finish
 
 begin "doctor: a linter that is not installed cannot verify, never passes"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
