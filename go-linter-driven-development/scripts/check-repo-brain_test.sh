@@ -763,6 +763,22 @@ run_gate
 expect_exit 1 && expect_has "[Q2] docs/tabbed.md:" && expect_has "cites a file path or line number" && ok
 finish
 
+begin "Q2 a URL keeps its balanced parentheses; a path after its closing parenthesis is still a code edge"
+mk_conformant
+printf '\n%s See https://example.com/app/(group)/docs/guide.md here.\n%s Map: (https://example.com/app/(group)/page)docs/missing.md\n' \
+  "//" "//" >> "$REPO/retry/policy.go"
+run_gate
+expect_exit 1 && expect_has "code edge points at missing docs/missing.md" && expect_not "missing docs/guide.md" && ok
+finish
+
+begin "Q2 a URL in a doc keeps its balanced parentheses: a path inside it is not a file:line citation"
+mk_conformant
+mk_doc parens "a URL with parentheses" "See https://example.com/app/(group)/retry/policy.go:12 and [src](https://example.com/(v1)/retry/policy.go:3)."
+append_index "- [parens.md](parens.md) — a URL with parentheses"
+run_gate
+expect_exit 0 && expect_not "cites a file path" && ok
+finish
+
 begin "Q2 a local docs path next to a URL to the same path is still one code edge"
 mk_conformant
 printf '\n%s See docs/guide.md (https://github.com/x/y/blob/main/docs/guide.md).\n' \

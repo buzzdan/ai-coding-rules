@@ -471,13 +471,34 @@ resolve_words() {
 # Tokens are then resolved as SETS (one grep against the declaration file, one
 # pass over the repository for the whole unresolved batch) — never per token.
 # Language-specific shapes arrive as -v variables: file_ext, file_re, sym_re, qual_re.
-DOCSCAN_AWK='
+# strip_urls(s, stops) — s with every URL span removed. A span starts at a
+# scheme and "://" and ends before whitespace, a character in stops, or a ")"
+# that closes no "(" inside the span, so a path such as /app/(group)/ stays
+# in the URL while the ")" that encloses a link ends it.
+URL_AWK='
+function strip_urls(s, stops,   out, rest, i, n, c, depth) {
+  out = ""
+  while (match(s, /[A-Za-z][A-Za-z0-9+.-]*:\/\//)) {
+    out = out substr(s, 1, RSTART - 1)
+    rest = substr(s, RSTART + RLENGTH)
+    n = length(rest); depth = 0
+    for (i = 1; i <= n; i++) {
+      c = substr(rest, i, 1)
+      if (c == " " || c == "\t" || index(stops, c) > 0) break
+      if (c == "(") depth++
+      else if (c == ")") { if (depth == 0) break; depth-- }
+    }
+    s = substr(rest, i)
+  }
+  return out s
+}'
+DOCSCAN_AWK="$URL_AWK"'
 FNR == 1 { fence = 0 }
 {
   line = $0
   if (line ~ /^ ? ? ?(```|~~~)/) { fence = 1 - fence; next }
   if (fence) next
-  gsub(/[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^ \t)>]*/, "", line)
+  line = strip_urls(line, ">")
   pf = 0
   if (index(line, file_ext) > 0) {
     n = split(line, sp, /[^A-Za-z0-9_*\/.~-]+/)
@@ -599,8 +620,8 @@ docroot_for_file() { # <file> -> docroot of the longest matching project dir
 # url_only <file> <lineno> <target> — exit 0 iff the target appears on that
 # line only inside URL spans (a link to another repository's docs, not an edge)
 url_only() {
-  awk -v n="$2" -v t="$3" -v re="[A-Za-z][A-Za-z0-9+.-]*://[^ \t)>\"'\`]*" '
-    NR == n { gsub(re, ""); found = index($0, t) > 0; exit }
+  awk -v n="$2" -v t="$3" -v stops=">\"'\`" "$URL_AWK"'
+    NR == n { found = index(strip_urls($0, stops), t) > 0; exit }
     END { exit found }' "$1"
 }
 
