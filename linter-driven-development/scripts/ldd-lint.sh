@@ -622,7 +622,7 @@ _lint_revive_rules() {
 }
 
 _lint_doctor_golangci() { # <recommended config> <work dir>
-  local rec="$1" t="$2" out cfg r re state tuned rv cv here alt held
+  local rec="$1" t="$2" out cfg r re state tuned rv cv here alt held why
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "golangci-lint cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
@@ -636,6 +636,13 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
     *) _lint_doctor_cannot golangci-lint "cannot read the linter's answer to which config it reads"; return 0 ;;
   esac
   if [[ -n "$cfg" ]]; then
+    # A schema failure is a rejection; any other failure (no network for the
+    # schema, for example) leaves the check unanswered and the doctor goes on.
+    if ! golangci-lint config verify > /dev/null 2> "$t/err" && grep -q '^jsonschema:' "$t/err"; then
+      why=$(grep -m1 '^jsonschema:' "$t/err" | tr '\t' ' ')
+      _lint_doctor_cannot golangci-lint "the repository config fails the linter's check: $why"
+      return 0
+    fi
     golangci-lint linters --json > "$t/repo.json" 2> "$t/err" \
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }
     printf 'note\tgolangci-lint, the repository config %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$cfg"

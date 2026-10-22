@@ -30,7 +30,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   cannot load its config, is "cannot verify": install the packages, then run the
   doctor again. `--tsv` writes the rows as seven fields; the last says whether the
   linter or a search by name gave the state. A linter output the doctor cannot
-  read is "cannot verify". `--root <dir>`
+  read is "cannot verify". A golangci-lint config that fails the linter's own
+  `config verify` is "cannot verify", with the linter's message. `--root <dir>`
   points the doctor at one project of a monorepo, such as a front end with its own
   ESLint config. golangci-lint's cyclop counts as gocyclo. The doctor never edits
   a file.

@@ -474,6 +474,25 @@ else
   finish
 fi
 
+begin "doctor: a config that fails the linter's own check cannot verify"
+if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter has no config check of its own"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor invalid
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify: the repository config fails the linter's check: jsonschema" \
+    && expect_has "linters-settings" && expect_not ": missing;" && ok
+  finish
+fi
+
+begin "doctor: a config check that cannot fetch the schema is not a rejection"
+if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter has no config check of its own"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor noschema
+  run_doctor
+  expect_exit 0 && expect_not "cannot verify" && expect_has "$FAKE_RULE: $FAKE_RUNS;" && ok
+  finish
+fi
+
 begin "doctor: --tsv rows have seven fields and the doctor lines go to stderr"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 run_doctor --tsv
