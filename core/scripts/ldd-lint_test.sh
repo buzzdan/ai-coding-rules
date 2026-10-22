@@ -378,6 +378,15 @@ else
   finish
 fi
 
+begin "doctor: a linter output the doctor cannot read is cannot verify, never a pass"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor garbled
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER -: cannot verify: cannot read" && expect_not ": runs;" && expect_not ": missing;" && ok
+  finish
+fi
+
 begin "doctor: a linter that rejects the repository's config cannot verify"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
 else
@@ -387,12 +396,12 @@ else
   finish
 fi
 
-begin "doctor: --tsv rows have six fields and the doctor lines go to stderr"
+begin "doctor: --tsv rows have seven fields and the doctor lines go to stderr"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 run_doctor --tsv
 expect_exit 0 && expect_has "doctor: " \
-  && { [[ -n "$OUT" ]] && printf '%s\n' "$OUT" | awk -F'\t' 'NF != 6 { bad = 1 } END { exit bad }' \
-       || bad "a row without six fields"; } \
+  && { [[ -n "$OUT" ]] && printf '%s\n' "$OUT" | awk -F'\t' 'NF != 7 { bad = 1 } END { exit bad }' \
+       || bad "a row without seven fields"; } \
   && { printf '%s\n' "$OUT" | grep -q "^[a-z]*${TAB}$FAKE_LINTER${TAB}$FAKE_RULE${TAB}missing${TAB}" || bad "no TSV row for $FAKE_RULE"; } \
   && { printf '%s\n' "$ERR" | grep -q '^doctor: ' || bad "the doctor line is not on stderr"; } && ok
 finish

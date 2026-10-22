@@ -24,7 +24,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   the installed linter: ruff reports every rule and limit, golangci-lint reports
   which linters run. Where the linter cannot report a setting, the row names the
   file and key to read. ESLint rules are found by name only. `--tsv` writes the rows
-  as six fields. The doctor never edits a file.
+  as seven fields; the last says whether the linter or a search by name gave the
+  state. A linter output the doctor cannot read is "cannot verify". The doctor
+  never edits a file.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory

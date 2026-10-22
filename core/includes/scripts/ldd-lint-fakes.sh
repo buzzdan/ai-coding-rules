@@ -15,7 +15,9 @@
 #                            missing (it leaves FAKE_RULE out), relaxed (it sets
 #                            another limit for FAKE_RULE), commented (it names
 #                            FAKE_NAMED_RULE only inside a comment), reject
-#                            (the linter rejects the repository's config)
+#                            (the linter rejects the repository's config),
+#                            garbled (the linter prints an output of another
+#                            shape)
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
@@ -100,6 +102,7 @@ cat "$d/repo.json"'
         relaxed)   sed 's/lines: 50/lines: 80/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         commented) sed 's/- name: file-length-limit/# - name: file-length-limit/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         reject)    printf 'Error: can'"'"'t load config: unsupported version of the configuration: ""\n' > "$b/reject.txt" ;;
+        garbled)   for f in path default recommended repo; do printf 'Enabled by your configuration linters:\nfunlen: Checks for long functions.\n' > "$b/$f.json"; done ;;
       esac ;;
     python)
       _fake_bin ruff '
@@ -119,6 +122,7 @@ cat "$d/repo.txt"'
         missing) _fake_ruff_settings pyproject.toml 4 B006 C901 E401 F401 PLR1702 > "$b/repo.txt" ;;
         relaxed) _fake_ruff_settings pyproject.toml 7 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         reject)  printf 'ruff failed\n  Cause: Failed to parse pyproject.toml\n' > "$b/reject.txt" ;;
+        garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
     typescript)
       cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/eslint.config.mjs"

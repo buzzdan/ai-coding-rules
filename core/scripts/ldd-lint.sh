@@ -22,7 +22,7 @@
 #   --tsv                  findings as rows: path TAB line TAB message, line 0;
 #                          the threshold lines then go to stderr. doctor rows:
 #                          language TAB linter TAB rule TAB state TAB
-#                          recommended TAB current
+#                          recommended TAB current TAB source
 #   --glob <pattern>       source-file glob, for a language the table does not
 #                          know ({{.Lang}} block below)
 #   --test-re <ERE>        test-file pattern over relative paths
@@ -58,7 +58,10 @@
 # linter is not installed, or rejects a config). recommended and current are
 # the setting as the linter reports it; where the linter cannot report it, they
 # are "see <file>: <key>", the place a reader looks the value up; "-" is no
-# setting. A "doctor:" line per language says which config was compared.
+# setting. source is "linter" when the linter said whether the rule runs, and
+# "presence check" when the rule was found by name. A linter output the doctor
+# cannot read is "cannot verify", never an empty list. A "doctor:" line per
+# language says which config was compared.
 #
 # Exit codes: 0 measured, with or without findings · 2 usage error, a --files
 #             list that does not exist, a .ldd-lint.yaml value that is not a
@@ -265,9 +268,9 @@ run_package_size() { # <id> — every directory that holds a measured file of th
 
 # ---------- doctor ----------
 DOCTOR_DONE=""
-row() { # <id> <linter> <rule> <state> <recommended> <current>
-  if (( TSV )); then printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$@"
-  else printf '%s %s %s: %s; recommended: %s; current: %s\n' "$@"; fi
+row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
+  if (( TSV )); then printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"
+  else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
 }
 
 # sample_file <id> — the first measured source file of the language in scope,
@@ -282,18 +285,20 @@ sample_file() {
 }
 
 run_doctor() { # <id> — exit 0 when the language has a recommended config
-  local id="$1" linter kind a b c d e
+  local id="$1" linter kind a b c d e f
   linter=$(lint_doctor_linter "$id")
   if [[ -z "$linter" ]]; then
     say "doctor: $id — the plugin recommends no linter config for this language"
     return 1
   fi
   case " $DOCTOR_DONE " in *" $linter "*) return 0 ;; esac
+  # one linter serves both: a TypeScript repository is reported as typescript
+  [[ "$id" == javascript ]] && printf '%s\n' "$ids" | grep -qx typescript && return 0
   DOCTOR_DONE="$DOCTOR_DONE $linter"
-  while IFS=$'\t' read -r kind a b c d e; do
+  while IFS=$'\t' read -r kind a b c d e f; do
     case "$kind" in
       note) say "doctor: $id — $a" ;;
-      row)  row "$id" "$a" "$b" "$c" "$d" "$e" ;;
+      row)  row "$id" "$a" "$b" "$c" "$d" "$e" "$f" ;;
     esac
   done < <(lint_doctor "$id" "$SETUP_DIR" "$(sample_file "$id")")
 }

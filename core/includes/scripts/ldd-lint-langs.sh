@@ -39,7 +39,7 @@
 #                                   settings per file. Prints tab-separated
 #                                   records, never an empty field:
 #                                     note TAB <text>
-#                                     row TAB <linter> TAB <rule> TAB <state> TAB <recommended> TAB <current>
+#                                     row TAB <linter> TAB <rule> TAB <state> TAB <recommended> TAB <current> TAB <source>
 #                                   The rules: the ones the recommended config
 #                                   enables, as the linter resolves it, beyond
 #                                   the linter's default set, and the default
@@ -51,7 +51,11 @@
 #                                   verify: <why>. recommended and current: the
 #                                   setting as the linter reports it, or "see
 #                                   <file>: <key>" when the linter cannot report
-#                                   it and a reader must look there, or "-"
+#                                   it and a reader must look there, or "-".
+#                                   source: linter (the linter said whether the
+#                                   rule runs) or presence check (the rule was
+#                                   found by name). An output the doctor cannot
+#                                   read is "cannot verify", never an empty list
 
 lint_comment_style() {
   case "$1" in
@@ -204,7 +208,7 @@ lint_doctor() { # <id> <setup dir> <file>
 }
 
 _lint_doctor_cannot() { # <linter> <why>
-  printf 'row\t%s\t-\tcannot verify: %s\t-\t-\n' "$1" "$2"
+  printf 'row\t%s\t-\tcannot verify: %s\t-\t-\tlinter\n' "$1" "$2"
 }
 
 # _lint_first_error <file> — the first line of a linter's stderr that names an
@@ -235,7 +239,7 @@ _lint_doctor_sets() {
 # _lint_golangci_names <file> — the linter names of a "linters --json"
 # output's Enabled list, sorted
 _lint_golangci_names() {
-  sed 's/"Disabled":.*//' "$1" | grep -oE '"name":"[^"]+"' | sed 's/^"name":"//; s/"$//' | LC_ALL=C sort -u
+  tr -d '\n' < "$1" | sed 's/"Disabled":.*//' | grep -oE '"name":"[^"]+"' | sed 's/^"name":"//; s/"$//' | LC_ALL=C sort -u
 }
 
 # _lint_golangci_tuned <config> <linter> — exit 0 when the config has a
@@ -260,18 +264,23 @@ _lint_revive_rules() {
 }
 
 _lint_doctor_golangci() { # <recommended config> <work dir>
-  local rec="$1" t="$2" cfg r state tuned rv cv here
+  local rec="$1" t="$2" out cfg r state tuned rv cv here
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter rejects $rec: $(_lint_first_error "$t/err")"; return 0; }
   golangci-lint linters --json --no-config > "$t/def.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter fails with no config: $(_lint_first_error "$t/err")"; return 0; }
   # "path" is "" when the linter finds no config from this directory up
-  cfg=$(golangci-lint config path --json 2>/dev/null | sed -n 's/.*"path":"\([^"]*\)".*/\1/p')
+  out=$(golangci-lint config path --json 2>/dev/null) \
+    || { _lint_doctor_cannot golangci-lint "the linter cannot say which config it reads"; return 0; }
+  case "$out" in
+    *'"path":'*) cfg=$(printf '%s' "$out" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p') ;;
+    *) _lint_doctor_cannot golangci-lint "cannot read the linter's answer to which config it reads"; return 0 ;;
+  esac
   if [[ -n "$cfg" ]]; then
     golangci-lint linters --json > "$t/repo.json" 2> "$t/err" \
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }
-    printf 'note\tgolangci-lint, the repository config %s; the linter reports which linters run, not their settings\n' "$cfg"
+    printf 'note\tgolangci-lint, the repository config %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$cfg"
     here="see $cfg"
   else
     cp "$t/def.json" "$t/repo.json"
@@ -281,6 +290,8 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
   _lint_golangci_names "$t/rec.json" > "$t/rec"
   _lint_golangci_names "$t/def.json" > "$t/def"
   _lint_golangci_names "$t/repo.json" > "$t/repo"
+  [[ -s "$t/rec" && -s "$t/def" ]] \
+    || { _lint_doctor_cannot golangci-lint "cannot read the linter's list of the linters it runs"; return 0; }
   _lint_doctor_sets "$t/rec" "$t/def" "$t/repo" "$rec" | while IFS=$'\t' read -r r state; do
     rv=-; cv=-
     if _lint_golangci_tuned "$rec" "$r"; then
@@ -288,7 +299,7 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
       [[ "$state" == runs && -n "$cfg" ]] && cv="see $cfg: linters.settings.$r, the linter's default when absent"
       [[ "$state" == runs && -z "$cfg" ]] && cv="the linter's default"
     fi
-    printf 'row\tgolangci-lint\t%s\t%s\t%s\t%s\n' "$r" "$state" "$rv" "$cv"
+    printf 'row\tgolangci-lint\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
   done
   grep -qxF revive "$t/rec" || return 0
   # The linter cannot say which revive rules run: a rule the repository's
@@ -301,7 +312,7 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
       rv="see $rec: linters.settings.revive.rules, name $r"
       [[ "$state" == named ]] && cv="$here: linters.settings.revive.rules, name $r"
     fi
-    printf 'row\tgolangci-lint\trevive %s\t%s\t%s\t%s\n' "$r" "$state" "$rv" "$cv"
+    printf 'row\tgolangci-lint\trevive %s\t%s\t%s\t%s\tpresence check\n' "$r" "$state" "$rv" "$cv"
   done
 }
 
@@ -336,7 +347,7 @@ _lint_ruff_setting() {
 }
 
 _lint_doctor_ruff() { # <recommended config> <file> <work dir>
-  local rec="$1" f="./$2" t="$3" sp r state key rv cv
+  local rec="$1" f="./$2" t="$3" sp r state key rv cv a b
   command -v ruff >/dev/null 2>&1 || { _lint_doctor_cannot ruff "ruff is not installed"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot ruff "no source file to resolve the settings for"; return 0; }
   ruff check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
@@ -352,17 +363,22 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
   _lint_ruff_rules "$t/rec.txt" > "$t/rec"
   _lint_ruff_rules "$t/def.txt" > "$t/def"
   _lint_ruff_rules "$t/repo.txt" > "$t/repo"
+  [[ -s "$t/rec" && -s "$t/def" ]] \
+    || { _lint_doctor_cannot ruff "cannot read the linter's list of the rules it runs"; return 0; }
   _lint_doctor_sets "$t/rec" "$t/def" "$t/repo" "$rec" | while IFS=$'\t' read -r r state; do
     rv=-; cv=-
     key=$(_lint_ruff_setting "$r")
     if [[ -n "$key" ]]; then
-      rv="$key = $(_lint_ruff_value "$t/rec.txt" "$key")"
-      if [[ "$state" == runs ]]; then
-        cv="$key = $(_lint_ruff_value "$t/repo.txt" "$key")"
-        [[ "$cv" == "$rv" ]] || state="limit differs"
+      a=$(_lint_ruff_value "$t/rec.txt" "$key"); b=$(_lint_ruff_value "$t/repo.txt" "$key")
+      rv="$key = $a"
+      if [[ -z "$a" || ( "$state" == runs && -z "$b" ) ]]; then
+        state="cannot verify: the linter reports no $key"; rv=-
+      elif [[ "$state" == runs ]]; then
+        cv="$key = $b"
+        [[ "$b" == "$a" ]] || state="limit differs"
       fi
     fi
-    printf 'row\truff\t%s\t%s\t%s\t%s\n' "$r" "$state" "$rv" "$cv"
+    printf 'row\truff\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
   done
 }
 
@@ -395,15 +411,16 @@ _lint_doctor_eslint() { # <recommended config>
   fi
   _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r tuned; do
     rv=-; cv=-; state=missing
-    # The pattern is built outside $( ): bash 3.2 misreads a quote in a
-    # double-quoted string inside a command substitution.
-    re="['\"]$r['\"]"
+    # A quoted key, or an unquoted one in a YAML config. The pattern is built
+    # outside $( ): bash 3.2 misreads a quote in a double-quoted string inside a
+    # command substitution.
+    re="['\"]$r['\"]|^[[:space:]]*$r[[:space:]]*:"
     f=$(_lint_names "$re" "${LINT_ESLINT_CONFIGS[@]}") && state=named
     if [[ "$tuned" == 1 ]]; then
       rv="see $rec: rules['$r']"
       [[ "$state" == named ]] && cv="see $f: rules['$r']"
     fi
-    printf 'row\teslint\t%s\t%s\t%s\t%s\n' "$r" "$state" "$rv" "$cv"
+    printf 'row\teslint\t%s\t%s\t%s\t%s\tpresence check\n' "$r" "$state" "$rv" "$cv"
   done
 }
 # ================== end linter table ==================
