@@ -22,7 +22,10 @@
 #                            (the linter rejects the repository's config),
 #                            garbled (the linter prints an output of another
 #                            shape), ignored (the linter skips the file the
-#                            doctor resolves the config for)
+#                            doctor resolves the config for), norules (the
+#                            config loads and sets no rule), toml and json (the
+#                            repository's config is in that format and names
+#                            FAKE_NAMED_RULE)
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
@@ -44,18 +47,21 @@
 #                    warning; "" when the linter reports no severity
 #   FAKE_IGNORED     the text the doctor prints in the ignored mode; "" when
 #                    the linter resolves its settings for any file
+#   FAKE_NORULES     1 when the linter can report a config with no rule
+#   FAKE_FORMATS     the other config formats the toml and json modes write;
+#                    "" when the language has one
 
 fake_doctor_row() {
   case "$ROW" in
     go)
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
-      FAKE_WARN=''; FAKE_IGNORED=''
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_FORMATS='toml json'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
-      FAKE_WARN=''; FAKE_IGNORED=''
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_FORMATS=''
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
@@ -65,6 +71,7 @@ fake_doctor_row() {
       FAKE_TIGHTENED='max-params: limit stricter; recommended: 4; current: {"v": 3}'
       FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
+      FAKE_NORULES=1; FAKE_FORMATS=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
@@ -152,6 +159,12 @@ cat "$d/repo.json"'
         alternative) _fake_golangci_json cyclop errcheck funlen gochecknoglobals govet nestif revive > "$b/repo.json" ;;
         relaxed)   sed 's/lines: 50/lines: 80/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         commented) sed 's/- name: file-length-limit/# - name: file-length-limit/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
+        toml)      rm -f "$REPO/.golangci.yaml"
+                   printf '{"absolutePath":"/r/.golangci.toml","path":".golangci.toml"}\n' > "$b/path.json"
+                   printf 'version = "2"\n# name = "early-return" only in a comment\n[[linters.settings.revive.rules]]\nname = "file-length-limit"\narguments = [{ max = 450 }]\n' > "$REPO/.golangci.toml" ;;
+        json)      rm -f "$REPO/.golangci.yaml"
+                   printf '{"absolutePath":"/r/.golangci.json","path":".golangci.json"}\n' > "$b/path.json"
+                   printf '{"version": "2", "linters": {"settings": {"revive": {"rules": [{"name": "file-length-limit", "arguments": [{"max": 450}]}]}}}}\n' > "$REPO/.golangci.json" ;;
         reject)    printf 'Error: can'"'"'t load config: unsupported version of the configuration: ""\n' > "$b/reject.txt" ;;
         garbled)   for f in path default recommended repo; do printf 'Enabled by your configuration linters:\nfunlen: Checks for long functions.\n' > "$b/$f.json"; done ;;
       esac ;;
@@ -186,7 +199,8 @@ cat "$d/repo.json"' "$b"
       case "$mode" in
         reject)  rm -f "$REPO/eslint.config.mjs"
                  printf '\nOops! Something went wrong! :(\n\nESLint: 9.31.0\n\nESLint couldn'"'"'t find an eslint.config.(js|mjs|cjs) file.\n' > "$b/reject.txt" ;;
-        garbled) printf '{\n  "rules": {}\n}\n' > "$b/repo.json" ;;
+        garbled) printf 'Unexpected token < in JSON at position 0\n' > "$b/repo.json" ;;
+        norules) printf '{\n  "languageOptions": {\n    "parser": "x"\n  },\n  "rules": {}\n}\n' > "$b/repo.json" ;;
         ignored) printf 'undefined\n' > "$b/repo.json" ;;
       esac ;;
   esac

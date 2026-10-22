@@ -349,6 +349,28 @@ expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not
   && { [[ -z "$FAKE_WARN" ]] || expect_has "$FAKE_WARN"; } && ok
 finish
 
+begin "doctor: a config that loads and sets no rule lists every recommended rule as missing"
+if [[ -z "$FAKE_NORULES" ]]; then skip "the linter has no config without rules to report"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor norules
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: missing;" && expect_not "cannot verify" && expect_not ": runs;" && ok
+  finish
+fi
+
+for fmt in toml json; do
+  begin "doctor: a rule named in a $fmt config is named"
+  case " $FAKE_FORMATS " in
+    *" $fmt "*)
+      write_src "src/a$FX_EXT" 1; fake_doctor "$fmt"
+      run_doctor
+      expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_NAMED_RULE: named;" \
+        && expect_has "$FAKE_LINTER revive early-return: missing;" && ok ;;
+    *) skip "the language's linter has no $fmt config" ;;
+  esac
+  finish
+done
+
 begin "doctor: a source file the linter ignores cannot verify"
 if [[ -z "$FAKE_IGNORED" ]]; then skip "the linter resolves its settings for any file"; finish
 else

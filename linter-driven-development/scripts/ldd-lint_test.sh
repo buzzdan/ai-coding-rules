@@ -542,7 +542,7 @@ _lint_revive_rules() {
 }
 
 _lint_doctor_golangci() { # <recommended config> <work dir>
-  local rec="$1" t="$2" out cfg r state tuned rv cv here alt held
+  local rec="$1" t="$2" out cfg r re state tuned rv cv here alt held
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter rejects $rec: $(_lint_first_error "$t/err")"; return 0; }
@@ -585,11 +585,12 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
   done
   grep -qxF revive "$t/rec" || return 0
   # The linter cannot say which revive rules run: a rule the repository's
-  # config names outside comments is "named".
+  # config names outside comments is "named". The name field reads alike in
+  # YAML (name: r), TOML (name = "r") and JSON ("name": "r").
   _lint_revive_rules "$rec" | while IFS=$'\t' read -r r tuned; do
     rv=-; cv=-; state=missing
-    grep -qxF revive "$t/repo" && [[ -n "$cfg" ]] \
-      && _lint_names "name:[[:space:]]*[\"']?$r[\"']?([[:space:]]|$)" "$cfg" >/dev/null && state=named
+    re="(^|[^A-Za-z0-9_-])[\"']?name[\"']?[[:space:]]*[:=][[:space:]]*[\"']?$r[\"']?([[:space:],}]|$)"
+    grep -qxF revive "$t/repo" && [[ -n "$cfg" ]] && _lint_names "$re" "$cfg" >/dev/null && state=named
     if [[ "$tuned" == 1 ]]; then
       rv="see $rec: linters.settings.revive.rules, name $r"
       [[ "$state" == named ]] && cv="$here: linters.settings.revive.rules, name $r"
@@ -705,7 +706,8 @@ _lint_eslint_rules() {
 
 # _lint_eslint_resolved <file> — "rule TAB severity TAB options" for every rule
 # of an "eslint --print-config" output (JSON, two spaces per level); options
-# is the rest of the rule's array on one line, "-" when there is none
+# is the rest of the rule's array on one line, "-" when there is none. A first
+# line "#rules" says the output has a rules object, which may be empty
 _lint_eslint_resolved() {
   awk '
     function flush() {
@@ -715,8 +717,8 @@ _lint_eslint_resolved() {
       opts = "-"; if (index(val, ",") > 0) opts = substr(val, index(val, ",") + 1)
       print key "\t" sev "\t" opts; key = ""
     }
-    /^  "rules": [{][}]/ { exit }
-    /^  "rules": [{]/ { r = 1; next }
+    /^  "rules": [{][}]/ { print "#rules"; exit }
+    /^  "rules": [{]/ { print "#rules"; r = 1; next }
     !r { next }
     /^  [}]/ { flush(); exit }
     /^    "/ { flush(); key = $0; sub(/^    "/, "", key); sub(/".*$/, "", key)
@@ -785,7 +787,7 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
     return 0
   fi
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
-  [[ -s "$t/resolved" ]] || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
+  grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
   printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
   _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing
@@ -833,7 +835,10 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
 #                            (the linter rejects the repository's config),
 #                            garbled (the linter prints an output of another
 #                            shape), ignored (the linter skips the file the
-#                            doctor resolves the config for)
+#                            doctor resolves the config for), norules (the
+#                            config loads and sets no rule), toml and json (the
+#                            repository's config is in that format and names
+#                            FAKE_NAMED_RULE)
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
@@ -855,18 +860,21 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
 #                    warning; "" when the linter reports no severity
 #   FAKE_IGNORED     the text the doctor prints in the ignored mode; "" when
 #                    the linter resolves its settings for any file
+#   FAKE_NORULES     1 when the linter can report a config with no rule
+#   FAKE_FORMATS     the other config formats the toml and json modes write;
+#                    "" when the language has one
 
 fake_doctor_row() {
   case "$ROW" in
     go)
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
-      FAKE_WARN=''; FAKE_IGNORED=''
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_FORMATS='toml json'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
-      FAKE_WARN=''; FAKE_IGNORED=''
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_FORMATS=''
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
@@ -876,6 +884,7 @@ fake_doctor_row() {
       FAKE_TIGHTENED='max-params: limit stricter; recommended: 4; current: {"v": 3}'
       FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
+      FAKE_NORULES=1; FAKE_FORMATS=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
@@ -963,6 +972,12 @@ cat "$d/repo.json"'
         alternative) _fake_golangci_json cyclop errcheck funlen gochecknoglobals govet nestif revive > "$b/repo.json" ;;
         relaxed)   sed 's/lines: 50/lines: 80/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         commented) sed 's/- name: file-length-limit/# - name: file-length-limit/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
+        toml)      rm -f "$REPO/.golangci.yaml"
+                   printf '{"absolutePath":"/r/.golangci.toml","path":".golangci.toml"}\n' > "$b/path.json"
+                   printf 'version = "2"\n# name = "early-return" only in a comment\n[[linters.settings.revive.rules]]\nname = "file-length-limit"\narguments = [{ max = 450 }]\n' > "$REPO/.golangci.toml" ;;
+        json)      rm -f "$REPO/.golangci.yaml"
+                   printf '{"absolutePath":"/r/.golangci.json","path":".golangci.json"}\n' > "$b/path.json"
+                   printf '{"version": "2", "linters": {"settings": {"revive": {"rules": [{"name": "file-length-limit", "arguments": [{"max": 450}]}]}}}}\n' > "$REPO/.golangci.json" ;;
         reject)    printf 'Error: can'"'"'t load config: unsupported version of the configuration: ""\n' > "$b/reject.txt" ;;
         garbled)   for f in path default recommended repo; do printf 'Enabled by your configuration linters:\nfunlen: Checks for long functions.\n' > "$b/$f.json"; done ;;
       esac ;;
@@ -997,7 +1012,8 @@ cat "$d/repo.json"' "$b"
       case "$mode" in
         reject)  rm -f "$REPO/eslint.config.mjs"
                  printf '\nOops! Something went wrong! :(\n\nESLint: 9.31.0\n\nESLint couldn'"'"'t find an eslint.config.(js|mjs|cjs) file.\n' > "$b/reject.txt" ;;
-        garbled) printf '{\n  "rules": {}\n}\n' > "$b/repo.json" ;;
+        garbled) printf 'Unexpected token < in JSON at position 0\n' > "$b/repo.json" ;;
+        norules) printf '{\n  "languageOptions": {\n    "parser": "x"\n  },\n  "rules": {}\n}\n' > "$b/repo.json" ;;
         ignored) printf 'undefined\n' > "$b/repo.json" ;;
       esac ;;
   esac
@@ -1269,6 +1285,28 @@ expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not
   && expect_not ": limit " && expect_not "cannot verify" \
   && { [[ -z "$FAKE_WARN" ]] || expect_has "$FAKE_WARN"; } && ok
 finish
+
+begin "doctor: a config that loads and sets no rule lists every recommended rule as missing"
+if [[ -z "$FAKE_NORULES" ]]; then skip "the linter has no config without rules to report"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor norules
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: missing;" && expect_not "cannot verify" && expect_not ": runs;" && ok
+  finish
+fi
+
+for fmt in toml json; do
+  begin "doctor: a rule named in a $fmt config is named"
+  case " $FAKE_FORMATS " in
+    *" $fmt "*)
+      write_src "src/a$FX_EXT" 1; fake_doctor "$fmt"
+      run_doctor
+      expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_NAMED_RULE: named;" \
+        && expect_has "$FAKE_LINTER revive early-return: missing;" && ok ;;
+    *) skip "the language's linter has no $fmt config" ;;
+  esac
+  finish
+done
 
 begin "doctor: a source file the linter ignores cannot verify"
 if [[ -z "$FAKE_IGNORED" ]]; then skip "the linter resolves its settings for any file"; finish

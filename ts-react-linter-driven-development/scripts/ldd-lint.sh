@@ -515,7 +515,7 @@ _lint_revive_rules() {
 }
 
 _lint_doctor_golangci() { # <recommended config> <work dir>
-  local rec="$1" t="$2" out cfg r state tuned rv cv here alt held
+  local rec="$1" t="$2" out cfg r re state tuned rv cv here alt held
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter rejects $rec: $(_lint_first_error "$t/err")"; return 0; }
@@ -558,11 +558,12 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
   done
   grep -qxF revive "$t/rec" || return 0
   # The linter cannot say which revive rules run: a rule the repository's
-  # config names outside comments is "named".
+  # config names outside comments is "named". The name field reads alike in
+  # YAML (name: r), TOML (name = "r") and JSON ("name": "r").
   _lint_revive_rules "$rec" | while IFS=$'\t' read -r r tuned; do
     rv=-; cv=-; state=missing
-    grep -qxF revive "$t/repo" && [[ -n "$cfg" ]] \
-      && _lint_names "name:[[:space:]]*[\"']?$r[\"']?([[:space:]]|$)" "$cfg" >/dev/null && state=named
+    re="(^|[^A-Za-z0-9_-])[\"']?name[\"']?[[:space:]]*[:=][[:space:]]*[\"']?$r[\"']?([[:space:],}]|$)"
+    grep -qxF revive "$t/repo" && [[ -n "$cfg" ]] && _lint_names "$re" "$cfg" >/dev/null && state=named
     if [[ "$tuned" == 1 ]]; then
       rv="see $rec: linters.settings.revive.rules, name $r"
       [[ "$state" == named ]] && cv="$here: linters.settings.revive.rules, name $r"
@@ -678,7 +679,8 @@ _lint_eslint_rules() {
 
 # _lint_eslint_resolved <file> — "rule TAB severity TAB options" for every rule
 # of an "eslint --print-config" output (JSON, two spaces per level); options
-# is the rest of the rule's array on one line, "-" when there is none
+# is the rest of the rule's array on one line, "-" when there is none. A first
+# line "#rules" says the output has a rules object, which may be empty
 _lint_eslint_resolved() {
   awk '
     function flush() {
@@ -688,8 +690,8 @@ _lint_eslint_resolved() {
       opts = "-"; if (index(val, ",") > 0) opts = substr(val, index(val, ",") + 1)
       print key "\t" sev "\t" opts; key = ""
     }
-    /^  "rules": [{][}]/ { exit }
-    /^  "rules": [{]/ { r = 1; next }
+    /^  "rules": [{][}]/ { print "#rules"; exit }
+    /^  "rules": [{]/ { print "#rules"; r = 1; next }
     !r { next }
     /^  [}]/ { flush(); exit }
     /^    "/ { flush(); key = $0; sub(/^    "/, "", key); sub(/".*$/, "", key)
@@ -758,7 +760,7 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
     return 0
   fi
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
-  [[ -s "$t/resolved" ]] || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
+  grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
   printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
   _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing
