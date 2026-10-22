@@ -52,6 +52,8 @@ phase is exactly as strong as your repository's own linter configuration:
   every linter rule the routing table routes to a design rule, at the limits the
   rules name. The plugin never writes them into your repository: copy one, or the
   parts you want. Limits your configuration already sets stay yours.
+  `scripts/ldd-lint.sh doctor` shows which of their rules your linter already runs,
+  and the setting on each side; it changes no file.
 - **It routes findings by what they are about.** The refactoring skill's routing
   table is keyed by finding family — complexity, function length, nesting,
   duplicated code, non-exhaustive switch, globals, single-implementation interfaces,

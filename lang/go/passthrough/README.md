@@ -26,7 +26,7 @@ go-linter-driven-development/
 ├── commands/     go-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
 ├── scripts/      check-repo-brain.sh — repo-brain conformance gate, installed into target repos by /wire-repo-brain
 │                 ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
-│                 ldd-lint.sh — the gap linter: file length and package size where no linter holds them
+│                 ldd-lint.sh — the gap linter: file length and package size where no linter holds them; its doctor compares your linter with setup/
 ```
 
 **Five layers, one fact per fact:**
@@ -211,7 +211,7 @@ The scenario guide — the easiest start first, then code you already wrote, a p
 
 **Zero configuration to run.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
 
-**The recommended setup makes the design triggers fire.** `setup/golangci.yaml` in the plugin directory enables every linter the routing table routes to a design rule, at the limits the rules name, with a ratchet so only new code fails at first. The plugin never writes it into your repository: copy it, or the parts you want, into `.golangci.yaml`. Limits your configuration already sets stay yours.
+**The recommended setup makes the design triggers fire.** `setup/golangci.yaml` in the plugin directory enables every linter the routing table routes to a design rule, at the limits the rules name, with a ratchet so only new code fails at first. The plugin never writes it into your repository: copy it, or the parts you want, into `.golangci.yaml`. Limits your configuration already sets stay yours. `scripts/ldd-lint.sh doctor` shows which of its rules your linter already runs, and the setting on each side; it changes no file.
 
 ### The Easiest Way: Just Talk to It
 

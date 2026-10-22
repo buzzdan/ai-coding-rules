@@ -106,7 +106,9 @@ checker the repository does not use.
   plugin directory selects every ruff rule the routing table routes to a design
   rule, at the limits the rules name. The plugin never writes it into your
   repository: copy it, or the parts you want, into `ruff.toml` or `pyproject.toml`.
-  Limits your configuration already sets stay yours.
+  Limits your configuration already sets stay yours. `scripts/ldd-lint.sh doctor`
+  shows which of its rules your linter already runs, and the setting on each side;
+  it changes no file.
 - **`# noqa`, `# ty: ignore` and `# type: ignore` are all suppressions.** The lint-fixer
   never adds one and never edits `[tool.ruff]`, `[tool.ty]` or `[tool.mypy]`; a new
   one in a diff is itself a review finding.
