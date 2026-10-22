@@ -837,6 +837,22 @@ run_gate
 expect_exit 0 && expect_not "cites a file path" && ok
 finish
 
+begin "Q2 an apostrophe inside a bare URL stays in it; a quote that opens a URL also closes it"
+mk_conformant
+printf "\n%s See https://example.com/don't/docs/guide.md here.\n%s Load 'https://example.com/a'docs/missing.md\n" \
+  "$FX_COMMENT" "$FX_COMMENT" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 1 && expect_has "code edge points at missing docs/missing.md" && expect_not "missing docs/guide.md" && ok
+finish
+
+begin "Q2 a backticked URL keeps its closing backtick: the next backticked symbol is still resolved"
+mk_conformant
+mk_doc ticked "a backticked URL" "See \`https://example.com/app/(group)/page\` and \`MissingThing\`."
+append_index "- [ticked.md](ticked.md) — a backticked URL"
+run_gate
+expect_exit 1 && expect_has "backticked \`MissingThing\` does not resolve" && ok
+finish
+
 begin "Q2 a local docs path next to a URL to the same path is still one code edge"
 mk_conformant
 printf '\n%s See docs/guide.md (https://github.com/x/y/blob/main/docs/guide.md).\n' \
