@@ -761,6 +761,140 @@ else
   finish
 fi
 
+begin "doctor --config compares that file"
+write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
+run_doctor
+r1=0; expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: missing;" && r1=1
+run_doctor --config strict-cfg
+(( r1 )) && expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not ": missing;" \
+  && expect_has "the chosen config strict-cfg" && ok
+finish
+
+begin "doctor: a lint_config item makes the doctor compare that file"
+write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
+write_record "lint_config:
+  - \"$FAKE_LINTER strict-cfg\""
+run_doctor
+expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not ": missing;" \
+  && expect_has "the chosen config strict-cfg" && ok
+finish
+
+begin "doctor: a lint_config item of a linter the run does not report is ignored"
+write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
+write_record "lint_config:
+  - \"other-linter strict-cfg\""
+run_doctor
+expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: missing;" && expect_not "strict-cfg" && ok
+finish
+
+begin "doctor --config overrides a lint_config item"
+write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg; : > "$REPO/weak-cfg"
+write_record "lint_config:
+  - \"$FAKE_LINTER strict-cfg\""
+run_doctor --config weak-cfg
+expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: missing;" && expect_has "the chosen config weak-cfg" && ok
+finish
+
+begin "doctor: a lint_config item whose path is not a file cannot verify"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "lint_config:
+  - \"$FAKE_LINTER no-such.cfg\""
+run_doctor
+expect_exit 0 && expect_has "$FAKE_LINTER -: cannot verify: the agreed config no-such.cfg does not exist" && expect_not ": runs;" && ok
+finish
+
+begin "doctor: the linter's own config check reads the chosen file"
+if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter has no config check of its own"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor invalid; fake_doctor_strict strict-cfg
+  run_doctor --config strict-cfg
+  expect_exit 0 && expect_not "cannot verify" && expect_has "$FAKE_RULE: $FAKE_RUNS;" \
+    && { grep -q 'config verify -c strict-cfg' "$REPO/.bin/calls.log" || bad "the check did not get the chosen file"; } && ok
+  finish
+fi
+
+begin "agree reads the rows of the chosen file"
+write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
+run_doctor --tsv --config strict-cfg
+cur=$(doctor_field "$FAKE_RULE" 6)
+run_agree --config strict-cfg --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "the team keeps it"
+expect_exit 0 && expect_out "$(record_item "$FAKE_LINTER" "$FAKE_RULE" "$cur" "the team keeps it")" && ok
+finish
+
+begin "agree --fingerprint prints the chosen file and the repository's own config"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_strict strict-cfg
+run_agree --fingerprint --config strict-cfg
+want="  - \"$FAKE_LINTER strict-cfg $(git hash-object "$REPO/strict-cfg")\"
+  - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\""
+expect_exit 0 && expect_out "$want" && ok
+finish
+
+begin "agree --fingerprint with a lint_config item prints both files too"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_strict strict-cfg
+write_record "lint_config:
+  - \"$FAKE_LINTER strict-cfg\""
+run_agree --fingerprint
+expect_exit 0 && expect_out "$want" && ok
+finish
+
+begin "agree --fingerprint prints one line when the chosen file is the repository's own config"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint --config "$FAKE_CONFIG"
+expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\"" && ok
+finish
+
+begin "doctor: a config changed since the agreement is named"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint
+write_record "lint_fingerprint:
+$OUT"
+printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
+run_doctor
+expect_exit 0 && { printf '%s\n' "$ERR" | grep -qx "doctor: $FAKE_CONFIG changed since the setup was agreed" \
+  || bad "no change line on stderr"; } && ok
+finish
+
+begin "doctor: a config that is gone since the agreement is named"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint
+write_record "lint_fingerprint:
+$OUT"
+rm -f "$REPO/$FAKE_CONFIG"
+run_doctor
+expect_exit 0 && expect_has "doctor: $FAKE_CONFIG changed since the setup was agreed" && ok
+finish
+
+begin "doctor: an unchanged config prints no change line"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint
+write_record "lint_fingerprint:
+$OUT"
+run_doctor
+expect_exit 0 && expect_not "changed since" && ok
+finish
+
+begin "doctor: a fingerprint of a linter the run does not report is ignored"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "lint_fingerprint:
+  - \"other-linter $FAKE_CONFIG 0000\""
+run_doctor
+expect_exit 0 && expect_not "changed since" && ok
+finish
+
+begin "doctor: a changed config is also kept for the status line"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint
+write_record "lint_fingerprint:
+$OUT"
+printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
+side=$(mktemp -d); printf '%s\t-\t-\t-\n' "$FAKE_LINTER" > "$side/rows"
+( cd "$REPO" && OVERRIDE_FILE=.ldd-lint.yaml DOCTOR_ROWS="$side/rows" DOCTOR_CHANGED="$side/changed" \
+  && eval "$(sed -n '/^record_items() {/,/^}/p;/^file_hash() {/,/^}/p;/^report_changed() {/,/^}/p' "$LINT")" \
+  && report_changed ) 2>/dev/null
+got=$(cat "$side/changed" 2>/dev/null); rm -rf "$side"
+{ [[ "$got" == "$FAKE_LINTER$TAB$FAKE_CONFIG" ]] || bad "side file: $got"; } && ok
+finish
+
 begin "doctor: a record line that matches no row is named in a warning"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 write_record "agreed:
@@ -891,6 +1025,28 @@ run_bounded() {
   if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; CODE=124; else wait "$pid"; CODE=$?; fi
   OUT=$(cat "$outf"); ERR=""; rm -f "$outf"
 }
+
+begin "--config with a run of two linters is a usage error (exit 2)"
+if (( $(printf '%s\n' $FX_ROWS | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  for r in $FX_ROWS; do use_row "$r"; write_src "src/a$FX_EXT" 1; done
+  : > "$REPO/x.cfg"
+  run_doctor --config x.cfg
+  expect_exit 2 && expect_has "--config" && expect_has "one linter" && ok
+fi
+finish
+
+begin "--config with a path that is not a file is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1
+run_doctor --config no-such.cfg
+expect_exit 2 && expect_has "--config: not a file: no-such.cfg" && ok
+finish
+
+begin "--config on another subcommand is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1; : > "$REPO/x.cfg"
+run_lint file-length --config x.cfg
+expect_exit 2 && expect_has "only doctor and agree take --config" && ok
+finish
 
 begin "agree --lint-config prints the line and needs no source file"
 mkdir -p "$REPO/sub"; : > "$REPO/sub/strict.yaml"

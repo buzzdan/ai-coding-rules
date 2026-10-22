@@ -29,6 +29,10 @@
 #                            FAKE_NAMED_RULE), invalid (the linter's own
 #                            config check fails on a schema error) and
 #                            noschema (that check cannot fetch the schema)
+#   fake_doctor_strict <path>  write a second config file at $REPO/<path>, which
+#                            the linter reports on as on the recommended
+#                            config; the golangci-lint fake logs its calls in
+#                            $REPO/.bin/calls.log
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
@@ -168,8 +172,11 @@ fake_doctor() { # <mode>
   case "$ROW" in
     go)
       _fake_bin golangci-lint '
+echo "$*" >> "$d/calls.log"
+cfg=""; prev=""
+for a in "$@"; do [ "$prev" = -c ] && cfg=$a; prev=$a; done
 if [ "$1" = config ] && [ "$2" = verify ]; then
-  if [ -f "$d/verify.txt" ]; then cat "$d/verify.txt" >&2; exit 3; fi
+  if [ -f "$d/verify.txt" ] && [ -z "$cfg" ]; then cat "$d/verify.txt" >&2; exit 3; fi
   exit 0
 fi
 if [ "$1" = config ]; then cat "$d/path.json"; exit 0; fi
@@ -180,6 +187,10 @@ for a in "$@"; do
     */setup/golangci.yaml) cat "$d/recommended.json"; exit 0 ;;
   esac
 done
+if [ -n "$cfg" ]; then
+  [ -f "$cfg" ] || { echo "Error: no such config file: $cfg" >&2; exit 3; }
+  if [ -f "$d/$(basename "$cfg").out" ]; then cat "$d/$(basename "$cfg").out"; exit 0; fi
+fi
 if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 3; fi
 cat "$d/repo.json"'
       printf '{"absolutePath":"/r/.golangci.yaml","path":".golangci.yaml"}\n' > "$b/path.json"
@@ -205,12 +216,16 @@ cat "$d/repo.json"'
       esac ;;
     python)
       _fake_bin ruff '
+cfg=""; prev=""
 for a in "$@"; do
   case "$a" in
     --isolated) cat "$d/default.txt"; exit 0 ;;
     */setup/ruff.toml) cat "$d/recommended.txt"; exit 0 ;;
   esac
+  [ "$prev" = --config ] && cfg=$a
+  prev=$a
 done
+if [ -n "$cfg" ] && [ -f "$d/$(basename "$cfg").out" ]; then cat "$d/$(basename "$cfg").out"; exit 0; fi
 if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 2; fi
 cat "$d/repo.txt"'
       _fake_ruff_settings '' 5 E401 F401 > "$b/default.txt"
@@ -227,6 +242,9 @@ cat "$d/repo.txt"'
     typescript)
       b="$REPO/node_modules/.bin"
       _fake_bin eslint '
+cfg=""; prev=""
+for a in "$@"; do [ "$prev" = -c ] && cfg=$a; prev=$a; done
+if [ -n "$cfg" ] && [ -f "$d/$(basename "$cfg").out" ]; then cat "$d/$(basename "$cfg").out"; exit 0; fi
 if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 2; fi
 cat "$d/repo.json"' "$b"
       cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/eslint.config.mjs"
@@ -238,6 +256,21 @@ cat "$d/repo.json"' "$b"
         norules) printf '{\n  "languageOptions": {\n    "parser": "x"\n  },\n  "rules": {}\n}\n' > "$b/repo.json" ;;
         ignored) printf 'undefined\n' > "$b/repo.json" ;;
       esac ;;
+  esac
+}
+
+# fake_doctor_strict <path> — a config file the doctor compares in place of the
+# repository's own, written at $REPO/<path> after fake_doctor: the linter
+# reports on it as it reports on the recommended config. The report is the
+# file's name plus ".out" in the fake's directory; a file with no report is
+# read as the repository's config.
+fake_doctor_strict() {
+  local p="$1" n b="$REPO/.bin"; n=$(basename "$p")
+  mkdir -p "$REPO/$(dirname "$p")"
+  case "$ROW" in
+    go)         cp "$(_fake_setup golangci.yaml)" "$REPO/$p"; cp "$b/recommended.json" "$b/$n.out" ;;
+    python)     cp "$(_fake_setup ruff.toml)" "$REPO/$p"; cp "$b/recommended.txt" "$b/$n.out" ;;
+    typescript) cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/$p"; _fake_eslint_json adopt > "$REPO/node_modules/.bin/$n.out" ;;
   esac
 }
 

@@ -41,7 +41,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   prints the record lines for `.ldd-lint.yaml`, escaped and ready to copy: a rule
   with the doctor's current value, `off` or `org`; a fingerprint of each config
   file the doctor compared (`--fingerprint`); and the line that names a config
-  file (`--lint-config`).
+  file (`--lint-config`). A `lint_config` item of the record, or `--config <file>`,
+  makes the doctor compare another config file for the one linter of the run, and
+  the linter's own config check reads that file too. `agree --fingerprint` then
+  prints a line for that file and one for the repository's own config. A
+  `lint_fingerprint` item whose file changed, or is gone, makes the doctor print
+  `doctor: <path> changed since the setup was agreed` on stderr.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory

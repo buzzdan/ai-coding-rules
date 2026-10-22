@@ -216,13 +216,22 @@ lint_reports_settings() {
   return 0
 }
 
-lint_doctor() { # <id> <setup dir> <file>
+# lint_doctor <id> <setup dir> <file> [config] — the doctor's lines for the
+# language's linter. A config is the file to compare in place of the
+# repository's own: the linter reads it for the settings, for its own config
+# check and for the rules that run, and the lines name it.
+lint_doctor() {
+  local cfg="${4:-}" t
+  if [[ -n "$cfg" && ! -f "$cfg" ]]; then
+    _lint_doctor_cannot "$(lint_doctor_linter "$1")" "the agreed config $cfg does not exist"
+    return 0
+  fi
   # Under the caller's LINT_TMP when it sets one, so its exit trap removes it
-  local t; t=$(mktemp -d "${LINT_TMP:-${TMPDIR:-/tmp}}/ldd-doctor.XXXXXX")
+  t=$(mktemp -d "${LINT_TMP:-${TMPDIR:-/tmp}}/ldd-doctor.XXXXXX")
   case "$1" in
-    go)                    _lint_doctor_golangci "$2/golangci.yaml" "$t" ;;
-    python)                _lint_doctor_ruff "$2/ruff.toml" "$3" "$t" ;;
-    typescript|javascript) _lint_doctor_eslint "$2/eslint.config.ldd.mjs" "$3" "$t" ;;
+    go)                    _lint_doctor_golangci "$2/golangci.yaml" "$t" "$cfg" ;;
+    python)                _lint_doctor_ruff "$2/ruff.toml" "$3" "$t" "$cfg" ;;
+    typescript|javascript) _lint_doctor_eslint "$2/eslint.config.ldd.mjs" "$3" "$t" "$cfg" ;;
   esac
   rm -rf "$t"
 }
@@ -292,32 +301,50 @@ _lint_revive_rules() {
     END { if (name != "") print name "\t0" }'
 }
 
-_lint_doctor_golangci() { # <recommended config> <work dir>
-  local rec="$1" t="$2" out cfg r re state tuned rv cv here alt held why
+# _lint_golangci <chosen config> <arguments> — runs the linter, with -c <chosen
+# config> when there is one
+_lint_golangci() {
+  local c="$1"; shift
+  if [[ -n "$c" ]]; then golangci-lint "$@" -c "$c"; else golangci-lint "$@"; fi
+}
+
+# _lint_golangci_default — the config file the linter finds from this
+# directory up, nothing when it finds none
+_lint_golangci_default() {
+  golangci-lint config path --json 2>/dev/null | sed -n 's/.*"path":"\([^"]*\)".*/\1/p'
+}
+
+_lint_doctor_golangci() { # <recommended config> <work dir> [chosen config]
+  local rec="$1" t="$2" chosen="${3:-}" out cfg dflt="" r re state tuned rv cv here alt held why which="the repository config"
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "golangci-lint cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
   golangci-lint linters --json --no-config > "$t/def.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter fails with no config: $(_lint_first_error "$t/err")"; return 0; }
-  # "path" is "" when the linter finds no config from this directory up
-  out=$(golangci-lint config path --json 2>/dev/null) \
-    || { _lint_doctor_cannot golangci-lint "the linter cannot say which config it reads"; return 0; }
-  case "$out" in
-    *'"path":'*) cfg=$(printf '%s' "$out" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p') ;;
-    *) _lint_doctor_cannot golangci-lint "cannot read the linter's answer to which config it reads"; return 0 ;;
-  esac
+  if [[ -n "$chosen" ]]; then
+    cfg="$chosen"; which="the chosen config"; dflt=$(_lint_golangci_default)
+  else
+    # "path" is "" when the linter finds no config from this directory up
+    out=$(golangci-lint config path --json 2>/dev/null) \
+      || { _lint_doctor_cannot golangci-lint "the linter cannot say which config it reads"; return 0; }
+    case "$out" in
+      *'"path":'*) cfg=$(printf '%s' "$out" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p') ;;
+      *) _lint_doctor_cannot golangci-lint "cannot read the linter's answer to which config it reads"; return 0 ;;
+    esac
+  fi
   if [[ -n "$cfg" ]]; then
     # A schema failure is a rejection; any other failure (no network for the
     # schema, for example) leaves the check unanswered and the doctor goes on.
-    if ! golangci-lint config verify > /dev/null 2> "$t/err" && grep -q '^jsonschema:' "$t/err"; then
+    if ! _lint_golangci "$chosen" config verify > /dev/null 2> "$t/err" && grep -q '^jsonschema:' "$t/err"; then
       why=$(grep -m1 '^jsonschema:' "$t/err" | tr '\t' ' ')
-      _lint_doctor_cannot golangci-lint "the repository config fails the linter's check: $why"
+      _lint_doctor_cannot golangci-lint "$which fails the linter's check: $why"
       return 0
     fi
-    golangci-lint linters --json > "$t/repo.json" 2> "$t/err" \
+    _lint_golangci "$chosen" linters --json > "$t/repo.json" 2> "$t/err" \
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }
     [[ -f "$cfg" ]] && printf 'config\tgolangci-lint\t%s\n' "$cfg"
-    printf 'note\tgolangci-lint, the repository config %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$cfg"
+    [[ -n "$dflt" && "$dflt" != "$cfg" && -f "$dflt" ]] && printf 'config\tgolangci-lint\t%s\n' "$dflt"
+    printf 'note\tgolangci-lint, %s %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$which" "$cfg"
     here="see $cfg"
   else
     cp "$t/def.json" "$t/repo.json"
@@ -399,21 +426,44 @@ _lint_limit_state() {
   else printf 'limit stricter'; fi
 }
 
-_lint_doctor_ruff() { # <recommended config> <file> <work dir>
-  local rec="$1" f="./$2" t="$3" sp r state key rv cv a b
+# _lint_ruff_show <chosen config> <file> — the settings ruff resolves for the
+# file, with --config <chosen config> when there is one
+_lint_ruff_show() {
+  if [[ -n "$1" ]]; then ruff check --no-cache --color never --show-settings --config "$1" "$2"
+  else ruff check --no-cache --color never --show-settings "$2"; fi
+}
+
+# _lint_ruff_path <show-settings output> — its settings path, relative to the
+# working directory when it is inside it; nothing when ruff names none
+_lint_ruff_path() {
+  local p
+  p=$(sed -n 's/^Settings path: "\(.*\)"$/\1/p' "$1")
+  p="${p#"$(pwd -P)"/}"; p="${p#"$(pwd)"/}"
+  printf '%s' "$p"
+}
+
+_lint_doctor_ruff() { # <recommended config> <file> <work dir> [chosen config]
+  local rec="$1" f="./$2" t="$3" chosen="${4:-}" sp dflt="" from which="the repository's config" r state key rv cv a b
   command -v ruff >/dev/null 2>&1 || { _lint_doctor_cannot ruff "ruff is not installed"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot ruff "no source file to resolve the settings for"; return 0; }
   ruff check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "ruff cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
   ruff check --no-cache --color never --show-settings --isolated "$f" > "$t/def.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "the linter fails with no config: $(_lint_first_error "$t/err")"; return 0; }
-  ruff check --no-cache --color never --show-settings "$f" > "$t/repo.txt" 2> "$t/err" \
-    || { _lint_doctor_cannot ruff "the linter rejects the repository's config: $(_lint_first_error "$t/err")"; return 0; }
-  sp=$(sed -n 's/^Settings path: "\(.*\)"$/\1/p' "$t/repo.txt")
-  sp="${sp#"$(pwd -P)"/}"; sp="${sp#"$(pwd)"/}"
-  [[ -n "$sp" ]] || sp="no config file, the linter's defaults"
+  [[ -n "$chosen" ]] && which="the chosen config $chosen"
+  _lint_ruff_show "$chosen" "$f" > "$t/repo.txt" 2> "$t/err" \
+    || { _lint_doctor_cannot ruff "the linter rejects $which: $(_lint_first_error "$t/err")"; return 0; }
+  if [[ -n "$chosen" ]]; then
+    sp="$chosen"; from="the chosen config $chosen"
+    _lint_ruff_show "" "$f" > "$t/dflt.txt" 2>/dev/null && dflt=$(_lint_ruff_path "$t/dflt.txt")
+  else
+    sp=$(_lint_ruff_path "$t/repo.txt")
+    [[ -n "$sp" ]] || sp="no config file, the linter's defaults"
+    from="$sp"
+  fi
   [[ -f "$sp" ]] && printf 'config\truff\t%s\n' "$sp"
-  printf 'note\truff, the settings resolved for %s from %s\n' "$2" "$sp"
+  [[ -n "$dflt" && "$dflt" != "$sp" && -f "$dflt" ]] && printf 'config\truff\t%s\n' "$dflt"
+  printf 'note\truff, the settings resolved for %s from %s\n' "$2" "$from"
   _lint_ruff_rules "$t/rec.txt" > "$t/rec"
   _lint_ruff_rules "$t/def.txt" > "$t/def"
   _lint_ruff_rules "$t/repo.txt" > "$t/repo"
@@ -557,8 +607,14 @@ _lint_eslint_config_file() {
   return 1
 }
 
-_lint_doctor_eslint() { # <recommended config> <file> <work dir>
-  local rec="$1" t="$3" bin r ro sev opts state rv cv a b cfg
+# _lint_eslint_print <bin> <chosen config> <file> — the config ESLint resolves
+# for the file, with -c <chosen config> when there is one
+_lint_eslint_print() {
+  if [[ -n "$2" ]]; then "$1" -c "$2" --print-config "$3"; else "$1" --print-config "$3"; fi
+}
+
+_lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
+  local rec="$1" t="$3" chosen="${4:-}" bin r ro sev opts state rv cv a b cfg dflt which="the repository's config"
   if ! bin=$(_lint_eslint_bin); then
     if _lint_eslint_pnp; then
       _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
@@ -577,16 +633,23 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir>
   _lint_eslint_rules "$rec" > "$t/rec"
   [[ -s "$t/rec" ]] || { _lint_doctor_cannot eslint "cannot read the rules of the recommended config $rec"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot eslint "no source file to resolve the config for"; return 0; }
-  "$bin" --print-config "./$2" > "$t/repo.json" 2> "$t/err" \
-    || { _lint_doctor_cannot eslint "the linter rejects the repository's config: $(_lint_eslint_error "$t/err")"; return 0; }
+  [[ -n "$chosen" ]] && which="the chosen config $chosen"
+  _lint_eslint_print "$bin" "$chosen" "./$2" > "$t/repo.json" 2> "$t/err" \
+    || { _lint_doctor_cannot eslint "the linter rejects $which: $(_lint_eslint_error "$t/err")"; return 0; }
   if [[ "$(tr -d '[:space:]' < "$t/repo.json")" == undefined ]]; then
     _lint_doctor_cannot eslint "ESLint ignores $2; run the doctor with --root on a directory whose files ESLint checks"
     return 0
   fi
   _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
   grep -qx '#rules' "$t/resolved" || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
-  cfg=$(_lint_eslint_config_file) && printf 'config\teslint\t%s\n' "$cfg"
-  printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
+  if [[ -n "$chosen" ]]; then
+    printf 'config\teslint\t%s\n' "$chosen"
+    dflt=$(_lint_eslint_config_file) && [[ "$dflt" != "$chosen" ]] && printf 'config\teslint\t%s\n' "$dflt"
+    printf 'note\tESLint %s, the config resolved for %s from the chosen config %s\n' "$bin" "$2" "$chosen"
+  else
+    cfg=$(_lint_eslint_config_file) && printf 'config\teslint\t%s\n' "$cfg"
+    printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
+  fi
   while IFS=$'\t' read -r r ro; do
     rv=-; cv=-; state=missing
     case "$ro" in
