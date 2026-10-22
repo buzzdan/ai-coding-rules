@@ -18,15 +18,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 - **`ldd-lint.sh doctor` compares the repository's linter with the recommended
   setup.** For each language of the repository, it lists each rule of the
-  recommended config with a state: runs, missing, limit differs, named (found by
+  recommended config with a state: runs, missing, limit looser or limit stricter
+  (the repository's setting lets more code pass, or less), named (found by
   name in the config; the linter was not asked) or cannot verify, with the reason.
   Each row shows the recommended setting and the repository's own. The doctor asks
   the installed linter: ruff reports every rule and limit, golangci-lint reports
   which linters run. Where the linter cannot report a setting, the row names the
   file and key to read. ESLint rules are found by name only. `--tsv` writes the rows
   as seven fields; the last says whether the linter or a search by name gave the
-  state. A linter output the doctor cannot read is "cannot verify". The doctor
-  never edits a file.
+  state. A linter output the doctor cannot read is "cannot verify". `--root <dir>`
+  points the doctor at one project of a monorepo, such as a front end with its own
+  ESLint config. golangci-lint's cyclop counts as gocyclo. The doctor never edits
+  a file.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory

@@ -14,7 +14,9 @@
 #                          plugin's recommended config under setup/: whether
 #                          the repository's linter runs it, and the setting on
 #                          both sides (below)
-#   --root <dir>           the repository (default: cwd)
+#   --root <dir>           the repository, or one project in it, such as a
+#                          front end with its own linter config: every
+#                          lookup starts there (default: cwd)
 #   --files <list>         measure the source files this list names, one
 #                          relative path per line (a scope bundle's files.txt
 #                          works: a "(not bundled: …)" suffix is ignored);
@@ -52,8 +54,9 @@
 # doctor: the rules are the ones the recommended config enables, as the
 # installed linter resolves it, beyond the linter's default set, and the
 # default rules the config names that the repository does not run. Each row
-# has a state: runs, missing, limit
-# differs, named (the rule is named outside comments in the repository's
+# has a state: runs, missing, limit looser or limit stricter (the
+# repository's setting lets more code pass, or less, than the recommended
+# one), named (the rule is named outside comments in the repository's
 # config; the linter was not asked), or cannot verify, with the reason (the
 # linter is not installed, or rejects a config). recommended and current are
 # the setting as the linter reports it; where the linter cannot report it, they
@@ -384,8 +387,10 @@ lang_is_test() {
 #                                   enables, as the linter resolves it, beyond
 #                                   the linter's default set, and the default
 #                                   rules it names that the repository does not
-#                                   run. state: runs ·
-#                                   missing · limit differs · named (the rule is
+#                                   run. state: runs · missing · limit looser
+#                                   or limit stricter (the repository's setting
+#                                   lets more code pass, or less, than the
+#                                   recommended one) · named (the rule is
 #                                   named outside comments in the repository's
 #                                   config; the linter was not asked) · cannot
 #                                   verify: <why>. recommended and current: the
@@ -582,6 +587,15 @@ _lint_golangci_names() {
   tr -d '\n' < "$1" | sed 's/"Disabled":.*//' | grep -oE '"name":"[^"]+"' | sed 's/^"name":"//; s/"$//' | LC_ALL=C sort -u
 }
 
+# _lint_golangci_alternative <linter> — a linter the recommended config
+# accepts in its place (its own comment says to enable one of the two)
+_lint_golangci_alternative() {
+  case "$1" in
+    gocyclo) printf 'cyclop' ;;
+  esac
+  return 0
+}
+
 # _lint_golangci_tuned <config> <linter> — exit 0 when the config has a
 # settings block for the linter
 _lint_golangci_tuned() {
@@ -604,7 +618,7 @@ _lint_revive_rules() {
 }
 
 _lint_doctor_golangci() { # <recommended config> <work dir>
-  local rec="$1" t="$2" out cfg r state tuned rv cv here
+  local rec="$1" t="$2" out cfg r state tuned rv cv here alt held
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter rejects $rec: $(_lint_first_error "$t/err")"; return 0; }
@@ -633,12 +647,16 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
   [[ -s "$t/rec" && -s "$t/def" ]] \
     || { _lint_doctor_cannot golangci-lint "cannot read the linter's list of the linters it runs"; return 0; }
   _lint_doctor_sets "$t/rec" "$t/def" "$t/repo" "$rec" | while IFS=$'\t' read -r r state; do
-    rv=-; cv=-
+    rv=-; cv=-; alt=$(_lint_golangci_alternative "$r"); held="$r"
+    if [[ "$state" == missing && -n "$alt" ]] && grep -qxF -- "$alt" "$t/repo"; then
+      state=runs; held="$alt"
+    fi
     if _lint_golangci_tuned "$rec" "$r"; then
       rv="see $rec: linters.settings.$r"
-      [[ "$state" == runs && -n "$cfg" ]] && cv="see $cfg: linters.settings.$r, the linter's default when absent"
+      [[ "$state" == runs && -n "$cfg" ]] && cv="see $cfg: linters.settings.$held, the linter's default when absent"
       [[ "$state" == runs && -z "$cfg" ]] && cv="the linter's default"
     fi
+    [[ "$held" != "$r" ]] && cv="$held runs in its place; $cv"
     printf 'row\tgolangci-lint\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
   done
   grep -qxF revive "$t/rec" || return 0
@@ -673,7 +691,8 @@ _lint_ruff_value() {
   awk -v k="linter.$2" '$1 == k && $2 == "=" { print $3; exit }' "$1"
 }
 
-# _lint_ruff_setting <code> — the setting that holds the rule's limit
+# _lint_ruff_setting <code> — the setting that holds the rule's limit. Each is
+# a maximum: a larger value lets more code pass.
 _lint_ruff_setting() {
   case "$1" in
     C901)    printf 'mccabe.max_complexity' ;;
@@ -684,6 +703,16 @@ _lint_ruff_setting() {
     PLR1702) printf 'pylint.max_nested_blocks' ;;
   esac
   return 0
+}
+
+# _lint_limit_state <recommended> <current> — of a maximum: "runs" when the
+# two are equal, "limit looser" when the current one is larger, "limit
+# stricter" when it is smaller; "limit differs" when one is not a whole number
+_lint_limit_state() {
+  if [[ "$1" == "$2" ]]; then printf 'runs'
+  elif [[ ! "$1" =~ ^[0-9]+$ || ! "$2" =~ ^[0-9]+$ ]]; then printf 'limit differs'
+  elif (( $2 > $1 )); then printf 'limit looser'
+  else printf 'limit stricter'; fi
 }
 
 _lint_doctor_ruff() { # <recommended config> <file> <work dir>
@@ -715,7 +744,7 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
         state="cannot verify: the linter reports no $key"; rv=-
       elif [[ "$state" == runs ]]; then
         cv="$key = $b"
-        [[ "$b" == "$a" ]] || state="limit differs"
+        state=$(_lint_limit_state "$a" "$b")
       fi
     fi
     printf 'row\truff\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"

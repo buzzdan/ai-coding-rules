@@ -13,7 +13,10 @@
 #                            Modes: adopt (the repository runs every
 #                            recommended rule at the recommended settings),
 #                            missing (it leaves FAKE_RULE out), relaxed (it sets
-#                            another limit for FAKE_RULE), commented (it names
+#                            a looser limit for FAKE_RULE), tightened (a
+#                            stricter one), alternative (it runs, in place
+#                            of a recommended linter, the one the recommended
+#                            config accepts instead), commented (it names
 #                            FAKE_NAMED_RULE only inside a comment), reject
 #                            (the linter rejects the repository's config),
 #                            garbled (the linter prints an output of another
@@ -25,7 +28,11 @@
 #   FAKE_BIN         the linter's executable; "" when the doctor runs none
 #   FAKE_RULE        a recommended rule with a setting
 #   FAKE_RUNS        the state of a rule the adopted config holds
-#   FAKE_RELAXED     the text of FAKE_RULE's row in the relaxed mode
+#   FAKE_RELAXED     the text of FAKE_RULE's row in the relaxed mode, and
+#   FAKE_TIGHTENED   in the tightened mode; "" when the linter reports no
+#                    setting, so the doctor cannot compare one
+#   FAKE_ALTERNATIVE the text of the row in the alternative mode; "" when
+#                    the recommended config names no alternative
 #   FAKE_NAMED_RULE  a rule the doctor finds by name in the repository's
 #                    config; "" when the linter reports every rule itself
 #   FAKE_CONFIG      the repository config the fake modes write
@@ -33,15 +40,17 @@
 fake_doctor_row() {
   case "$ROW" in
     go)
-      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'
+      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
+      FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
-      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'
-      FAKE_RELAXED='PLR0913: limit differs; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
+      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
+      FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
     typescript)
-      FAKE_LINTER='eslint'; FAKE_BIN=''; FAKE_RULE='max-params'; FAKE_RUNS='named'
+      FAKE_LINTER='eslint'; FAKE_BIN=''; FAKE_RULE='max-params'; FAKE_RUNS='named'; FAKE_TIGHTENED=''; FAKE_ALTERNATIVE=''
       FAKE_RELAXED="max-params: named; recommended: see $(_fake_setup eslint.config.ldd.mjs): rules['max-params']; current: see eslint.config.mjs: rules['max-params']"
       FAKE_NAMED_RULE='max-params'; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
@@ -94,11 +103,12 @@ if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 3; fi
 cat "$d/repo.json"'
       printf '{"absolutePath":"/r/.golangci.yaml","path":".golangci.yaml"}\n' > "$b/path.json"
       _fake_golangci_json errcheck govet > "$b/default.json"
-      _fake_golangci_json errcheck funlen gochecknoglobals govet nestif revive > "$b/recommended.json"
+      _fake_golangci_json errcheck funlen gochecknoglobals gocyclo govet nestif revive > "$b/recommended.json"
       cp "$b/recommended.json" "$b/repo.json"
       cp "$(_fake_setup golangci.yaml)" "$REPO/.golangci.yaml"
       case "$mode" in
-        missing)   _fake_golangci_json errcheck gochecknoglobals govet nestif revive > "$b/repo.json" ;;
+        missing)   _fake_golangci_json errcheck gochecknoglobals gocyclo govet nestif revive > "$b/repo.json" ;;
+        alternative) _fake_golangci_json cyclop errcheck funlen gochecknoglobals govet nestif revive > "$b/repo.json" ;;
         relaxed)   sed 's/lines: 50/lines: 80/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         commented) sed 's/- name: file-length-limit/# - name: file-length-limit/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         reject)    printf 'Error: can'"'"'t load config: unsupported version of the configuration: ""\n' > "$b/reject.txt" ;;
@@ -121,6 +131,7 @@ cat "$d/repo.txt"'
       case "$mode" in
         missing) _fake_ruff_settings pyproject.toml 4 B006 C901 E401 F401 PLR1702 > "$b/repo.txt" ;;
         relaxed) _fake_ruff_settings pyproject.toml 7 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
+        tightened) _fake_ruff_settings pyproject.toml 3 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         reject)  printf 'ruff failed\n  Cause: Failed to parse pyproject.toml\n' > "$b/reject.txt" ;;
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;

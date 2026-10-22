@@ -14,7 +14,9 @@
 #                          plugin's recommended config under setup/: whether
 #                          the repository's linter runs it, and the setting on
 #                          both sides (below)
-#   --root <dir>           the repository (default: cwd)
+#   --root <dir>           the repository, or one project in it, such as a
+#                          front end with its own linter config: every
+#                          lookup starts there (default: cwd)
 #   --files <list>         measure the source files this list names, one
 #                          relative path per line (a scope bundle's files.txt
 #                          works: a "(not bundled: …)" suffix is ignored);
@@ -52,8 +54,9 @@
 # doctor: the rules are the ones the recommended config enables, as the
 # installed linter resolves it, beyond the linter's default set, and the
 # default rules the config names that the repository does not run. Each row
-# has a state: runs, missing, limit
-# differs, named (the rule is named outside comments in the repository's
+# has a state: runs, missing, limit looser or limit stricter (the
+# repository's setting lets more code pass, or less, than the recommended
+# one), named (the rule is named outside comments in the repository's
 # config; the linter was not asked), or cannot verify, with the reason (the
 # linter is not installed, or rejects a config). recommended and current are
 # the setting as the linter reports it; where the linter cannot report it, they

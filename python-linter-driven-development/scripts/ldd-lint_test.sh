@@ -238,8 +238,10 @@ fx_write_linter_config_other() {
 #                                   enables, as the linter resolves it, beyond
 #                                   the linter's default set, and the default
 #                                   rules it names that the repository does not
-#                                   run. state: runs ·
-#                                   missing · limit differs · named (the rule is
+#                                   run. state: runs · missing · limit looser
+#                                   or limit stricter (the repository's setting
+#                                   lets more code pass, or less, than the
+#                                   recommended one) · named (the rule is
 #                                   named outside comments in the repository's
 #                                   config; the linter was not asked) · cannot
 #                                   verify: <why>. recommended and current: the
@@ -436,6 +438,15 @@ _lint_golangci_names() {
   tr -d '\n' < "$1" | sed 's/"Disabled":.*//' | grep -oE '"name":"[^"]+"' | sed 's/^"name":"//; s/"$//' | LC_ALL=C sort -u
 }
 
+# _lint_golangci_alternative <linter> — a linter the recommended config
+# accepts in its place (its own comment says to enable one of the two)
+_lint_golangci_alternative() {
+  case "$1" in
+    gocyclo) printf 'cyclop' ;;
+  esac
+  return 0
+}
+
 # _lint_golangci_tuned <config> <linter> — exit 0 when the config has a
 # settings block for the linter
 _lint_golangci_tuned() {
@@ -458,7 +469,7 @@ _lint_revive_rules() {
 }
 
 _lint_doctor_golangci() { # <recommended config> <work dir>
-  local rec="$1" t="$2" out cfg r state tuned rv cv here
+  local rec="$1" t="$2" out cfg r state tuned rv cv here alt held
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter rejects $rec: $(_lint_first_error "$t/err")"; return 0; }
@@ -487,12 +498,16 @@ _lint_doctor_golangci() { # <recommended config> <work dir>
   [[ -s "$t/rec" && -s "$t/def" ]] \
     || { _lint_doctor_cannot golangci-lint "cannot read the linter's list of the linters it runs"; return 0; }
   _lint_doctor_sets "$t/rec" "$t/def" "$t/repo" "$rec" | while IFS=$'\t' read -r r state; do
-    rv=-; cv=-
+    rv=-; cv=-; alt=$(_lint_golangci_alternative "$r"); held="$r"
+    if [[ "$state" == missing && -n "$alt" ]] && grep -qxF -- "$alt" "$t/repo"; then
+      state=runs; held="$alt"
+    fi
     if _lint_golangci_tuned "$rec" "$r"; then
       rv="see $rec: linters.settings.$r"
-      [[ "$state" == runs && -n "$cfg" ]] && cv="see $cfg: linters.settings.$r, the linter's default when absent"
+      [[ "$state" == runs && -n "$cfg" ]] && cv="see $cfg: linters.settings.$held, the linter's default when absent"
       [[ "$state" == runs && -z "$cfg" ]] && cv="the linter's default"
     fi
+    [[ "$held" != "$r" ]] && cv="$held runs in its place; $cv"
     printf 'row\tgolangci-lint\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
   done
   grep -qxF revive "$t/rec" || return 0
@@ -527,7 +542,8 @@ _lint_ruff_value() {
   awk -v k="linter.$2" '$1 == k && $2 == "=" { print $3; exit }' "$1"
 }
 
-# _lint_ruff_setting <code> — the setting that holds the rule's limit
+# _lint_ruff_setting <code> — the setting that holds the rule's limit. Each is
+# a maximum: a larger value lets more code pass.
 _lint_ruff_setting() {
   case "$1" in
     C901)    printf 'mccabe.max_complexity' ;;
@@ -538,6 +554,16 @@ _lint_ruff_setting() {
     PLR1702) printf 'pylint.max_nested_blocks' ;;
   esac
   return 0
+}
+
+# _lint_limit_state <recommended> <current> — of a maximum: "runs" when the
+# two are equal, "limit looser" when the current one is larger, "limit
+# stricter" when it is smaller; "limit differs" when one is not a whole number
+_lint_limit_state() {
+  if [[ "$1" == "$2" ]]; then printf 'runs'
+  elif [[ ! "$1" =~ ^[0-9]+$ || ! "$2" =~ ^[0-9]+$ ]]; then printf 'limit differs'
+  elif (( $2 > $1 )); then printf 'limit looser'
+  else printf 'limit stricter'; fi
 }
 
 _lint_doctor_ruff() { # <recommended config> <file> <work dir>
@@ -569,7 +595,7 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
         state="cannot verify: the linter reports no $key"; rv=-
       elif [[ "$state" == runs ]]; then
         cv="$key = $b"
-        [[ "$b" == "$a" ]] || state="limit differs"
+        state=$(_lint_limit_state "$a" "$b")
       fi
     fi
     printf 'row\truff\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
@@ -634,7 +660,10 @@ _lint_doctor_eslint() { # <recommended config>
 #                            Modes: adopt (the repository runs every
 #                            recommended rule at the recommended settings),
 #                            missing (it leaves FAKE_RULE out), relaxed (it sets
-#                            another limit for FAKE_RULE), commented (it names
+#                            a looser limit for FAKE_RULE), tightened (a
+#                            stricter one), alternative (it runs, in place
+#                            of a recommended linter, the one the recommended
+#                            config accepts instead), commented (it names
 #                            FAKE_NAMED_RULE only inside a comment), reject
 #                            (the linter rejects the repository's config),
 #                            garbled (the linter prints an output of another
@@ -646,7 +675,11 @@ _lint_doctor_eslint() { # <recommended config>
 #   FAKE_BIN         the linter's executable; "" when the doctor runs none
 #   FAKE_RULE        a recommended rule with a setting
 #   FAKE_RUNS        the state of a rule the adopted config holds
-#   FAKE_RELAXED     the text of FAKE_RULE's row in the relaxed mode
+#   FAKE_RELAXED     the text of FAKE_RULE's row in the relaxed mode, and
+#   FAKE_TIGHTENED   in the tightened mode; "" when the linter reports no
+#                    setting, so the doctor cannot compare one
+#   FAKE_ALTERNATIVE the text of the row in the alternative mode; "" when
+#                    the recommended config names no alternative
 #   FAKE_NAMED_RULE  a rule the doctor finds by name in the repository's
 #                    config; "" when the linter reports every rule itself
 #   FAKE_CONFIG      the repository config the fake modes write
@@ -654,15 +687,17 @@ _lint_doctor_eslint() { # <recommended config>
 fake_doctor_row() {
   case "$ROW" in
     go)
-      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'
+      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
+      FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
-      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'
-      FAKE_RELAXED='PLR0913: limit differs; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
+      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
+      FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
     typescript)
-      FAKE_LINTER='eslint'; FAKE_BIN=''; FAKE_RULE='max-params'; FAKE_RUNS='named'
+      FAKE_LINTER='eslint'; FAKE_BIN=''; FAKE_RULE='max-params'; FAKE_RUNS='named'; FAKE_TIGHTENED=''; FAKE_ALTERNATIVE=''
       FAKE_RELAXED="max-params: named; recommended: see $(_fake_setup eslint.config.ldd.mjs): rules['max-params']; current: see eslint.config.mjs: rules['max-params']"
       FAKE_NAMED_RULE='max-params'; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
@@ -715,11 +750,12 @@ if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 3; fi
 cat "$d/repo.json"'
       printf '{"absolutePath":"/r/.golangci.yaml","path":".golangci.yaml"}\n' > "$b/path.json"
       _fake_golangci_json errcheck govet > "$b/default.json"
-      _fake_golangci_json errcheck funlen gochecknoglobals govet nestif revive > "$b/recommended.json"
+      _fake_golangci_json errcheck funlen gochecknoglobals gocyclo govet nestif revive > "$b/recommended.json"
       cp "$b/recommended.json" "$b/repo.json"
       cp "$(_fake_setup golangci.yaml)" "$REPO/.golangci.yaml"
       case "$mode" in
-        missing)   _fake_golangci_json errcheck gochecknoglobals govet nestif revive > "$b/repo.json" ;;
+        missing)   _fake_golangci_json errcheck gochecknoglobals gocyclo govet nestif revive > "$b/repo.json" ;;
+        alternative) _fake_golangci_json cyclop errcheck funlen gochecknoglobals govet nestif revive > "$b/repo.json" ;;
         relaxed)   sed 's/lines: 50/lines: 80/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         commented) sed 's/- name: file-length-limit/# - name: file-length-limit/' "$(_fake_setup golangci.yaml)" > "$REPO/.golangci.yaml" ;;
         reject)    printf 'Error: can'"'"'t load config: unsupported version of the configuration: ""\n' > "$b/reject.txt" ;;
@@ -742,6 +778,7 @@ cat "$d/repo.txt"'
       case "$mode" in
         missing) _fake_ruff_settings pyproject.toml 4 B006 C901 E401 F401 PLR1702 > "$b/repo.txt" ;;
         relaxed) _fake_ruff_settings pyproject.toml 7 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
+        tightened) _fake_ruff_settings pyproject.toml 3 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         reject)  printf 'ruff failed\n  Cause: Failed to parse pyproject.toml\n' > "$b/reject.txt" ;;
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
@@ -1018,7 +1055,7 @@ begin "doctor: a repository that adopts the recommended config runs every rule"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 run_doctor
 expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not ": missing;" \
-  && expect_not "limit differs" && expect_not "cannot verify" && ok
+  && expect_not ": limit " && expect_not "cannot verify" && ok
 finish
 
 begin "doctor: a recommended rule the repository does not run is missing"
@@ -1032,6 +1069,24 @@ write_src "src/a$FX_EXT" 1; fake_doctor relaxed
 run_doctor
 expect_exit 0 && expect_has "$FAKE_RELAXED" && ok
 finish
+
+begin "doctor: a limit the repository sets lower than the recommended one is stricter"
+if [[ -z "$FAKE_TIGHTENED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor tightened
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_TIGHTENED" && ok
+  finish
+fi
+
+begin "doctor: a linter the recommended config accepts in place of another runs for it"
+if [[ -z "$FAKE_ALTERNATIVE" ]]; then skip "the recommended config names no alternative"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor alternative
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_ALTERNATIVE" && ok
+  finish
+fi
 
 begin "doctor: a rule named only inside a comment of the repository's config is missing"
 if [[ -z "$FAKE_NAMED_RULE" ]]; then skip "the linter reports every rule itself"; finish
@@ -1093,7 +1148,7 @@ else
   write_src "src/a$FX_EXT" 1; real_doctor_adopt
   run_lint doctor
   expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: runs;" && expect_not ": missing;" \
-    && expect_not "limit differs" && expect_not "cannot verify" && ok
+    && expect_not ": limit " && expect_not "cannot verify" && ok
   finish
 fi
 

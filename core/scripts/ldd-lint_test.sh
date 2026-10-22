@@ -345,7 +345,7 @@ begin "doctor: a repository that adopts the recommended config runs every rule"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 run_doctor
 expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not ": missing;" \
-  && expect_not "limit differs" && expect_not "cannot verify" && ok
+  && expect_not ": limit " && expect_not "cannot verify" && ok
 finish
 
 begin "doctor: a recommended rule the repository does not run is missing"
@@ -359,6 +359,24 @@ write_src "src/a$FX_EXT" 1; fake_doctor relaxed
 run_doctor
 expect_exit 0 && expect_has "$FAKE_RELAXED" && ok
 finish
+
+begin "doctor: a limit the repository sets lower than the recommended one is stricter"
+if [[ -z "$FAKE_TIGHTENED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor tightened
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_TIGHTENED" && ok
+  finish
+fi
+
+begin "doctor: a linter the recommended config accepts in place of another runs for it"
+if [[ -z "$FAKE_ALTERNATIVE" ]]; then skip "the recommended config names no alternative"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor alternative
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_ALTERNATIVE" && ok
+  finish
+fi
 
 begin "doctor: a rule named only inside a comment of the repository's config is missing"
 if [[ -z "$FAKE_NAMED_RULE" ]]; then skip "the linter reports every rule itself"; finish
@@ -420,7 +438,7 @@ else
   write_src "src/a$FX_EXT" 1; real_doctor_adopt
   run_lint doctor
   expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: runs;" && expect_not ": missing;" \
-    && expect_not "limit differs" && expect_not "cannot verify" && ok
+    && expect_not ": limit " && expect_not "cannot verify" && ok
   finish
 fi
 
