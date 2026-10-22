@@ -157,7 +157,7 @@ SCOPED=0
 # directory holding the file, so `retry.parse_policy` resolves whether the
 # function lives in retry/__init__.py or retry/policy.py.
 LANG_PROJECT_MARKER="pyproject.toml"
-LANG_PRUNE_DIRS=".venv venv __pycache__ site-packages .tox node_modules"
+LANG_PRUNE_DIRS=".venv venv __pycache__ site-packages .tox node_modules build dist .eggs"
 LANG_CODE_GLOB='*.py'
 LANG_FILE_EXT=".py"
 LANG_FILE_RE='\\.py(:[0-9]+)?$'

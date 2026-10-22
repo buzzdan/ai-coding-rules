@@ -162,7 +162,7 @@ use_row() {
   FX_EXTERNAL1="datetime.timedelta"; FX_EXTERNAL2="http.client"
   FX_URL="https://example.readthedocs.io/en/latest/retry.html#Policy.Do"
   FX_COMMENT="#"
-  FX_PRUNED_DIRS=".venv venv __pycache__ site-packages .tox node_modules"
+  FX_PRUNED_DIRS=".venv venv __pycache__ site-packages .tox node_modules build dist .eggs"
   FX_CONST_SHAPE="checked"
 }
 
