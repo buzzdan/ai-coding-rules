@@ -345,8 +345,18 @@ begin "doctor: a repository that adopts the recommended config runs every rule"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 run_doctor
 expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not ": missing;" \
-  && expect_not ": limit " && expect_not "cannot verify" && ok
+  && expect_not ": limit " && expect_not "cannot verify" \
+  && { [[ -z "$FAKE_WARN" ]] || expect_has "$FAKE_WARN"; } && ok
 finish
+
+begin "doctor: a source file the linter ignores cannot verify"
+if [[ -z "$FAKE_IGNORED" ]]; then skip "the linter resolves its settings for any file"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor ignored
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_IGNORED" && expect_not ": runs;" && ok
+  finish
+fi
 
 begin "doctor: a recommended rule the repository does not run is missing"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
@@ -433,7 +443,8 @@ finish
 
 begin "doctor: the installed linter reads the recommended config adopted as the repository's own"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
-elif ! command -v "$FAKE_BIN" >/dev/null 2>&1; then skip "$FAKE_BIN is not on PATH"; finish
+elif [[ -z "$FAKE_REAL" ]]; then skip "the linter is installed per project, which the matrix cannot do"; finish
+elif ! command -v "$FAKE_REAL" >/dev/null 2>&1; then skip "$FAKE_REAL is not on PATH"; finish
 else
   write_src "src/a$FX_EXT" 1; real_doctor_adopt
   run_lint doctor

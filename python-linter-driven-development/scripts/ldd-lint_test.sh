@@ -398,7 +398,7 @@ lint_doctor() { # <id> <setup dir> <file>
   case "$1" in
     go)                    _lint_doctor_golangci "$2/golangci.yaml" "$t" ;;
     python)                _lint_doctor_ruff "$2/ruff.toml" "$3" "$t" ;;
-    typescript|javascript) _lint_doctor_eslint "$2/eslint.config.ldd.mjs" ;;
+    typescript|javascript) _lint_doctor_eslint "$2/eslint.config.ldd.mjs" "$3" "$t" ;;
   esac
   rm -rf "$t"
 }
@@ -602,12 +602,15 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
   done
 }
 
-# ESLint: the doctor does not run it; a rule the repository's config
-# names outside comments is "named", and every setting is "see <file>: <key>".
+# ESLint: the doctor runs the project's own ESLint (node_modules/.bin/eslint)
+# with --print-config on one source file: the config as ESLint resolves it,
+# shared configs included.
 
-# _lint_eslint_rules <config> — "rule TAB 1" for a rule set with options,
-# "rule TAB 0" for one set by severity only, once per rule, in the order the
-# config first sets it; a rule set to "off" (as for test files) is left out
+# _lint_eslint_rules <config> — "rule TAB options" for every rule the
+# recommended config sets, once per rule, in the order the config first sets
+# it: options is the text after the severity when it fits on the rule's line,
+# "..." when it runs on, "-" when there is none; a rule set to "off" (as for
+# test files) is left out
 _lint_eslint_rules() {
   lint_strip_comments c "$1" | awk -v q="'" '
     { line = $0; sub(/^[ \t]+/, "", line)
@@ -618,29 +621,117 @@ _lint_eslint_rules() {
       sub(/^:[ \t]*/, "", after); c = substr(after, 1, 1)
       sev = after; sub(/^\[[ \t]*/, "", sev)
       if (substr(sev, 1, 5) == q "off" q || seen[name]++) next
-      if (c == "[") print name "\t1"; else if (c == q) print name "\t0" }'
+      if (c == q) { print name "\t-"; next }
+      if (c != "[") next
+      opts = after; sub(/[ \t]*,?[ \t]*$/, "", opts)
+      if (opts !~ /\]$/) { print name "\t..."; next }
+      sub(/\]$/, "", opts); sub(/^\[[^,]*/, "", opts)
+      if (opts == "") { print name "\t-"; next }
+      sub(/^,[ \t]*/, "", opts); print name "\t" opts }'
 }
 
-_lint_doctor_eslint() { # <recommended config>
-  local rec="$1" f found="" r re tuned state rv cv
-  for f in "${LINT_ESLINT_CONFIGS[@]}"; do [[ -f "$f" ]] && found="$found $f"; done
-  if [[ -n "$found" ]]; then
-    printf 'note\tESLint, rules looked up by name in%s; the linter was not asked, so a named rule may still be off\n' "$found"
-  else
-    printf 'note\tESLint, no config at the repository root\n'
-  fi
-  _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r tuned; do
-    rv=-; cv=-; state=missing
-    # A quoted key, or an unquoted one in a YAML config. The pattern is built
-    # outside $( ): bash 3.2 misreads a quote in a double-quoted string inside a
-    # command substitution.
-    re="['\"]$r['\"]|^[[:space:]]*$r[[:space:]]*:"
-    f=$(_lint_names "$re" "${LINT_ESLINT_CONFIGS[@]}") && state=named
-    if [[ "$tuned" == 1 ]]; then
-      rv="see $rec: rules['$r']"
-      [[ "$state" == named ]] && cv="see $f: rules['$r']"
+# _lint_eslint_resolved <file> — "rule TAB severity TAB options" for every rule
+# of an "eslint --print-config" output (JSON, two spaces per level); options
+# is the rest of the rule's array on one line, "-" when there is none
+_lint_eslint_resolved() {
+  awk '
+    function flush() {
+      if (key == "") return
+      sub(/,$/, "", val); sub(/^\[/, "", val); sub(/\]$/, "", val)
+      sev = val; sub(/,.*$/, "", sev); gsub(/"/, "", sev)
+      opts = "-"; if (index(val, ",") > 0) opts = substr(val, index(val, ",") + 1)
+      print key "\t" sev "\t" opts; key = ""
+    }
+    /^  "rules": [{][}]/ { exit }
+    /^  "rules": [{]/ { r = 1; next }
+    !r { next }
+    /^  [}]/ { flush(); exit }
+    /^    "/ { flush(); key = $0; sub(/^    "/, "", key); sub(/".*$/, "", key)
+               val = $0; sub(/^    "[^"]*":[ ]*/, "", val); next }
+    { v = $0; sub(/^ +/, "", v); val = val v }
+    END { flush() }' "$1"
+}
+
+# _lint_eslint_error <file> — the line of ESLint's stderr that says what went
+# wrong, past its "Oops!" banner and version line
+_lint_eslint_error() {
+  grep -vE '^(Oops!|ESLint: [0-9]|[[:space:]]*$)' "$1" > "$1.lines"
+  { grep -m1 -i 'error' "$1.lines" || head -1 "$1.lines"; } | tr '\t' ' '
+}
+
+# _lint_one_number <text> — the number in the text when it holds exactly one
+_lint_one_number() {
+  local n
+  n=$(printf '%s\n' "$1" | grep -oE '[0-9]+' | head -2)
+  [[ -n "$n" && "$n" != *$'\n'* ]] && printf '%s' "$n"
+  return 0
+}
+
+# _lint_eslint_bin — the project's ESLint: node_modules/.bin/eslint in this
+# directory, or in a directory above it up to the top of the git work tree,
+# where a workspace keeps its hoisted packages
+_lint_eslint_bin() {
+  local d top
+  d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
+  top=$(cd "$top" && pwd -P)
+  while :; do
+    [[ -x "$d/node_modules/.bin/eslint" ]] && { printf '%s' "$d/node_modules/.bin/eslint"; return 0; }
+    [[ "$d" == "$top" || "$d" == / ]] && return 1
+    d=$(dirname "$d")
+  done
+}
+
+# _lint_eslint_pnp — exit 0 when a Yarn Plug'n'Play install serves this
+# directory: then no node_modules/.bin holds ESLint
+_lint_eslint_pnp() {
+  local d top
+  d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
+  top=$(cd "$top" && pwd -P)
+  while :; do
+    [[ -f "$d/.pnp.cjs" ]] && return 0
+    [[ "$d" == "$top" || "$d" == / ]] && return 1
+    d=$(dirname "$d")
+  done
+}
+
+_lint_doctor_eslint() { # <recommended config> <file> <work dir>
+  local rec="$1" t="$3" bin r ro sev opts state rv cv a b
+  if ! bin=$(_lint_eslint_bin); then
+    if _lint_eslint_pnp; then
+      _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
+    else
+      _lint_doctor_cannot eslint "eslint is not installed in this project (no node_modules/.bin/eslint): install its packages"
     fi
-    printf 'row\teslint\t%s\t%s\t%s\t%s\tpresence check\n' "$r" "$state" "$rv" "$cv"
+    return 0
+  fi
+  [[ -n "$2" ]] || { _lint_doctor_cannot eslint "no source file to resolve the config for"; return 0; }
+  "$bin" --print-config "./$2" > "$t/repo.json" 2> "$t/err" \
+    || { _lint_doctor_cannot eslint "the linter rejects the repository's config: $(_lint_eslint_error "$t/err")"; return 0; }
+  if [[ "$(tr -d '[:space:]' < "$t/repo.json")" == undefined ]]; then
+    _lint_doctor_cannot eslint "ESLint ignores $2; run the doctor with --root on a directory whose files ESLint checks"
+    return 0
+  fi
+  _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
+  [[ -s "$t/resolved" ]] || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
+  printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
+  _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r ro; do
+    rv=-; cv=-; state=missing
+    case "$ro" in
+      -)    ;;
+      ...)  rv="see $rec: rules['$r']" ;;
+      *)    rv="$ro" ;;
+    esac
+    IFS=$'\t' read -r sev opts < <(awk -F'\t' -v r="$r" '$1 == r { print $2 "\t" $3; exit }' "$t/resolved")
+    case "${sev:-0}" in
+      0|off) ;;
+      *)
+        state=runs; cv="$opts"
+        [[ "$sev" == 1 || "$sev" == warn ]] && cv="warn; $opts"
+        a=$(_lint_one_number "$ro"); b=$(_lint_one_number "$opts")
+        [[ -n "$a" && -n "$b" ]] && state=$(_lint_limit_state "$a" "$b") ;;
+    esac
+    sev=""; opts=""
+    printf 'row\teslint\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
   done
 }
 # ================== end linter table ==================
@@ -655,8 +746,9 @@ _lint_doctor_eslint() { # <recommended config>
 # purpose, the same in every rendering.
 #
 #   fake_doctor_row          set the row's FAKE_* variables (below)
-#   fake_doctor <mode>       write $REPO/.bin (the fake linter, when the
-#                            language has one) and the repository config.
+#   fake_doctor <mode>       write the fake linter ($REPO/.bin, or the
+#                            project's node_modules/.bin) and the repository
+#                            config.
 #                            Modes: adopt (the repository runs every
 #                            recommended rule at the recommended settings),
 #                            missing (it leaves FAKE_RULE out), relaxed (it sets
@@ -667,12 +759,15 @@ _lint_doctor_eslint() { # <recommended config>
 #                            FAKE_NAMED_RULE only inside a comment), reject
 #                            (the linter rejects the repository's config),
 #                            garbled (the linter prints an output of another
-#                            shape)
+#                            shape), ignored (the linter skips the file the
+#                            doctor resolves the config for)
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
 #   FAKE_LINTER      the linter the doctor names in its rows
-#   FAKE_BIN         the linter's executable; "" when the doctor runs none
+#   FAKE_BIN         the linter's executable
+#   FAKE_REAL        the executable on PATH the installed-linter case needs;
+#                    "" when the linter is installed per project
 #   FAKE_RULE        a recommended rule with a setting
 #   FAKE_RUNS        the state of a rule the adopted config holds
 #   FAKE_RELAXED     the text of FAKE_RULE's row in the relaxed mode, and
@@ -683,23 +778,32 @@ _lint_doctor_eslint() { # <recommended config>
 #   FAKE_NAMED_RULE  a rule the doctor finds by name in the repository's
 #                    config; "" when the linter reports every rule itself
 #   FAKE_CONFIG      the repository config the fake modes write
+#   FAKE_WARN        the text of a row whose rule the adopted config runs as a
+#                    warning; "" when the linter reports no severity
+#   FAKE_IGNORED     the text the doctor prints in the ignored mode; "" when
+#                    the linter resolves its settings for any file
 
 fake_doctor_row() {
   case "$ROW" in
     go)
-      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
+      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
+      FAKE_WARN=''; FAKE_IGNORED=''
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
-      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_WARN=''; FAKE_IGNORED=''
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
     typescript)
-      FAKE_LINTER='eslint'; FAKE_BIN=''; FAKE_RULE='max-params'; FAKE_RUNS='named'; FAKE_TIGHTENED=''; FAKE_ALTERNATIVE=''
-      FAKE_RELAXED="max-params: named; recommended: see $(_fake_setup eslint.config.ldd.mjs): rules['max-params']; current: see eslint.config.mjs: rules['max-params']"
-      FAKE_NAMED_RULE='max-params'; FAKE_CONFIG='eslint.config.mjs' ;;
+      FAKE_LINTER='eslint'; FAKE_BIN='eslint'; FAKE_REAL=''; FAKE_RULE='max-params'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_RELAXED='max-params: limit looser; recommended: 4; current: {"v": 6}'
+      FAKE_TIGHTENED='max-params: limit stricter; recommended: 4; current: {"v": 3}'
+      FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
+      FAKE_IGNORED='cannot verify: ESLint ignores src/a'
+      FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
 
@@ -727,10 +831,38 @@ _fake_ruff_settings() {
   printf 'linter.mccabe.max_complexity = 8\nlinter.pylint.max_args = %s\nlinter.pylint.max_nested_blocks = 2\n' "$args"
 }
 
-_fake_bin() { # <name> <script body>
-  mkdir -p "$REPO/.bin"
-  printf '#!/bin/sh\nd=$(dirname "$0")\n%s\n' "$2" > "$REPO/.bin/$1"
-  chmod +x "$REPO/.bin/$1"
+_fake_bin() { # <name> <script body> [<dir>]
+  local dir="${3:-$REPO/.bin}"
+  mkdir -p "$dir"
+  printf '#!/bin/sh\nd=$(dirname "$0")\n%s\n' "$2" > "$dir/$1"
+  chmod +x "$dir/$1"
+}
+
+# _fake_eslint_json <mode> — an "eslint --print-config" output, laid out as
+# ESLint lays it out, with every rule the recommended config sets: at its
+# recommended number, if it has one, as an option object over several lines
+_fake_eslint_json() {
+  local mode="$1" r ro n sev first=1
+  printf '{\n  "settings": {\n    "react": {\n      "version": "detect"\n    }\n  },\n  "rules": {\n'
+  printf '    "constructor-super": [\n      0\n    ]'
+  _lint_eslint_rules "$(_fake_setup eslint.config.ldd.mjs)" | while IFS=$'\t' read -r r ro; do
+    n=$(_lint_one_number "$ro"); sev=2
+    [[ "$r" == sonarjs/elseif-without-else ]] && sev=1
+    if [[ "$r" == max-params ]]; then
+      case "$mode" in
+        missing)   sev=0 ;;
+        relaxed)   n=6 ;;
+        tightened) n=3 ;;
+      esac
+    fi
+    printf ',\n'
+    if [[ -n "$n" && "$sev" != 0 ]]; then
+      printf '    "%s": [\n      %s,\n      {\n        "v": %s\n      }\n    ]' "$r" "$sev" "$n"
+    else
+      printf '    "%s": [\n      %s\n    ]' "$r" "$sev"
+    fi
+  done
+  printf '\n  },\n  "plugins": [\n    "react"\n  ]\n}\n'
 }
 
 fake_doctor() { # <mode>
@@ -783,11 +915,17 @@ cat "$d/repo.txt"'
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
     typescript)
+      b="$REPO/node_modules/.bin"
+      _fake_bin eslint '
+if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 2; fi
+cat "$d/repo.json"' "$b"
       cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/eslint.config.mjs"
+      _fake_eslint_json "$mode" > "$b/repo.json"
       case "$mode" in
-        missing)   sed "/'max-params'/d" "$(_fake_setup eslint.config.ldd.mjs)" > "$REPO/eslint.config.mjs" ;;
-        relaxed)   sed "s/'max-params': \['error', 4\]/'max-params': ['error', 6]/" "$(_fake_setup eslint.config.ldd.mjs)" > "$REPO/eslint.config.mjs" ;;
-        commented) sed "s|^\( *\)'max-params'|\1// 'max-params'|" "$(_fake_setup eslint.config.ldd.mjs)" > "$REPO/eslint.config.mjs" ;;
+        reject)  rm -f "$REPO/eslint.config.mjs"
+                 printf '\nOops! Something went wrong! :(\n\nESLint: 9.31.0\n\nESLint couldn'"'"'t find an eslint.config.(js|mjs|cjs) file.\n' > "$b/reject.txt" ;;
+        garbled) printf '{\n  "rules": {}\n}\n' > "$b/repo.json" ;;
+        ignored) printf 'undefined\n' > "$b/repo.json" ;;
       esac ;;
   esac
 }
@@ -1055,8 +1193,18 @@ begin "doctor: a repository that adopts the recommended config runs every rule"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 run_doctor
 expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_not ": missing;" \
-  && expect_not ": limit " && expect_not "cannot verify" && ok
+  && expect_not ": limit " && expect_not "cannot verify" \
+  && { [[ -z "$FAKE_WARN" ]] || expect_has "$FAKE_WARN"; } && ok
 finish
+
+begin "doctor: a source file the linter ignores cannot verify"
+if [[ -z "$FAKE_IGNORED" ]]; then skip "the linter resolves its settings for any file"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor ignored
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_IGNORED" && expect_not ": runs;" && ok
+  finish
+fi
 
 begin "doctor: a recommended rule the repository does not run is missing"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
@@ -1143,7 +1291,8 @@ finish
 
 begin "doctor: the installed linter reads the recommended config adopted as the repository's own"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
-elif ! command -v "$FAKE_BIN" >/dev/null 2>&1; then skip "$FAKE_BIN is not on PATH"; finish
+elif [[ -z "$FAKE_REAL" ]]; then skip "the linter is installed per project, which the matrix cannot do"; finish
+elif ! command -v "$FAKE_REAL" >/dev/null 2>&1; then skip "$FAKE_REAL is not on PATH"; finish
 else
   write_src "src/a$FX_EXT" 1; real_doctor_adopt
   run_lint doctor

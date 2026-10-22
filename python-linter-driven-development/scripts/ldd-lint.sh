@@ -434,7 +434,7 @@ lint_doctor() { # <id> <setup dir> <file>
   case "$1" in
     go)                    _lint_doctor_golangci "$2/golangci.yaml" "$t" ;;
     python)                _lint_doctor_ruff "$2/ruff.toml" "$3" "$t" ;;
-    typescript|javascript) _lint_doctor_eslint "$2/eslint.config.ldd.mjs" ;;
+    typescript|javascript) _lint_doctor_eslint "$2/eslint.config.ldd.mjs" "$3" "$t" ;;
   esac
   rm -rf "$t"
 }
@@ -638,12 +638,15 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir>
   done
 }
 
-# ESLint: the doctor does not run it; a rule the repository's config
-# names outside comments is "named", and every setting is "see <file>: <key>".
+# ESLint: the doctor runs the project's own ESLint (node_modules/.bin/eslint)
+# with --print-config on one source file: the config as ESLint resolves it,
+# shared configs included.
 
-# _lint_eslint_rules <config> — "rule TAB 1" for a rule set with options,
-# "rule TAB 0" for one set by severity only, once per rule, in the order the
-# config first sets it; a rule set to "off" (as for test files) is left out
+# _lint_eslint_rules <config> — "rule TAB options" for every rule the
+# recommended config sets, once per rule, in the order the config first sets
+# it: options is the text after the severity when it fits on the rule's line,
+# "..." when it runs on, "-" when there is none; a rule set to "off" (as for
+# test files) is left out
 _lint_eslint_rules() {
   lint_strip_comments c "$1" | awk -v q="'" '
     { line = $0; sub(/^[ \t]+/, "", line)
@@ -654,29 +657,117 @@ _lint_eslint_rules() {
       sub(/^:[ \t]*/, "", after); c = substr(after, 1, 1)
       sev = after; sub(/^\[[ \t]*/, "", sev)
       if (substr(sev, 1, 5) == q "off" q || seen[name]++) next
-      if (c == "[") print name "\t1"; else if (c == q) print name "\t0" }'
+      if (c == q) { print name "\t-"; next }
+      if (c != "[") next
+      opts = after; sub(/[ \t]*,?[ \t]*$/, "", opts)
+      if (opts !~ /\]$/) { print name "\t..."; next }
+      sub(/\]$/, "", opts); sub(/^\[[^,]*/, "", opts)
+      if (opts == "") { print name "\t-"; next }
+      sub(/^,[ \t]*/, "", opts); print name "\t" opts }'
 }
 
-_lint_doctor_eslint() { # <recommended config>
-  local rec="$1" f found="" r re tuned state rv cv
-  for f in "${LINT_ESLINT_CONFIGS[@]}"; do [[ -f "$f" ]] && found="$found $f"; done
-  if [[ -n "$found" ]]; then
-    printf 'note\tESLint, rules looked up by name in%s; the linter was not asked, so a named rule may still be off\n' "$found"
-  else
-    printf 'note\tESLint, no config at the repository root\n'
-  fi
-  _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r tuned; do
-    rv=-; cv=-; state=missing
-    # A quoted key, or an unquoted one in a YAML config. The pattern is built
-    # outside $( ): bash 3.2 misreads a quote in a double-quoted string inside a
-    # command substitution.
-    re="['\"]$r['\"]|^[[:space:]]*$r[[:space:]]*:"
-    f=$(_lint_names "$re" "${LINT_ESLINT_CONFIGS[@]}") && state=named
-    if [[ "$tuned" == 1 ]]; then
-      rv="see $rec: rules['$r']"
-      [[ "$state" == named ]] && cv="see $f: rules['$r']"
+# _lint_eslint_resolved <file> — "rule TAB severity TAB options" for every rule
+# of an "eslint --print-config" output (JSON, two spaces per level); options
+# is the rest of the rule's array on one line, "-" when there is none
+_lint_eslint_resolved() {
+  awk '
+    function flush() {
+      if (key == "") return
+      sub(/,$/, "", val); sub(/^\[/, "", val); sub(/\]$/, "", val)
+      sev = val; sub(/,.*$/, "", sev); gsub(/"/, "", sev)
+      opts = "-"; if (index(val, ",") > 0) opts = substr(val, index(val, ",") + 1)
+      print key "\t" sev "\t" opts; key = ""
+    }
+    /^  "rules": [{][}]/ { exit }
+    /^  "rules": [{]/ { r = 1; next }
+    !r { next }
+    /^  [}]/ { flush(); exit }
+    /^    "/ { flush(); key = $0; sub(/^    "/, "", key); sub(/".*$/, "", key)
+               val = $0; sub(/^    "[^"]*":[ ]*/, "", val); next }
+    { v = $0; sub(/^ +/, "", v); val = val v }
+    END { flush() }' "$1"
+}
+
+# _lint_eslint_error <file> — the line of ESLint's stderr that says what went
+# wrong, past its "Oops!" banner and version line
+_lint_eslint_error() {
+  grep -vE '^(Oops!|ESLint: [0-9]|[[:space:]]*$)' "$1" > "$1.lines"
+  { grep -m1 -i 'error' "$1.lines" || head -1 "$1.lines"; } | tr '\t' ' '
+}
+
+# _lint_one_number <text> — the number in the text when it holds exactly one
+_lint_one_number() {
+  local n
+  n=$(printf '%s\n' "$1" | grep -oE '[0-9]+' | head -2)
+  [[ -n "$n" && "$n" != *$'\n'* ]] && printf '%s' "$n"
+  return 0
+}
+
+# _lint_eslint_bin — the project's ESLint: node_modules/.bin/eslint in this
+# directory, or in a directory above it up to the top of the git work tree,
+# where a workspace keeps its hoisted packages
+_lint_eslint_bin() {
+  local d top
+  d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
+  top=$(cd "$top" && pwd -P)
+  while :; do
+    [[ -x "$d/node_modules/.bin/eslint" ]] && { printf '%s' "$d/node_modules/.bin/eslint"; return 0; }
+    [[ "$d" == "$top" || "$d" == / ]] && return 1
+    d=$(dirname "$d")
+  done
+}
+
+# _lint_eslint_pnp — exit 0 when a Yarn Plug'n'Play install serves this
+# directory: then no node_modules/.bin holds ESLint
+_lint_eslint_pnp() {
+  local d top
+  d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
+  top=$(cd "$top" && pwd -P)
+  while :; do
+    [[ -f "$d/.pnp.cjs" ]] && return 0
+    [[ "$d" == "$top" || "$d" == / ]] && return 1
+    d=$(dirname "$d")
+  done
+}
+
+_lint_doctor_eslint() { # <recommended config> <file> <work dir>
+  local rec="$1" t="$3" bin r ro sev opts state rv cv a b
+  if ! bin=$(_lint_eslint_bin); then
+    if _lint_eslint_pnp; then
+      _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
+    else
+      _lint_doctor_cannot eslint "eslint is not installed in this project (no node_modules/.bin/eslint): install its packages"
     fi
-    printf 'row\teslint\t%s\t%s\t%s\t%s\tpresence check\n' "$r" "$state" "$rv" "$cv"
+    return 0
+  fi
+  [[ -n "$2" ]] || { _lint_doctor_cannot eslint "no source file to resolve the config for"; return 0; }
+  "$bin" --print-config "./$2" > "$t/repo.json" 2> "$t/err" \
+    || { _lint_doctor_cannot eslint "the linter rejects the repository's config: $(_lint_eslint_error "$t/err")"; return 0; }
+  if [[ "$(tr -d '[:space:]' < "$t/repo.json")" == undefined ]]; then
+    _lint_doctor_cannot eslint "ESLint ignores $2; run the doctor with --root on a directory whose files ESLint checks"
+    return 0
+  fi
+  _lint_eslint_resolved "$t/repo.json" > "$t/resolved"
+  [[ -s "$t/resolved" ]] || { _lint_doctor_cannot eslint "cannot read the linter's resolved config for $2"; return 0; }
+  printf 'note\tESLint %s, the config resolved for %s\n' "$bin" "$2"
+  _lint_eslint_rules "$rec" | while IFS=$'\t' read -r r ro; do
+    rv=-; cv=-; state=missing
+    case "$ro" in
+      -)    ;;
+      ...)  rv="see $rec: rules['$r']" ;;
+      *)    rv="$ro" ;;
+    esac
+    IFS=$'\t' read -r sev opts < <(awk -F'\t' -v r="$r" '$1 == r { print $2 "\t" $3; exit }' "$t/resolved")
+    case "${sev:-0}" in
+      0|off) ;;
+      *)
+        state=runs; cv="$opts"
+        [[ "$sev" == 1 || "$sev" == warn ]] && cv="warn; $opts"
+        a=$(_lint_one_number "$ro"); b=$(_lint_one_number "$opts")
+        [[ -n "$a" && -n "$b" ]] && state=$(_lint_limit_state "$a" "$b") ;;
+    esac
+    sev=""; opts=""
+    printf 'row\teslint\t%s\t%s\t%s\t%s\tlinter\n' "$r" "$state" "$rv" "$cv"
   done
 }
 # ================== end linter table ==================
@@ -836,15 +927,18 @@ row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
 }
 
-# sample_file <id> — the first measured source file of the language in scope,
-# else its first source file
+# sample_file <id> — the source file a linter resolves its config for: the
+# first measured file of the language in scope outside a hidden directory
+# (a linter may skip those), else the first measured one, else the first one
 sample_file() {
-  local f first=""
+  local f first="" plain=""
   while IFS= read -r f; do
     [[ -z "$first" ]] && first="$f"
-    measured "$f" && { printf '%s' "$f"; return 0; }
+    measured "$f" || continue
+    [[ -z "$plain" ]] && plain="$f"
+    [[ "/$f" == */.* ]] || { printf '%s' "$f"; return 0; }
   done < <(awk -F'\t' -v id="$1" '$1 == id { print $2 }' "$SCOPE")
-  printf '%s' "$first"
+  printf '%s' "${plain:-$first}"
 }
 
 run_doctor() { # <id> — exit 0 when the language has a recommended config

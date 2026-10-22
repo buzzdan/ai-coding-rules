@@ -276,15 +276,18 @@ row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
 }
 
-# sample_file <id> — the first measured source file of the language in scope,
-# else its first source file
+# sample_file <id> — the source file a linter resolves its config for: the
+# first measured file of the language in scope outside a hidden directory
+# (a linter may skip those), else the first measured one, else the first one
 sample_file() {
-  local f first=""
+  local f first="" plain=""
   while IFS= read -r f; do
     [[ -z "$first" ]] && first="$f"
-    measured "$f" && { printf '%s' "$f"; return 0; }
+    measured "$f" || continue
+    [[ -z "$plain" ]] && plain="$f"
+    [[ "/$f" == */.* ]] || { printf '%s' "$f"; return 0; }
   done < <(awk -F'\t' -v id="$1" '$1 == id { print $2 }' "$SCOPE")
-  printf '%s' "$first"
+  printf '%s' "${plain:-$first}"
 }
 
 run_doctor() { # <id> — exit 0 when the language has a recommended config

@@ -22,11 +22,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   (the repository's setting lets more code pass, or less), named (found by
   name in the config; the linter was not asked) or cannot verify, with the reason.
   Each row shows the recommended setting and the repository's own. The doctor asks
-  the installed linter: ruff reports every rule and limit, golangci-lint reports
+  the installed linter: ruff and the project's own ESLint (`eslint --print-config`,
+  shared configs included) report every rule and limit, golangci-lint reports
   which linters run. Where the linter cannot report a setting, the row names the
-  file and key to read. ESLint rules are found by name only. `--tsv` writes the rows
-  as seven fields; the last says whether the linter or a search by name gave the
-  state. A linter output the doctor cannot read is "cannot verify". `--root <dir>`
+  file and key to read. An ESLint that is not installed in the project, or that
+  cannot load its config, is "cannot verify": install the packages, then run the
+  doctor again. `--tsv` writes the rows as seven fields; the last says whether the
+  linter or a search by name gave the state. A linter output the doctor cannot
+  read is "cannot verify". `--root <dir>`
   points the doctor at one project of a monorepo, such as a front end with its own
   ESLint config. golangci-lint's cyclop counts as gocyclo. The doctor never edits
   a file.

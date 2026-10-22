@@ -147,8 +147,8 @@ adds a checker the repository does not use.
   table routes to a design rule, at the limits the rules name. The plugin never
   writes it into your repository: copy it beside `eslint.config.js` and spread it
   before your own entries, so every limit your configuration already sets stays
-  yours. `scripts/ldd-lint.sh doctor` shows which of its rules your configuration
-  names; it changes no file.
+  yours. `scripts/ldd-lint.sh doctor` asks your project's ESLint which of its rules
+  run, and at which settings; it changes no file.
 - **What it does not review.** Accessibility beyond what `jsx-a11y` flags —
   contrast, heading order, focus management, live regions — is the repository's
   axe run, which this plugin does not replace. Error-boundary placement and

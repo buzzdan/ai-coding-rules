@@ -8,8 +8,9 @@
 # purpose, the same in every rendering.
 #
 #   fake_doctor_row          set the row's FAKE_* variables (below)
-#   fake_doctor <mode>       write $REPO/.bin (the fake linter, when the
-#                            language has one) and the repository config.
+#   fake_doctor <mode>       write the fake linter ($REPO/.bin, or the
+#                            project's node_modules/.bin) and the repository
+#                            config.
 #                            Modes: adopt (the repository runs every
 #                            recommended rule at the recommended settings),
 #                            missing (it leaves FAKE_RULE out), relaxed (it sets
@@ -20,12 +21,15 @@
 #                            FAKE_NAMED_RULE only inside a comment), reject
 #                            (the linter rejects the repository's config),
 #                            garbled (the linter prints an output of another
-#                            shape)
+#                            shape), ignored (the linter skips the file the
+#                            doctor resolves the config for)
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
 #   FAKE_LINTER      the linter the doctor names in its rows
-#   FAKE_BIN         the linter's executable; "" when the doctor runs none
+#   FAKE_BIN         the linter's executable
+#   FAKE_REAL        the executable on PATH the installed-linter case needs;
+#                    "" when the linter is installed per project
 #   FAKE_RULE        a recommended rule with a setting
 #   FAKE_RUNS        the state of a rule the adopted config holds
 #   FAKE_RELAXED     the text of FAKE_RULE's row in the relaxed mode, and
@@ -36,23 +40,32 @@
 #   FAKE_NAMED_RULE  a rule the doctor finds by name in the repository's
 #                    config; "" when the linter reports every rule itself
 #   FAKE_CONFIG      the repository config the fake modes write
+#   FAKE_WARN        the text of a row whose rule the adopted config runs as a
+#                    warning; "" when the linter reports no severity
+#   FAKE_IGNORED     the text the doctor prints in the ignored mode; "" when
+#                    the linter resolves its settings for any file
 
 fake_doctor_row() {
   case "$ROW" in
     go)
-      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
+      FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
+      FAKE_WARN=''; FAKE_IGNORED=''
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
-      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_WARN=''; FAKE_IGNORED=''
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
     typescript)
-      FAKE_LINTER='eslint'; FAKE_BIN=''; FAKE_RULE='max-params'; FAKE_RUNS='named'; FAKE_TIGHTENED=''; FAKE_ALTERNATIVE=''
-      FAKE_RELAXED="max-params: named; recommended: see $(_fake_setup eslint.config.ldd.mjs): rules['max-params']; current: see eslint.config.mjs: rules['max-params']"
-      FAKE_NAMED_RULE='max-params'; FAKE_CONFIG='eslint.config.mjs' ;;
+      FAKE_LINTER='eslint'; FAKE_BIN='eslint'; FAKE_REAL=''; FAKE_RULE='max-params'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
+      FAKE_RELAXED='max-params: limit looser; recommended: 4; current: {"v": 6}'
+      FAKE_TIGHTENED='max-params: limit stricter; recommended: 4; current: {"v": 3}'
+      FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
+      FAKE_IGNORED='cannot verify: ESLint ignores src/a'
+      FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
 
@@ -80,10 +93,38 @@ _fake_ruff_settings() {
   printf 'linter.mccabe.max_complexity = 8\nlinter.pylint.max_args = %s\nlinter.pylint.max_nested_blocks = 2\n' "$args"
 }
 
-_fake_bin() { # <name> <script body>
-  mkdir -p "$REPO/.bin"
-  printf '#!/bin/sh\nd=$(dirname "$0")\n%s\n' "$2" > "$REPO/.bin/$1"
-  chmod +x "$REPO/.bin/$1"
+_fake_bin() { # <name> <script body> [<dir>]
+  local dir="${3:-$REPO/.bin}"
+  mkdir -p "$dir"
+  printf '#!/bin/sh\nd=$(dirname "$0")\n%s\n' "$2" > "$dir/$1"
+  chmod +x "$dir/$1"
+}
+
+# _fake_eslint_json <mode> — an "eslint --print-config" output, laid out as
+# ESLint lays it out, with every rule the recommended config sets: at its
+# recommended number, if it has one, as an option object over several lines
+_fake_eslint_json() {
+  local mode="$1" r ro n sev first=1
+  printf '{\n  "settings": {\n    "react": {\n      "version": "detect"\n    }\n  },\n  "rules": {\n'
+  printf '    "constructor-super": [\n      0\n    ]'
+  _lint_eslint_rules "$(_fake_setup eslint.config.ldd.mjs)" | while IFS=$'\t' read -r r ro; do
+    n=$(_lint_one_number "$ro"); sev=2
+    [[ "$r" == sonarjs/elseif-without-else ]] && sev=1
+    if [[ "$r" == max-params ]]; then
+      case "$mode" in
+        missing)   sev=0 ;;
+        relaxed)   n=6 ;;
+        tightened) n=3 ;;
+      esac
+    fi
+    printf ',\n'
+    if [[ -n "$n" && "$sev" != 0 ]]; then
+      printf '    "%s": [\n      %s,\n      {\n        "v": %s\n      }\n    ]' "$r" "$sev" "$n"
+    else
+      printf '    "%s": [\n      %s\n    ]' "$r" "$sev"
+    fi
+  done
+  printf '\n  },\n  "plugins": [\n    "react"\n  ]\n}\n'
 }
 
 fake_doctor() { # <mode>
@@ -136,11 +177,17 @@ cat "$d/repo.txt"'
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
     typescript)
+      b="$REPO/node_modules/.bin"
+      _fake_bin eslint '
+if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 2; fi
+cat "$d/repo.json"' "$b"
       cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/eslint.config.mjs"
+      _fake_eslint_json "$mode" > "$b/repo.json"
       case "$mode" in
-        missing)   sed "/'max-params'/d" "$(_fake_setup eslint.config.ldd.mjs)" > "$REPO/eslint.config.mjs" ;;
-        relaxed)   sed "s/'max-params': \['error', 4\]/'max-params': ['error', 6]/" "$(_fake_setup eslint.config.ldd.mjs)" > "$REPO/eslint.config.mjs" ;;
-        commented) sed "s|^\( *\)'max-params'|\1// 'max-params'|" "$(_fake_setup eslint.config.ldd.mjs)" > "$REPO/eslint.config.mjs" ;;
+        reject)  rm -f "$REPO/eslint.config.mjs"
+                 printf '\nOops! Something went wrong! :(\n\nESLint: 9.31.0\n\nESLint couldn'"'"'t find an eslint.config.(js|mjs|cjs) file.\n' > "$b/reject.txt" ;;
+        garbled) printf '{\n  "rules": {}\n}\n' > "$b/repo.json" ;;
+        ignored) printf 'undefined\n' > "$b/repo.json" ;;
       esac ;;
   esac
 }

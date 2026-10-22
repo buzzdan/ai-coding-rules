@@ -186,8 +186,9 @@ differently from the other bindings:
   repository's own linter config names a file-length rule. A named rule belongs to
   the linter, so the script reads no limit out of a config and copies no linter's way
   of counting. The table also holds the doctor's part per linter: the commands that
-  ask the installed linter which rules it runs (and, for ruff, every setting), and
-  the presence check where the linter cannot answer. The table is the one place core
+  ask the installed linter which rules it runs (and, for ruff and ESLint, every
+  setting), and the presence check for revive rules, which golangci-lint does not
+  report. The table is the one place core
   names linters, and its `residue-exempt:` marker says so. The
   matrix reads the binding's `scripts/ldd-fixture.sh` for the source suffix, the
   comment forms, a test file's name and two linter configs per row: one that names the
