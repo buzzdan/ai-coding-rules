@@ -1052,6 +1052,8 @@ if [[ -z "$FAKE_VENV" ]]; then skip "the doctor does not look for the linter in 
 else
   write_src "src/a$FX_EXT" 1; fake_doctor adopt
   mkdir -p "$REPO/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$REPO/$FAKE_VENV"
+  printf '%s/\n' "${FAKE_VENV%%/*}" >> "$REPO/.gitignore"
+  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
   run_doctor
   expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "/$FAKE_VENV/$FAKE_BIN," && expect_not "cannot verify" && ok
   finish
@@ -1063,6 +1065,7 @@ else
   real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
   write_src "src/a$FX_EXT" 1; fake_doctor adopt
   mkdir -p "$real/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$real/$FAKE_VENV"
+  printf '%s/\n' "${FAKE_VENV%%/*}" >> "$real/.gitignore"
   ( cd "$real" && git init -q . ) >/dev/null 2>&1
   run_doctor
   expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "/$FAKE_VENV/$FAKE_BIN," && ok
@@ -1077,6 +1080,78 @@ else
   ( cd "$REPO" && git init -q . && git add -f -- "$FAKE_LOCAL_BIN" ) >/dev/null 2>&1
   run_doctor
   expect_exit 0 && expect_has "cannot verify: a tracked $FAKE_LOCAL_BIN is not run" && expect_not ": runs;" && ok
+  finish
+fi
+
+# local_bin_setup — the fake linter at FAKE_LOCAL_BIN in $REPO; LOCAL_TOP is the
+# first directory of that path (.venv, node_modules)
+local_bin_setup() {
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  if [[ -n "$FAKE_VENV" ]]; then mkdir -p "$REPO/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$REPO/$FAKE_VENV"; fi
+  LOCAL_TOP=${FAKE_LOCAL_BIN%%/*}
+}
+
+begin "doctor: a project linter binary behind a committed link to a tracked directory is not run"
+if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
+else
+  local_bin_setup
+  mv "$REPO/$LOCAL_TOP" "$REPO/vendored" && ln -s vendored "$REPO/$LOCAL_TOP"
+  printf '%s/\n' "$LOCAL_TOP" >> "$REPO/.gitignore"
+  ( cd "$REPO" && git init -q . && git add -f -- vendored "$LOCAL_TOP" .gitignore ) >/dev/null 2>&1
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN behind a tracked link $LOCAL_TOP is not run" && expect_not ": runs;" && ok
+  finish
+fi
+
+begin "doctor: a project linter binary behind a tracked link into an ignored place is not run"
+if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
+else
+  local_bin_setup
+  mkdir -p "$REPO/cache" && mv "$REPO/$LOCAL_TOP" "$REPO/cache/real" && ln -s cache/real "$REPO/$LOCAL_TOP"
+  printf 'cache/\n' >> "$REPO/.gitignore"
+  ( cd "$REPO" && git init -q . && git add -f -- "$LOCAL_TOP" .gitignore ) >/dev/null 2>&1
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN behind a tracked link $LOCAL_TOP is not run" && expect_not ": runs;" && ok
+  finish
+fi
+
+begin "doctor and --brief: a project linter binary inside a git submodule is not run"
+if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
+else
+  local_bin_setup
+  sub_src=$(mktemp -d)
+  mv "$REPO/$LOCAL_TOP" "$sub_src/src"
+  ( cd "$sub_src/src" && git init -q . && git add -f . && git -c user.name=t -c user.email=t@t commit -qm sub ) >/dev/null 2>&1
+  printf '%s/\n' "$LOCAL_TOP" >> "$REPO/.gitignore"
+  ( cd "$REPO" && git init -q . && git -c protocol.file.allow=always submodule add -q -f "$sub_src/src" "$LOCAL_TOP" ) >/dev/null 2>&1
+  run_doctor
+  r1=0; expect_exit 0 && [[ -x "$REPO/$FAKE_LOCAL_BIN" ]] && expect_has "cannot verify: a tracked $FAKE_LOCAL_BIN is not run" && expect_not ": runs;" && r1=1
+  write_record "agreed:
+$(names_linter)"
+  run_brief
+  (( r1 )) && expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+  rm -rf "$sub_src"
+  finish
+fi
+
+begin "doctor: a project linter binary that git does not ignore is not run"
+if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
+else
+  local_bin_setup
+  : > "$REPO/.gitignore"
+  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN that git does not ignore is not run" && expect_not ": runs;" && ok
+  finish
+fi
+
+begin "doctor: a project linter binary outside a git work tree is not run"
+if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
+else
+  local_bin_setup
+  rm -rf "$REPO/.git"
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN outside a git work tree is not run" && expect_not ": runs;" && ok
   finish
 fi
 
@@ -1228,7 +1303,8 @@ esac
 finish
 
 begin "a project with a record below a root without one gets its line, the root none"
-real=$REPO; REPO="$real/sub"; mkdir -p "$REPO"
+real=$REPO; ( cd "$real" && git init -q . ) >/dev/null 2>&1
+REPO="$real/sub"; mkdir -p "$REPO"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 REPO=$real
 [[ ! -d "$real/sub/.bin" ]] || mv "$real/sub/.bin" "$real/.bin"

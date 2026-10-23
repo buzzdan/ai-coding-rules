@@ -87,7 +87,9 @@
 # cannot read is "cannot verify", never an empty list. A "doctor:" line per
 # language says which config was compared, and which linter binary ran. A
 # linter binary inside the project (a virtual environment, node_modules) runs
-# only when the current user owns it and git does not track it.
+# only from an ignored, untracked place of a git work tree, owned by the
+# current user and reached through no symbolic link that git tracks; else the
+# doctor does not run it.
 #
 # The agreement record is the file .ldd-lint.yaml, which the lint-setup skill
 # writes. Its key "agreed" lists one item per rule the team agreed to keep. An

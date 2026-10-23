@@ -77,7 +77,8 @@
 #                    doctor also finds the linter; "" when it looks elsewhere
 #   FAKE_LOCAL_BIN   the linter binary the doctor finds in the project (after
 #                    the fake moves to FAKE_VENV, when that is set); "" when the
-#                    doctor takes the linter from PATH only
+#                    doctor takes the linter from PATH only. The typescript fake
+#                    makes $REPO a git work tree that ignores node_modules/
 #   FAKE_ABOVE       "yes" when the linter finds a config in the directory above
 #                    the project (fake_doctor_config_above); "" if not
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
@@ -254,6 +255,9 @@ cat "$d/repo.txt"'
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
     typescript)
+      # the doctor runs a project binary only from an ignored place of a git work tree
+      ( cd "$REPO" && { git rev-parse --is-inside-work-tree >/dev/null 2>&1 || git init -q .; } ) >/dev/null 2>&1
+      printf 'node_modules/\n' >> "$REPO/.gitignore"
       b="$REPO/node_modules/.bin"
       _fake_bin eslint '
 cfg=""; prev=""

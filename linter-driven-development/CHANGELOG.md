@@ -42,8 +42,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   shared configs included) report every rule and limit, golangci-lint reports
   which linters run. The doctor runs the ruff of the project's `.venv/bin` or
   `venv/bin` when there is one, else the ruff on PATH. It runs a linter binary
-  inside the project (ruff there, `node_modules/.bin/eslint`) only when the
-  current user owns it and git does not track it. Its note names the
+  inside the project (ruff there, `node_modules/.bin/eslint`) only from an
+  ignored, untracked place of a git work tree, owned by the current user and
+  reached through no symbolic link that git tracks. Its note names the
   golangci-lint binary on PATH and its version, so a reader can compare it with
   the version that the project pins. Where the linter cannot report a setting, the row names the
   file and key to read. An ESLint that is not installed in the project, or that
