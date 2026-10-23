@@ -71,55 +71,60 @@ lang_has_code() {
     -print -quit 2>/dev/null | grep -q .
 }
 
-# Go declarations: package names (pkg:<name>), every declared identifier, and
-# ownership pairs — pkg.Ident for the declaring package, Type.Method for the
-# receiver — from single-line and grouped type/var/const declarations,
-# functions, and methods.
+# LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
+# variables. It prints "pkg:<package>", each declared name, "<package>.<name>"
+# and, for a method, "<Type>.<method>", one per line. The qualified forms make a
+# qualified doc token resolve only against its real owner, never against a
+# same-named member elsewhere.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (curpkg != "") print curpkg "." id
+function emit(identifier) {
+  print identifier
+  if (package_name != "") print package_name "." identifier
 }
-FNR == 1 { curpkg = ""; inblock = "" }
-inblock != "" {
-  if ($0 ~ /^\)/) { inblock = ""; next }
-  s = $0; sub(/^[ \t]+/, "", s)
-  if (s ~ /^[A-Za-z_]/) {
-    t = s; sub(/[ \t=([].*$/, "", t)
-    n = split(t, parts, ",")
-    for (i = 1; i <= n; i++) {
-      p = parts[i]; gsub(/[ \t]/, "", p)
-      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
+FNR == 1 { package_name = ""; in_group = "" }
+in_group != "" {
+  if ($0 ~ /^\)/) { in_group = ""; next }
+  text = $0; sub(/^[ \t]+/, "", text)
+  if (text ~ /^[A-Za-z_]/) {
+    names = text; sub(/[ \t=([].*$/, "", names)
+    count = split(names, parts, ",")
+    for (i = 1; i <= count; i++) {
+      name = parts[i]; gsub(/[ \t]/, "", name)
+      if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(name)
     }
   }
   next
 }
-/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); curpkg = s; print "pkg:" s; next }
-/^(type|var|const) \(/ { inblock = "y"; next }
+/^package [A-Za-z_]/ {
+  name = $0; sub(/^package /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  package_name = name; print "pkg:" name; next
+}
+/^(type|var|const) \(/ { in_group = "y"; next }
 /^func \(/ {
-  r = $0; sub(/^func \(/, "", r); sub(/\).*$/, "", r)
-  gsub(/\*/, "", r); sub(/^[ \t]+/, "", r); sub(/[ \t]+$/, "", r)
-  nr = split(r, rp, /[ \t]+/); rt = rp[nr]
-  sub(/\[.*$/, "", rt)
-  s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) {
-    emit(s)
-    if (rt ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print rt "." s
+  receiver = $0; sub(/^func \(/, "", receiver); sub(/\).*$/, "", receiver)
+  gsub(/\*/, "", receiver); sub(/^[ \t]+/, "", receiver); sub(/[ \t]+$/, "", receiver)
+  word_count = split(receiver, receiver_words, /[ \t]+/)
+  receiver_type = receiver_words[word_count]
+  sub(/\[.*$/, "", receiver_type)
+  name = $0; sub(/^func \([^)]*\)[ \t]*/, "", name); sub(/[ \t([].*$/, "", name)
+  if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) {
+    emit(name)
+    if (receiver_type ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print receiver_type "." name
   }
   next
 }
 /^func [A-Za-z_]/ {
-  s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(s)
+  name = $0; sub(/^func /, "", name); sub(/[ \t([].*$/, "", name)
+  if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(name)
   next
 }
 /^(type|var|const) [A-Za-z_]/ {
-  s = $0; sub(/^(type|var|const) /, "", s)
-  t = s; sub(/[ \t=([].*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
+  text = $0; sub(/^(type|var|const) /, "", text)
+  names = text; sub(/[ \t=([].*$/, "", names)
+  count = split(names, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(name)
   }
   next
 }
@@ -175,50 +180,56 @@ lang_has_code() {
   find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -print -quit 2>/dev/null | grep -q .
 }
 
+# LANG_DECL_AWK reads the Python files that lang_declarations lists and takes no
+# -v variables. For a file, it prints "pkg:<module>" and, when the file has one,
+# "pkg:<package directory>". For each declared name, it prints the name,
+# "<module>.<name>", "<package directory>.<name>" when that directory differs
+# from the module, and "<Class>.<method>" for a method. It prints one entry per
+# line.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (mod != "") print mod "." id
-  if (pkgdir != "" && pkgdir != mod) print pkgdir "." id
+function emit(identifier) {
+  print identifier
+  if (module != "") print module "." identifier
+  if (package_dir != "" && package_dir != module) print package_dir "." identifier
 }
-function keyword(w) {
-  return w == "if" || w == "else" || w == "elif" || w == "try" || w == "except" || w == "finally" || \
-         w == "for" || w == "while" || w == "with" || w == "return" || w == "import" || w == "from" || \
-         w == "class" || w == "def" || w == "pass" || w == "raise" || w == "del" || w == "global" || \
-         w == "nonlocal" || w == "assert" || w == "lambda" || w == "yield" || w == "match" || w == "case"
+function keyword(word) {
+  return word == "if" || word == "else" || word == "elif" || word == "try" || word == "except" || word == "finally" || \
+         word == "for" || word == "while" || word == "with" || word == "return" || word == "import" || word == "from" || \
+         word == "class" || word == "def" || word == "pass" || word == "raise" || word == "del" || word == "global" || \
+         word == "nonlocal" || word == "assert" || word == "lambda" || word == "yield" || word == "match" || word == "case"
 }
 FNR == 1 {
-  curclass = ""
-  f = FILENAME; sub(/^\.\//, "", f)
-  n = split(f, parts, "/")
-  mod = parts[n]; sub(/\.py$/, "", mod)
-  pkgdir = ""
-  if (n >= 2) pkgdir = parts[n - 1]
-  if (mod == "__init__") { mod = pkgdir; pkgdir = "" }
-  if (mod != "") print "pkg:" mod
-  if (pkgdir != "") print "pkg:" pkgdir
+  current_class = ""
+  path = FILENAME; sub(/^\.\//, "", path)
+  count = split(path, parts, "/")
+  module = parts[count]; sub(/\.py$/, "", module)
+  package_dir = ""
+  if (count >= 2) package_dir = parts[count - 1]
+  if (module == "__init__") { module = package_dir; package_dir = "" }
+  if (module != "") print "pkg:" module
+  if (package_dir != "") print "pkg:" package_dir
 }
 /^class [A-Za-z_]/ {
-  s = $0; sub(/^class /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); curclass = s; next
+  name = $0; sub(/^class /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); current_class = name; next
 }
 /^(async )?def [A-Za-z_]/ {
-  s = $0; sub(/^(async )?def /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); curclass = ""; next
+  name = $0; sub(/^(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); current_class = ""; next
 }
 /^[ \t]+(async )?def [A-Za-z_]/ {
-  if (curclass == "") next
-  s = $0; sub(/^[ \t]+(async )?def /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); print curclass "." s; next
+  if (current_class == "") next
+  name = $0; sub(/^[ \t]+(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); print current_class "." name; next
 }
 /^[A-Za-z_][A-Za-z0-9_]*([ \t]*,[ \t]*[A-Za-z_][A-Za-z0-9_]*)*[ \t]*(:[^=]*)?=[^=]/ {
-  t = $0; sub(/[ \t]*(:[^=]*)?=.*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && !keyword(p)) emit(p)
+  targets = $0; sub(/[ \t]*(:[^=]*)?=.*$/, "", targets)
+  count = split(targets, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && !keyword(name)) emit(name)
   }
-  curclass = ""; next
+  current_class = ""; next
 }
 '
 
