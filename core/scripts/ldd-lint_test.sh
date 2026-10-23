@@ -1077,6 +1077,15 @@ run_brief
 expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
 finish
 
+begin "--brief counts a rule agreed off that now runs, whatever its state"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "the team does not use it")"
+run_doctor --tsv
+expect_has "${TAB}runs${TAB}" && expect_has "; agreed: off" \
+  && { run_brief; expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")"; } && ok
+finish
+
 begin "--brief does not count limit stricter"
 if [[ -z "$FAKE_TIGHTENED" ]]; then skip "the linter reports no setting to compare"; finish
 else

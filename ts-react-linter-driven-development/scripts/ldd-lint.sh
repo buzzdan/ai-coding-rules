@@ -145,10 +145,11 @@
 #   ⚙️ Lint setup (<dir>): <n> rule(s) differ from what the team agreed — run /tsr-ldd-setup
 #   ⚙️ Lint setup (<dir>): the linter cannot check this project — run /tsr-ldd-setup
 # <dir> is "." for the root and "<path>/" for a project below it. A difference is
-# a row in the state missing or limit looser that is not agreed, or a config file
-# that changed since the setup was agreed. Any row that cannot verify gives the
-# second line in place of the first. The states runs, agreed, limit stricter,
-# options differ and named never count. A project whose doctor exits 2 or 3, or
+# a row in the state missing or limit looser that is not agreed, a row of any
+# state whose agreed value changed (its current ends in "; agreed: <value>"), or a
+# config file that changed since the setup was agreed. Any row that cannot verify
+# gives the second line in place of the first. Without a changed agreed value, the
+# states runs, agreed, limit stricter, options differ and named never count. A project whose doctor exits 2 or 3, or
 # fails, gets no line. Only the lines print. It takes no --config and no --files.
 # It always exits 0.
 #
@@ -1182,14 +1183,16 @@ brief_projects() {
 }
 
 # brief_line <dir> — the nudge line of one project; nothing when the project
-# has no record, when its doctor does not exit 0, or when nothing differs
+# has no record, when its doctor does not exit 0, or when nothing differs. The
+# changed-config count reads the doctor's own stderr line, so the text of that
+# line and the pattern below stay equal.
 brief_line() {
   local d="$1" out code differ cannot changed label what err="$LINT_TMP/brief-err"
   (cd "$d" 2>/dev/null && record_has agreed) || return 0
   out=$("$BASH" "$SELF" doctor --tsv --root "./$d" 2>"$err"); code=$?
   (( code == 0 )) || return 0
   read -r differ cannot < <(printf '%s\n' "$out" | awk -F'\t' '
-    $4 == "missing" || $4 == "limit looser" { n++ }
+    $4 == "missing" || $4 == "limit looser" || $6 ~ /; agreed: / { n++ }
     $4 ~ /^cannot verify/ { c++ }
     END { print n + 0, c + 0 }')
   changed=$(grep -c '^doctor: .* changed since the setup was agreed$' "$err")
