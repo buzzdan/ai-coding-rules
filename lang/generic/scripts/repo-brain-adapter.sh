@@ -152,10 +152,15 @@ LANG_FILE_RE='\\.py(:[0-9]+)?$'
 LANG_SYMBOL_RE='^([A-Z][A-Za-z0-9_]*|[a-z_][a-z0-9_]*_[a-z0-9_]*)$'
 LANG_QUALIFIED_RE='^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$'
 
-# find(1) pruning shared by the three walkers; an array, so a pattern such as
-# ./.git/* reaches find as it is and never expands against the tree
-PY_PRUNE=(-not -path '*/.venv/*' -not -path '*/venv/*' -not -path '*/node_modules/*'
-  -not -path '*/__pycache__/*' -not -path '*/site-packages/*' -not -path './.git/*')
+# find(1) pruning shared by the three walkers, and grep's matching directory
+# excludes for the code-edge scan, both built from LANG_PRUNE_DIRS. Arrays, so a
+# pattern such as ./.git/* reaches find as it is and never expands against the tree.
+PY_PRUNE=(-not -path './.git/*')
+PY_EXCLUDE_DIRS=(--exclude-dir=.git)
+for py_dir in $LANG_PRUNE_DIRS; do
+  PY_PRUNE+=(-not -path "*/$py_dir/*")
+  PY_EXCLUDE_DIRS+=("--exclude-dir=$py_dir")
+done
 
 lang_project_dirs() {
   local m p
@@ -224,8 +229,7 @@ lang_declarations() {
 
 lang_code_edges() {
   grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
-    --include="$LANG_CODE_GLOB" --exclude-dir=.venv --exclude-dir=venv --exclude-dir=node_modules \
-    --exclude-dir=__pycache__ --exclude-dir=site-packages --exclude-dir=.git . 2>/dev/null
+    --include="$LANG_CODE_GLOB" "${PY_EXCLUDE_DIRS[@]}" . 2>/dev/null
 }
 ;;
 

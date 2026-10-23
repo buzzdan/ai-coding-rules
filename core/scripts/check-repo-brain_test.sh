@@ -672,6 +672,26 @@ if expect_exit 1; then
 fi
 finish
 
+begin "Q2 a symbol declared only in a dependency or build-output directory does not resolve"
+mk_conformant
+cites="" n=0
+for d in $FX_PRUNED_DIRS; do
+  n=$((n + 1)); mkdir -p "$REPO/$d/retry"
+  sed "s/ParsePolicy/PrunedDecl$n/" "$REPO/$FX_CODE_FILE" > "$REPO/$d/$FX_CODE_FILE"
+  cites="$cites \`PrunedDecl$n\`"
+done
+mk_doc pdecl "pruned declarations" "Calls$cites."
+append_index "- [pdecl.md](pdecl.md) — pruned declarations"
+run_gate
+if expect_exit 1; then
+  n=0 all=1
+  for d in $FX_PRUNED_DIRS; do
+    n=$((n + 1)); expect_has "\`PrunedDecl$n\` does not resolve" || { all=0; break; }
+  done
+  (( all )) && ok
+fi
+finish
+
 begin "Q2 in a git work tree untracked files in dependency directories are never read; a tracked file under dist/ is"
 mk_conformant
 mkdir -p "$REPO/dist"; printf 'TrackedDistName\n' > "$REPO/dist/tracked.yaml"
