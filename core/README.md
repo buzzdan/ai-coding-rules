@@ -215,7 +215,8 @@ differently from the other bindings:
   `eslint.md` beside it, each with a `residue-exempt:` marker, so the generic plugin
   carries all three. Its `allowed-tools` list names the linters' check commands, so it
   is the include `skills/lint-setup/allowed-tools.md` under `core/includes/`, with its
-  own marker. The trigger clause of its description is a binding include,
+  own marker. The `/<prefix>-setup` command reads the same include, so the command
+  grants no tool that the skill does not. The trigger clause of its description is a binding include,
   `skills/lint-setup/description-scope.md`, with no core default.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second

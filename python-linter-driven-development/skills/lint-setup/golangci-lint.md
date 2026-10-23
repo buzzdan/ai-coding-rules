@@ -31,18 +31,20 @@ the config. Its value is the `arguments` of the entry with `name: <rule>` under
    - set each setting of `<rec>` to its value in `<rec>`;
    - remove `issues.new`, `issues.new-from-rev`, `issues.new-from-merge-base` and
      `issues.new-from-patch`, so that the count covers the whole project;
+   - remove `issues.fix`: with `issues.fix: true`, a run edits the source files;
    - set `run.relative-path-mode: gitroot`, and write each relative path of the copy
      (an exclusion `path`, a `paths` item, a file that a setting names) from the git
      root. Each path must resolve to the same files as in the original.
 3. Check the copy: `golangci-lint config verify -c <tmp>/a.yaml`.
 4. From the project root:
-   `golangci-lint run -c <tmp>/a.yaml --max-issues-per-linter 0 --max-same-issues 0 --issues-exit-code 0 --output.text.path <tmp>/a.txt ./...`
+   `golangci-lint run -c <tmp>/a.yaml --fix=false --max-issues-per-linter 0 --max-same-issues 0 --issues-exit-code 0 --output.text.path <tmp>/a.txt ./...`
 5. The count per linter is in the statistics at the end of stdout, for example
    `* gocognit: 214`. For a revive rule, count the lines of `<tmp>/a.txt` whose
    message starts with the rule name, for example `argument-limit:`.
 
 **Run B, the project's own config:** the same command with `-c <the project's config>`.
-When the config has an `issues.new*` key, use a copy without it, made as in run A.
+When the config has an `issues.new*` key or `issues.fix`, use a copy without them,
+made as in run A. Never run golangci-lint before step 6 without `--fix=false`.
 
 **One more value, only when the user asks for it:** a copy of `<tmp>/a.yaml` with that
 value, run with `--enable-only <linter>`.
@@ -82,7 +84,8 @@ The strict file must not have:
   `linters.exclusions.paths`, a new item of `linters.exclusions.presets`, or a looser
   `linters.exclusions.generated`;
 - `run.tests: false` when the original lints tests, or other `run.build-tags`;
-- an `issues.new*` key that the original does not have.
+- an `issues.new*` key that the original does not have;
+- `issues.fix: true`: the task that runs the strict file then edits the source files.
 
 When the original runs revive with its default rules (no `rules` list), a `rules` list
 in the strict file turns those default rules off. Keep them on: set
@@ -116,9 +119,12 @@ strict file, and do the superset check again.
    `golangci-lint linters -c .golangci.strict.yaml`. Each linter in the enabled list
    of the original must be in the enabled list of the strict file.
 2. **The findings on the current tree:** make a copy of each file with no `issues.new*`
-   key, as in run A. Run each copy from the project root with
-   `--max-issues-per-linter 0 --max-same-issues 0 --issues-exit-code 0 --show-stats=false --output.text.path /dev/null --output.tab.colors=false --output.tab.path <tmp>/<name>.tab ./...`.
-3. Sort each list: `awk '{$1=$1};1' <tmp>/<name>.tab | sort > <tmp>/<name>.sorted`.
+   key and no `issues.fix`, as in run A. Run each copy from the project root with
+   `--fix=false --max-issues-per-linter 0 --max-same-issues 0 --issues-exit-code 0 --show-stats=false --output.text.path /dev/null --output.tab.colors=false --output.tab.path <tmp>/<name>.tab ./...`.
+3. Keep the place and the linter of each finding, and sort:
+   `awk '{print $1, $2}' <tmp>/<name>.tab | sort > <tmp>/<name>.sorted`. The message
+   holds the limit (`is high (> 3)`, `(> 2)`), so a stricter limit changes it: compare
+   the place and the linter only.
 4. `comm -23 <tmp>/original.sorted <tmp>/strict.sorted` must print nothing. Each line
    that it prints is a finding of the original that the strict file lets pass: show
    it, and correct the strict file.

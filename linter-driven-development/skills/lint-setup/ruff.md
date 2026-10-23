@@ -22,7 +22,7 @@ the count needs no temporary config.
 **Run A, every recommended value**, from the project root:
 
 ```sh
-ruff check --no-cache --exit-zero --statistics \
+ruff check --no-cache --no-fix --exit-zero --statistics \
   --extend-select C901,PLR0913,PLR1702 \
   --config 'lint.mccabe.max-complexity = 8' \
   --config 'lint.pylint.max-args = 4' \
@@ -33,7 +33,7 @@ Put each rule code of `<rec>` in `--extend-select`, and one `--config` per setti
 `<rec>`. The example shows three of them. `--statistics` prints one line per rule code
 with its count.
 
-**Run B, the project's own config:** `ruff check --no-cache --exit-zero --statistics .`
+**Run B, the project's own config:** `ruff check --no-cache --no-fix --exit-zero --statistics .`
 
 **One more value, only when the user asks for it:** run A with `--select <code>` in
 place of `--extend-select`, and that one value.
@@ -128,11 +128,13 @@ lint-strict:
 1. Read the strict file: it extends the original, and it holds none of the forbidden
    keys above.
 2. The findings on the current tree, from the project root:
-   `ruff check --no-cache --exit-zero --quiet --output-format concise . > <tmp>/original.txt`
+   `ruff check --no-cache --no-fix --exit-zero --quiet --output-format concise . > <tmp>/original.txt`
    and
-   `ruff check --no-cache --exit-zero --quiet --output-format concise --config ruff.strict.toml . > <tmp>/strict.txt`.
-3. Sort each list: `sort <tmp>/original.txt > <tmp>/original.sorted`, and the same for
-   the strict list.
+   `ruff check --no-cache --no-fix --exit-zero --quiet --output-format concise --config ruff.strict.toml . > <tmp>/strict.txt`.
+3. Keep the place and the rule of each finding, and sort:
+   `cut -d' ' -f1,2 <tmp>/original.txt | sort > <tmp>/original.sorted`, and the same
+   for the strict list. The message holds the limit (`(3 > 2)`, `(3 > 1)`), so a
+   stricter limit changes it: compare the place and the rule only.
 4. `comm -23 <tmp>/original.sorted <tmp>/strict.sorted` must print nothing. Each line
    that it prints is a finding of the original that the strict file lets pass: show
    it, and correct the strict file.

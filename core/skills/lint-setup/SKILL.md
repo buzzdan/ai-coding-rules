@@ -28,7 +28,9 @@ the review keeps the limits of the rules.
   calls ask the user first. A linter run with a fix flag, or a run that writes a file,
   still matches a check-command pattern. Thus this text also guards the edits. In an
   auto permission mode, no call asks the user: only this text guards the edits.
-- Before step 6, do not run a linter with a fix flag. Do not run a command that writes
+- Before step 6, do not run a linter with a fix flag. A fix setting in a config (for
+  example `fix = true` or `issues.fix: true`) counts as a fix flag: turn it off on the
+  command line, as the linter reference shows. Do not run a command that writes
   a suppressions file or a baseline file into the repository. Do not run `git add`,
   `git commit`, `git checkout`, `git stash`, `git reset` or `git clean`. Do not
   install a package.
@@ -75,8 +77,15 @@ the review keeps the limits of the rules.
      - `no language in scope has a recommended linter config`: read the research
        reference, and do the research for this project.
      - `no source file in scope`: tell the user. Stop for this project. No research.
-     - Any other line is a wrong call of the script. Correct the call and run it
-       again.
+     - `.ldd-lint.yaml: <key> must be a positive integer` or
+       `.ldd-lint.yaml: package_warn_files (…) must be below package_max_files`: the
+       record has a bad value. Quote the line, name the key and the fix, and stop for
+       this project. Do not edit the record before step 6.
+     - `no recommended configs at <dir>`: the plugin install is broken. Quote the
+       line, tell the user to reinstall the plugin, and stop.
+     - Any other line is a wrong call of the script: an argument it does not take, or
+       a path that does not exist. Correct the call once. When the same line comes
+       back, quote it and stop for this project.
    - **3:** another installed plugin checks every language of this project. Show the
      doctor's line `doctor: <language> — <plugin> is installed and checks this
      language; run /<prefix>-setup`, and tell the user to run that command. Stop for
@@ -145,8 +154,11 @@ the review keeps the limits of the rules.
 
 ## 5. Agree, per project, in one table
 
-1. **Show one table per project.** One row per rule that is not agreed, and one row
-   per agreed rule with drift. Say each row in plain words: what the rule limits, the
+1. **Show one table per project.** One row per rule that needs a decision: a rule that
+   is not agreed and is in the state `missing`, `limit looser`, `options differ` or
+   `named`; and each agreed rule with drift (a drift row), whatever its state. A drift
+   row also shows the value the team agreed and the value now. Say each row in plain
+   words: what the rule limits, the
    project's value, the recommended value, and the finding count at each. For
    example: "Function complexity — your limit: 10; recommended: 8; 214 functions fail
    at 8; 31 at 10." When a value is `see <file>: <key>`, read the value at that
@@ -156,11 +168,14 @@ the review keeps the limits of the rules.
    - `keep`: keep the project's value;
    - `<value>`: use another value;
    - `off`: leave the rule off;
-   - `org`: the organization owns this value.
+   - `org`: the organization owns this value;
+   - on a drift row only, `accept`: agree the value that the config holds now. `keep`
+     on a drift row restores the agreed value in the config, and its record line
+     stays.
 
-   The default is `recommended` for a rule in the state `missing`, `limit looser`,
-   `options differ` or `named`. A rule in the state `runs`, `limit stricter` or
-   `agreed` needs no row: list those rules in one line under the table.
+   The default is `accept` for a drift row, and `recommended` for each other row. A
+   rule in the state `runs`, `limit stricter` or `agreed` with no drift needs no row:
+   list those rules in one line under the table.
 3. The user answers the exceptions by rule in one reply, for example "all defaults;
    complexity keep; arguments org". Ask for a short reason for each `keep`,
    `<value>`, `off` and `org`: the record keeps it.
@@ -208,9 +223,11 @@ the review keeps the limits of the rules.
       `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --linter <linter> --rule <rule> --decision <d> --reason '<reason>'`.
       Put the reason in single quotes, and write each apostrophe in it as `'\''`, so
       that the shell does not change the text.
-      Use `--decision current` for `keep` and for `<value>` (after the config holds
-      that value), `off` for `off`, and `org` for `org`. A rule in the state `missing`
-      has no setting: use `off`. A `recommended` choice needs no line. With a new
+      Use `--decision current` for `keep`, for `accept` and for `<value>` (after the
+      config holds that value), `off` for `off`, and `org` for `org`. A rule in the
+      state `missing` has no setting: use `off`. A `recommended` choice needs no line;
+      on a drift row, it removes the old line. `keep` on a drift row keeps the old
+      line. With a new
       strict file (the record has no `lint_config` item for it yet), add
       `--config <strict file>`, relative to the project root.
    3. The fingerprint lines, after the last config edit:
