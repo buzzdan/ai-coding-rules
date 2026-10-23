@@ -70,13 +70,17 @@ directory of the task file, so the task also works in a project below the git ro
     desc: ruff on the Python files changed since the merge base with <base>; paths after -- replace that list
     cmds:
       - |
+        set -o pipefail
         if [ -n "{{"{{"}}.CLI_ARGS}}" ]; then ruff check --force-exclude {{"{{"}}.CLI_ARGS}}; exit; fi
         base=$(git merge-base HEAD <base>) || { echo "lint-changed: no merge base with <base>; fetch <base> first" >&2; exit 1; }
-        git diff --relative --name-only -z --diff-filter=d "$base" -- '*.py' \
+        { git diff --relative --name-only -z --diff-filter=d "$base" -- '*.py'
+          git ls-files -z -o --exclude-standard -- '*.py'; } \
           | xargs -0 sh -c '[ "$#" -eq 0 ] || ruff check --force-exclude "$@"' sh
 ```
 
-The `sh` guard keeps an empty list from checking the whole project. With option b:
+The list holds the changed files and the new files that git does not track yet. The
+`sh` guard keeps an empty list from checking the whole project. `pipefail` makes the
+task fail when git fails. With option b:
 
 ```yaml
   lint-new:
@@ -85,10 +89,17 @@ The `sh` guard keeps an empty list from checking the whole project. With option 
       - |
         set -o pipefail
         base=$(git merge-base HEAD <base>) || { echo "lint-new: no merge base with <base>; fetch <base> first" >&2; exit 1; }
-        ruff check --exit-zero --output-format=rdjson {{"{{"}}.CLI_ARGS}} | reviewdog -f=rdjson -reporter=local -filter-mode=added -fail-level=any -diff="git diff --relative $base"
+        diff=$(mktemp); trap 'rm -f "$diff"' EXIT
+        git diff --relative "$base" > "$diff"
+        git ls-files -o --exclude-standard -- '*.py' | while IFS= read -r f; do
+          git diff --no-index /dev/null "$f" >> "$diff"
+        done
+        ruff check --exit-zero --output-format=rdjson {{"{{"}}.CLI_ARGS}} | reviewdog -f=rdjson -reporter=local -filter-mode=added -fail-level=any -diff="cat $diff"
 ```
 
-`--exit-zero` keeps a finding on an old line from failing the task: reviewdog decides.
+The diff holds the changed files and each new file that git does not track yet, so
+each line of a new file is an added line. `--exit-zero` keeps a finding on an old line
+from failing the task: reviewdog decides.
 `pipefail` makes the task fail when ruff itself fails, for example on a config that
 does not load.
 
@@ -141,12 +152,20 @@ lint-strict:
 
 ## The superset check (step 7)
 
+**Check each run before you compare.** A run that fails, or a list that is not
+there, compares nothing: `comm` then prints nothing, and that looks like a pass.
+When a run exits with an error, or when `<tmp>/original.txt` or `<tmp>/strict.txt`
+is not there, say "cannot check the superset", with the cause from stderr. Never say
+that the superset holds.
+
 1. Read the strict file: it extends the original, and it holds none of the forbidden
    keys above.
 2. The findings on the current tree, from the project root:
    `ruff check --no-cache --no-fix --exit-zero --quiet --output-format concise . > <tmp>/original.txt`
    and
    `ruff check --no-cache --no-fix --exit-zero --quiet --output-format concise --config ruff.strict.toml . > <tmp>/strict.txt`.
+   With `--exit-zero`, each run must exit 0: another exit code means that ruff
+   failed, for example on a config that does not load.
 3. Keep the place and the rule of each finding, and sort:
    `cut -d' ' -f1,2 <tmp>/original.txt | sort > <tmp>/original.sorted`, and the same
    for the strict list. The message holds the limit (`(3 > 2)`, `(3 > 1)`), so a

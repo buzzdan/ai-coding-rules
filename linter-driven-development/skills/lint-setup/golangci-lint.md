@@ -64,10 +64,17 @@ from the version on PATH, and that the pinned version can enable other linters.
 5. The count per linter is in the statistics at the end of stdout, for example
    `* gocognit: 214`. For a revive rule, count the lines of `<tmp>/a.txt` whose
    message starts with the rule name, for example `argument-limit:`.
+6. **A `typecheck` line in the statistics makes the counts of that run not valid.**
+   It means that a package does not compile. golangci-lint then reports no finding
+   of the other linters for that package, so a count can show 0 where the code has
+   findings. Do not show the counts of that run, and never show 0: say that you
+   cannot count, and name the first `typecheck` error of `<tmp>/a.txt`. The user
+   fixes the build first.
 
 **Run B, the project's own config:** the same command with `-c <the project's config>`.
 When the config has an `issues.new*` key or `issues.fix`, use a copy without them,
-made as in run A. Never run golangci-lint before step 6 without `--fix=false`.
+made as in run A. Never run golangci-lint before step 6 without `--fix=false`. A
+`typecheck` line makes run B not valid too (item 6 of run A).
 
 **One more value, only when the user asks for it:** a copy of `<tmp>/a.yaml` with that
 value, run with `--enable-only <linter>`.
@@ -138,20 +145,31 @@ strict file, and do the superset check again.
 
 ## The superset check (step 7)
 
+**Check each run before you compare.** A run that fails, or a list that is not
+there, compares nothing: `comm` then prints nothing, and that looks like a pass.
+After each command below, read its exit code. When a run exits with an error, when
+`<tmp>/original.tab` is not there, or when a list has a `typecheck` finding (a
+package does not compile, so the other linters report nothing for it), say "cannot
+check the superset", with the cause. Never say that the superset holds.
+
 1. **The enabled linters:** run `golangci-lint linters -c <original>` and
-   `golangci-lint linters -c .golangci.strict.yaml`. Each linter in the enabled list
-   of the original must be in the enabled list of the strict file.
+   `golangci-lint linters -c .golangci.strict.yaml`. Each must exit 0. Each linter in
+   the enabled list of the original must be in the enabled list of the strict file.
 2. **The findings on the current tree:** make a copy of each file with no `issues.new*`
    key and no `issues.fix`, as in run A. Run each copy from the project root with
    `--fix=false --max-issues-per-linter 0 --max-same-issues 0 --issues-exit-code 0 --show-stats=false --output.text.path /dev/null --output.tab.colors=false --output.tab.path <tmp>/<name>.tab ./...`.
-3. Keep the place and the linter of each finding, and sort:
+   With `--issues-exit-code 0`, a run that exits with another code failed.
+3. Make sure that `<tmp>/original.tab` and `<tmp>/strict.tab` are there, and that
+   no line of either names the linter `typecheck`. Else stop: "cannot check the
+   superset", with the cause.
+4. Keep the place and the linter of each finding, and sort:
    `awk '{print $1, $2}' <tmp>/<name>.tab | sort > <tmp>/<name>.sorted`. The message
    holds the limit (`is high (> 3)`, `(> 2)`), so a stricter limit changes it: compare
    the place and the linter only.
-4. `comm -23 <tmp>/original.sorted <tmp>/strict.sorted` must print nothing. Each line
+5. `comm -23 <tmp>/original.sorted <tmp>/strict.sorted` must print nothing. Each line
    that it prints is a finding of the original that the strict file lets pass: show
    it, and correct the strict file.
-5. Tell the user that this checks the current tree only, and does not prove the
+6. Tell the user that this checks the current tree only, and does not prove the
    superset for all code.
 
 ## The drift step (step 2)
@@ -160,13 +178,19 @@ The doctor never sees a golangci-lint value, so drift shows only through the
 fingerprint: the stderr line `doctor: <path> changed since the setup was agreed`.
 When the doctor prints it for a golangci-lint config:
 
-1. Find the commit that wrote the record: `git log -1 --format=%H -- .ldd-lint.yaml`,
-   run in the project root.
-2. Show what changed in the config since then: `git diff <commit> -- <path>`.
-3. For each agreed golangci-lint rule (a record line
+1. Find the hash of the config as the team agreed it: the last word of its
+   `lint_fingerprint` item in `.ldd-lint.yaml`, `"golangci-lint <path> <hash>"`.
+2. Show what changed in the config since the agreement, from the project root:
+   `git cat-file -p <hash> > <tmp>/agreed` and `diff <tmp>/agreed <path>`. Compare
+   with this blob, not with a commit: a later commit of the record (a run of another
+   plugin's setup, for example) does not move it.
+3. When `git cat-file` fails, the repository does not hold the agreed file (it was
+   never committed, or the hash is a checksum). Say so. Then ask the user, for each
+   agreed golangci-lint rule, whether its value changed since the agreement.
+4. For each agreed golangci-lint rule (a record line
    `golangci-lint <rule> = see <file>: <key> | <reason>`), read the value now at that
    place. When the diff changed it, the rule shows drift: ask about it again in step 5.
-4. With a strict file, do the superset check again.
+5. With a strict file, do the superset check again.
 
 In step 6, put the value that you read into the reason of each `keep` line, for
 example `keeps min-complexity 20: the team cleans up first`. A later run can then show

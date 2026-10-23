@@ -50,18 +50,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   doctor again. `--tsv` writes the rows as seven fields; the last says whether the
   linter or a search by name gave the state. A linter output the doctor cannot
   read is "cannot verify". A golangci-lint config that fails the linter's own
-  `config verify` is "cannot verify", with the linter's message. `--root <dir>`
+  `config verify` is "cannot verify", with the linter's message. When
+  `config verify` cannot run (for example, with no network for its schema), a note
+  says that golangci-lint did not check the config, and why. A rule whose setting
+  the installed linter does not report is "cannot verify" for that rule only: the
+  other rules of that linter keep their rows. The doctor resolves the settings for
+  a source file with no config of the linter nearer than the project root; when
+  each file has one, a note names it. When the linter reads a config outside the
+  git work tree (for example, in the home directory), a note names that file.
+  `--root <dir>`
   points the doctor at one project of a monorepo, such as a front end with its own
   ESLint config. golangci-lint's cyclop counts as gocyclo. The doctor never edits
   a file. The doctor also reads the agreement record in `.ldd-lint.yaml`: a row
   whose rule the team agreed to keep gets the state agreed, and a row whose value
-  differs from the agreed one shows the agreed value beside its own. The doctor
+  differs from the agreed one shows the agreed value beside its own. A missing
+  rule is agreed only when the team agreed it off, or the organization owns it. The
+  record reads items in double quotes, in single quotes and plain, skips blank
+  lines and comment lines in a list, and warns once about each other line under a
+  key. The doctor
   names an agreed rule that has no row in a warning on stderr. `ldd-lint.sh agree`
   prints the record lines for `.ldd-lint.yaml`, escaped and ready to copy: a rule
   with the doctor's current value, `off` or `org`; a fingerprint of each
   golangci-lint config file the doctor compared (`--fingerprint`); the line that
   names a config file (`--lint-config`); and one line for each linter the run
-  checked (`--linters`). The record key `linters` holds those lines, so the status
+  checked (`--linters`). `agree` refuses a rule whose row cannot verify, with the
+  advice to upgrade the linter, and refuses each line of a linter that reads a
+  config outside the repository. `--lint-config` takes only a linter of the plugin
+  and a file inside the repository. The record key `linters` holds those lines, so the status
   line counts the rows of a setup that took every recommended value.
   golangci-lint reports no setting, so its drift shows through the fingerprint;
   ruff and ESLint get no fingerprint, because their rows show a changed value.
@@ -77,9 +92,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `ldd-lint.sh doctor --brief` finds the projects with a record (the root and each
   directory with a tracked `.ldd-lint.yaml`) and prints one line for each project
   whose agreed setup differs from what the linter does, or whose linter cannot
-  check it. It counts only the linters that the record names, so a
+  check it for a cause that is the same in every clone (the linter rejects the
+  config, or the agreed config is gone). A linter that is not installed on this
+  machine gives no line. It counts only the linters that the record names, so a
   plugin whose setup did not run gives no line. It prints nothing for a project
-  with no `agreed` key.
+  with no `agreed` key. For each project, it lists the files of each language with
+  a recommended config by extension, without a language lookup per file.
   The generic plugin's doctor skips a language when the plugin written for it is
   installed. It prints `doctor: <language> — <plugin> is installed and checks this
   language; run /<prefix>-setup`, gives that language no row, and exits 3 when
@@ -90,10 +108,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   lint task.** The status command runs `ldd-lint.sh doctor --brief`. It shows a
   "Lint setup" part only when a project with an agreed setup needs attention. The
   lint-fixer reads the project's task file, finds the lint-fix task by the command it
-  runs, and uses the task that runs the `lint_config` file when the record names one.
-  It passes a package scope to the task only when the task accepts one. Else, with
-  no `lint_config` item, it runs the plugin's default command for a package scope.
-  With a `lint_config` item, it never runs the default command: when no task runs
+  runs, and uses the task that runs the `lint_config` file when the record names one
+  for the linter it runs. The record is the `.ldd-lint.yaml` nearest to the scope,
+  up to the repository root. It passes a package scope to the task only when the
+  task accepts one. Else, with no `lint_config` item, it runs the plugin's default
+  command for a package scope. With a `lint_config` item, it never runs the part of
+  the default command that runs that linter: when no task runs
   that file, it stops and names `/tsr-ldd-setup`.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`

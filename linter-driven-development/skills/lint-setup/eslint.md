@@ -114,6 +114,13 @@ checks the whole project.
 
 ## The superset check (step 7)
 
+**Check each run before you compare.** A run that fails, or a list that is not
+there, compares nothing: `comm` then prints nothing, and that looks like a pass.
+ESLint exits 1 when it reports a finding: that is a run that worked. When a run exits
+with 2 (a config or a crash), or when `<tmp>/original.json` or `<tmp>/strict.json` is
+not there, say "cannot check the superset", with the cause from stderr. Never say
+that the superset holds.
+
 1. **The rules:** for one source file of each kind (for example `.ts` and `.tsx`),
    run `npx --no-install eslint --config <original> --print-config <file>` and
    `npx --no-install eslint --config eslint.config.strict.mjs --print-config <file>`.
@@ -122,6 +129,7 @@ checks the whole project.
 2. **The findings on the current tree:** run each config with
    `--format json --output-file <tmp>/<name>.json .`, and add
    `--suppressions-location <tmp>/none.json` when the project has a suppressions file.
+   Each run must exit 0 or 1.
 3. Make one line per finding, and sort:
    `node -e 'for (const f of require(process.argv[1])) for (const m of f.messages) console.log(f.filePath + ":" + m.line + ":" + m.column + " " + m.ruleId)' <tmp>/<name>.json | sort > <tmp>/<name>.sorted`.
 4. `comm -23 <tmp>/original.sorted <tmp>/strict.sorted` must print nothing. Each line

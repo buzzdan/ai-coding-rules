@@ -91,10 +91,6 @@ the review keeps the limits of the rules.
      - `no language in scope has a recommended linter config`: read the research
        reference, and do the research for this project.
      - `no source file in scope`: tell the user. Stop for this project. No research.
-     - `.ldd-lint.yaml: <key> must be a positive integer` or
-       `.ldd-lint.yaml: package_warn_files (…) must be below package_max_files`: the
-       record has a bad value. Quote the line, name the key and the fix, and stop for
-       this project. Do not edit the record before step 6.
      - `no recommended configs at <dir>`: the plugin install is broken. Quote the
        line, tell the user to reinstall the plugin, and stop.
      - Any other line is a wrong call of the script: an argument it does not take, or
@@ -104,11 +100,21 @@ the review keeps the limits of the rules.
      doctor's line `doctor: <language> — <plugin> is installed and checks this
      language; run /<prefix>-setup`, and tell the user to run that command. Stop for
      this project. No research.
-3. Show each `doctor: <language> — …` note to the user in plain words.
-4. **`cannot verify` stops that project only.** A row whose state starts with
-   `cannot verify:` means that the doctor cannot check the setup. Do not work around
-   it. Stop for this project. Name the cause from the row and the fix, and continue
-   with the other projects:
+3. Show each `doctor: <language> — …` note to the user in plain words. Two notes
+   change the next steps:
+   - `<linter> did not check the config: <message>`: the linter's own check of the
+     config did not run, for example because it cannot fetch its schema with no
+     network. Before you show a table, tell the user that this check did not run,
+     and why, from the message. A config that the check rejects can still give rows.
+   - `the linter reads <path>, outside this repository`: the project has no config
+     of its own for that linter, so each teammate's machine can give another one.
+     Treat the project as a project with no repository config, and propose to add
+     one in the plan. `agree` refuses a record line for that linter until the
+     project has its own config.
+4. **`cannot verify` of a linter stops that project only.** A row whose rule is `-`
+   and whose state starts with `cannot verify:` means that the doctor cannot check
+   that linter. Do not work around it. Stop for this project. Name the cause from the
+   row and the fix, and continue with the other projects:
    - the linter is not installed: name the install command that the project uses (its
      lock file, its tool list or its README). Do not install it.
    - the linter is not on PATH: tell the user to put the project's linter on PATH,
@@ -122,6 +128,12 @@ the review keeps the limits of the rules.
      setup again.
    - the linter is installed in a project below, not here: this is not a broken
      setup. Run the doctor with `--root` on that project, and add it to the projects.
+
+   A row of a named rule whose state starts with `cannot verify:` (for example
+   `cannot verify: the linter reports no <key>`) stops that rule only. The installed
+   linter cannot report that setting. In the table of step 5, show the rule as "the
+   installed linter cannot report this setting; upgrade it", and go on with the other
+   rules. `agree` refuses a record line for that rule.
 5. Find the drift. An agreed rule shows drift when its `current` ends in
    `; agreed: <value>` (the setting changed), or when stderr says
    `doctor: <path> changed since the setup was agreed` for a config of its linter.
@@ -179,7 +191,9 @@ the review keeps the limits of the rules.
      both places: the linter reference says how. Leave the rule out only when the two
      values are equal, or when the project's value is stricter;
    - each agreed rule with drift (a drift row), whatever its state. A drift row also
-     shows the value the team agreed and the value now.
+     shows the value the team agreed and the value now;
+   - a rule whose row cannot verify (step 2.4): it shows "the installed linter cannot
+     report this setting; upgrade it", and it gets no choice.
 
    Say each row in plain words: what the rule limits, the project's value, the
    recommended value, and the finding count at each. For example: "Function
@@ -244,7 +258,17 @@ the review keeps the limits of the rules.
    not a yes: show the changed plan and ask again.
 8. After the yes, edit in this order:
    1. The linter configs, the tasks, the CI and the hooks, and the agreed installs.
-   2. One record line per decision, from the script:
+   2. **The config that `agree` compares.** When the plan changes the `lint_config` of
+      a linter (a new strict file, a strict file with another name, or a return from
+      ladder step 3 to the original config), the record still names the old file.
+      Then add `--config <the config that the plan keeps>` to each `agree` call of
+      items 3 to 5 for that linter, relative to the project root. The plan keeps the
+      strict file, or the original config when it drops the strict file. When the
+      doctor reports two or more linters for the project, `--config` needs
+      `--linter <linter>`: the linter of that config. Without `--config`, `agree`
+      compares the file of the old item: a file that the plan deletes stops `agree`,
+      and a file that the plan keeps but does not use gives the wrong values.
+   3. One record line per decision, from the script:
       `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --linter <linter> --rule <rule> --decision <d> --reason '<reason>'`.
       Put the reason in single quotes, and write each apostrophe in it as `'\''`, so
       that the shell does not change the text.
@@ -252,24 +276,21 @@ the review keeps the limits of the rules.
       config holds that value), `off` for `off`, and `org` for `org`. A rule in the
       state `missing` has no setting: use `off`. A `recommended` choice needs no line;
       on a drift row, it removes the old line. `keep` on a drift row keeps the old
-      line. With a new
-      strict file (the record has no `lint_config` item for it yet), add
-      `--config <strict file>`, relative to the project root. The `--linter` of the
-      line also names the linter of the strict file.
-   3. The fingerprint lines, after the last config edit:
-      `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --fingerprint`.
-      When the strict file is new, add `--config <strict file>`. When the doctor
-      reports two or more linters for the project, also add `--linter <linter>`: the
-      linter of the strict file. `agree` prints a line only for a linter whose rows
-      show `see <file>: <key>` in place of a value. The rows of each other linter show
-      a changed value, so that linter needs no fingerprint. An empty output is not an
-      error.
-   4. The linters lines, for every project that gets a record, after the last config
-      edit: `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --linters`.
-      When the strict file is new, add `--config <strict file>`, so that the doctor
-      judges the linter of the strict file on that file. In a run with two or more
-      linters, `--config` needs `--linter <linter>`: the linter of the strict file.
-      One such run prints the lines of all linters: copy each line once. `agree`
+      line. Add `--config` (item 2) only to the lines of the linter of that config:
+      the `--linter` of a rule line also names the linter of `--config`.
+   4. The fingerprint lines, after the last config edit:
+      `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --fingerprint`,
+      with `--config` (item 2) when it applies. Add `--linter <linter>` only together
+      with `--config`, in a run with two or more linters. `agree` prints a line only
+      for a linter whose rows show `see <file>: <key>` in place of a value. The rows
+      of each other linter show a changed value, so that linter needs no fingerprint.
+      An empty output is not an error.
+   5. The linters lines, for every project that gets a record, after the last config
+      edit: `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --linters`,
+      with `--config` (item 2) when it applies, so that the doctor judges that linter
+      on the config that the plan keeps. Add `--linter <linter>` only together with
+      `--config`, in a run with two or more linters. One such run prints the lines of
+      all linters: copy each line once. `agree`
       prints one line for each linter that this plugin reports and checked. The
       status line counts the rows of these linters only. A setup that took every
       recommended value has no other item that names its linter. When `agree` prints
@@ -277,17 +298,19 @@ the review keeps the limits of the rules.
       status line stays silent for it until the user fixes its setup and you run
       `agree --linters` again. When `agree` prints no line, write no `linters:` key
       (write `agreed: []`), and say the same for the project.
-   5. With a strict file, its line:
+   6. With a strict file, its line:
       `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --lint-config <linter> <strict file>`.
-   6. **Write the record last.** Copy each line that `agree` printed unchanged, under
+   7. **Write the record last.** Copy each line that `agree` printed unchanged, under
       its key: `agreed:`, `lint_config:`, `lint_fingerprint:` or `linters:`. With no
       `agreed` line, write `agreed: []`. Write only the key lines and the copied
       lines. Keep the other keys of the file (for example `file_max_lines`). Keep the
       line of each agreed rule that this run did not ask about, and replace the line
       of each rule that the user decided again. Replace the fingerprint lines of the
       linters that this run checked. Replace the `linters:` items of the linters that
-      `agree --linters` printed. Keep every other item: another plugin owns the items
-      of a linter that this plugin does not report.
+      `agree --linters` printed. Remove the `lint_config` item of a linter whose
+      strict file the plan drops, and replace the item of a linter whose strict file
+      the plan renames. Keep every other item: another plugin owns the items of a
+      linter that this plugin does not report.
 9. `agree` changes each ` | ` in a reason to ` / `. When a printed line is not the
    line in the plan, show the difference before you write the record.
 10. When `agree` exits 2 after the edits, stop before you write the record. For
