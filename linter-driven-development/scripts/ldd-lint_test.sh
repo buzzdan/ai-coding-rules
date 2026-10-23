@@ -1726,6 +1726,14 @@ run_doctor
 expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_has "; agreed: 7" && ok
 finish
 
+begin "doctor: a missing rule agreed at no setting (-) is not agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "-" "the team kept the rule with no setting")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: missing;" && expect_has "; agreed: -" && expect_not "$FAKE_RULE: agreed;" && ok
+finish
+
 begin "doctor: a rule that runs and is agreed off keeps its state and shows off"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 write_record "agreed:
@@ -3050,6 +3058,64 @@ got=$(record_read record_items agreed); val=$(record_read record_agreed a-linter
 [[ "$got" == "a-linter r1 = 3 | at column zero
 a-linter r2 = off | indented" && "$val" == 3 ]] && ok || bad "read: $got; value: $val"
 finish
+
+begin "the record readers: a blank line and a comment line inside a list do not end it"
+write_record 'agreed:
+  - "a-linter r1 = 3 | first"
+
+  # a note of the team
+  - "a-linter r2 = off | after the note"
+linters:
+  # the linters of the setup
+  - "b-linter"'
+got=$(record_read record_items agreed | tr '\n' '|'); lin=$(record_read record_linters | tr '\n' ' ')
+[[ "$got" == "a-linter r1 = 3 | first|a-linter r2 = off | after the note|" && "$lin" == "a-linter b-linter " ]] \
+  && ok || bad "read: $got; linters: $lin"
+finish
+
+begin "the record readers: a single-quoted item and a plain item are read"
+write_record "agreed:
+  - 'a-linter r1 = it''s 3 | single \"quoted\"'
+  - a-linter r2 = off | plain   # a comment
+  - \"a-linter r3 = 5 | double\""
+got=$(record_read record_items agreed | tr '\n' '|')
+[[ "$got" == "a-linter r1 = it's 3 | single \"quoted\"|a-linter r2 = off | plain|a-linter r3 = 5 | double|" ]] \
+  && ok || bad "read: $got"
+finish
+
+begin "the record readers: a list ends at the next key, after blank and comment lines"
+write_record 'lint_config:
+  - "a-linter strict.yaml"
+
+# the agreed rules
+agreed:
+  - "a-linter r1 = 3 | why"'
+got=$(record_read record_items lint_config | tr '\n' '|'); ag=$(record_read record_items agreed)
+[[ "$got" == "a-linter strict.yaml|" && "$ag" == "a-linter r1 = 3 | why" ]] && ok || bad "read: $got; agreed: $ag"
+finish
+
+begin "the record readers: a line under a list that is not an item is warned about once and ignored"
+write_record 'agreed:
+  - "a-linter r1 = 3 | first"
+  note: not an item
+  - "a-linter r2 = off | after it"'
+got=$(record_read record_items agreed 2>/dev/null | tr '\n' '|'); warn=$(record_read record_items agreed 2>&1 >/dev/null)
+[[ "$got" == "a-linter r1 = 3 | first|a-linter r2 = off | after it|" ]] || bad "read: $got"
+[[ "$warn" == ".ldd-lint.yaml line 3: not an item of the list agreed; the line is ignored" ]] && ok || bad "warning: $warn"
+finish
+
+begin "doctor and --brief: a line that is not an item gives one warning per doctor run, and none from --brief"
+ROW=$(printf '%s\n' $FX_ROWS | head -1); use_row "$ROW"; fake_doctor_row
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(names_linter)
+  note: not an item"
+run_doctor
+r1=0; expect_exit 0 && { [[ "$(printf '%s\n' "$ERR" | grep -c 'not an item of the list agreed')" == 1 ]] || bad "not one warning"; } && r1=1
+run_brief
+(( r1 )) && expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" \
+  && { [[ -z "$ERR" ]] || bad "--brief wrote to stderr"; } && ok
+ROW=""; finish
 
 # root_relative <path> — runs the script's path helper from $REPO/svc
 root_relative() {

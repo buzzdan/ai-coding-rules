@@ -96,7 +96,11 @@
 # writes. Its key "agreed" lists one item per rule the team agreed to keep. An
 # item is one double-quoted YAML scalar: "<linter> <rule> = <value> | <reason>".
 # A backslash and a quote in it are escaped. The value is the setting as the
-# doctor shows it in current, or "off", or "org" (the organization owns it). The
+# doctor shows it in current, or "off", or "org" (the organization owns it).
+# The script also reads an item in single quotes ('' is a quote) or a plain
+# item. A list skips blank lines and comment lines, and ends at the next key.
+# Each other line under a key gives one warning on stderr, with the file and
+# the line number, and is ignored; doctor --brief prints no warning. The
 # keys "lint_config" and "lint_fingerprint" hold the config files the agreement
 # was made against, and the key "linters" names the linters the setup covers:
 #   lint_config       "<linter> <path>": the doctor compares that file for that
@@ -123,8 +127,8 @@
 #
 # The doctor gives a row the state agreed when its rule is agreed and the
 # agreed value is org, or:
-#   a linter that reports settings: current equals the agreed value, or the
-#     rule is missing and agreed off
+#   a linter that reports settings: the rule runs and current equals the
+#     agreed value, or the rule is missing and agreed off
 #   a linter that reports no setting (it says only which rules run): the rule
 #     runs and is agreed at any value but off, or it is missing and agreed off
 # A row with another value keeps its state, and its current gains
@@ -1136,24 +1140,61 @@ record_has() {
 }
 
 # record_items <key> — each item of the key's list, unquoted and unescaped,
-# one per line; nothing when the key or the file is absent. An item line is
-# "- " with or without an indent. The list ends at the first line that is not
-# an item. A "#" inside the quotes is data.
+# one per line; nothing when the key or the file is absent. An item is a line
+# "- <value>", with or without an indent. The value is double-quoted, with a
+# backslash that escapes the next character; or single-quoted, with '' for a
+# quote; or plain, up to a " #" comment. The list skips blank lines and comment
+# lines, and ends at the next line that starts in column 0 and is not an item:
+# the next key. A "#" inside the quotes is data. Each other line under the key
+# gives one warning on stderr, with the file and the line number, and is
+# ignored. With LINT_TMP set, a run warns once per key.
 record_items() {
   [[ -f "$OVERRIDE_FILE" ]] || return 0
-  awk -v k="$1" '
-    function item(line,   out, i, c, n) {
-      sub(/^[ \t]*-[ \t]+"/, "", line)
-      n = length(line); out = ""
-      for (i = 1; i <= n; i++) {
-        c = substr(line, i, 1)
-        if (c == "\\" && i < n) { out = out substr(line, ++i, 1); continue }
-        if (c == "\"") break
-        out = out c
+  local warn=1 mark=""
+  if [[ -n "${LINT_TMP:-}" ]]; then
+    mark="$LINT_TMP/warned.$1"
+    [[ -e "$mark" ]] && warn=0
+    : > "$mark"
+  fi
+  awk -v k="$1" -v w="$warn" -v q="'" '
+    function skip(why) {
+      if (w) print FILENAME " line " NR ": " why " of the list " k "; the line is ignored" | "cat 1>&2"
+    }
+    # item(rest) — the value of an item, or "\n" (no value) when the line is
+    # not a whole item
+    function item(s,   out, i, c, n) {
+      c = substr(s, 1, 1); n = length(s); out = ""
+      if (c == "\"") {
+        for (i = 2; i <= n; i++) {
+          c = substr(s, i, 1)
+          if (c == "\\" && i < n) { out = out substr(s, ++i, 1); continue }
+          if (c == "\"") break
+          out = out c
+        }
+      } else if (c == q) {
+        for (i = 2; i <= n; i++) {
+          c = substr(s, i, 1)
+          if (c == q && substr(s, i + 1, 1) == q) { out = out q; i++; continue }
+          if (c == q) break
+          out = out c
+        }
+      } else {
+        sub(/[ \t]#.*$/, "", s); sub(/[ \t]+$/, "", s)
+        if (s == "" || c == "#") return "\n"
+        return s
       }
+      if (i > n || substr(s, i + 1) !~ /^([ \t]+(#.*)?)?$/) return "\n"
       return out
     }
-    on && $0 ~ /^[ \t]*-[ \t]+"/ { print item($0); next }
+    on && /^[ \t]*$/ { next }
+    on && /^[ \t]*#/ { next }
+    on && /^[ \t]*-([ \t]|$)/ {
+      rest = $0; sub(/^[ \t]*-[ \t]*/, "", rest)
+      v = item(rest)
+      if (v == "\n") skip("not a whole item"); else print v
+      next
+    }
+    on && /^[ \t]/ { skip("not an item"); next }
     on { exit }
     $0 ~ "^" k "[ \t]*:" { on = 1 }
   ' "$OVERRIDE_FILE"
@@ -1192,11 +1233,12 @@ agreed_state() {
 }
 
 # agreed_by_value <state> <current> <value> — exit 0 when a row of a linter
-# that reports settings is agreed: the value is org or equals current, or the
-# rule is missing and agreed off
+# that reports settings is agreed: the value is org; or the rule is missing and
+# agreed off; or the rule runs and the value equals current. A missing rule has
+# the current "-", so an item agreed at "-" for a rule that ran never agrees it.
 agreed_by_value() {
-  [[ "$3" == org || "$2" == "$3" ]] && return 0
-  [[ "$1" == missing && "$3" == off ]]
+  [[ "$3" == org ]] && return 0
+  if [[ "$1" == missing ]]; then [[ "$3" == off ]]; else [[ "$2" == "$3" ]]; fi
 }
 
 # agreed_by_name <state> <value> — exit 0 when a row of a linter that reports
@@ -1251,7 +1293,7 @@ brief_projects() {
 brief_line() {
   local d="$1" out code differ cannot changed label what named err="$LINT_TMP/brief-err"
   (cd "$d" 2>/dev/null && record_has agreed) || return 0
-  named=$(cd "$d" && record_linters | tr '\n' ' ')
+  named=$(cd "$d" && record_linters 2>/dev/null | tr '\n' ' ')
   [[ -n "$named" ]] || return 0
   out=$("$BASH" "$SELF" doctor --tsv --root "./$d" 2>"$err"); code=$?
   (( code == 0 )) || return 0
