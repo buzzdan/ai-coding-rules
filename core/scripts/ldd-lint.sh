@@ -96,7 +96,14 @@
 # with the linter's message, and the rows follow. The
 # doctor runs a linter from PATH only, except a linter that a project installs
 # in its node_modules: that check runs the project's own copy, which loads the
-# project's config file.
+# project's config file. A linter that reads its config per directory gets one
+# source file to resolve its settings for: a file with no config of the
+# linter's names in a directory between the file and the project root. When
+# each file has such a nearer config, a "doctor:" line names the one of the
+# file the doctor took. When a config the doctor compares is outside the git
+# work tree of the project (in the home directory, for example), a "doctor:"
+# line names it: "the linter reads <path>, outside this repository". Outside a
+# git work tree, the doctor does not check this.
 #
 # The agreement record is the file .ldd-lint.yaml, which the lint-setup skill
 # writes. Its key "agreed" lists one item per rule the team agreed to keep. An
@@ -161,7 +168,8 @@
 #       chosen file's. A linter that reports no setting and has no config file
 #       compared gets a note on stderr and no line
 #   agree --lint-config <linter> <path>
-#       "<linter> <path>"; the path must be a file
+#       "<linter> <path>"; the linter must be one that this plugin checks, and
+#       the path a file inside the git work tree of the project
 #   agree --linters
 #       "<linter>" for each linter this run reports and checked, one line each.
 #       A linter whose row of rule "-" is cannot verify gets no line. When no linter
@@ -174,7 +182,10 @@
 # when any linter in scope cannot verify. Each names the cause. agree --linters
 # leaves that linter out and exits 0. A named rule whose own row cannot verify
 # blocks only that rule: agree with the rule options exits 2 for it, names the
-# setting and says to upgrade the linter. The other forms of agree go on.
+# setting and says to upgrade the linter. The other forms of agree go on. A
+# linter that reads a config outside the git work tree gets no line: agree with
+# the rule options of that linter, agree --fingerprint and agree --linters exit
+# 2 and say to add a repository config first.
 #
 # doctor --brief prints the status nudge. It finds the projects itself: the
 # root and each directory with a tracked .ldd-lint.yaml (a find outside git).
@@ -216,7 +227,9 @@
 #      value that is not a positive integer; a doctor run with no language the
 #      plugin recommends a config for (inconclusive, never silently clean); an
 #      agree line the script cannot write: no doctor row for the rule, a
-#      linter that cannot verify, a path that is not a file
+#      linter or a rule that cannot verify, a config outside the git work
+#      tree, a --lint-config linter that this plugin does not check, a path
+#      that is not a file
 #   3  a doctor run where the generic plugin left every language in scope to an
 #      installed plugin written for it (nothing to research)
 #
@@ -673,6 +686,27 @@ root_relative() {
   else printf '%s%s/%s' "$up" "${dir#"$root"/}" "$base"; fi
 }
 
+# physical_path <path> — the path of the file with every link of its
+# directory resolved; the path as it is when its directory does not exist
+physical_path() {
+  local p="$1" d="." dir
+  [[ "$p" == */* ]] && d=${p%/*}
+  [[ "$p" == /* && -z "$d" ]] && d=/
+  dir=$(cd -P "$d" 2>/dev/null && pwd -P) || { printf '%s' "$p"; return 0; }
+  printf '%s/%s' "${dir%/}" "${p##*/}"
+}
+
+# outside_repo <path> — exit 0 when the file is outside the git work tree of
+# the project root; exit 1 when it is inside, or when the root is not in a git
+# work tree
+outside_repo() {
+  local top p
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+  top=$(cd -P "$top" 2>/dev/null && pwd -P) || return 1
+  p=$(physical_path "$1")
+  [[ "$p" != "$top"/* ]]
+}
+
 DOCTOR_DONE=""
 # The run keeps what agree and the unmatched-line warning read: one line per
 # row, "linter TAB rule TAB state TAB current" with the current setting as the
@@ -680,19 +714,55 @@ DOCTOR_DONE=""
 # file the doctor compared, "linter TAB path".
 DOCTOR_ROWS="$LINT_TMP/rows"
 DOCTOR_CONFIGS="$LINT_TMP/configs"
+# one line per linter whose compared config is outside the git work tree
+DOCTOR_OUTSIDE="$LINT_TMP/outside"
 row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   if (( TSV )); then printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
 }
 
-# sample_file <id> — the source file a linter resolves its config for, the
-# first that fits best: a measured file in a subdirectory that is not a
-# tool's own config (*.config.*), outside hidden directories (a linter may
-# skip those); else a measured file outside hidden directories; else a
-# measured file; else any file of the language
+# nearer_config <path> <names> — the first config file of those names (shell
+# patterns, space-separated) in the directory of the file or a directory above
+# it, below the project root: the nearest; nothing when there is none
+nearer_config() {
+  local d="$1" n g names
+  [[ -n "$2" ]] || return 0
+  IFS=" " read -r -a names <<< "$2"
+  while [[ "$d" == */* ]]; do
+    d=${d%/*}
+    for n in "${names[@]}"; do
+      for g in "./$d/"$n; do [[ -f "$g" ]] && { printf '%s' "${g#./}"; return 0; }; done
+    done
+  done
+  return 0
+}
+
+# sample_file <id> — "<file> TAB <nearer config>": the source file a linter
+# resolves its config for. The files with no config of the linter's names
+# between them and the project root come first; among them, the first that
+# fits best: a measured file in a subdirectory that is not a tool's own config
+# (*.config.*), outside hidden directories (a linter may skip those); else a
+# measured file outside hidden directories; else a measured file; else any
+# file of the language. When each file has a nearer config, the same choice
+# among all files, and the nearer config of that file.
 sample_file() {
+  local names f
+  names=$(lint_config_names "$(lint_doctor_linter "$1")")
+  if [[ -n "$names" ]]; then
+    f=$(sample_pick "$1" "$names")
+    [[ -z "$f" ]] || { printf '%s\t' "$f"; return 0; }
+  fi
+  f=$(sample_pick "$1" "")
+  printf '%s\t%s' "$f" "$(nearer_config "$f" "$names")"
+}
+
+# sample_pick <id> <names> — the choice of sample_file among the files of the
+# language; with names, among the files with no nearer config of those names
+sample_pick() {
   local f first="" measured_one="" plain=""
   while IFS= read -r f; do
+    [[ -f "$f" ]] || continue
+    [[ -z "$2" || -z "$(nearer_config "$f" "$2")" ]] || continue
     [[ -z "$first" ]] && first="$f"
     measured "$f" || continue
     [[ -z "$measured_one" ]] && measured_one="$f"
@@ -727,7 +797,7 @@ left_to_plugin() {
 # run_doctor <id> — exit 0 when the language has a recommended config, 1 when
 # it has none, 3 when an installed plugin checks the language instead
 run_doctor() {
-  local id="$1" linter kind a b c d e f other
+  local id="$1" linter kind a b c d e f other sample nearer
   if left_to_plugin "$id"; then
     other=$(dedicated_plugin_for "$id")
     say "doctor: $id — $other is installed and checks this language; run /$(plugin_cmd_prefix "$other")-setup"
@@ -742,15 +812,23 @@ run_doctor() {
   # one linter serves both: a TypeScript repository is reported as typescript
   [[ "$id" == javascript ]] && printf '%s\n' "$ids" | grep -qx typescript && return 0
   DOCTOR_DONE="$DOCTOR_DONE $linter"
+  sample=$(sample_file "$id"); nearer=${sample#*$'\t'}; sample=${sample%%$'\t'*}
+  [[ -z "$nearer" ]] \
+    || say "doctor: $id — each $id file has a config nearer than the project root: the doctor resolves the settings for $sample, under $nearer"
   while IFS=$'\t' read -r kind a b c d e f; do
     case "$kind" in
       note) say "doctor: $id — $a" ;;
       row)  printf '%s\t%s\t%s\t%s\n' "$a" "$b" "$c" "$e" >> "$DOCTOR_ROWS"
             IFS=$'\t' read -r c e < <(agreed_row "$a" "$b" "$c" "$d" "$e")
             row "$id" "$a" "$b" "$c" "$d" "$e" "$f" ;;
-      config) printf '%s\t%s\n' "$a" "$(root_relative "$b")" >> "$DOCTOR_CONFIGS" ;;
+      config) b=$(root_relative "$b")
+              printf '%s\t%s\n' "$a" "$b" >> "$DOCTOR_CONFIGS"
+              if outside_repo "$b"; then
+                printf '%s\n' "$a" >> "$DOCTOR_OUTSIDE"
+                say "doctor: $id — the linter reads $(physical_path "$b"), outside this repository"
+              fi ;;
     esac
-  done < <(lint_doctor "$id" "$SETUP_DIR" "$(sample_file "$id")" "$(config_for "$linter")")
+  done < <(lint_doctor "$id" "$SETUP_DIR" "$sample" "$(config_for "$linter")")
 }
 
 # warn_unmatched — a line on stderr for each item of "agreed" that names a
@@ -809,6 +887,16 @@ fingerprint_line() {
   record_line "$1 $2 $(file_hash "$2")"
 }
 
+# agree_outside [<linter>] — dies when the doctor found that the linter, or
+# any linter, reads a config outside the git work tree: the record must name a
+# file of the repository
+agree_outside() {
+  [[ -s "$DOCTOR_OUTSIDE" ]] || return 0
+  local l
+  l=$(L="${1:-}" awk 'ENVIRON["L"] == "" || $0 == ENVIRON["L"] { print; exit }' "$DOCTOR_OUTSIDE")
+  [[ -z "$l" ]] || die "agree: $l: the linter reads a config outside this repository; add a repository config first"
+}
+
 # agree_cannot [<linter>] — dies with the cause when the doctor could not
 # verify that linter, or any linter: a "cannot verify" row of rule "-". A row
 # of a named rule that cannot verify blocks that rule only.
@@ -828,6 +916,7 @@ run_agree_rule() {
     *) die "agree needs --decision current, off or org, got: ${AGREE_DECISION:-nothing}" ;;
   esac
   agree_cannot "$AGREE_LINTER"
+  agree_outside "$AGREE_LINTER"
   sel=$(L="$AGREE_LINTER" R="$AGREE_RULE" awk -F'\t' '
     $1 == ENVIRON["L"] && $2 == ENVIRON["R"] { print $3 "\t" $4; found = 1; exit }
     END { exit !found }' "$DOCTOR_ROWS") || die "agree: no doctor row for $AGREE_LINTER $AGREE_RULE"
@@ -847,6 +936,7 @@ run_agree_rule() {
 run_agree_fingerprint() {
   local linter path
   agree_cannot
+  agree_outside
   [[ ! -s "$DOCTOR_CONFIGS" ]] || while IFS=$'\t' read -r linter path; do
     lint_reports_settings "$linter" || fingerprint_line "$linter" "$path"
   done < "$DOCTOR_CONFIGS"
@@ -864,6 +954,7 @@ run_agree_fingerprint() {
 # when no linter gets a line
 run_agree_linters() {
   local linter named=0 skipped=""
+  agree_outside
   if [[ -s "$DOCTOR_ROWS" ]]; then
     while IFS= read -r linter; do
       if L="$linter" awk -F'\t' '$1 == ENVIRON["L"] && $2 == "-" && $3 ~ /^cannot verify/ { f = 1 } END { exit !f }' "$DOCTOR_ROWS"; then
@@ -893,7 +984,14 @@ if [[ "$SUBCOMMAND" == agree ]]; then
   (( modes <= 1 )) || die "agree takes one of --fingerprint, --lint-config, --linters or the rule options"
   [[ -z "$AGREE_CONFIG_LINTER" ]] || (( ! LINTER_SET )) || die "agree --lint-config takes no --linter"
   if [[ -n "$AGREE_CONFIG_LINTER" ]]; then
+    known=$(for id in $LANG_NATIVE; do lint_doctor_linter "$id"; printf '\n'; done | awk 'NF && !seen[$0]++' | tr '\n' ' ')
+    case " $known " in
+      *" $AGREE_CONFIG_LINTER "*) ;;
+      *) die "agree --lint-config: $AGREE_CONFIG_LINTER is not a linter of this plugin; it checks: ${known% }" ;;
+    esac
     [[ -f "$AGREE_CONFIG_PATH" ]] || die "agree --lint-config: not a file: $AGREE_CONFIG_PATH"
+    ! outside_repo "$AGREE_CONFIG_PATH" \
+      || die "agree --lint-config: $AGREE_CONFIG_PATH is outside this repository; add a repository config first"
     record_line "$AGREE_CONFIG_LINTER $(root_relative "$AGREE_CONFIG_PATH")"
     exit 0
   fi

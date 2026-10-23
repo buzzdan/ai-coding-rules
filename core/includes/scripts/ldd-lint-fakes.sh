@@ -82,6 +82,9 @@
 #                    the project (fake_doctor_config_above); "" if not
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
 #                    which the invalid and noschema modes fail; "" if not
+#   FAKE_NEARER_CONFIG a config file name the linter reads for the files of its
+#                    directory and below; "" when the linter reads one config
+#                    for the whole project
 #   FAKE_NOKEY_RULE  a rule whose setting the nokey mode leaves out of the
 #                    linter's report, and FAKE_NOKEY_KEY that setting; both ""
 #                    when the linter reports no setting or the fake has no
@@ -93,7 +96,7 @@ fake_doctor_row() {
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
       FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
-      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG=''
       FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
@@ -102,7 +105,7 @@ fake_doctor_row() {
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
-      FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'
+      FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'; FAKE_NEARER_CONFIG='ruff.toml'
       FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
@@ -116,7 +119,7 @@ fake_doctor_row() {
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
-      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG='eslint.config.mjs'
       FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac

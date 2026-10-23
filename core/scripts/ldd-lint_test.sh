@@ -922,6 +922,21 @@ else
   finish
 fi
 
+begin "agree with --config works when the lint_config item names a file that is gone"
+write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
+write_record "agreed: []
+lint_config:
+  - \"$FAKE_LINTER gone-cfg\""
+run_agree --config strict-cfg --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "kept"
+r1=0; expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE = " && r1=1
+run_agree --linters --config strict-cfg
+r2=0; (( r1 )) && expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && r2=1
+run_agree --fingerprint --config strict-cfg
+r3=0; (( r2 )) && expect_exit 0 && r3=1
+run_agree --linters
+(( r3 )) && expect_exit 0 && expect_has "$FAKE_LINTER cannot be checked" && ok
+finish
+
 begin "agree reads the rows of the chosen file"
 write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
 run_doctor --tsv --config strict-cfg
@@ -1122,20 +1137,52 @@ expect_exit 0 && expect_has "doctor: " \
   && { printf '%s\n' "$ERR" | grep -q '^doctor: ' || bad "the doctor line is not on stderr"; } && ok
 finish
 
-begin "doctor: a config above the project is named relative to the project"
+begin "doctor: a config above the project, inside the git work tree, is named relative to the project"
 if [[ -z "$FAKE_ABOVE" ]]; then skip "the linter looks for its config in the project only"; finish
 else
   real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
   write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_config_above
+  ( cd "$real" && git init -q . ) >/dev/null 2>&1
   up=$(cd "$real" && pwd -P)
   run_doctor
-  r1=0; expect_exit 0 && expect_has "../$FAKE_CONFIG" && expect_not "$up/$FAKE_CONFIG" && r1=1
+  r1=0; expect_exit 0 && expect_has "../$FAKE_CONFIG" && expect_not "$up/$FAKE_CONFIG" && expect_not "outside this repository" && r1=1
   if (( r1 )) && [[ -n "$FAKE_NO_SETTINGS" ]]; then
     run_agree --fingerprint
     expect_exit 0 && expect_out "  - \"$FAKE_LINTER ../$FAKE_CONFIG $(git hash-object "$real/$FAKE_CONFIG")\"" || r1=0
   fi
   (( r1 )) && ok
   REPO=$real; finish
+fi
+
+begin "doctor: a config outside the git work tree is named, and agree refuses it"
+if [[ -z "$FAKE_ABOVE" ]]; then skip "the linter looks for its config in the project only"; finish
+else
+  real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_config_above
+  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+  up=$(cd "$real" && pwd -P)
+  run_doctor
+  r1=0; expect_exit 0 && expect_has "the linter reads $up/$FAKE_CONFIG, outside this repository" && r1=1
+  run_agree --fingerprint
+  r2=0; (( r1 )) && expect_exit 2 && expect_has "the linter reads a config outside this repository; add a repository config first" && r2=1
+  run_agree --linters
+  r3=0; (( r2 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r3=1
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
+  (( r3 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
+  REPO=$real; finish
+fi
+
+begin "doctor: the settings are resolved for a file with no config nearer than the project root"
+if [[ -z "$FAKE_NEARER_CONFIG" ]]; then skip "the linter reads one config for the whole project"; finish
+else
+  write_src "a-bench/a$FX_EXT" 1; : > "$REPO/a-bench/$FAKE_NEARER_CONFIG"; write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_doctor
+  r1=0; expect_exit 0 && expect_has "resolved for src/a$FX_EXT" && expect_not "a-bench/$FAKE_NEARER_CONFIG" && r1=1
+  rm -rf "$REPO/src"
+  run_doctor
+  (( r1 )) && expect_exit 0 && expect_has "resolved for a-bench/a$FX_EXT" \
+    && expect_has "doctor: $ROW — each $ROW file has a config nearer than the project root: the doctor resolves the settings for a-bench/a$FX_EXT, under a-bench/$FAKE_NEARER_CONFIG" && ok
+  finish
 fi
 
 begin "doctor: the note names the linter binary the doctor ran"
@@ -1808,23 +1855,38 @@ run_lint file-length --config x.cfg
 expect_exit 2 && expect_has "only doctor and agree take --config" && ok
 finish
 
+L1=$(rows_linters | head -1)
+
 begin "agree --lint-config prints the line and needs no source file"
 mkdir -p "$REPO/sub"; : > "$REPO/sub/strict.yaml"
-run_lint agree --lint-config a-linter sub/strict.yaml
-expect_exit 0 && expect_out '  - "a-linter sub/strict.yaml"' && ok
+run_lint agree --lint-config "$L1" sub/strict.yaml
+expect_exit 0 && expect_out "  - \"$L1 sub/strict.yaml\"" && ok
 finish
 
 begin "agree --lint-config for a path that is not a file is exit 2"
 mkdir -p "$REPO/sub"
-run_lint agree --lint-config a-linter sub
+run_lint agree --lint-config "$L1" sub
 expect_exit 2 && expect_has "not a file: sub" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
 finish
 
 begin "agree --lint-config escapes a quote and a backslash in the path"
 : > "$REPO/a\"b.yaml"
-run_lint agree --lint-config a-linter 'a"b.yaml'
-expect_exit 0 && expect_out '  - "a-linter a\"b.yaml"' && ok
+run_lint agree --lint-config "$L1" 'a"b.yaml'
+expect_exit 0 && expect_out "  - \"$L1 a\\\"b.yaml\"" && ok
 finish
+
+begin "agree --lint-config for a linter the plugin does not check is exit 2"
+: > "$REPO/x.yaml"
+run_lint agree --lint-config no-such-linter x.yaml
+expect_exit 2 && expect_has "no-such-linter is not a linter of this plugin" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
+finish
+
+begin "agree --lint-config for a path outside the git work tree is exit 2"
+real=$REPO; REPO="$real/proj"; mkdir -p "$REPO"; : > "$real/out.yaml"
+( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+run_lint agree --lint-config "$L1" ../out.yaml
+expect_exit 2 && expect_has "outside this repository" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
+REPO=$real; finish
 
 begin "agree --lint-config without its two values is a usage error (exit 2)"
 run_bounded agree --lint-config a-linter

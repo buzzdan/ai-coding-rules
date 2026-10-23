@@ -32,6 +32,11 @@
 #                                   the language's linter has no such rule
 #   lint_doctor_linter <id>         the linter the doctor compares for the
 #                                   language; "" when the plugin recommends none
+#   lint_config_names <linter>      the names (shell patterns) of the config
+#                                   files that give the linter its settings for
+#                                   the files of their directory and below,
+#                                   space-separated; "" when the linter reads
+#                                   one config for the whole project
 #   lint_reports_settings <linter>  exit 0 when the linter reports the setting
 #                                   of each rule, so the doctor compares values;
 #                                   exit 1 when it reports only which rules run
@@ -213,6 +218,14 @@ lint_doctor_linter() {
     go)                    printf 'golangci-lint' ;;
     python)                printf 'ruff' ;;
     typescript|javascript) printf 'eslint' ;;
+  esac
+  return 0
+}
+
+lint_config_names() {
+  case "$1" in
+    ruff)   printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
+    eslint) printf '%s' 'eslint.config.*' ;;
   esac
   return 0
 }

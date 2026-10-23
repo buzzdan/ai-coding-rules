@@ -256,6 +256,11 @@ fx_write_linter_config_other() {
 #                                   the language's linter has no such rule
 #   lint_doctor_linter <id>         the linter the doctor compares for the
 #                                   language; "" when the plugin recommends none
+#   lint_config_names <linter>      the names (shell patterns) of the config
+#                                   files that give the linter its settings for
+#                                   the files of their directory and below,
+#                                   space-separated; "" when the linter reads
+#                                   one config for the whole project
 #   lint_reports_settings <linter>  exit 0 when the linter reports the setting
 #                                   of each rule, so the doctor compares values;
 #                                   exit 1 when it reports only which rules run
@@ -437,6 +442,14 @@ lint_doctor_linter() {
     go)                    printf 'golangci-lint' ;;
     python)                printf 'ruff' ;;
     typescript|javascript) printf 'eslint' ;;
+  esac
+  return 0
+}
+
+lint_config_names() {
+  case "$1" in
+    ruff)   printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
+    eslint) printf '%s' 'eslint.config.*' ;;
   esac
   return 0
 }
@@ -1014,6 +1027,9 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
 #                    the project (fake_doctor_config_above); "" if not
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
 #                    which the invalid and noschema modes fail; "" if not
+#   FAKE_NEARER_CONFIG a config file name the linter reads for the files of its
+#                    directory and below; "" when the linter reads one config
+#                    for the whole project
 #   FAKE_NOKEY_RULE  a rule whose setting the nokey mode leaves out of the
 #                    linter's report, and FAKE_NOKEY_KEY that setting; both ""
 #                    when the linter reports no setting or the fake has no
@@ -1025,7 +1041,7 @@ fake_doctor_row() {
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
       FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
-      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG=''
       FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
@@ -1034,7 +1050,7 @@ fake_doctor_row() {
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
-      FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'
+      FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'; FAKE_NEARER_CONFIG='ruff.toml'
       FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
@@ -1048,7 +1064,7 @@ fake_doctor_row() {
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
-      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG='eslint.config.mjs'
       FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
@@ -2057,6 +2073,21 @@ else
   finish
 fi
 
+begin "agree with --config works when the lint_config item names a file that is gone"
+write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
+write_record "agreed: []
+lint_config:
+  - \"$FAKE_LINTER gone-cfg\""
+run_agree --config strict-cfg --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "kept"
+r1=0; expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE = " && r1=1
+run_agree --linters --config strict-cfg
+r2=0; (( r1 )) && expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && r2=1
+run_agree --fingerprint --config strict-cfg
+r3=0; (( r2 )) && expect_exit 0 && r3=1
+run_agree --linters
+(( r3 )) && expect_exit 0 && expect_has "$FAKE_LINTER cannot be checked" && ok
+finish
+
 begin "agree reads the rows of the chosen file"
 write_src "src/a$FX_EXT" 1; fake_doctor missing; fake_doctor_strict strict-cfg
 run_doctor --tsv --config strict-cfg
@@ -2257,20 +2288,52 @@ expect_exit 0 && expect_has "doctor: " \
   && { printf '%s\n' "$ERR" | grep -q '^doctor: ' || bad "the doctor line is not on stderr"; } && ok
 finish
 
-begin "doctor: a config above the project is named relative to the project"
+begin "doctor: a config above the project, inside the git work tree, is named relative to the project"
 if [[ -z "$FAKE_ABOVE" ]]; then skip "the linter looks for its config in the project only"; finish
 else
   real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
   write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_config_above
+  ( cd "$real" && git init -q . ) >/dev/null 2>&1
   up=$(cd "$real" && pwd -P)
   run_doctor
-  r1=0; expect_exit 0 && expect_has "../$FAKE_CONFIG" && expect_not "$up/$FAKE_CONFIG" && r1=1
+  r1=0; expect_exit 0 && expect_has "../$FAKE_CONFIG" && expect_not "$up/$FAKE_CONFIG" && expect_not "outside this repository" && r1=1
   if (( r1 )) && [[ -n "$FAKE_NO_SETTINGS" ]]; then
     run_agree --fingerprint
     expect_exit 0 && expect_out "  - \"$FAKE_LINTER ../$FAKE_CONFIG $(git hash-object "$real/$FAKE_CONFIG")\"" || r1=0
   fi
   (( r1 )) && ok
   REPO=$real; finish
+fi
+
+begin "doctor: a config outside the git work tree is named, and agree refuses it"
+if [[ -z "$FAKE_ABOVE" ]]; then skip "the linter looks for its config in the project only"; finish
+else
+  real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_config_above
+  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+  up=$(cd "$real" && pwd -P)
+  run_doctor
+  r1=0; expect_exit 0 && expect_has "the linter reads $up/$FAKE_CONFIG, outside this repository" && r1=1
+  run_agree --fingerprint
+  r2=0; (( r1 )) && expect_exit 2 && expect_has "the linter reads a config outside this repository; add a repository config first" && r2=1
+  run_agree --linters
+  r3=0; (( r2 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r3=1
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
+  (( r3 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
+  REPO=$real; finish
+fi
+
+begin "doctor: the settings are resolved for a file with no config nearer than the project root"
+if [[ -z "$FAKE_NEARER_CONFIG" ]]; then skip "the linter reads one config for the whole project"; finish
+else
+  write_src "a-bench/a$FX_EXT" 1; : > "$REPO/a-bench/$FAKE_NEARER_CONFIG"; write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_doctor
+  r1=0; expect_exit 0 && expect_has "resolved for src/a$FX_EXT" && expect_not "a-bench/$FAKE_NEARER_CONFIG" && r1=1
+  rm -rf "$REPO/src"
+  run_doctor
+  (( r1 )) && expect_exit 0 && expect_has "resolved for a-bench/a$FX_EXT" \
+    && expect_has "doctor: $ROW — each $ROW file has a config nearer than the project root: the doctor resolves the settings for a-bench/a$FX_EXT, under a-bench/$FAKE_NEARER_CONFIG" && ok
+  finish
 fi
 
 begin "doctor: the note names the linter binary the doctor ran"
@@ -3020,23 +3083,38 @@ run_lint file-length --config x.cfg
 expect_exit 2 && expect_has "only doctor and agree take --config" && ok
 finish
 
+L1=$(rows_linters | head -1)
+
 begin "agree --lint-config prints the line and needs no source file"
 mkdir -p "$REPO/sub"; : > "$REPO/sub/strict.yaml"
-run_lint agree --lint-config a-linter sub/strict.yaml
-expect_exit 0 && expect_out '  - "a-linter sub/strict.yaml"' && ok
+run_lint agree --lint-config "$L1" sub/strict.yaml
+expect_exit 0 && expect_out "  - \"$L1 sub/strict.yaml\"" && ok
 finish
 
 begin "agree --lint-config for a path that is not a file is exit 2"
 mkdir -p "$REPO/sub"
-run_lint agree --lint-config a-linter sub
+run_lint agree --lint-config "$L1" sub
 expect_exit 2 && expect_has "not a file: sub" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
 finish
 
 begin "agree --lint-config escapes a quote and a backslash in the path"
 : > "$REPO/a\"b.yaml"
-run_lint agree --lint-config a-linter 'a"b.yaml'
-expect_exit 0 && expect_out '  - "a-linter a\"b.yaml"' && ok
+run_lint agree --lint-config "$L1" 'a"b.yaml'
+expect_exit 0 && expect_out "  - \"$L1 a\\\"b.yaml\"" && ok
 finish
+
+begin "agree --lint-config for a linter the plugin does not check is exit 2"
+: > "$REPO/x.yaml"
+run_lint agree --lint-config no-such-linter x.yaml
+expect_exit 2 && expect_has "no-such-linter is not a linter of this plugin" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
+finish
+
+begin "agree --lint-config for a path outside the git work tree is exit 2"
+real=$REPO; REPO="$real/proj"; mkdir -p "$REPO"; : > "$real/out.yaml"
+( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+run_lint agree --lint-config "$L1" ../out.yaml
+expect_exit 2 && expect_has "outside this repository" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
+REPO=$real; finish
 
 begin "agree --lint-config without its two values is a usage error (exit 2)"
 run_bounded agree --lint-config a-linter
