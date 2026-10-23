@@ -1554,6 +1554,21 @@ else
 fi
 ROW=""; finish
 
+begin "agree --linters names a linter it leaves out, and prints the other linter"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  for r in $FX_ROWS; do use_row "$r"; write_src "src/a$FX_EXT" 1; done
+  # only the last row's linter is installed; the first row's linter cannot verify
+  ROW=$r; fake_doctor_row; fake_doctor adopt
+  first=$(rows_linters | head -1)
+  ROW=$r; fake_doctor_row
+  run_agree --linters
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" \
+    && expect_has "agree: $first cannot be checked, so there is no linters line for it" \
+    && expect_not "no linter of this run could be checked" && ok
+fi
+ROW=""; finish
+
 begin "--brief counts the rows of every linter that agree --linters named, with no rule agreed"
 if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
 else

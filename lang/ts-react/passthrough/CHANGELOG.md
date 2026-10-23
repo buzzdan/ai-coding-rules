@@ -64,11 +64,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   checked (`--linters`). The record key `linters` holds those lines, so the status
   line counts the rows of a setup that took every recommended value.
   golangci-lint reports no setting, so its drift shows through the fingerprint;
-  ruff and ESLint get no fingerprint, because their rows show a changed value. A path in a record line is relative to
-  the project root, also for a config above it (`../`). A `lint_config` item of
-  the record, or `--config <file>`, makes the doctor compare another config file
-  for one linter, and the linter's own config check reads that file too. In a run
-  with two or more linters, `--linter <name>` names the linter of `--config`.
+  ruff and ESLint get no fingerprint, because their rows show a changed value.
+  A path in a record line is relative to the project root, also for a config above
+  it (`../`). A `lint_config` item of the record, or `--config <file>`, makes the
+  doctor compare another config file for one linter, and the linter's own config
+  check reads that file too. In a run with two or more linters, `--linter <name>`
+  names the linter of `--config`.
   `agree --fingerprint` then prints a line for that file and one for the
   repository's own config. A golangci-lint `lint_fingerprint` item whose file
   changed, or is gone, makes the doctor print

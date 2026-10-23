@@ -155,7 +155,8 @@
 #   agree --linters
 #       "<linter>" for each linter this run reports and checked, one line each.
 #       A linter whose doctor row is cannot verify gets no line. When no linter
-#       gets a line, a note on stderr says why, and the exit is 0. A language
+#       gets a line, a note on stderr says why, and the exit is 0. Each linter
+#       left out gets a note on stderr. A language
 #       left to another installed plugin gives no line. It takes no value, and
 #       it cannot combine with the rule options, --fingerprint or --lint-config
 # A linter that cannot verify gives no row and no config: agree with the rule
@@ -431,8 +432,9 @@ brief_projects() {
 # brief_line <dir> — the nudge line of one project; nothing when the project
 # has no record, when the record names no linter, when its doctor does not exit
 # 0, or when nothing differs. Only the rows of a linter that the record names
-# count: the other linters belong to a plugin whose setup did not run. The changed-config count reads the doctor's own stderr line, so the text
-# of that line and the pattern below stay equal.
+# count: the other linters belong to a plugin whose setup did not run. The
+# changed-config count reads the doctor's own stderr line, so the text of that
+# line and the pattern below stay equal.
 brief_line() {
   local d="$1" out code differ cannot changed label what named err="$LINT_TMP/brief-err"
   (cd "$d" 2>/dev/null && record_has agreed) || return 0
@@ -793,13 +795,16 @@ run_agree_fingerprint() {
 }
 
 # run_agree_linters — one line per linter that has rows in this run and no row
-# that cannot verify; a note on stderr when there is none
+# that cannot verify; a note on stderr for each linter left out, and one more
+# when no linter gets a line
 run_agree_linters() {
   local linter named=0 skipped=""
   if [[ -s "$DOCTOR_ROWS" ]]; then
     while IFS= read -r linter; do
       if L="$linter" awk -F'\t' '$1 == ENVIRON["L"] && $3 ~ /^cannot verify/ { f = 1 } END { exit !f }' "$DOCTOR_ROWS"; then
-        skipped="$skipped $linter"; continue
+        skipped="$skipped $linter"
+        echo "agree: $linter cannot be checked, so there is no linters line for it" >&2
+        continue
       fi
       record_line "$linter"; named=1
     done < <(cut -f1 "$DOCTOR_ROWS" | LC_ALL=C sort -u)

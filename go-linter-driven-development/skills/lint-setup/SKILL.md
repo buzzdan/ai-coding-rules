@@ -266,11 +266,17 @@ the review keeps the limits of the rules.
       error.
    4. The linters lines, for every project that gets a record, after the last config
       edit: `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --linters`.
-      It prints one line for each linter that this plugin reports and checked. The
+      When the strict file is new, add `--config <strict file>`, so that the doctor
+      judges the linter of the strict file on that file. In a run with two or more
+      linters, `--config` needs `--linter <linter>`: the linter of the strict file.
+      One such run prints the lines of all linters: copy each line once. `agree`
+      prints one line for each linter that this plugin reports and checked. The
       status line counts the rows of these linters only. A setup that took every
       recommended value has no other item that names its linter. When `agree` prints
-      no line and a note on stderr, show the note: write `agreed: []` and no
-      `linters:` key, and say that the status line stays silent for this project.
+      a note on stderr for a linter, show the note. That linter has no line, so the
+      status line stays silent for it until the user fixes its setup and you run
+      `agree --linters` again. When `agree` prints no line, write no `linters:` key
+      (write `agreed: []`), and say the same for the project.
    5. With a strict file, its line:
       `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --lint-config <linter> <strict file>`.
    6. **Write the record last.** Copy each line that `agree` printed unchanged, under
@@ -280,8 +286,8 @@ the review keeps the limits of the rules.
       line of each agreed rule that this run did not ask about, and replace the line
       of each rule that the user decided again. Replace the fingerprint lines of the
       linters that this run checked. Replace the `linters:` items of the linters that
-      this plugin reports. Keep the items of a linter that this plugin does not
-      report: another plugin owns them.
+      `agree --linters` printed. Keep every other item: another plugin owns the items
+      of a linter that this plugin does not report.
 9. `agree` changes each ` | ` in a reason to ` / `. When a printed line is not the
    line in the plan, show the difference before you write the record.
 10. When `agree` exits 2 after the edits, stop before you write the record. For
