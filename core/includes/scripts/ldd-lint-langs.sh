@@ -438,21 +438,42 @@ _lint_limit_state() {
   else printf 'limit stricter'; fi
 }
 
+# _lint_local_untrusted <dir> <path> — why a linter binary at <dir>/<path>
+# that the project holds is not run, or nothing (exit 1) when it can run. It
+# runs only when the current user owns it and git does not track it: a cloned
+# repository cannot commit a binary that the doctor then runs.
+_lint_local_untrusted() {
+  local rel; rel=$(root_relative "$1/$2")
+  if [[ ! -O "$1/$2" ]]; then printf '%s is owned by another user and is not run' "$rel"; return 0; fi
+  if git -C "$1" ls-files --error-unmatch -- "$2" >/dev/null 2>&1; then printf 'a tracked %s is not run' "$rel"; return 0; fi
+  return 1
+}
+
 # _lint_ruff_bin — the project's ruff: .venv/bin/ruff or venv/bin/ruff in this
 # directory, or in a directory above it up to the top of the git work tree
-# (a project that runs ruff through its virtual environment); else ruff on PATH
+# (a project that runs ruff through its virtual environment), when it can run
+# (_lint_local_untrusted); else ruff on PATH. With no ruff, it prints the
+# reason and exits 1.
 _lint_ruff_bin() {
-  local d top v
+  local d top v why skipped=""
   d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
   top=$(cd "$top" && pwd -P)
   while :; do
     for v in .venv venv; do
-      [[ -x "$d/$v/bin/ruff" ]] && { printf '%s' "$d/$v/bin/ruff"; return 0; }
+      [[ -x "$d/$v/bin/ruff" ]] || continue
+      if why=$(_lint_local_untrusted "$d" "$v/bin/ruff"); then
+        [[ -n "$skipped" ]] || skipped=$why
+        continue
+      fi
+      printf '%s' "$d/$v/bin/ruff"; return 0
     done
     [[ "$d" == "$top" || "$d" == / ]] && break
     d=$(dirname "$d")
   done
-  command -v ruff
+  command -v ruff && return 0
+  if [[ -n "$skipped" ]]; then printf '%s, and no other ruff is installed' "$skipped"
+  else printf 'ruff is not installed: not on PATH, and not in .venv/bin or venv/bin of the project'; fi
+  return 1
 }
 
 # _lint_ruff_show <bin> <chosen config> <file> — the settings ruff resolves for
@@ -472,7 +493,7 @@ _lint_ruff_path() {
 
 _lint_doctor_ruff() { # <recommended config> <file> <work dir> [chosen config]
   local rec="$1" f="./$2" t="$3" chosen="${4:-}" bin sp dflt="" from which="the repository's config" r state key rv cv a b
-  bin=$(_lint_ruff_bin) || { _lint_doctor_cannot ruff "ruff is not installed: not on PATH, and not in .venv/bin or venv/bin of the project"; return 0; }
+  bin=$(_lint_ruff_bin) || { _lint_doctor_cannot ruff "$bin"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot ruff "no source file to resolve the settings for"; return 0; }
   "$bin" check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "ruff cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
@@ -597,16 +618,26 @@ _lint_eslint_compare() {
 
 # _lint_eslint_bin — the project's ESLint: node_modules/.bin/eslint in this
 # directory, or in a directory above it up to the top of the git work tree,
-# where a workspace keeps its hoisted packages
+# where a workspace keeps its hoisted packages, when it can run
+# (_lint_local_untrusted). With none, it exits 1, and prints why it skipped
+# one when it did.
 _lint_eslint_bin() {
-  local d top
+  local d top why skipped=""
   d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
   top=$(cd "$top" && pwd -P)
   while :; do
-    [[ -x "$d/node_modules/.bin/eslint" ]] && { printf '%s' "$d/node_modules/.bin/eslint"; return 0; }
-    [[ "$d" == "$top" || "$d" == / ]] && return 1
+    if [[ -x "$d/node_modules/.bin/eslint" ]]; then
+      if why=$(_lint_local_untrusted "$d" node_modules/.bin/eslint); then
+        [[ -n "$skipped" ]] || skipped=$why
+      else
+        printf '%s' "$d/node_modules/.bin/eslint"; return 0
+      fi
+    fi
+    [[ "$d" == "$top" || "$d" == / ]] && break
     d=$(dirname "$d")
   done
+  printf '%s' "$skipped"
+  return 1
 }
 
 # _lint_eslint_pnp — exit 0 when a Yarn Plug'n'Play install serves this
@@ -644,7 +675,9 @@ _lint_eslint_print() {
 _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
   local rec="$1" t="$3" chosen="${4:-}" bin r ro sev opts state rv cv a b cfg dflt which="the repository's config"
   if ! bin=$(_lint_eslint_bin); then
-    if _lint_eslint_pnp; then
+    if [[ -n "$bin" ]]; then
+      _lint_doctor_cannot eslint "$bin"
+    elif _lint_eslint_pnp; then
       _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
     else
       local sub

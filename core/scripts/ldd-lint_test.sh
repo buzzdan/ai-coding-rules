@@ -1069,6 +1069,17 @@ else
   REPO=$real; finish
 fi
 
+begin "doctor: a linter binary that git tracks in the project is not run"
+if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  if [[ -n "$FAKE_VENV" ]]; then mkdir -p "$REPO/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$REPO/$FAKE_VENV"; fi
+  ( cd "$REPO" && git init -q . && git add -f -- "$FAKE_LOCAL_BIN" ) >/dev/null 2>&1
+  run_doctor
+  expect_exit 0 && expect_has "cannot verify: a tracked $FAKE_LOCAL_BIN is not run" && expect_not ": runs;" && ok
+  finish
+fi
+
 begin "doctor never edits a file"
 write_src "src/a$FX_EXT" 1; fake_doctor relaxed
 before=$(tree_sum)
@@ -1224,6 +1235,8 @@ REPO=$real
 write_src "src/b$FX_EXT" 1
 write_record "agreed:
 $(names_linter)"; mv "$REPO/.ldd-lint.yaml" "$REPO/sub/.ldd-lint.yaml"
+# a repository ignores its installed packages, so git does not track a linter there
+printf 'node_modules/\n' > "$REPO/.gitignore"
 ( cd "$REPO" && git init -q . && git add -A ) >/dev/null 2>&1
 run_brief
 expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok
