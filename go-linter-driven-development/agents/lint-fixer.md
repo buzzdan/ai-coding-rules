@@ -22,20 +22,21 @@ No scope in the prompt means the whole repository (the workflow's Phase 3 on a f
 slice).
 
 **Loop:**
-1. Run the linter over the scope with the lint task of the project, when it has one.
-   Read the task file of the project (Taskfile, Makefile, `package.json` scripts,
-   justfile, or what the project uses). Find the task by the command it runs, not by
-   its name. A lint-fix task is a task whose command runs the linter with its fix
-   option. `task lintwithfix` is one such task. Choose the task, then the command:
-   - With a `lint_config` item in `.ldd-lint.yaml`, choose the task that runs that file.
-   - The task accepts a package argument (`{{.CLI_ARGS}}` in a Taskfile, `ARGS` in
-     a Makefile, a script argument): pass the package paths of the scope.
-   - The task does not, and the scope is the whole repository: run the task.
-   - The task does not, and the scope is a package list: run `golangci-lint run --fix`
-     with the package paths in place of `./...`.
-   - There is no lint-fix task: run `golangci-lint run --fix` the same way.
-   - The only task that runs the `lint_config` file is check-only: run it as your
-     check, fix the mechanical issues by hand, and run it again. Never use another config.
+1. Run the linter over the scope. Read the task file of the project (Taskfile, Makefile,
+   `package.json` scripts, justfile, or what the project uses). Find each task by the
+   command it runs, not by its name. A lint-fix task runs the linter with its fix
+   option; `task lintwithfix` is one. A check task runs the linter without it. With a
+   `lint_config` item in `.ldd-lint.yaml`, only a task that runs that file counts.
+   Use the first rule that fits:
+   1. The `lint_config` file has a check task and no lint-fix task: run the check task.
+      Pass the package paths when it accepts them. Keep only the findings inside the
+      scope. Fix those by hand, then run the check task again. Never use another config.
+   2. A lint-fix task accepts a package argument (`{{.CLI_ARGS}}` in a Taskfile, `ARGS` in
+      a Makefile, a script argument): pass the package paths of the scope.
+   3. A lint-fix task does not, and the scope is the whole repository: run it.
+   4. A lint-fix task does not, and the scope is a package list: run
+      `golangci-lint run --fix` with the package paths in place of `./...`.
+   5. There is no lint-fix task: run `golangci-lint run --fix` the same way.
 2. Read the remaining issues. Classify each: mechanical → fix it; design → escalate.
 3. Apply targeted mechanical fixes (Read the site first, Edit minimally).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
