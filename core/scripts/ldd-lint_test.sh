@@ -1554,6 +1554,20 @@ run_brief
 expect_exit 0 && expect_out "" && ok
 finish
 
+begin "--brief: the doctor run of a project finds the same languages and sample file as a full run"
+write_src "a$FX_EXT" 1; write_src ".hidden/b$FX_EXT" 1; write_src "$(fx_test_file tests 1)" 1
+write_src "tool.config$FX_EXT" 1; write_src "src/c$FX_EXT" 1; fake_doctor missing
+[[ -z "$FAKE_NEARER_CONFIG" ]] || { write_src "a-nested/n$FX_EXT" 1; : > "$REPO/a-nested/$FAKE_NEARER_CONFIG"; }
+r1=1
+for g in no-git git; do
+  [[ "$g" == git ]] && ( cd "$REPO" && git init -q . && git add -A ) >/dev/null 2>&1
+  run_doctor --tsv; full_out=$OUT; full_err=$ERR
+  LDD_LINT_BRIEF_SCOPE=1 run_doctor --tsv
+  expect_exit 0 && { [[ "$OUT" == "$full_out" && "$ERR" == "$full_err" ]] || bad "$g: the brief run differs: $ERR"; } || r1=0
+done
+(( r1 )) && ok
+finish
+
 begin "--brief never edits a file"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 write_record "agreed:
@@ -1975,6 +1989,19 @@ run_brief
 (( r1 )) && expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" \
   && { [[ -z "$ERR" ]] || bad "--brief wrote to stderr"; } && ok
 ROW=""; finish
+
+begin "the extensions of each language with a linter are the ones the language table gives it"
+wrong=""
+for id in go python d rust c cpp java kotlin ruby shell typescript javascript csharp; do
+  [[ -n "$(lint_doctor_linter "$id")" ]] || continue
+  for e in $(lint_doctor_extensions "$id"); do
+    got=$(eval "$(sed -n '/^lang_of_path() {/,/^}/p' "$LINT")"; OPT_GLOB=""; lang_of_path "x.$e")
+    [[ "$got" == "$id" ]] || wrong="$wrong $id:.$e=$got"
+  done
+  [[ -n "$(lint_doctor_extensions "$id")" ]] || wrong="$wrong $id:none"
+done
+[[ -z "$wrong" ]] && ok || bad "extensions:$wrong"
+finish
 
 # root_relative <path> — runs the script's path helper from $REPO/svc
 root_relative() {

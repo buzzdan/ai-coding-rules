@@ -191,8 +191,12 @@
 # root and each directory with a tracked .ldd-lint.yaml (a find outside git).
 # A project gets no line and no linter run when its .ldd-lint.yaml has no
 # "agreed" key, or when the record names no linter. For the other projects, it
-# runs "doctor --tsv" there and counts the rows of each linter that the record
-# names: an item of linters, agreed, lint_fingerprint or lint_config. The other
+# runs "doctor --tsv" there (with LDD_LINT_BRIEF_SCOPE=1 in its environment:
+# that run lists the files of each language with a recommended config by
+# extension, and finds no language of the other files, so the cost of a large
+# repository stays small; its rows are the rows of a full run), and counts
+# the rows of each linter that the record names: an item of linters, agreed,
+# lint_fingerprint or lint_config. The other
 # linters belong to a plugin whose setup did not run. It prints one line per
 # project when the doctor finds a difference:
 #   ⚙️ Lint setup (<dir>): 1 rule differs from what the team agreed — run /tsr-ldd-setup
@@ -478,6 +482,9 @@ lang_is_test() {
 #                                   the language's linter has no such rule
 #   lint_doctor_linter <id>         the linter the doctor compares for the
 #                                   language; "" when the plugin recommends none
+#   lint_doctor_extensions <id>     the file extensions of a language with a
+#                                   linter, without the dot, space-separated:
+#                                   the ones lang_of_path gives that id
 #   lint_config_names <linter>      the names (shell patterns) of the config
 #                                   files that give the linter its settings for
 #                                   the files of their directory and below,
@@ -672,6 +679,16 @@ lint_config_names() {
   case "$1" in
     ruff)   printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
     eslint) printf '%s' 'eslint.config.*' ;;
+  esac
+  return 0
+}
+
+lint_doctor_extensions() {
+  case "$1" in
+    go)         printf 'go' ;;
+    python)     printf 'py' ;;
+    typescript) printf 'ts tsx' ;;
+    javascript) printf 'js jsx mjs cjs' ;;
   esac
   return 0
 }
@@ -1359,7 +1376,7 @@ brief_line() {
   (cd "$d" 2>/dev/null && record_has agreed) || return 0
   named=$(cd "$d" && record_linters 2>/dev/null | tr '\n' ' ')
   [[ -n "$named" ]] || return 0
-  out=$("$BASH" "$SELF" doctor --tsv --root "./$d" 2>"$err"); code=$?
+  out=$(LDD_LINT_BRIEF_SCOPE=1 "$BASH" "$SELF" doctor --tsv --root "./$d" 2>"$err"); code=$?
   (( code == 0 )) || return 0
   differ=$(printf '%s\n' "$out" | NAMED="$named" awk -F'\t' '
     BEGIN { n = split(ENVIRON["NAMED"], a, " "); for (i = 1; i <= n; i++) named[a[i]] = 1; n = 0 }
@@ -1428,13 +1445,51 @@ by_language() {
   done | LC_ALL=C sort -u
 }
 
+# list_by_extension <extensions> — the files of the repository whose names end
+# in one of those extensions, as list_repo lists them
+list_by_extension() {
+  local e pats=() names=()
+  for e in $1; do pats+=("*.$e"); names+=(-o -name "*.$e"); done
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git ls-files -co --exclude-standard -- "${pats[@]}"
+  else
+    find . -type f -not -path './.git/*' \( "${names[@]:1}" \) | sed 's|^\./||'
+  fi
+}
+
+# brief_scope — the scope of the doctor run of one --brief project: for each
+# language of this plugin with a recommended linter config, every file whose
+# name ends in one of its extensions, when one of them is a file. A full run
+# finds the language of each file of the repository; this run asks git (or
+# find) for the files of each extension. The languages and the sample files
+# are the ones of a full run.
+brief_scope() {
+  local id exts alt f
+  for id in $LANG_NATIVE; do
+    [[ -n "$(lint_doctor_linter "$id")" ]] || continue
+    exts=$(lint_doctor_extensions "$id")
+    [[ -n "$exts" ]] || continue
+    alt=$(printf '%s' "$exts" | tr ' ' '|')
+    list_by_extension "$exts" | grep -E -- "[.]($alt)\$" | LC_ALL=C sort -u > "$LINT_TMP/brief-scope"
+    while IFS= read -r f; do
+      [[ -f "$f" ]] || continue
+      awk -v id="$id" '{ print id "\t" $0 }' "$LINT_TMP/brief-scope"
+      break
+    done < "$LINT_TMP/brief-scope"
+  done | LC_ALL=C sort -u
+}
+
 SCOPE=$(mktemp)
 INVENTORY=$(mktemp)
 LINT_TMP=$(mktemp -d)
 trap 'rm -rf "$SCOPE" "$INVENTORY" "$LINT_TMP"' EXIT
 (( ! BRIEF )) || run_brief
-list_candidates | by_language > "$SCOPE"
-if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
+if [[ -n "${LDD_LINT_BRIEF_SCOPE:-}" && "$SUBCOMMAND" == doctor ]]; then
+  brief_scope > "$SCOPE"
+else
+  list_candidates | by_language > "$SCOPE"
+  if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
+fi
 
 # dir_of <path> — the directory part of a relative path, "." for a file at
 # the root. A function, because bash 3.2 misreads a case pattern's ")" inside

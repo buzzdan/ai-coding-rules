@@ -32,6 +32,9 @@
 #                                   the language's linter has no such rule
 #   lint_doctor_linter <id>         the linter the doctor compares for the
 #                                   language; "" when the plugin recommends none
+#   lint_doctor_extensions <id>     the file extensions of a language with a
+#                                   linter, without the dot, space-separated:
+#                                   the ones lang_of_path gives that id
 #   lint_config_names <linter>      the names (shell patterns) of the config
 #                                   files that give the linter its settings for
 #                                   the files of their directory and below,
@@ -226,6 +229,16 @@ lint_config_names() {
   case "$1" in
     ruff)   printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
     eslint) printf '%s' 'eslint.config.*' ;;
+  esac
+  return 0
+}
+
+lint_doctor_extensions() {
+  case "$1" in
+    go)         printf 'go' ;;
+    python)     printf 'py' ;;
+    typescript) printf 'ts tsx' ;;
+    javascript) printf 'js jsx mjs cjs' ;;
   esac
   return 0
 }
