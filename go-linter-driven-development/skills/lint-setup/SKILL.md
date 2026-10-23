@@ -109,8 +109,9 @@ the review keeps the limits of the rules.
    - `the linter reads <path>, outside this repository`: the project has no config
      of its own for that linter, so each teammate's machine can give another one.
      Treat the project as a project with no repository config, and propose to add
-     one in the plan. `agree` refuses a record line for that linter until the
-     project has its own config.
+     one in the plan. Until the project has its own config, `agree` refuses a rule
+     line for that linter, and `agree --linters` and `agree --fingerprint` leave
+     that linter out with a note.
 4. **`cannot verify` of a linter stops that project only.** A row whose rule is `-`
    and whose state starts with `cannot verify:` means that the doctor cannot check
    that linter. Do not work around it. Stop for this project. Name the cause from the

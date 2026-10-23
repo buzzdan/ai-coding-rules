@@ -98,7 +98,8 @@
 # in its node_modules: that check runs the project's own copy, which loads the
 # project's config file. A linter that reads its config per directory gets one
 # source file to resolve its settings for: a file with no config of the
-# linter's names in a directory between the file and the project root. When
+# linter in a directory between the file and the project root (a shared file,
+# such as a package manifest, counts only with the linter's section). When
 # each file has such a nearer config, a "doctor:" line names the one of the
 # file the doctor took. When a config the doctor compares is outside the git
 # work tree of the project (in the home directory, for example), a "doctor:"
@@ -184,8 +185,9 @@
 # blocks only that rule: agree with the rule options exits 2 for it, names the
 # setting and says to upgrade the linter. The other forms of agree go on. A
 # linter that reads a config outside the git work tree gets no line: agree with
-# the rule options of that linter, agree --fingerprint and agree --linters exit
-# 2 and say to add a repository config first.
+# the rule options of that linter exits 2 and says to add a repository config
+# first; agree --fingerprint and agree --linters leave that linter out, with a
+# note on stderr, and go on for the other linters.
 #
 # doctor --brief prints the status nudge. It finds the projects itself: the
 # root and each directory with a tracked .ldd-lint.yaml (a find outside git).
@@ -402,6 +404,8 @@ record_items() {
       if (i > n || substr(s, i + 1) !~ /^([ \t]+(#.*)?)?$/) return "\n"
       return out
     }
+    BEGIN { cr = sprintf("%c", 13) }
+    substr($0, length($0)) == cr { $0 = substr($0, 1, length($0) - 1) }
     on && /^[ \t]*$/ { next }
     on && /^[ \t]*#/ { next }
     on && /^[ \t]*-([ \t]|$)/ {
@@ -763,55 +767,70 @@ row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
 }
 
-# nearer_config <path> <names> — the first config file of those names (shell
-# patterns, space-separated) in the directory of the file or a directory above
-# it, below the project root: the nearest; nothing when there is none
-nearer_config() {
-  local d="$1" n g names
-  [[ -n "$2" ]] || return 0
-  IFS=" " read -r -a names <<< "$2"
-  while [[ "$d" == */* ]]; do
-    d=${d%/*}
-    for n in "${names[@]}"; do
-      for g in "./$d/"$n; do [[ -f "$g" ]] && { printf '%s' "${g#./}"; return 0; }; done
+# config_dirs <linter> — "<dir> TAB <config>" for each directory below the
+# project root that holds a config of the linter (lint_config_names, checked by
+# lint_config_file), from one listing of the repository; nothing when the
+# linter reads one config for the whole project. In one directory, the first
+# name of lint_config_names wins.
+config_dirs() {
+  local names n f pats=() fargs=()
+  names=$(lint_config_names "$1")
+  [[ -n "$names" ]] || return 0
+  for n in $names; do pats+=("*/$n"); fargs+=(-o -name "$n"); done
+  { if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      git ls-files -co --exclude-standard -- "${pats[@]}"
+    else
+      find . -mindepth 2 -type f -not -path './.git/*' \( "${fargs[@]:1}" \) | sed 's|^\./||'
+    fi
+  } | NAMES="$names" awk '
+      BEGIN { n = split(ENVIRON["NAMES"], a, " "); for (i = 1; i <= n; i++) rank[a[i]] = i }
+      { b = $0; sub("^.*/", "", b) }
+      index($0, "/") && (b in rank) { print rank[b] "\t" $0 }' \
+    | LC_ALL=C sort -t $'\t' -k2,2 -k1,1n | cut -f2 | while IFS= read -r f; do
+      [[ -f "$f" ]] && lint_config_file "$1" "$f" && printf '%s\t%s\n' "${f%/*}" "$f"
     done
-  done
-  return 0
 }
 
 # sample_file <id> — "<file> TAB <nearer config>": the source file a linter
-# resolves its config for. The files with no config of the linter's names
-# between them and the project root come first; among them, the first that
-# fits best: a measured file in a subdirectory that is not a tool's own config
-# (*.config.*), outside hidden directories (a linter may skip those); else a
-# measured file outside hidden directories; else a measured file; else any
-# file of the language. When each file has a nearer config, the same choice
-# among all files, and the nearer config of that file.
+# resolves its config for. The files with no config of the linter (config_dirs)
+# in a directory between them and the project root come first; among them, the
+# first that fits best: a measured file in a subdirectory that is not a tool's
+# own config (*.config.*), outside hidden directories (a linter may skip
+# those); else a measured file outside hidden directories; else a measured
+# file; else any file of the language. When each file has a nearer config, the
+# same choice among all files, and the nearest config of that file. One awk
+# pass finds the nearest config of each file.
 sample_file() {
-  local names f
-  names=$(lint_config_names "$(lint_doctor_linter "$1")")
-  if [[ -n "$names" ]]; then
-    f=$(sample_pick "$1" "$names")
-    [[ -z "$f" ]] || { printf '%s\t' "$f"; return 0; }
-  fi
-  f=$(sample_pick "$1" "")
-  printf '%s\t%s' "$f" "$(nearer_config "$f" "$names")"
+  local cands="$LINT_TMP/sample.$1" f
+  config_dirs "$(lint_doctor_linter "$1")" > "$LINT_TMP/config-dirs.$1"
+  awk -F'\t' -v id="$1" -v dirs="$LINT_TMP/config-dirs.$1" '
+    BEGIN { while ((getline line < dirs) > 0) { split(line, p, "\t"); if (!(p[1] in c)) c[p[1]] = p[2] } }
+    $1 == id {
+      d = $2; n = ""
+      while (index(d, "/")) { sub("/[^/]*$", "", d); if (d in c) { n = c[d]; break } }
+      print $2 "\t" n
+    }' "$SCOPE" > "$cands"
+  f=$(sample_pick "$cands" free)
+  [[ -z "$f" ]] || { printf '%s\t' "$f"; return 0; }
+  f=$(sample_pick "$cands" all)
+  printf '%s\t%s' "$f" "$(F="$f" awk -F'\t' '$1 == ENVIRON["F"] { print $2; exit }' "$cands")"
 }
 
-# sample_pick <id> <names> — the choice of sample_file among the files of the
-# language; with names, among the files with no nearer config of those names
+# sample_pick <candidates> <free|all> — the choice of sample_file among the
+# lines "<file> TAB <nearer config>"; with free, among the files with no
+# nearer config
 sample_pick() {
-  local f first="" measured_one="" plain=""
-  while IFS= read -r f; do
+  local f n first="" measured_one="" plain=""
+  while IFS=$'\t' read -r f n; do
     [[ -f "$f" ]] || continue
-    [[ -z "$2" || -z "$(nearer_config "$f" "$2")" ]] || continue
+    [[ "$2" == all || -z "$n" ]] || continue
     [[ -z "$first" ]] && first="$f"
     measured "$f" || continue
     [[ -z "$measured_one" ]] && measured_one="$f"
     [[ "/$f" == */.* ]] && continue
     [[ -z "$plain" ]] && plain="$f"
     [[ "$f" == */* && "${f##*/}" != *.config.* ]] && { printf '%s' "$f"; return 0; }
-  done < <(awk -F'\t' -v id="$1" '$1 == id { print $2 }' "$SCOPE")
+  done < "$1"
   printf '%s' "${plain:-${measured_one:-$first}}"
 }
 
@@ -929,14 +948,18 @@ fingerprint_line() {
   record_line "$1 $2 $(file_hash "$2")"
 }
 
-# agree_outside [<linter>] — dies when the doctor found that the linter, or
-# any linter, reads a config outside the git work tree: the record must name a
-# file of the repository
+# outside_linter <linter> — exit 0 when the doctor found that the linter reads
+# a config outside the git work tree
+outside_linter() {
+  [[ -s "$DOCTOR_OUTSIDE" ]] && grep -qxF -- "$1" "$DOCTOR_OUTSIDE"
+}
+
+# agree_outside <linter> — dies when the linter reads a config outside the git
+# work tree: a record line must name a file of the repository
 agree_outside() {
-  [[ -s "$DOCTOR_OUTSIDE" ]] || return 0
-  local l
-  l=$(L="${1:-}" awk 'ENVIRON["L"] == "" || $0 == ENVIRON["L"] { print; exit }' "$DOCTOR_OUTSIDE")
-  [[ -z "$l" ]] || die "agree: $l: the linter reads a config outside this repository; add a repository config first"
+  outside_linter "$1" \
+    && die "agree: $1: the linter reads a config outside this repository; add a repository config first"
+  return 0
 }
 
 # agree_cannot [<linter>] — dies with the cause when the doctor could not
@@ -978,12 +1001,17 @@ run_agree_rule() {
 run_agree_fingerprint() {
   local linter path
   agree_cannot
-  agree_outside
   [[ ! -s "$DOCTOR_CONFIGS" ]] || while IFS=$'\t' read -r linter path; do
+    outside_linter "$linter" && continue
     lint_reports_settings "$linter" || fingerprint_line "$linter" "$path"
   done < "$DOCTOR_CONFIGS"
-  # a linter the run reports, with no config file compared: no line, and a note
+  # a linter the run reports, with no config file compared, or with one outside
+  # the git work tree: no line, and a note
   while IFS= read -r linter; do
+    if outside_linter "$linter"; then
+      echo "agree: $linter reads a config outside this repository, so there is no fingerprint line for it" >&2
+      continue
+    fi
     lint_reports_settings "$linter" && continue
     L="$linter" awk -F'\t' '$1 == ENVIRON["L"] { f = 1 } END { exit !f }' "$DOCTOR_CONFIGS" 2>/dev/null \
       || echo "agree: no config file of $linter was compared, so there is no fingerprint line for it" >&2
@@ -996,9 +1024,13 @@ run_agree_fingerprint() {
 # when no linter gets a line
 run_agree_linters() {
   local linter named=0 skipped=""
-  agree_outside
   if [[ -s "$DOCTOR_ROWS" ]]; then
     while IFS= read -r linter; do
+      if outside_linter "$linter"; then
+        skipped="$skipped $linter"
+        echo "agree: $linter reads a config outside this repository, so there is no linters line for it" >&2
+        continue
+      fi
       if L="$linter" awk -F'\t' '$1 == ENVIRON["L"] && $2 == "-" && $3 ~ /^cannot verify/ { f = 1 } END { exit !f }' "$DOCTOR_ROWS"; then
         skipped="$skipped $linter"
         echo "agree: $linter cannot be checked, so there is no linters line for it" >&2
@@ -1007,7 +1039,7 @@ run_agree_linters() {
       record_line "$linter"; named=1
     done < <(cut -f1 "$DOCTOR_ROWS" | LC_ALL=C sort -u)
   fi
-  (( named )) || echo "agree: no linter of this run could be checked, so there is no linters line${skipped:+ (cannot verify:$skipped)}" >&2
+  (( named )) || echo "agree: no linter of this run could be checked, so there is no linters line${skipped:+ (left out:$skipped)}" >&2
   return 0
 }
 

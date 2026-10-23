@@ -54,9 +54,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `config verify` cannot run (for example, with no network for its schema), a note
   says that golangci-lint did not check the config, and why. A rule whose setting
   the installed linter does not report is "cannot verify" for that rule only: the
-  other rules of that linter keep their rows. The doctor resolves the settings for
-  a source file with no config of the linter nearer than the project root; when
-  each file has one, a note names it. When the linter reads a config outside the
+  other rules of that linter keep their rows. The doctor resolves the ruff
+  settings for a source file with no ruff config nearer than the project root (a
+  `pyproject.toml` counts only with a `[tool.ruff` section); when each file has
+  one, a note names it. When the linter reads a config outside the
   git work tree (for example, in the home directory), a note names that file.
   `--root <dir>`
   points the doctor at one project of a monorepo, such as a front end with its own
@@ -74,8 +75,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   golangci-lint config file the doctor compared (`--fingerprint`); the line that
   names a config file (`--lint-config`); and one line for each linter the run
   checked (`--linters`). `agree` refuses a rule whose row cannot verify, with the
-  advice to upgrade the linter, and refuses each line of a linter that reads a
-  config outside the repository. `--lint-config` takes only a linter of the plugin
+  advice to upgrade the linter, and refuses a rule line of a linter that reads a
+  config outside the repository; `--linters` and `--fingerprint` leave that linter
+  out with a note. `--lint-config` takes only a linter of the plugin
   and a file inside the repository. The record key `linters` holds those lines, so the status
   line counts the rows of a setup that took every recommended value.
   golangci-lint reports no setting, so its drift shows through the fingerprint;

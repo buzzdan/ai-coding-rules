@@ -35,11 +35,15 @@
 #   lint_doctor_extensions <id>     the file extensions of a language with a
 #                                   linter, without the dot, space-separated:
 #                                   the ones lang_of_path gives that id
-#   lint_config_names <linter>      the names (shell patterns) of the config
-#                                   files that give the linter its settings for
-#                                   the files of their directory and below,
-#                                   space-separated; "" when the linter reads
-#                                   one config for the whole project
+#   lint_config_names <linter>      the names of the config files that give
+#                                   the linter its settings for the files of
+#                                   their directory and below, space-separated;
+#                                   "" when the linter reads one config for the
+#                                   whole project (ESLint 9 resolves one config
+#                                   from the working directory)
+#   lint_config_file <linter> <path>  exit 0 when the file, of one of those
+#                                   names, is a config of the linter: a
+#                                   pyproject.toml only with a [tool.ruff section
 #   lint_reports_settings <linter>  exit 0 when the linter reports the setting
 #                                   of each rule, so the doctor compares values;
 #                                   exit 1 when it reports only which rules run
@@ -227,10 +231,16 @@ lint_doctor_linter() {
 
 lint_config_names() {
   case "$1" in
-    ruff)   printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
-    eslint) printf '%s' 'eslint.config.*' ;;
+    ruff) printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
   esac
   return 0
+}
+
+lint_config_file() {
+  case "$1:${2##*/}" in
+    ruff:pyproject.toml) grep -q '^\[tool\.ruff' "./$2" 2>/dev/null ;;
+    *)                   return 0 ;;
+  esac
 }
 
 lint_doctor_extensions() {

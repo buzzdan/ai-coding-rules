@@ -326,11 +326,15 @@ fx_write_linter_config_other() {
 #   lint_doctor_extensions <id>     the file extensions of a language with a
 #                                   linter, without the dot, space-separated:
 #                                   the ones lang_of_path gives that id
-#   lint_config_names <linter>      the names (shell patterns) of the config
-#                                   files that give the linter its settings for
-#                                   the files of their directory and below,
-#                                   space-separated; "" when the linter reads
-#                                   one config for the whole project
+#   lint_config_names <linter>      the names of the config files that give
+#                                   the linter its settings for the files of
+#                                   their directory and below, space-separated;
+#                                   "" when the linter reads one config for the
+#                                   whole project (ESLint 9 resolves one config
+#                                   from the working directory)
+#   lint_config_file <linter> <path>  exit 0 when the file, of one of those
+#                                   names, is a config of the linter: a
+#                                   pyproject.toml only with a [tool.ruff section
 #   lint_reports_settings <linter>  exit 0 when the linter reports the setting
 #                                   of each rule, so the doctor compares values;
 #                                   exit 1 when it reports only which rules run
@@ -518,10 +522,16 @@ lint_doctor_linter() {
 
 lint_config_names() {
   case "$1" in
-    ruff)   printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
-    eslint) printf '%s' 'eslint.config.*' ;;
+    ruff) printf '%s' 'ruff.toml .ruff.toml pyproject.toml' ;;
   esac
   return 0
+}
+
+lint_config_file() {
+  case "$1:${2##*/}" in
+    ruff:pyproject.toml) grep -q '^\[tool\.ruff' "./$2" 2>/dev/null ;;
+    *)                   return 0 ;;
+  esac
 }
 
 lint_doctor_extensions() {
@@ -1110,6 +1120,9 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
 #   FAKE_NEARER_CONFIG a config file name the linter reads for the files of its
 #                    directory and below; "" when the linter reads one config
 #                    for the whole project
+#   FAKE_SHARED_CONFIG a config file name that other tools share: it is a config
+#                    of the linter only with the section FAKE_SHARED_SECTION;
+#                    both "" when the linter has no such file
 #   FAKE_NOKEY_RULE  a rule whose setting the nokey mode leaves out of the
 #                    linter's report, and FAKE_NOKEY_KEY that setting; both ""
 #                    when the linter reports no setting or the fake has no
@@ -1122,6 +1135,7 @@ fake_doctor_row() {
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
       FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
       FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG=''
+      FAKE_SHARED_CONFIG=''; FAKE_SHARED_SECTION=''
       FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
@@ -1131,6 +1145,7 @@ fake_doctor_row() {
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
       FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'; FAKE_NEARER_CONFIG='ruff.toml'
+      FAKE_SHARED_CONFIG='pyproject.toml'; FAKE_SHARED_SECTION='[tool.ruff.lint]'
       FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
@@ -1144,7 +1159,8 @@ fake_doctor_row() {
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
-      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG='eslint.config.mjs'
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG=''
+      FAKE_SHARED_CONFIG=''; FAKE_SHARED_SECTION=''
       FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
@@ -2385,7 +2401,7 @@ else
   REPO=$real; finish
 fi
 
-begin "doctor: a config outside the git work tree is named, and agree refuses it"
+begin "doctor: a config outside the git work tree is named; agree leaves that linter out, and refuses its rules"
 if [[ -z "$FAKE_ABOVE" ]]; then skip "the linter looks for its config in the project only"; finish
 else
   real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
@@ -2395,9 +2411,11 @@ else
   run_doctor
   r1=0; expect_exit 0 && expect_has "the linter reads $up/$FAKE_CONFIG, outside this repository" && r1=1
   run_agree --fingerprint
-  r2=0; (( r1 )) && expect_exit 2 && expect_has "the linter reads a config outside this repository; add a repository config first" && r2=1
+  r2=0; (( r1 )) && expect_exit 0 && expect_has "agree: $FAKE_LINTER reads a config outside this repository, so there is no fingerprint line for it" \
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r2=1
   run_agree --linters
-  r3=0; (( r2 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r3=1
+  r3=0; (( r2 )) && expect_exit 0 && expect_has "agree: $FAKE_LINTER reads a config outside this repository, so there is no linters line for it" \
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r3=1
   run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
   (( r3 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   REPO=$real; finish
@@ -2413,6 +2431,19 @@ else
   run_doctor
   (( r1 )) && expect_exit 0 && expect_has "resolved for a-bench/a$FX_EXT" \
     && expect_has "doctor: $ROW — each $ROW file has a config nearer than the project root: the doctor resolves the settings for a-bench/a$FX_EXT, under a-bench/$FAKE_NEARER_CONFIG" && ok
+  finish
+fi
+
+begin "doctor: a shared config file without the linter's section is no nearer config"
+if [[ -z "$FAKE_SHARED_CONFIG" ]]; then skip "the linter has no config file that other tools share"; finish
+else
+  write_src "a-bench/a$FX_EXT" 1; printf '[project]\nname = "bench"\n' > "$REPO/a-bench/$FAKE_SHARED_CONFIG"
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_doctor
+  r1=0; expect_exit 0 && expect_has "resolved for a-bench/a$FX_EXT" && expect_not "nearer than the project root" && r1=1
+  printf '%s\nline-length = 100\n' "$FAKE_SHARED_SECTION" >> "$REPO/a-bench/$FAKE_SHARED_CONFIG"
+  run_doctor
+  (( r1 )) && expect_exit 0 && expect_has "resolved for src/a$FX_EXT" && ok
   finish
 fi
 
@@ -3163,6 +3194,36 @@ else
   run_agree --fingerprint
   (( r1 )) && expect_exit 2 && ok
 fi
+ROW=""; finish
+
+begin "agree --linters and --fingerprint leave out a linter whose config is outside the repository, and go on for the other"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
+  two_linters adopt; fake_doctor_config_above
+  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+  run_agree --linters
+  r1=0; expect_exit 0 && expect_out "  - \"$FIRST_LINTER\"" \
+    && expect_has "agree: $FAKE_LINTER reads a config outside this repository, so there is no linters line for it" && r1=1
+  run_agree --fingerprint
+  r2=0; (( r1 )) && expect_exit 0 && expect_has "agree: $FAKE_LINTER reads a config outside this repository" \
+    && expect_not "$FAKE_LINTER ../" && r2=1
+  run_agree --linter "$FIRST_LINTER" --rule "$FIRST_RULE" --decision off --reason "why"
+  r3=0; (( r2 )) && expect_exit 0 && r3=1
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
+  (( r3 )) && expect_exit 2 && expect_has "add a repository config first" && ok
+  REPO=$real
+fi
+ROW=""; finish
+
+begin "a record with CRLF line ends is read as with LF line ends"
+ROW=$(printf '%s\n' $FX_ROWS | head -1); use_row "$ROW"; fake_doctor_row
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+printf 'agreed:\r\n%s\r\nlinters:\r\n  - "%s"\r\n' "$(names_linter)" "$FAKE_LINTER" > "$REPO/.ldd-lint.yaml"
+got=$(record_read record_items linters 2>&1)
+r1=0; { [[ "$got" == "$FAKE_LINTER" ]] || bad "read: $got"; } && r1=1
+run_brief
+(( r1 )) && expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
 ROW=""; finish
 
 begin "--config with a path that is not a file is a usage error (exit 2)"

@@ -92,13 +92,15 @@ task fail when git fails. With option b:
         diff=$(mktemp); trap 'rm -f "$diff"' EXIT
         git diff --relative "$base" > "$diff"
         git ls-files -o --exclude-standard -- '*.py' | while IFS= read -r f; do
-          git diff --no-index /dev/null "$f" >> "$diff"
+          git diff --no-index /dev/null "$f" >> "$diff" || [ $? -eq 1 ]
         done
         ruff check --exit-zero --output-format=rdjson {{"{{"}}.CLI_ARGS}} | reviewdog -f=rdjson -reporter=local -filter-mode=added -fail-level=any -diff="cat $diff"
 ```
 
 The diff holds the changed files and each new file that git does not track yet, so
-each line of a new file is an added line. `--exit-zero` keeps a finding on an old line
+each line of a new file is an added line. `git diff --no-index` exits 1 when the
+files differ, which is always true for a new file: the task accepts exit 1 there,
+and fails on any other exit code. `--exit-zero` keeps a finding on an old line
 from failing the task: reviewdog decides.
 `pipefail` makes the task fail when ruff itself fails, for example on a config that
 does not load.

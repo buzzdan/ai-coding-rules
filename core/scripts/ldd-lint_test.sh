@@ -1154,7 +1154,7 @@ else
   REPO=$real; finish
 fi
 
-begin "doctor: a config outside the git work tree is named, and agree refuses it"
+begin "doctor: a config outside the git work tree is named; agree leaves that linter out, and refuses its rules"
 if [[ -z "$FAKE_ABOVE" ]]; then skip "the linter looks for its config in the project only"; finish
 else
   real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
@@ -1164,9 +1164,11 @@ else
   run_doctor
   r1=0; expect_exit 0 && expect_has "the linter reads $up/$FAKE_CONFIG, outside this repository" && r1=1
   run_agree --fingerprint
-  r2=0; (( r1 )) && expect_exit 2 && expect_has "the linter reads a config outside this repository; add a repository config first" && r2=1
+  r2=0; (( r1 )) && expect_exit 0 && expect_has "agree: $FAKE_LINTER reads a config outside this repository, so there is no fingerprint line for it" \
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r2=1
   run_agree --linters
-  r3=0; (( r2 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r3=1
+  r3=0; (( r2 )) && expect_exit 0 && expect_has "agree: $FAKE_LINTER reads a config outside this repository, so there is no linters line for it" \
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r3=1
   run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
   (( r3 )) && expect_exit 2 && expect_has "add a repository config first" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   REPO=$real; finish
@@ -1182,6 +1184,19 @@ else
   run_doctor
   (( r1 )) && expect_exit 0 && expect_has "resolved for a-bench/a$FX_EXT" \
     && expect_has "doctor: $ROW — each $ROW file has a config nearer than the project root: the doctor resolves the settings for a-bench/a$FX_EXT, under a-bench/$FAKE_NEARER_CONFIG" && ok
+  finish
+fi
+
+begin "doctor: a shared config file without the linter's section is no nearer config"
+if [[ -z "$FAKE_SHARED_CONFIG" ]]; then skip "the linter has no config file that other tools share"; finish
+else
+  write_src "a-bench/a$FX_EXT" 1; printf '[project]\nname = "bench"\n' > "$REPO/a-bench/$FAKE_SHARED_CONFIG"
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_doctor
+  r1=0; expect_exit 0 && expect_has "resolved for a-bench/a$FX_EXT" && expect_not "nearer than the project root" && r1=1
+  printf '%s\nline-length = 100\n' "$FAKE_SHARED_SECTION" >> "$REPO/a-bench/$FAKE_SHARED_CONFIG"
+  run_doctor
+  (( r1 )) && expect_exit 0 && expect_has "resolved for src/a$FX_EXT" && ok
   finish
 fi
 
@@ -1855,6 +1870,36 @@ else
   run_agree --fingerprint
   (( r1 )) && expect_exit 2 && ok
 fi
+ROW=""; finish
+
+begin "agree --linters and --fingerprint leave out a linter whose config is outside the repository, and go on for the other"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
+  two_linters adopt; fake_doctor_config_above
+  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+  run_agree --linters
+  r1=0; expect_exit 0 && expect_out "  - \"$FIRST_LINTER\"" \
+    && expect_has "agree: $FAKE_LINTER reads a config outside this repository, so there is no linters line for it" && r1=1
+  run_agree --fingerprint
+  r2=0; (( r1 )) && expect_exit 0 && expect_has "agree: $FAKE_LINTER reads a config outside this repository" \
+    && expect_not "$FAKE_LINTER ../" && r2=1
+  run_agree --linter "$FIRST_LINTER" --rule "$FIRST_RULE" --decision off --reason "why"
+  r3=0; (( r2 )) && expect_exit 0 && r3=1
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
+  (( r3 )) && expect_exit 2 && expect_has "add a repository config first" && ok
+  REPO=$real
+fi
+ROW=""; finish
+
+begin "a record with CRLF line ends is read as with LF line ends"
+ROW=$(printf '%s\n' $FX_ROWS | head -1); use_row "$ROW"; fake_doctor_row
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+printf 'agreed:\r\n%s\r\nlinters:\r\n  - "%s"\r\n' "$(names_linter)" "$FAKE_LINTER" > "$REPO/.ldd-lint.yaml"
+got=$(record_read record_items linters 2>&1)
+r1=0; { [[ "$got" == "$FAKE_LINTER" ]] || bad "read: $got"; } && r1=1
+run_brief
+(( r1 )) && expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
 ROW=""; finish
 
 begin "--config with a path that is not a file is a usage error (exit 2)"
