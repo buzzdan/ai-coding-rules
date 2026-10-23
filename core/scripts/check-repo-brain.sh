@@ -359,7 +359,8 @@ resolve_words() {
 # scheme and "://" and ends before whitespace, a character in stops, the quote
 # character that opens the span, or a ")" that closes no "(" inside the span.
 # So a path such as /app/(group)/ and an apostrophe in a bare URL stay in the
-# URL, while the ")" or quote that encloses a link ends it.
+# URL, while the ")" or quote that encloses a link ends it. Inside a span that
+# a quote opens, a backslash escapes the next character (don\'t).
 URL_AWK='
 function strip_urls(s, stops,   out, rest, i, n, c, depth, open) {
   out = ""
@@ -371,6 +372,7 @@ function strip_urls(s, stops,   out, rest, i, n, c, depth, open) {
     n = length(rest); depth = 0
     for (i = 1; i <= n; i++) {
       c = substr(rest, i, 1)
+      if (open != "" && c == "\\") { i++; continue }
       if (c == " " || c == "\t" || c == open || index(stops, c) > 0) break
       if (c == "(") depth++
       else if (c == ")") { if (depth == 0) break; depth-- }

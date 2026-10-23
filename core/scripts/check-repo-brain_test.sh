@@ -749,6 +749,13 @@ run_gate
 expect_exit 1 && expect_has "backticked \`MissingThing\` does not resolve" && ok
 finish
 
+begin "Q2 an escaped apostrophe inside a single-quoted URL does not end the URL"
+mk_conformant
+printf '\n%s\n' "$FX_COMMENT url = 'https://example.com/don\\'t/docs/guide.md'" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 0 && expect_not "[Q2]" && ok
+finish
+
 begin "Q2 a local docs path next to a URL to the same path is still one code edge"
 mk_conformant
 printf '\n%s See docs/guide.md (https://github.com/x/y/blob/main/docs/guide.md).\n' \
