@@ -12,6 +12,9 @@
 #   LANG_FILE_RE         awk regex a citation span must match to be banned
 #   LANG_SYMBOL_RE       awk regex for a bare backticked symbol worth resolving
 #   LANG_QUALIFIED_RE    awk regex for a module-qualified `mod.sym` token
+#   LANG_PRUNE_DIRS      the dependency and build-output directory names, space-
+#                        separated; the symbol fallback never reads an untracked
+#                        file under one
 #   lang_project_dirs    stdout: one sub-project directory per line, repo root excluded
 #   lang_has_code        exit 0 iff the repo holds at least one code file
 #   lang_declarations    stdout: "pkg:<name>" for every package/module; every
@@ -34,6 +37,7 @@
 # directory's name) and by the directory holding the file, so `retry.parsePolicy`
 # resolves whether the function lives in retry/index.ts or retry/policy.ts.
 LANG_PROJECT_MARKER="package.json"
+LANG_PRUNE_DIRS="node_modules dist build .next coverage"
 # The single-pattern form, for readers of the contract; the walkers below spell
 # the two exact names because `*.ts*` also matches .tsv, .tsbuildinfo and
 # Vitest's .tsx.snap files.

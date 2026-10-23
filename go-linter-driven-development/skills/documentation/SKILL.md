@@ -133,8 +133,8 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    (migration guidance in reference.md): a doc already conformant is left alone; an
    un-inferable `type` goes to the advisory report, never guessed.
 3. **Build or rebuild `index.md`**: bare except the root's `okf_version`, grouped
-   by topic, one line per doc — each line copied from the doc's `description`
-   (R9 drift-check rule); past ~300 lines it becomes a directory-shaped map of
+   by topic, one line per doc — each line copied from the doc's `description`,
+   without its YAML quotes (R9 drift-check rule); past ~300 lines it becomes a directory-shaped map of
    maps, and the split lands in the same commit as the `See docs/...` path
    rewrite (R9 index policy; templates in reference.md).
 4. **Wire the root**: author the routing block once, in AGENTS.md — repo root

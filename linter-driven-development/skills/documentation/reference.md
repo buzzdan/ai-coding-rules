@@ -516,6 +516,9 @@ Every content doc here starts with frontmatter (copy-paste, fill in):
     description: <one line — this IS the doc's line in index.md>
     ---
 
+The `description` value is one line: plain, or in single or double quotes. The
+conformance gate does not read a block scalar (`|` or `>`).
+
 Optional on content docs: `title`, `generated` (ISO 8601, last substantive
 update), `tags`, `status: draft|stable|deprecated`, `stale_after: <date>`.
 Index files carry NO frontmatter — except the root `index.md`, which carries
@@ -528,6 +531,8 @@ only `okf_version`.
 - Cite code by exported symbol (`<Type>` or `<Type>.<Method>`), never by file
   path or line number. Backticks are a promise: a backticked symbol must grep in
   this repo (mark future ones *(planned)* and write them without backticks).
+  An UPPER_SNAKE constant is a symbol too; an initialism with no underscore,
+  such as API, is not.
 - Link related docs inline, in the sentence that explains the relationship.
   Links are one-way: never add a link back to `index.md` or a parent.
   Use inline links only — `[name](path.md)`; reference-style links are not

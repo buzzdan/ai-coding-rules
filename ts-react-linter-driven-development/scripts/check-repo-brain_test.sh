@@ -141,6 +141,10 @@ mk_doc() { # <name> <description> [body...]
 #   FX_GLOB1/FX_GLOB2  generated-file glob patterns that must not read as paths
 #   FX_EXTERNAL1/2     module-qualified tokens from outside the repo (exempt)
 #   FX_URL             a documentation URL carrying a symbol anchor
+#   FX_COMMENT         the line-comment marker of the row's code files
+#   FX_PRUNED_DIRS     the dependency and build-output directories the adapter prunes
+#   FX_CONST_SHAPE     "checked" when the symbol shape takes UPPER_SNAKE constants,
+#                      "skipped" when it does not
 #   fx_write_marker <dir> <module>     write the marker for a (sub-)project
 #   fx_write_conformant_code           write $FX_CODE_FILE with the cited symbols
 #   fx_append_missing_edge             add a symbol whose JSDoc cites docs/backoff.md
@@ -157,6 +161,9 @@ use_row() {
   FX_GLOB1='*.d.ts'; FX_GLOB2='*.generated.ts'
   FX_EXTERNAL1="vi.mock"; FX_EXTERNAL2="screen.getByRole"
   FX_URL="https://example.github.io/retry/#Policy.Do"
+  FX_COMMENT="//"
+  FX_PRUNED_DIRS="node_modules dist build .next coverage"
+  FX_CONST_SHAPE="checked"
 }
 
 fx_write_marker() { # <dir> <module>
@@ -759,6 +766,208 @@ expect_exit 1 && expect_has "[Q7] docs/index.md:" && expect_has "drifted from re
 finish
 
 rm -rf "$LISTS"
+
+# --- dependency and build-output directories, URLs in code, quoted descriptions, constants ---
+begin "Q2 outside git a token does not resolve from the language's dependency or build-output directories"
+mk_conformant
+cites="" n=0
+for d in $FX_PRUNED_DIRS; do
+  n=$((n + 1)); mkdir -p "$REPO/$d/pkg"; printf 'PrunedName%s\n' "$n" > "$REPO/$d/pkg/gen.yaml"
+  cites="$cites \`PrunedName$n\`"
+done
+mk_doc pruned "pruned names" "Fires$cites."
+append_index "- [pruned.md](pruned.md) — pruned names"
+run_gate
+if expect_exit 1; then
+  n=0 all=1
+  for d in $FX_PRUNED_DIRS; do
+    n=$((n + 1)); expect_has "\`PrunedName$n\` does not resolve" || { all=0; break; }
+  done
+  (( all )) && ok
+fi
+finish
+
+begin "Q2 a symbol declared only in a dependency or build-output directory does not resolve"
+mk_conformant
+cites="" n=0
+for d in $FX_PRUNED_DIRS; do
+  n=$((n + 1)); mkdir -p "$REPO/$d/retry"
+  sed "s/ParsePolicy/PrunedDecl$n/" "$REPO/$FX_CODE_FILE" > "$REPO/$d/$FX_CODE_FILE"
+  cites="$cites \`PrunedDecl$n\`"
+done
+mk_doc pdecl "pruned declarations" "Calls$cites."
+append_index "- [pdecl.md](pdecl.md) — pruned declarations"
+run_gate
+if expect_exit 1; then
+  n=0 all=1
+  for d in $FX_PRUNED_DIRS; do
+    n=$((n + 1)); expect_has "\`PrunedDecl$n\` does not resolve" || { all=0; break; }
+  done
+  (( all )) && ok
+fi
+finish
+
+begin "Q2 in a git work tree untracked files in dependency directories are never read; a tracked file under dist/ is"
+mk_conformant
+mkdir -p "$REPO/dist"; printf 'TrackedDistName\n' > "$REPO/dist/tracked.yaml"
+(cd "$REPO" && git init -q && git add -A && git -c user.name=t -c user.email=t@t commit -qm init)
+cites="" n=0
+for d in $FX_PRUNED_DIRS; do
+  n=$((n + 1)); mkdir -p "$REPO/$d/pkg"; printf 'UntrackedPrunedName%s\n' "$n" > "$REPO/$d/pkg/gen.yaml"
+  cites="$cites \`UntrackedPrunedName$n\`"
+done
+mk_doc deps "dependency names" "Fires \`TrackedDistName\` and$cites."
+append_index "- [deps.md](deps.md) — dependency names"
+run_gate
+if expect_exit 1 && expect_not "\`TrackedDistName\` does not resolve"; then
+  n=0 all=1
+  for d in $FX_PRUNED_DIRS; do
+    n=$((n + 1)); expect_has "\`UntrackedPrunedName$n\` does not resolve" || { all=0; break; }
+  done
+  (( all )) && ok
+fi
+finish
+
+begin "Q2 a docs path inside a URL in code is not a code edge"
+mk_conformant
+printf '\n%s Upstream: https://github.com/x/y/blob/main/docs/guide.md and <https://example.com/docs/other.md>.\n' \
+  "$FX_COMMENT" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 0 && expect_not "[Q2]" && ok
+finish
+
+begin "Q2 a URL span ends at a tab: a local docs path after it is still a code edge"
+mk_conformant
+printf '\n%s See https://example.com/docs/guide.md\tdocs/missing.md here.\n' \
+  "$FX_COMMENT" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 1 && expect_has "code edge points at missing docs/missing.md" && expect_not "missing docs/guide.md" && ok
+finish
+
+begin "Q2 a URL span in a doc ends at a tab: a file:line citation after it is still banned"
+mk_conformant
+mk_doc tabbed "a tab after a URL" "$(printf 'See %s\t%s:12 for it.' "$FX_URL" "$FX_CODE_FILE")"
+append_index "- [tabbed.md](tabbed.md) — a tab after a URL"
+run_gate
+expect_exit 1 && expect_has "[Q2] docs/tabbed.md:" && expect_has "cites a file path or line number" && ok
+finish
+
+begin "Q2 a URL keeps its balanced parentheses; a path after its closing parenthesis is still a code edge"
+mk_conformant
+printf '\n%s See https://example.com/app/(group)/docs/guide.md here.\n%s Map: (https://example.com/app/(group)/page)docs/missing.md\n' \
+  "$FX_COMMENT" "$FX_COMMENT" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 1 && expect_has "code edge points at missing docs/missing.md" && expect_not "missing docs/guide.md" && ok
+finish
+
+begin "Q2 a URL in a doc keeps its balanced parentheses: a path inside it is not a file:line citation"
+mk_conformant
+mk_doc parens "a URL with parentheses" "See https://example.com/app/(group)/$FX_CODE_FILE:12 and [src](https://example.com/(v1)/$FX_CODE_FILE:3)."
+append_index "- [parens.md](parens.md) — a URL with parentheses"
+run_gate
+expect_exit 0 && expect_not "cites a file path" && ok
+finish
+
+begin "Q2 an apostrophe inside a bare URL stays in it; a quote that opens a URL also closes it"
+mk_conformant
+printf "\n%s See https://example.com/don't/docs/guide.md here.\n%s Load 'https://example.com/a'docs/missing.md\n" \
+  "$FX_COMMENT" "$FX_COMMENT" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 1 && expect_has "code edge points at missing docs/missing.md" && expect_not "missing docs/guide.md" && ok
+finish
+
+begin "Q2 a backticked URL keeps its closing backtick: the next backticked symbol is still resolved"
+mk_conformant
+mk_doc ticked "a backticked URL" "See \`https://example.com/app/(group)/page\` and \`MissingThing\`."
+append_index "- [ticked.md](ticked.md) — a backticked URL"
+run_gate
+expect_exit 1 && expect_has "backticked \`MissingThing\` does not resolve" && ok
+finish
+
+begin "Q2 an escaped apostrophe inside a single-quoted URL does not end the URL"
+mk_conformant
+printf '\n%s\n' "$FX_COMMENT url = 'https://example.com/don\\'t/docs/guide.md'" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 0 && expect_not "[Q2]" && ok
+finish
+
+begin "Q2 a local docs path next to a URL to the same path is still one code edge"
+mk_conformant
+printf '\n%s See docs/guide.md (https://github.com/x/y/blob/main/docs/guide.md).\n' \
+  "$FX_COMMENT" >> "$REPO/$FX_CODE_FILE"
+run_gate
+expect_exit 1 && expect_count "code edge points at missing docs/guide.md" 1 && ok
+finish
+
+begin "Q7 a quoted description matches its unquoted index line"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: "how the \\"quoted\\" path works: a, b"\n---\n# Dq\n' > "$REPO/docs/dq.md"
+printf -- "---\ntype: feature\ndescription: 'it''s single-quoted: c'\n---\n# Sq\n" > "$REPO/docs/sq.md"
+append_index '- [dq.md](dq.md) — how the "quoted" path works: a, b'
+append_index "- [sq.md](sq.md) — it's single-quoted: c"
+run_gate
+expect_exit 0 && expect_not "drifted" && expect_not "[Q7]" && ok
+finish
+
+begin "Q7 --fix writes a quoted description to the index without its quotes"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: "the quoted: text"\n---\n# Dq\n' > "$REPO/docs/dq.md"
+append_index "- [dq.md](dq.md) — old text"
+run_gate --fix
+if expect_exit 0 && expect_has "rewrote 1 drifted index line"; then
+  if grep -qxF -- '- [dq.md](dq.md) — the quoted: text' "$REPO/docs/index.md"; then ok
+  else bad "--fix did not write the decoded description"; fi
+fi
+finish
+
+begin "Q7 a block-scalar description is reported once, and its index line is not called drifted"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: >-\n  folded text\n---\n# Folded\n' > "$REPO/docs/folded.md"
+append_index "- [folded.md](folded.md) — folded text"
+run_gate
+expect_exit 1 && expect_count "docs/folded.md" 1 && expect_has "[Q7] docs/folded.md — 'description:' is not one plain or quoted line" \
+  && expect_not "drifted" && ok
+finish
+
+begin "Q7 a quoted description with a trailing space stays clean after --fix"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: "guide text "\n---\n# Sp\n' > "$REPO/docs/sp.md"
+append_index "- [sp.md](sp.md) — old text"
+run_gate --fix
+if expect_exit 0 && expect_has "rewrote 1 drifted index line"; then
+  run_gate
+  expect_exit 0 && expect_not "drifted" && ok
+fi
+finish
+
+begin "Q7 a quoted description of only spaces is reported as empty"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: "   "\n---\n# X\n' > "$REPO/docs/spaces.md"
+append_index "- [spaces.md](spaces.md) — anything"
+run_gate
+expect_exit 1 && expect_has "[Q7] docs/spaces.md — empty 'description:'" && ok
+finish
+
+begin "Q7 an empty quoted description is reported as empty"
+mk_conformant
+printf -- '---\ntype: feature\ndescription: ""\n---\n# X\n' > "$REPO/docs/blankq.md"
+append_index "- [blankq.md](blankq.md) — anything"
+run_gate
+expect_exit 1 && expect_has "[Q7] docs/blankq.md — empty 'description:'" && ok
+finish
+
+begin "Q2 an UPPER_SNAKE constant resolves like any symbol; an initialism stays skipped"
+mk_conformant
+printf 'limits:\n  RETRY_BUDGET_MAX: 3\n' > "$REPO/limits.yaml"
+mk_doc consts "constants" "Caps at \`RETRY_BUDGET_MAX\`; \`MISSING_METRIC_BASE\` is gone; \`API\` and \`JSON\` are prose."
+append_index "- [consts.md](consts.md) — constants"
+run_gate
+if [[ "$FX_CONST_SHAPE" == checked ]]; then
+  expect_exit 1 && expect_count "does not resolve" 1 && expect_has "\`MISSING_METRIC_BASE\` does not resolve" && ok
+else
+  expect_exit 0 && expect_not "does not resolve" && ok
+fi
+finish
 
 } # run_row_cases
 

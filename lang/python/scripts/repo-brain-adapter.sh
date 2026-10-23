@@ -12,6 +12,9 @@
 #   LANG_FILE_RE         awk regex a citation span must match to be banned
 #   LANG_SYMBOL_RE       awk regex for a bare backticked symbol worth resolving
 #   LANG_QUALIFIED_RE    awk regex for a module-qualified `mod.sym` token
+#   LANG_PRUNE_DIRS      the dependency and build-output directory names, space-
+#                        separated; the symbol fallback never reads an untracked
+#                        file under one
 #   lang_project_dirs    stdout: one sub-project directory per line, repo root excluded
 #   lang_has_code        exit 0 iff the repo holds at least one code file
 #   lang_declarations    stdout: "pkg:<name>" for every package/module; every
@@ -29,16 +32,22 @@
 # directory holding the file, so `retry.parse_policy` resolves whether the
 # function lives in retry/__init__.py or retry/policy.py.
 LANG_PROJECT_MARKER="pyproject.toml"
+LANG_PRUNE_DIRS=".venv venv __pycache__ site-packages .tox node_modules build dist .eggs"
 LANG_CODE_GLOB='*.py'
 LANG_FILE_EXT=".py"
 LANG_FILE_RE='\\.py(:[0-9]+)?$'
 LANG_SYMBOL_RE='^([A-Z][A-Za-z0-9_]*|[a-z_][a-z0-9_]*_[a-z0-9_]*)$'
 LANG_QUALIFIED_RE='^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$'
 
-# find(1) pruning shared by the three walkers; an array, so a pattern such as
-# ./.git/* reaches find as it is and never expands against the tree
-PY_PRUNE=(-not -path '*/.venv/*' -not -path '*/venv/*' -not -path '*/node_modules/*'
-  -not -path '*/__pycache__/*' -not -path '*/site-packages/*' -not -path './.git/*')
+# find(1) pruning shared by the three walkers, and grep's matching directory
+# excludes for the code-edge scan, both built from LANG_PRUNE_DIRS. Arrays, so a
+# pattern such as ./.git/* reaches find as it is and never expands against the tree.
+PY_PRUNE=(-not -path './.git/*')
+PY_EXCLUDE_DIRS=(--exclude-dir=.git)
+for py_dir in $LANG_PRUNE_DIRS; do
+  PY_PRUNE+=(-not -path "*/$py_dir/*")
+  PY_EXCLUDE_DIRS+=("--exclude-dir=$py_dir")
+done
 
 lang_project_dirs() {
   local m p
@@ -107,7 +116,6 @@ lang_declarations() {
 
 lang_code_edges() {
   grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
-    --include="$LANG_CODE_GLOB" --exclude-dir=.venv --exclude-dir=venv --exclude-dir=node_modules \
-    --exclude-dir=__pycache__ --exclude-dir=site-packages --exclude-dir=.git . 2>/dev/null
+    --include="$LANG_CODE_GLOB" "${PY_EXCLUDE_DIRS[@]}" . 2>/dev/null
 }
 # =================== end language adapter: python ===================

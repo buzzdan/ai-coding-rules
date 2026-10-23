@@ -12,6 +12,10 @@
 #   FX_GLOB1/FX_GLOB2  generated-file glob patterns that must not read as paths
 #   FX_EXTERNAL1/2     module-qualified tokens from outside the repo (exempt)
 #   FX_URL             a documentation URL carrying a symbol anchor
+#   FX_COMMENT         the line-comment marker of the row's code files
+#   FX_PRUNED_DIRS     the dependency and build-output directories the adapter prunes
+#   FX_CONST_SHAPE     "checked" when the symbol shape takes UPPER_SNAKE constants,
+#                      "skipped" when it does not
 #   fx_write_marker <dir> <module>     write the marker for a (sub-)project
 #   fx_write_conformant_code           write $FX_CODE_FILE with the cited symbols
 #   fx_append_missing_edge             add a symbol whose JSDoc cites docs/backoff.md
@@ -28,6 +32,9 @@ use_row() {
   FX_GLOB1='*.d.ts'; FX_GLOB2='*.generated.ts'
   FX_EXTERNAL1="vi.mock"; FX_EXTERNAL2="screen.getByRole"
   FX_URL="https://example.github.io/retry/#Policy.Do"
+  FX_COMMENT="//"
+  FX_PRUNED_DIRS="node_modules dist build .next coverage"
+  FX_CONST_SHAPE="checked"
 }
 
 fx_write_marker() { # <dir> <module>
