@@ -41,5 +41,13 @@ else
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --fingerprint
   expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
   finish
+
+  begin "--brief says nothing for a project whose every language is left to an installed plugin"
+  mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
+  write_src "src/a.go" 1
+  write_record "agreed: []"
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_brief
+  expect_exit 0 && expect_out "" && ok
+  finish
 fi
 # ================== end doctor cases: a language left to its plugin ==================

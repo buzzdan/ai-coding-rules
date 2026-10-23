@@ -1165,6 +1165,20 @@ run_doctor() {
   ERR=$(cat "$errf"); rm -f "$errf"
 }
 
+# run_brief [options...] — runs doctor --brief over $REPO, with the doctor's PATH
+run_brief() {
+  local errf; errf=$(mktemp)
+  OUT=$(cd "$REPO" && PATH="$REPO/.bin:/usr/bin:/bin" "$BASH" "$LINT" doctor --brief "$@" --root . 2>"$errf"); CODE=$?
+  ERR=$(cat "$errf"); rm -f "$errf"
+}
+
+# brief_line <dir> <what differs> — the line --brief prints for a project
+brief_line() { printf '⚙️ Lint setup (%s): %s — run /py-ldd-setup' "$1" "$2"; }
+
+# linter_not_called — exit 0 when the fake linter of the run was not called (only one
+# fake logs its calls); the other fakes cannot tell, so they pass
+linter_not_called() { [[ ! -e "$REPO/.bin/calls.log" ]]; }
+
 # write_record <yaml body> — the agreement record of the repository
 write_record() { printf '%s\n' "$1" > "$REPO/.ldd-lint.yaml"; }
 
@@ -1946,20 +1960,6 @@ run_doctor
 expect_exit 0 && expect_not "changed since" && ok
 finish
 
-begin "doctor: a changed config is also kept for the status line"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint
-write_record "lint_fingerprint:
-$OUT"
-printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
-side=$(mktemp -d); printf '%s\t-\t-\t-\n' "$FAKE_LINTER" > "$side/rows"
-( cd "$REPO" && OVERRIDE_FILE=.ldd-lint.yaml DOCTOR_ROWS="$side/rows" DOCTOR_CHANGED="$side/changed" \
-  && eval "$(sed -n '/^record_items() {/,/^}/p;/^file_hash() {/,/^}/p;/^report_changed() {/,/^}/p' "$LINT")" \
-  && report_changed ) 2>/dev/null
-got=$(cat "$side/changed" 2>/dev/null); rm -rf "$side"
-{ [[ "$got" == "$FAKE_LINTER$TAB$FAKE_CONFIG" ]] || bad "side file: $got"; } && ok
-finish
-
 begin "doctor: a record line that matches no row is named in a warning"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 write_record "agreed:
@@ -2066,6 +2066,190 @@ else
   finish
 fi
 
+# --- doctor --brief ---
+begin "--brief says nothing for a project with no record"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_brief
+expect_exit 0 && expect_out "" && expect_not "doctor:" && linter_not_called && ok
+finish
+
+begin "--brief says nothing when every row runs or is agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "org" "the company plan owns this value")"
+run_brief
+expect_exit 0 && expect_out "" && expect_not "doctor:" && ok
+finish
+
+begin "--brief names the count of rules not agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []"
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+finish
+
+begin "--brief counts a missing rule and a changed config as two differences"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_agree --fingerprint
+write_record "agreed: []
+lint_fingerprint:
+$OUT"
+printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "2 rules differ from what the team agreed")" && ok
+finish
+
+begin "--brief counts a changed config"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint
+write_record "agreed: []
+lint_fingerprint:
+$OUT"
+printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+finish
+
+begin "--brief says nothing for an unchanged config"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --fingerprint
+write_record "agreed: []
+lint_fingerprint:
+$OUT"
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief does not count a missing rule that is agreed off"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "the team does not use it")"
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief counts a drifted agreed rule, whose state is not agreed"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "7" "the team keeps seven")"
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+finish
+
+begin "--brief does not count limit stricter"
+if [[ -z "$FAKE_TIGHTENED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor tightened
+  write_record "agreed: []"
+  run_doctor
+  expect_has "$FAKE_TIGHTENED" && { run_brief; expect_exit 0 && expect_out ""; } && ok
+  finish
+fi
+
+begin "--brief does not count options that differ"
+if [[ -z "$FAKE_OPTIONS" ]]; then skip "the linter reports no such options"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor optsdiffer
+  write_record "agreed: []"
+  run_doctor
+  expect_has "$FAKE_OPTIONS" && { run_brief; expect_exit 0 && expect_out ""; } && ok
+  finish
+fi
+
+begin "--brief does not count a rule that is named in the config"
+case " $FAKE_FORMATS " in
+  *" toml "*)
+    write_src "src/a$FX_EXT" 1; fake_doctor toml
+    # every row the doctor lists as missing is agreed off, so only the named row is left
+    agreed_all="agreed:"
+    while IFS=$'\t' read -r r_linter r_rule; do
+      agreed_all="$agreed_all
+$(record_item "$r_linter" "$r_rule" "off" "the team does not use it")"
+    done < <(cd "$REPO" && PATH="$REPO/.bin:/usr/bin:/bin" "$BASH" "$LINT" doctor --tsv --root . 2>/dev/null | awk -F'\t' '$4 == "missing" { print $2 "\t" $3 }')
+    write_record "$agreed_all"
+    run_doctor --tsv
+    expect_has "${TAB}named${TAB}" && { run_brief; expect_exit 0 && expect_out ""; } && ok ;;
+  *) skip "the language's linter has no named rows" ;;
+esac
+finish
+
+begin "a project with a record below a root without one gets its line, the root none"
+real=$REPO; REPO="$real/sub"; mkdir -p "$REPO"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+REPO=$real
+[[ ! -d "$real/sub/.bin" ]] || mv "$real/sub/.bin" "$real/.bin"
+write_src "src/b$FX_EXT" 1
+write_record "agreed: []" ; mv "$REPO/.ldd-lint.yaml" "$REPO/sub/.ldd-lint.yaml"
+( cd "$REPO" && git init -q . && git add -A ) >/dev/null 2>&1
+run_brief
+expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok
+finish
+
+begin "a project with a record below a root without git is found too"
+real=$REPO; REPO="$real/sub"; mkdir -p "$REPO"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+REPO=$real
+[[ ! -d "$real/sub/.bin" ]] || mv "$real/sub/.bin" "$real/.bin"
+printf 'agreed: []\n' > "$REPO/sub/.ldd-lint.yaml"
+run_brief
+expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok
+finish
+
+begin "--brief with no linter on PATH names the project and exits 0"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1
+  write_record "agreed: []"
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+  finish
+fi
+
+begin "--brief names a linter that cannot check before it counts rules"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor reject
+  write_record "agreed: []"
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+  finish
+fi
+
+begin "--brief says nothing for a .ldd-lint.yaml that holds only file_max_lines"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "file_max_lines: 500"
+run_brief
+expect_exit 0 && expect_out "" && linter_not_called && ok
+finish
+
+begin "--brief reads agreed: [] as a record with no differences"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed: []"
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief says nothing and exits 0 for a record in a tree without a source file"
+write_record "agreed: []"
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief says nothing when the project has no recommended config (a doctor exit 2)"
+write_src "src/a.rs" 1
+write_record "agreed: []"
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief never edits a file"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []"
+before=$(tree_sum)
+run_brief
+expect_exit 0 && { [[ "$(tree_sum)" == "$before" ]] || bad "the tree changed"; } && ok
+finish
+
 } # run_row_cases
 
 for ROW in $FX_ROWS; do
@@ -2123,6 +2307,14 @@ else
   write_src "src/a.go" 1
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --fingerprint
   expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
+  finish
+
+  begin "--brief says nothing for a project whose every language is left to an installed plugin"
+  mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
+  write_src "src/a.go" 1
+  write_record "agreed: []"
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_brief
+  expect_exit 0 && expect_out "" && ok
   finish
 fi
 # ================== end doctor cases: a language left to its plugin ==================
@@ -2197,6 +2389,19 @@ record_read record_has lint_config; b=$?
 record_read record_has lint_fingerprint; c=$?
 rm -f "$REPO/.ldd-lint.yaml"; record_read record_has agreed; d=$?
 (( a == 0 && b == 0 && c != 0 && d != 0 )) && [[ -z "$(record_read record_items agreed)" ]] && ok || bad "has: $a $b $c $d"
+finish
+
+begin "--brief on another subcommand is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1
+run_lint file-length --brief
+expect_exit 2 && expect_has "only doctor takes --brief" && ok
+finish
+
+begin "--brief with a --config or a --files is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1; : > "$REPO/x.cfg"; : > "$REPO/list.txt"
+run_doctor --brief --config x.cfg
+expect_exit 2 && expect_has "--brief takes no --config or --files" \
+  && { run_doctor --brief --files list.txt; expect_exit 2 && expect_has "--brief takes no --config or --files"; } && ok
 finish
 
 begin "a missing subcommand is a usage error (exit 2)"

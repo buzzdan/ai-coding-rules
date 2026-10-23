@@ -16,6 +16,8 @@
 #                          both sides (below)
 #   agree                  prints agreement-record lines for .ldd-lint.yaml,
 #                          ready to copy unchanged (below)
+#   --brief                doctor: the status nudge, one line per project, or
+#                          nothing (below)
 #   --root <dir>           the repository, or one project in it, such as a
 #                          front end with its own linter config: every
 #                          lookup starts there (default: cwd)
@@ -135,13 +137,29 @@
 # options exits 2 when that linter cannot verify, and agree --fingerprint exits 2
 # when any linter in scope cannot verify. Each names the cause.
 #
+# doctor --brief prints the status nudge. It finds the projects itself: the root
+# and each directory with a tracked .ldd-lint.yaml (a find outside git). A
+# project whose .ldd-lint.yaml has no "agreed" key never ran the setup, so it gets
+# no line and no linter run. For each project with the key, it runs
+# "doctor --tsv" there and prints one line when the doctor finds a difference:
+#   ⚙️ Lint setup (<dir>): <n> rule(s) differ from what the team agreed — run /tsr-ldd-setup
+#   ⚙️ Lint setup (<dir>): the linter cannot check this project — run /tsr-ldd-setup
+# <dir> is "." for the root and "<path>/" for a project below it. A difference is
+# a row in the state missing or limit looser that is not agreed, or a config file
+# that changed since the setup was agreed. Any row that cannot verify gives the
+# second line in place of the first. The states runs, agreed, limit stricter,
+# options differ and named never count. A project whose doctor exits 2 or 3, or
+# fails, gets no line. Only the lines print. It takes no --config and no --files.
+# It always exits 0.
+#
 # The generic plugin's doctor leaves a language to the plugin written for it
 # when that plugin is installed: it prints
 #   doctor: <language> — <plugin> is installed and checks this language; run /<prefix>-setup
 # and gives that language no row, no config and no agree line. The other plugins
 # check their own language and never skip one this way.
 #
-# Exit codes: 0 measured, with or without findings · 2 usage error, a --files
+# Exit codes: 0 measured, with or without findings; doctor --brief always ·
+#             2 usage error, a --files
 #             list that does not exist, a --config that is not a file or that
 #             meets a run with two or more linters, a .ldd-lint.yaml value that
 #             is not a positive integer, a doctor run with no language the plugin
@@ -177,6 +195,7 @@ AGREE_CONFIG_LINTER=""
 AGREE_CONFIG_PATH=""
 AGREE_SET=""
 OPT_CONFIG=""
+BRIEF=0
 
 usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 die() { echo "$SCRIPT_NAME: $*" >&2; exit 2; }
@@ -198,6 +217,7 @@ while (( $# > 0 )); do
     --lint-config) (( $# >= 3 )) || die "$1 needs a linter and a path"
                    AGREE_CONFIG_LINTER="$2"; AGREE_CONFIG_PATH="$3"; AGREE_SET="$AGREE_SET $1"; shift 3 ;;
     --config)  value "$1" $#; OPT_CONFIG="$2"; shift 2 ;;
+    --brief)   BRIEF=1; shift ;;
     --glob)    value "$1" $#; OPT_GLOB="$2"; shift 2 ;;
     --test-re) value "$1" $#; OPT_TEST_RE="$2"; shift 2 ;;
     -h|--help) usage ;;
@@ -207,11 +227,14 @@ done
 [[ -n "$SUBCOMMAND" ]] || die "name a subcommand: file-length, package-size, doctor or agree (see --help)"
 [[ -z "$AGREE_SET" || "$SUBCOMMAND" == agree ]] || die "only agree takes:$AGREE_SET"
 [[ -z "$OPT_CONFIG" || "$SUBCOMMAND" == doctor || "$SUBCOMMAND" == agree ]] || die "only doctor and agree take --config"
+(( ! BRIEF )) || [[ "$SUBCOMMAND" == doctor ]] || die "only doctor takes --brief"
+(( ! BRIEF )) || [[ -z "$OPT_CONFIG$FILES_LIST" ]] || die "--brief takes no --config or --files"
 [[ -d "$ROOT" ]] || die "not a directory: $ROOT"
 if [[ -n "$FILES_LIST" ]]; then
   [[ -f "$FILES_LIST" ]] || die "no such file list: $FILES_LIST"
   [[ "$FILES_LIST" == /* ]] || FILES_LIST="$(pwd)/$FILES_LIST"
 fi
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 SETUP_DIR="$(cd "$(dirname "$0")/.." && pwd)/setup"
 cd "$ROOT" || exit 2
 [[ -z "$OPT_CONFIG" || -f "$OPT_CONFIG" ]] || die "--config: not a file: $OPT_CONFIG"
@@ -1145,6 +1168,51 @@ record_line() {
   printf '  - "%s"\n' "$t"
 }
 
+# ---------- doctor --brief ----------
+# brief_projects — the projects of the run, one directory per line: the root,
+# then each directory with a tracked record file
+brief_projects() {
+  printf '.\n'
+  { if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      git -c core.quotepath=off ls-files -- "*/$OVERRIDE_FILE"
+    else
+      find . -mindepth 2 -type f -name "$OVERRIDE_FILE" -not -path './.git/*' -not -path '*/node_modules/*' 2>/dev/null | sed 's|^\./||'
+    fi
+  } | sed 's|/[^/]*$||' | LC_ALL=C sort -u
+}
+
+# brief_line <dir> — the nudge line of one project; nothing when the project
+# has no record, when its doctor does not exit 0, or when nothing differs
+brief_line() {
+  local d="$1" out code differ cannot changed label what err="$LINT_TMP/brief-err"
+  (cd "$d" 2>/dev/null && record_has agreed) || return 0
+  out=$("$BASH" "$SELF" doctor --tsv --root "./$d" 2>"$err"); code=$?
+  (( code == 0 )) || return 0
+  read -r differ cannot < <(printf '%s\n' "$out" | awk -F'\t' '
+    $4 == "missing" || $4 == "limit looser" { n++ }
+    $4 ~ /^cannot verify/ { c++ }
+    END { print n + 0, c + 0 }')
+  changed=$(grep -c '^doctor: .* changed since the setup was agreed$' "$err")
+  differ=$(( differ + changed ))
+  label="$d"; [[ "$d" == . ]] || label="$d/"
+  if (( cannot > 0 )); then
+    what="the linter cannot check this project"
+  elif (( differ == 1 )); then
+    what="1 rule differs from what the team agreed"
+  elif (( differ > 1 )); then
+    what="$differ rules differ from what the team agreed"
+  else
+    return 0
+  fi
+  printf '⚙️ Lint setup (%s): %s — run /tsr-ldd-setup\n' "$label" "$what"
+}
+
+run_brief() {
+  local d
+  while IFS= read -r d; do brief_line "$d"; done < <(brief_projects)
+  exit 0
+}
+
 # ---------- the scope ----------
 # SCOPE: one "id TAB path" line per source file the run measures. INVENTORY:
 # the same for every source file of the repository, which a directory count
@@ -1183,6 +1251,7 @@ SCOPE=$(mktemp)
 INVENTORY=$(mktemp)
 LINT_TMP=$(mktemp -d)
 trap 'rm -rf "$SCOPE" "$INVENTORY" "$LINT_TMP"' EXIT
+(( ! BRIEF )) || run_brief
 list_candidates | by_language > "$SCOPE"
 if [[ -n "$FILES_LIST" ]]; then list_repo | by_language > "$INVENTORY"; else cp "$SCOPE" "$INVENTORY"; fi
 
@@ -1272,11 +1341,9 @@ DOCTOR_DONE=""
 # The run keeps what agree and the unmatched-line warning read: one line per
 # row, "linter TAB rule TAB state TAB current" with the current setting as the
 # linter reports it, before the record changes it; and one line per config
-# file the doctor compared, "linter TAB path". The change check adds one line
-# per config file that differs from its fingerprint, "linter TAB path".
+# file the doctor compared, "linter TAB path".
 DOCTOR_ROWS="$LINT_TMP/rows"
 DOCTOR_CONFIGS="$LINT_TMP/configs"
-DOCTOR_CHANGED="$LINT_TMP/changed"
 row() { # <id> <linter> <rule> <state> <recommended> <current> <source>
   if (( TSV )); then printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"
   else printf '%s %s %s: %s; recommended: %s; current: %s; source: %s\n' "$@"; fi
@@ -1370,10 +1437,10 @@ warn_unmatched() {
 }
 
 # report_changed — a line on stderr for each config file whose hash is not the
-# one of its item of "lint_fingerprint", or that is gone, and one line
-# "linter TAB path" in DOCTOR_CHANGED. An item is "<linter> <path> <hash>": the
-# path may hold a space, the hash is the last word. An item of a linter this
-# run did not report belongs to another plugin's run, so it is not checked.
+# one of its item of "lint_fingerprint", or that is gone. An item is
+# "<linter> <path> <hash>": the path may hold a space, the hash is the last
+# word. An item of a linter this run did not report belongs to another plugin's
+# run, so it is not checked.
 report_changed() {
   [[ -s "$DOCTOR_ROWS" ]] || return 0
   local item rest linter path want
@@ -1384,7 +1451,6 @@ report_changed() {
     L="$linter" awk -F'\t' '$1 == ENVIRON["L"] { f = 1 } END { exit !f }' "$DOCTOR_ROWS" || continue
     if [[ ! -f "$path" || "$(file_hash "$path")" != "$want" ]]; then
       echo "doctor: $path changed since the setup was agreed" >&2
-      printf '%s\t%s\n' "$linter" "$path" >> "$DOCTOR_CHANGED"
     fi
   done < <(record_items lint_fingerprint)
   return 0

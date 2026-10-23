@@ -47,6 +47,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   prints a line for that file and one for the repository's own config. A
   `lint_fingerprint` item whose file changed, or is gone, makes the doctor print
   `doctor: <path> changed since the setup was agreed` on stderr.
+  `ldd-lint.sh doctor --brief` finds the projects with a record (the root and each
+  directory with a tracked `.ldd-lint.yaml`) and prints one line for each project
+  whose agreed setup differs from what the linter does, or whose linter cannot
+  check it. It prints nothing for a project with no `agreed` key.
   The generic plugin's doctor skips a language when the plugin written for it is
   installed. It prints `doctor: <language> — <plugin> is installed and checks this
   language; run /<prefix>-setup`, gives that language no row, and exits 3 when
