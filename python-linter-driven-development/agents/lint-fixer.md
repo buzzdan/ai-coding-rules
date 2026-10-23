@@ -22,16 +22,20 @@ No scope in the prompt means the whole repository (the workflow's Phase 3 on a f
 slice).
 
 **Loop:**
-1. Run the linter over the scope, with the project's own lint-fix task when it has one.
-   Read the project's task file (Taskfile, Makefile, `package.json` scripts, justfile,
-   or what the project uses). Find the lint-fix task by the command it runs, not by its
-   name. When `.ldd-lint.yaml` has a `lint_config` item, use the task that runs that
-   file. Pass the package paths of the scope to the task only when the task accepts
-   them: `{{.CLI_ARGS}}` in a Taskfile, `ARGS` in a Makefile, or a script
-   argument. Else use the task for a whole-repository scope only, and run
-   `ruff check --fix . && ruff format .` with the package paths of the scope in place of `./...` for a
-   package scope. With no lint-fix task, run `ruff check --fix . && ruff format .` the same way.
-   `task lintwithfix` is one such task.
+1. Run the linter over the scope with the lint task of the project, when it has one.
+   Read the task file of the project (Taskfile, Makefile, `package.json` scripts,
+   justfile, or what the project uses). Find the task by the command it runs, not by
+   its name. A lint-fix task is a task whose command runs the linter with its fix
+   option. `task lintwithfix` is one such task. Choose the task, then the command:
+   - With a `lint_config` item in `.ldd-lint.yaml`, choose the task that runs that file.
+   - The task accepts a package argument (`{{.CLI_ARGS}}` in a Taskfile, `ARGS` in
+     a Makefile, a script argument): pass the package paths of the scope.
+   - The task does not, and the scope is the whole repository: run the task.
+   - The task does not, and the scope is a package list: run `ruff check --fix . && ruff format .`
+     with the package paths in place of `./...`.
+   - There is no lint-fix task: run `ruff check --fix . && ruff format .` the same way.
+   - The only task that runs the `lint_config` file is check-only: run it as your
+     check, fix the mechanical issues by hand, and run it again. Never use another config.
 2. Read the remaining issues. Classify each: mechanical → fix it; design → escalate.
 3. Apply targeted mechanical fixes (Read the site first, Edit minimally).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
