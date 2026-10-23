@@ -9,7 +9,11 @@ the recommended config, `<this skill dir>/../../setup/ruff.toml`.
 
 ## The doctor's rows
 
-ruff reports each setting, so the rows show the values on both sides. A preview rule
+ruff reports each setting, so the rows show the values on both sides. The doctor runs
+the ruff on PATH only. When it says that ruff is not on PATH, tell the user to
+activate the project's virtual environment (or to put the project's ruff on PATH in
+another way), and run the doctor again. The recipes below run the same ruff: the one
+on PATH. A preview rule
 (for example `PLR1702`) runs only in preview mode: `<rec>` sets `preview = true` and
 `explicit-preview-rules = true`, so that no other preview rule turns on.
 

@@ -98,6 +98,9 @@ the review keeps the limits of the rules.
    with the other projects:
    - the linter is not installed: name the install command that the project uses (its
      lock file, its tool list or its README). Do not install it.
+   - the linter is not on PATH: tell the user to put the project's linter on PATH,
+     for example to activate the project's virtual environment, and to run the setup
+     again.
    - the config does not load (the linter rejects the config, or cannot run with it):
      quote the message of the linter, and name the file and the key.
    - the config fails the linter's own check: quote the message, and name the key.

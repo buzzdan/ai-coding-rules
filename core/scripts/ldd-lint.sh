@@ -85,11 +85,10 @@
 # setting. source is "linter" when the linter said whether the rule runs, and
 # "presence check" when the rule was found by name. A linter output the doctor
 # cannot read is "cannot verify", never an empty list. A "doctor:" line per
-# language says which config was compared, and which linter binary ran. A
-# linter binary inside the project (a virtual environment, node_modules) runs
-# only from an ignored, untracked place of a git work tree, owned by the
-# current user and reached through no symbolic link that git tracks; else the
-# doctor does not run it.
+# language says which config was compared, and which linter binary ran. The
+# doctor runs a linter from PATH only, except a linter that a project installs
+# in its node_modules: that check runs the project's own copy, which loads the
+# project's config file.
 #
 # The agreement record is the file .ldd-lint.yaml, which the lint-setup skill
 # writes. Its key "agreed" lists one item per rule the team agreed to keep. An

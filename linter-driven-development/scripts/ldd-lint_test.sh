@@ -711,92 +711,6 @@ _lint_limit_state() {
   else printf 'limit stricter'; fi
 }
 
-# _lint_real_path <path> — the path with each symbolic link resolved, in its
-# last part and in its directories; exit 1 when it does not resolve
-_lint_real_path() {
-  local p="$1" l n=0 dir
-  while [[ -L "$p" ]]; do
-    n=$(( n + 1 )); (( n <= 40 )) || return 1
-    l=$(readlink "$p") || return 1
-    case "$l" in
-      /*) p=$l ;;
-      *)  p=$(dirname "$p")/$l ;;
-    esac
-  done
-  dir=$(cd -P "$(dirname "$p")" 2>/dev/null && pwd -P) || return 1
-  printf '%s/%s' "$dir" "$(basename "$p")"
-}
-
-# _lint_local_untrusted <dir> <path> — why a linter binary at <dir>/<path>
-# that the project holds is not run, or nothing (exit 1) when it can run. It
-# runs only when all of these hold, so a cloned repository cannot give the
-# doctor a binary to run:
-#   <dir> is in a git work tree;
-#   no directory of <path> is a symbolic link that git tracks;
-#   the real path of the binary is inside the work tree;
-#   git does not track the real path (ls-files exits 1; any other exit code
-#     is an answer the doctor cannot trust), asked of the repository that owns
-#     its directory (a submodule) and of the work tree;
-#   git ignores the real path (check-ignore exits 0);
-#   the current user owns it.
-_lint_local_untrusted() {
-  local f="$1/$2" rel top real part rest code
-  # the name as the lookup found it, from the project root, with no link resolved
-  if [[ "$1" == "$(pwd -P)" ]]; then rel=$2; else rel=$(root_relative "$1")/$2; fi
-  git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
-    || { printf 'a project %s outside a git work tree is not run' "$rel"; return 0; }
-  part=""; rest=$2
-  while [[ "$rest" == */* ]]; do
-    part=${part:+$part/}${rest%%/*}; rest=${rest#*/}
-    if git -C "$1" ls-files -s -- "$part" 2>/dev/null | grep -q '^120000 '; then
-      printf 'a project %s behind a tracked link %s is not run' "$rel" "$part"; return 0
-    fi
-  done
-  top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) && top=$(cd -P "$top" 2>/dev/null && pwd -P) \
-    || { printf 'cannot tell whether git tracks %s; it is not run' "$rel"; return 0; }
-  real=$(_lint_real_path "$f") || { printf 'cannot resolve %s; it is not run' "$rel"; return 0; }
-  [[ "$real" == "$top"/* ]] || { printf 'a project %s that leads outside the git work tree is not run' "$rel"; return 0; }
-  # the repository that owns the directory: a submodule tracks its own files
-  git -C "$(dirname "$real")" ls-files --error-unmatch -- "$(basename "$real")" >/dev/null 2>&1; code=$?
-  (( code == 0 )) && { printf 'a tracked %s is not run' "$rel"; return 0; }
-  (( code == 1 )) || { printf 'cannot tell whether git tracks %s; it is not run' "$rel"; return 0; }
-  real=${real#"$top"/}
-  git -C "$top" ls-files --error-unmatch -- "$real" >/dev/null 2>&1; code=$?
-  (( code == 0 )) && { printf 'a tracked %s is not run' "$rel"; return 0; }
-  (( code == 1 )) || { printf 'cannot tell whether git tracks %s; it is not run' "$rel"; return 0; }
-  git -C "$top" check-ignore -q -- "$real" 2>/dev/null \
-    || { printf 'a project %s that git does not ignore is not run' "$rel"; return 0; }
-  [[ -O "$top/$real" ]] || { printf '%s is owned by another user and is not run' "$rel"; return 0; }
-  return 1
-}
-
-# _lint_ruff_bin — the project's ruff: .venv/bin/ruff or venv/bin/ruff in this
-# directory, or in a directory above it up to the top of the git work tree
-# (a project that runs ruff through its virtual environment), when it can run
-# (_lint_local_untrusted); else ruff on PATH. With no ruff, it prints the
-# reason and exits 1.
-_lint_ruff_bin() {
-  local d top v why skipped=""
-  d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
-  top=$(cd "$top" && pwd -P)
-  while :; do
-    for v in .venv venv; do
-      [[ -x "$d/$v/bin/ruff" ]] || continue
-      if why=$(_lint_local_untrusted "$d" "$v/bin/ruff"); then
-        [[ -n "$skipped" ]] || skipped=$why
-        continue
-      fi
-      printf '%s' "$d/$v/bin/ruff"; return 0
-    done
-    [[ "$d" == "$top" || "$d" == / ]] && break
-    d=$(dirname "$d")
-  done
-  command -v ruff && return 0
-  if [[ -n "$skipped" ]]; then printf '%s, and no other ruff is installed' "$skipped"
-  else printf 'ruff is not installed: not on PATH, and not in .venv/bin or venv/bin of the project'; fi
-  return 1
-}
-
 # _lint_ruff_show <bin> <chosen config> <file> — the settings ruff resolves for
 # the file, with --config <chosen config> when there is one
 _lint_ruff_show() {
@@ -814,7 +728,7 @@ _lint_ruff_path() {
 
 _lint_doctor_ruff() { # <recommended config> <file> <work dir> [chosen config]
   local rec="$1" f="./$2" t="$3" chosen="${4:-}" bin sp dflt="" from which="the repository's config" r state key rv cv a b
-  bin=$(_lint_ruff_bin) || { _lint_doctor_cannot ruff "$bin"; return 0; }
+  bin=$(command -v ruff) || { _lint_doctor_cannot ruff "ruff is not on PATH; put the project's ruff on PATH (for example, activate the project's virtual environment) and run again"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot ruff "no source file to resolve the settings for"; return 0; }
   "$bin" check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "ruff cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
@@ -939,26 +853,16 @@ _lint_eslint_compare() {
 
 # _lint_eslint_bin — the project's ESLint: node_modules/.bin/eslint in this
 # directory, or in a directory above it up to the top of the git work tree,
-# where a workspace keeps its hoisted packages, when it can run
-# (_lint_local_untrusted). With none, it exits 1, and prints why it skipped
-# one when it did.
+# where a workspace keeps its hoisted packages
 _lint_eslint_bin() {
-  local d top why skipped=""
+  local d top
   d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
   top=$(cd "$top" && pwd -P)
   while :; do
-    if [[ -x "$d/node_modules/.bin/eslint" ]]; then
-      if why=$(_lint_local_untrusted "$d" node_modules/.bin/eslint); then
-        [[ -n "$skipped" ]] || skipped=$why
-      else
-        printf '%s' "$d/node_modules/.bin/eslint"; return 0
-      fi
-    fi
-    [[ "$d" == "$top" || "$d" == / ]] && break
+    [[ -x "$d/node_modules/.bin/eslint" ]] && { printf '%s' "$d/node_modules/.bin/eslint"; return 0; }
+    [[ "$d" == "$top" || "$d" == / ]] && return 1
     d=$(dirname "$d")
   done
-  printf '%s' "$skipped"
-  return 1
 }
 
 # _lint_eslint_pnp — exit 0 when a Yarn Plug'n'Play install serves this
@@ -996,9 +900,7 @@ _lint_eslint_print() {
 _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
   local rec="$1" t="$3" chosen="${4:-}" bin r ro sev opts state rv cv a b cfg dflt which="the repository's config"
   if ! bin=$(_lint_eslint_bin); then
-    if [[ -n "$bin" ]]; then
-      _lint_doctor_cannot eslint "$bin"
-    elif _lint_eslint_pnp; then
+    if _lint_eslint_pnp; then
       _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
     else
       local sub
@@ -1128,12 +1030,9 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
 #                    the linter reports the current setting; "" if none
 #   FAKE_BIN_NOTE    the text the doctor's note gives for the linter binary it
 #                    ran (and its version, where the doctor names one)
-#   FAKE_VENV        the directory of a project's virtual environment where the
-#                    doctor also finds the linter; "" when it looks elsewhere
-#   FAKE_LOCAL_BIN   the linter binary the doctor finds in the project (after
-#                    the fake moves to FAKE_VENV, when that is set); "" when the
-#                    doctor takes the linter from PATH only. The typescript fake
-#                    makes $REPO a git work tree that ignores node_modules/
+#   FAKE_VENV        the directory of a project's virtual environment, which
+#                    the doctor does not search: the linter must be on PATH;
+#                    "" when the language has none
 #   FAKE_ABOVE       "yes" when the linter finds a config in the directory above
 #                    the project (fake_doctor_config_above); "" if not
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
@@ -1145,7 +1044,7 @@ fake_doctor_row() {
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
       FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
-      FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'; FAKE_LOCAL_BIN=''
+      FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
@@ -1153,7 +1052,7 @@ fake_doctor_row() {
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
-      FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'; FAKE_LOCAL_BIN='.venv/bin/ruff'
+      FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
@@ -1166,7 +1065,7 @@ fake_doctor_row() {
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
-      FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''; FAKE_LOCAL_BIN='node_modules/.bin/eslint'
+      FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
@@ -1310,9 +1209,6 @@ cat "$d/repo.txt"'
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
     typescript)
-      # the doctor runs a project binary only from an ignored place of a git work tree
-      ( cd "$REPO" && { git rev-parse --is-inside-work-tree >/dev/null 2>&1 || git init -q .; } ) >/dev/null 2>&1
-      printf 'node_modules/\n' >> "$REPO/.gitignore"
       b="$REPO/node_modules/.bin"
       _fake_bin eslint '
 cfg=""; prev=""
@@ -2004,7 +1900,7 @@ if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"
 else
   write_src "src/a$FX_EXT" 1
   run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
-  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not installed" && [[ -z "$OUT" ]] && ok
+  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not " && [[ -z "$OUT" ]] && ok
   finish
 fi
 
@@ -2039,7 +1935,7 @@ if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"
 else
   write_src "src/a$FX_EXT" 1
   run_agree --fingerprint
-  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not installed" && ok
+  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not " && ok
   finish
 fi
 
@@ -2243,7 +2139,7 @@ if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"
 else
   write_src "src/a$FX_EXT" 1
   run_doctor
-  expect_exit 0 && expect_has "$FAKE_LINTER -: cannot verify: $FAKE_BIN is not installed" && expect_not ": runs;" && ok
+  expect_exit 0 && expect_has "$FAKE_LINTER -: cannot verify: $FAKE_BIN is not " && expect_not ": runs;" && ok
   finish
 fi
 
@@ -2316,111 +2212,14 @@ run_doctor
 expect_exit 0 && expect_has "$FAKE_BIN_NOTE" && ok
 finish
 
-begin "doctor: a linter in the project's virtual environment is found"
-if [[ -z "$FAKE_VENV" ]]; then skip "the doctor does not look for the linter in a virtual environment"; finish
+begin "doctor: a linter only in the project's virtual environment cannot verify and says to put it on PATH"
+if [[ -z "$FAKE_VENV" ]]; then skip "the linter of this language has no virtual environment"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor adopt
   mkdir -p "$REPO/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$REPO/$FAKE_VENV"
-  printf '%s/\n' "${FAKE_VENV%%/*}" >> "$REPO/.gitignore"
-  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
   run_doctor
-  expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "/$FAKE_VENV/$FAKE_BIN," && expect_not "cannot verify" && ok
-  finish
-fi
-
-begin "doctor: a virtual environment at the top of the git work tree serves a project below"
-if [[ -z "$FAKE_VENV" ]]; then skip "the doctor does not look for the linter in a virtual environment"; finish
-else
-  real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
-  write_src "src/a$FX_EXT" 1; fake_doctor adopt
-  mkdir -p "$real/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$real/$FAKE_VENV"
-  printf '%s/\n' "${FAKE_VENV%%/*}" >> "$real/.gitignore"
-  ( cd "$real" && git init -q . ) >/dev/null 2>&1
-  run_doctor
-  expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "/$FAKE_VENV/$FAKE_BIN," && ok
-  REPO=$real; finish
-fi
-
-begin "doctor: a linter binary that git tracks in the project is not run"
-if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
-else
-  write_src "src/a$FX_EXT" 1; fake_doctor adopt
-  if [[ -n "$FAKE_VENV" ]]; then mkdir -p "$REPO/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$REPO/$FAKE_VENV"; fi
-  ( cd "$REPO" && git init -q . && git add -f -- "$FAKE_LOCAL_BIN" ) >/dev/null 2>&1
-  run_doctor
-  expect_exit 0 && expect_has "cannot verify: a tracked $FAKE_LOCAL_BIN is not run" && expect_not ": runs;" && ok
-  finish
-fi
-
-# local_bin_setup — the fake linter at FAKE_LOCAL_BIN in $REPO; LOCAL_TOP is the
-# first directory of that path (.venv, node_modules)
-local_bin_setup() {
-  write_src "src/a$FX_EXT" 1; fake_doctor adopt
-  if [[ -n "$FAKE_VENV" ]]; then mkdir -p "$REPO/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$REPO/$FAKE_VENV"; fi
-  LOCAL_TOP=${FAKE_LOCAL_BIN%%/*}
-}
-
-begin "doctor: a project linter binary behind a committed link to a tracked directory is not run"
-if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
-else
-  local_bin_setup
-  mv "$REPO/$LOCAL_TOP" "$REPO/vendored" && ln -s vendored "$REPO/$LOCAL_TOP"
-  printf '%s/\n' "$LOCAL_TOP" >> "$REPO/.gitignore"
-  ( cd "$REPO" && git init -q . && git add -f -- vendored "$LOCAL_TOP" .gitignore ) >/dev/null 2>&1
-  run_doctor
-  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN behind a tracked link $LOCAL_TOP is not run" && expect_not ": runs;" && ok
-  finish
-fi
-
-begin "doctor: a project linter binary behind a tracked link into an ignored place is not run"
-if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
-else
-  local_bin_setup
-  mkdir -p "$REPO/cache" && mv "$REPO/$LOCAL_TOP" "$REPO/cache/real" && ln -s cache/real "$REPO/$LOCAL_TOP"
-  printf 'cache/\n' >> "$REPO/.gitignore"
-  ( cd "$REPO" && git init -q . && git add -f -- "$LOCAL_TOP" .gitignore ) >/dev/null 2>&1
-  run_doctor
-  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN behind a tracked link $LOCAL_TOP is not run" && expect_not ": runs;" && ok
-  finish
-fi
-
-begin "doctor and --brief: a project linter binary inside a git submodule is not run"
-if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
-else
-  local_bin_setup
-  sub_src=$(mktemp -d)
-  mv "$REPO/$LOCAL_TOP" "$sub_src/src"
-  ( cd "$sub_src/src" && git init -q . && git add -f . && git -c user.name=t -c user.email=t@t commit -qm sub ) >/dev/null 2>&1
-  printf '%s/\n' "$LOCAL_TOP" >> "$REPO/.gitignore"
-  ( cd "$REPO" && git init -q . && git -c protocol.file.allow=always submodule add -q -f "$sub_src/src" "$LOCAL_TOP" ) >/dev/null 2>&1
-  run_doctor
-  r1=0; expect_exit 0 && [[ -x "$REPO/$FAKE_LOCAL_BIN" ]] && expect_has "cannot verify: a tracked $FAKE_LOCAL_BIN is not run" && expect_not ": runs;" && r1=1
-  write_record "agreed:
-$(names_linter)"
-  run_brief
-  (( r1 )) && expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
-  rm -rf "$sub_src"
-  finish
-fi
-
-begin "doctor: a project linter binary that git does not ignore is not run"
-if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
-else
-  local_bin_setup
-  : > "$REPO/.gitignore"
-  ( cd "$REPO" && git init -q . ) >/dev/null 2>&1
-  run_doctor
-  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN that git does not ignore is not run" && expect_not ": runs;" && ok
-  finish
-fi
-
-begin "doctor: a project linter binary outside a git work tree is not run"
-if [[ -z "$FAKE_LOCAL_BIN" ]]; then skip "the doctor takes the linter from PATH only"; finish
-else
-  local_bin_setup
-  rm -rf "$REPO/.git"
-  run_doctor
-  expect_exit 0 && expect_has "cannot verify: a project $FAKE_LOCAL_BIN outside a git work tree is not run" && expect_not ": runs;" && ok
+  expect_exit 0 && expect_has "cannot verify: $FAKE_BIN is not on PATH; put the project's $FAKE_BIN on PATH (for example, activate the project's virtual environment) and run again" \
+    && expect_not ": runs;" && ok
   finish
 fi
 
@@ -2572,16 +2371,13 @@ esac
 finish
 
 begin "a project with a record below a root without one gets its line, the root none"
-real=$REPO; ( cd "$real" && git init -q . ) >/dev/null 2>&1
-REPO="$real/sub"; mkdir -p "$REPO"
+real=$REPO; REPO="$real/sub"; mkdir -p "$REPO"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 REPO=$real
 [[ ! -d "$real/sub/.bin" ]] || mv "$real/sub/.bin" "$real/.bin"
 write_src "src/b$FX_EXT" 1
 write_record "agreed:
 $(names_linter)"; mv "$REPO/.ldd-lint.yaml" "$REPO/sub/.ldd-lint.yaml"
-# a repository ignores its installed packages, so git does not track a linter there
-printf 'node_modules/\n' > "$REPO/.gitignore"
 ( cd "$REPO" && git init -q . && git add -A ) >/dev/null 2>&1
 run_brief
 expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok

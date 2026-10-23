@@ -40,11 +40,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   Each row shows the recommended setting and the repository's own. The doctor asks
   the installed linter: ruff and the project's own ESLint (`eslint --print-config`,
   shared configs included) report every rule and limit, golangci-lint reports
-  which linters run. The doctor runs the ruff of the project's `.venv/bin` or
-  `venv/bin` when there is one, else the ruff on PATH. It runs a linter binary
-  inside the project (ruff there, `node_modules/.bin/eslint`) only from an
-  ignored, untracked place of a git work tree, owned by the current user and
-  reached through no symbolic link that git tracks. Its note names the
+  which linters run. The doctor runs ruff from PATH only: when ruff is not on
+  PATH, the row says to put the project's ruff on PATH (for example, to
+  activate the project's virtual environment). Its note names the
   golangci-lint binary on PATH and its version, so a reader can compare it with
   the version that the project pins. Where the linter cannot report a setting, the row names the
   file and key to read. An ESLint that is not installed in the project, or that

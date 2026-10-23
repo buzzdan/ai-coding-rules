@@ -85,11 +85,10 @@
 # setting. source is "linter" when the linter said whether the rule runs, and
 # "presence check" when the rule was found by name. A linter output the doctor
 # cannot read is "cannot verify", never an empty list. A "doctor:" line per
-# language says which config was compared, and which linter binary ran. A
-# linter binary inside the project (a virtual environment, node_modules) runs
-# only from an ignored, untracked place of a git work tree, owned by the
-# current user and reached through no symbolic link that git tracks; else the
-# doctor does not run it.
+# language says which config was compared, and which linter binary ran. The
+# doctor runs a linter from PATH only, except a linter that a project installs
+# in its node_modules: that check runs the project's own copy, which loads the
+# project's config file.
 #
 # The agreement record is the file .ldd-lint.yaml, which the lint-setup skill
 # writes. Its key "agreed" lists one item per rule the team agreed to keep. An
@@ -826,92 +825,6 @@ _lint_limit_state() {
   else printf 'limit stricter'; fi
 }
 
-# _lint_real_path <path> — the path with each symbolic link resolved, in its
-# last part and in its directories; exit 1 when it does not resolve
-_lint_real_path() {
-  local p="$1" l n=0 dir
-  while [[ -L "$p" ]]; do
-    n=$(( n + 1 )); (( n <= 40 )) || return 1
-    l=$(readlink "$p") || return 1
-    case "$l" in
-      /*) p=$l ;;
-      *)  p=$(dirname "$p")/$l ;;
-    esac
-  done
-  dir=$(cd -P "$(dirname "$p")" 2>/dev/null && pwd -P) || return 1
-  printf '%s/%s' "$dir" "$(basename "$p")"
-}
-
-# _lint_local_untrusted <dir> <path> — why a linter binary at <dir>/<path>
-# that the project holds is not run, or nothing (exit 1) when it can run. It
-# runs only when all of these hold, so a cloned repository cannot give the
-# doctor a binary to run:
-#   <dir> is in a git work tree;
-#   no directory of <path> is a symbolic link that git tracks;
-#   the real path of the binary is inside the work tree;
-#   git does not track the real path (ls-files exits 1; any other exit code
-#     is an answer the doctor cannot trust), asked of the repository that owns
-#     its directory (a submodule) and of the work tree;
-#   git ignores the real path (check-ignore exits 0);
-#   the current user owns it.
-_lint_local_untrusted() {
-  local f="$1/$2" rel top real part rest code
-  # the name as the lookup found it, from the project root, with no link resolved
-  if [[ "$1" == "$(pwd -P)" ]]; then rel=$2; else rel=$(root_relative "$1")/$2; fi
-  git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
-    || { printf 'a project %s outside a git work tree is not run' "$rel"; return 0; }
-  part=""; rest=$2
-  while [[ "$rest" == */* ]]; do
-    part=${part:+$part/}${rest%%/*}; rest=${rest#*/}
-    if git -C "$1" ls-files -s -- "$part" 2>/dev/null | grep -q '^120000 '; then
-      printf 'a project %s behind a tracked link %s is not run' "$rel" "$part"; return 0
-    fi
-  done
-  top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) && top=$(cd -P "$top" 2>/dev/null && pwd -P) \
-    || { printf 'cannot tell whether git tracks %s; it is not run' "$rel"; return 0; }
-  real=$(_lint_real_path "$f") || { printf 'cannot resolve %s; it is not run' "$rel"; return 0; }
-  [[ "$real" == "$top"/* ]] || { printf 'a project %s that leads outside the git work tree is not run' "$rel"; return 0; }
-  # the repository that owns the directory: a submodule tracks its own files
-  git -C "$(dirname "$real")" ls-files --error-unmatch -- "$(basename "$real")" >/dev/null 2>&1; code=$?
-  (( code == 0 )) && { printf 'a tracked %s is not run' "$rel"; return 0; }
-  (( code == 1 )) || { printf 'cannot tell whether git tracks %s; it is not run' "$rel"; return 0; }
-  real=${real#"$top"/}
-  git -C "$top" ls-files --error-unmatch -- "$real" >/dev/null 2>&1; code=$?
-  (( code == 0 )) && { printf 'a tracked %s is not run' "$rel"; return 0; }
-  (( code == 1 )) || { printf 'cannot tell whether git tracks %s; it is not run' "$rel"; return 0; }
-  git -C "$top" check-ignore -q -- "$real" 2>/dev/null \
-    || { printf 'a project %s that git does not ignore is not run' "$rel"; return 0; }
-  [[ -O "$top/$real" ]] || { printf '%s is owned by another user and is not run' "$rel"; return 0; }
-  return 1
-}
-
-# _lint_ruff_bin — the project's ruff: .venv/bin/ruff or venv/bin/ruff in this
-# directory, or in a directory above it up to the top of the git work tree
-# (a project that runs ruff through its virtual environment), when it can run
-# (_lint_local_untrusted); else ruff on PATH. With no ruff, it prints the
-# reason and exits 1.
-_lint_ruff_bin() {
-  local d top v why skipped=""
-  d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
-  top=$(cd "$top" && pwd -P)
-  while :; do
-    for v in .venv venv; do
-      [[ -x "$d/$v/bin/ruff" ]] || continue
-      if why=$(_lint_local_untrusted "$d" "$v/bin/ruff"); then
-        [[ -n "$skipped" ]] || skipped=$why
-        continue
-      fi
-      printf '%s' "$d/$v/bin/ruff"; return 0
-    done
-    [[ "$d" == "$top" || "$d" == / ]] && break
-    d=$(dirname "$d")
-  done
-  command -v ruff && return 0
-  if [[ -n "$skipped" ]]; then printf '%s, and no other ruff is installed' "$skipped"
-  else printf 'ruff is not installed: not on PATH, and not in .venv/bin or venv/bin of the project'; fi
-  return 1
-}
-
 # _lint_ruff_show <bin> <chosen config> <file> — the settings ruff resolves for
 # the file, with --config <chosen config> when there is one
 _lint_ruff_show() {
@@ -929,7 +842,7 @@ _lint_ruff_path() {
 
 _lint_doctor_ruff() { # <recommended config> <file> <work dir> [chosen config]
   local rec="$1" f="./$2" t="$3" chosen="${4:-}" bin sp dflt="" from which="the repository's config" r state key rv cv a b
-  bin=$(_lint_ruff_bin) || { _lint_doctor_cannot ruff "$bin"; return 0; }
+  bin=$(command -v ruff) || { _lint_doctor_cannot ruff "ruff is not on PATH; put the project's ruff on PATH (for example, activate the project's virtual environment) and run again"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot ruff "no source file to resolve the settings for"; return 0; }
   "$bin" check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "ruff cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
@@ -1054,26 +967,16 @@ _lint_eslint_compare() {
 
 # _lint_eslint_bin — the project's ESLint: node_modules/.bin/eslint in this
 # directory, or in a directory above it up to the top of the git work tree,
-# where a workspace keeps its hoisted packages, when it can run
-# (_lint_local_untrusted). With none, it exits 1, and prints why it skipped
-# one when it did.
+# where a workspace keeps its hoisted packages
 _lint_eslint_bin() {
-  local d top why skipped=""
+  local d top
   d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
   top=$(cd "$top" && pwd -P)
   while :; do
-    if [[ -x "$d/node_modules/.bin/eslint" ]]; then
-      if why=$(_lint_local_untrusted "$d" node_modules/.bin/eslint); then
-        [[ -n "$skipped" ]] || skipped=$why
-      else
-        printf '%s' "$d/node_modules/.bin/eslint"; return 0
-      fi
-    fi
-    [[ "$d" == "$top" || "$d" == / ]] && break
+    [[ -x "$d/node_modules/.bin/eslint" ]] && { printf '%s' "$d/node_modules/.bin/eslint"; return 0; }
+    [[ "$d" == "$top" || "$d" == / ]] && return 1
     d=$(dirname "$d")
   done
-  printf '%s' "$skipped"
-  return 1
 }
 
 # _lint_eslint_pnp — exit 0 when a Yarn Plug'n'Play install serves this
@@ -1111,9 +1014,7 @@ _lint_eslint_print() {
 _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
   local rec="$1" t="$3" chosen="${4:-}" bin r ro sev opts state rv cv a b cfg dflt which="the repository's config"
   if ! bin=$(_lint_eslint_bin); then
-    if [[ -n "$bin" ]]; then
-      _lint_doctor_cannot eslint "$bin"
-    elif _lint_eslint_pnp; then
+    if _lint_eslint_pnp; then
       _lint_doctor_cannot eslint "eslint is not installed in node_modules: the project uses Yarn Plug'n'Play"
     else
       local sub
