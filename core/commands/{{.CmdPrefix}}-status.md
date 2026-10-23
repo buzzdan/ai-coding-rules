@@ -5,10 +5,12 @@ argument-hint: ""
 allowed-tools:
   - Read
   - Bash(git *)
+  - Bash(bash ${CLAUDE_PLUGIN_ROOT}/scripts/ldd-lint.sh *)
 ---
 
 !`git status --porcelain`
 !`git diff --stat HEAD`
+!`bash "${CLAUDE_PLUGIN_ROOT}/scripts/ldd-lint.sh" doctor --brief`
 
 Display current implementation status:
 
@@ -24,6 +26,10 @@ Display current implementation status:
 
 📝 Files Modified:
   [list with +/- lines]
+
+🔧 Lint setup:
+  [Show this part only when the last preamble command printed a line. Copy each
+  line as given. When it printed nothing, leave this part out.]
 
 🎯 Next Action:
   [What happens next in the workflow]

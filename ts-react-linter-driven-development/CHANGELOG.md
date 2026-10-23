@@ -57,6 +57,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   every language in scope is skipped this way. Exit 2 stays for a run that has a
   language with no recommended config.
 
+- **`/tsr-ldd-status` shows the lint setup line, and the lint-fixer runs the agreed
+  lint task.** The status command runs `ldd-lint.sh doctor --brief`. It shows a
+  "Lint setup" part only when a project with an agreed setup needs attention. The
+  lint-fixer reads the project's task file, finds the lint-fix task by the command it
+  runs, and uses the task that runs the `lint_config` file when the record names one.
+  It passes a package scope to the task only when the task accepts one. Else it runs
+  the plugin's default command for a package scope.
+
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory
   (`package-size`). Where the repository's linter config names a file-length rule,

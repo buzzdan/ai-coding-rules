@@ -22,9 +22,16 @@ No scope in the prompt means the whole repository (the workflow's Phase 3 on a f
 slice).
 
 **Loop:**
-1. Run the linter over the scope: `task lintwithfix` if a Taskfile/Makefile defines it
-   and the scope is the whole repository, else `npx tsc --noEmit && npx eslint . --fix && npx prettier --write .` with the scope's
-   package paths in place of `./...`.
+1. Run the linter over the scope, with the project's own lint-fix task when it has one.
+   Read the project's task file (Taskfile, Makefile, `package.json` scripts, justfile,
+   or what the project uses). Find the lint-fix task by the command it runs, not by its
+   name. When `.ldd-lint.yaml` has a `lint_config` item, use the task that runs that
+   file. Pass the package paths of the scope to the task only when the task accepts
+   them: `{{.CLI_ARGS}}` in a Taskfile, `ARGS` in a Makefile, or a script
+   argument. Else use the task for a whole-repository scope only, and run
+   `npx tsc --noEmit && npx eslint . --fix && npx prettier --write .` with the package paths of the scope in place of `./...` for a
+   package scope. With no lint-fix task, run `npx tsc --noEmit && npx eslint . --fix && npx prettier --write .` the same way.
+   `task lintwithfix` is one such task.
 2. Read the remaining issues. Classify each: mechanical → fix it; design → escalate.
 3. Apply targeted mechanical fixes (Read the site first, Edit minimally).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
