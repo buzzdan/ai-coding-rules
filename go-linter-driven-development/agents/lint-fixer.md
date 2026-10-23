@@ -26,17 +26,23 @@ slice).
    `package.json` scripts, justfile, or what the project uses). Find each task by the
    command it runs, not by its name. A lint-fix task runs the linter with its fix
    option; `task lintwithfix` is one. A check task runs the linter without it. With a
-   `lint_config` item in `.ldd-lint.yaml`, only a task that runs that file counts.
+   `lint_config` item in `.ldd-lint.yaml`, only a task that runs that file counts, and
+   you never run `golangci-lint run --fix`: do not add a config flag to it either.
    Use the first rule that fits:
-   1. The `lint_config` file has a check task and no lint-fix task: run the check task.
-      Pass the package paths when it accepts them. Keep only the findings inside the
-      scope. Fix those by hand, then run the check task again. Never use another config.
-   2. A lint-fix task accepts a package argument (`{{.CLI_ARGS}}` in a Taskfile, `ARGS` in
+   1. A lint-fix task accepts a package argument (`{{.CLI_ARGS}}` in a Taskfile, `ARGS` in
       a Makefile, a script argument): pass the package paths of the scope.
-   3. A lint-fix task does not, and the scope is the whole repository: run it.
-   4. A lint-fix task does not, and the scope is a package list: run
-      `golangci-lint run --fix` with the package paths in place of `./...`.
-   5. There is no lint-fix task: run `golangci-lint run --fix` the same way.
+   2. A lint-fix task does not, and the scope is the whole repository: run it.
+   3. With a `lint_config` item, a check task runs that file: run the check task. Pass
+      the package paths when it accepts them. Keep only the findings inside the scope.
+      Fix those by hand, then run the check task again. Never use another config.
+   4. With no `lint_config` item, a lint-fix task does not accept a package argument,
+      and the scope is a package list: run `golangci-lint run --fix` with the package paths
+      in place of `./...`.
+   5. With no `lint_config` item, there is no lint-fix task: run `golangci-lint run --fix`
+      the same way.
+   6. With a `lint_config` item, no rule above fits: stop, and fix nothing. Report
+      `ESCALATED: <linter> → setup, no task runs the agreed config at <config file>; run /go-ldd-setup`
+      and `LINT STATUS: escalations pending (1)`.
 2. Read the remaining issues. Classify each: mechanical → fix it; design → escalate.
 3. Apply targeted mechanical fixes (Read the site first, Edit minimally).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
@@ -96,7 +102,8 @@ LINT STATUS: green | escalations pending (<N>)
 One `ESCALATED:` line per failure, each carrying its own `file:line` and its route from
 the table above (`<linter> → rules/R3-storifying.md (via @refactoring) at
 <path>:<line>`) — except the `mechanical, budget spent` and `mechanical, no progress`
-lines, whose route is the respawn or its refusal, not a rule. A `FIXED:` line lists every linter whose
+lines, whose route is the respawn or its refusal, not a rule, and the `setup` line of
+rule 6, whose route is the setup command. A `FIXED:` line lists every linter whose
 issues are gone; nothing fixed → `FIXED: none`.
 
 FIXED counts every issue resolved since the first run — including those the

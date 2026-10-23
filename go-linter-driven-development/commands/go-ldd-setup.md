@@ -15,8 +15,7 @@ allowed-tools:
   - Bash(golangci-lint linters *)
   - Bash(golangci-lint config *)
   - Bash(ruff check *)
-  - Bash(npx eslint *)
-  - Bash(reviewdog *)
+  - Bash(npx --no-install eslint *)
   - Skill(go-linter-driven-development:lint-setup)
 ---
 

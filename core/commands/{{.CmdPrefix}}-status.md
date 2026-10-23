@@ -10,7 +10,7 @@ allowed-tools:
 
 !`git status --porcelain`
 !`git diff --stat HEAD`
-!`bash "${CLAUDE_PLUGIN_ROOT}/scripts/ldd-lint.sh" doctor --brief`
+!`bash ${CLAUDE_PLUGIN_ROOT}/scripts/ldd-lint.sh doctor --brief`
 
 Display current implementation status:
 

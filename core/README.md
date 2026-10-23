@@ -248,7 +248,7 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (133 lines):
+Soft residue by token (136 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
@@ -258,11 +258,12 @@ Soft residue by token (133 lines):
 | Go stdlib | 9 | 5 |
 | struct | 6 | 4 |
 | func | 4 | 2 |
-| go.mod | 2 | 1 |
+| go.mod | 3 | 2 |
+| Go linter name | 2 | 1 |
 | race detector | 2 | 2 |
 | sync. | 1 | 1 |
 
-Soft residue by file (133 lines):
+Soft residue by file (136 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -280,6 +281,7 @@ Soft residue by file (133 lines):
 | `skills/testing/SKILL.md` | 4 | 1 |
 | `includes/handbook/R6/example.md` | 3 | 1 |
 | `includes/skills/documentation/reference/doc-comment-menus.md` | 3 | 1 |
+| `skills/lint-setup/golangci-lint.md` | 3 | 2 |
 | `includes/handbook/R11/example.md` | 2 | 1 |
 | `includes/rules/R10/falsifying-questions.md` | 2 | 2 |
 | `includes/scripts/ldd-doctor-skip-cases.sh` | 2 | 1 |

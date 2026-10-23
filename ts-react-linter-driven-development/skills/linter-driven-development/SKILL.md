@@ -220,7 +220,9 @@ per scope, and never after a fresh lint-fixer reports `FIXED: none` over the sam
 packages. What is left at that cutoff, and every `mechanical, no progress` line, is
 unresolved mechanical lint with no rule route: Phase 3 stops there, and the ship
 summary lists each `file:line` under `LINT STATUS: escalations pending` — never handed
-to @refactoring, which has no rule for it, never to a subagent. Route every design
+to @refactoring, which has no rule for it, never to a subagent. An `ESCALATED: … →
+setup` line says that no task runs the agreed lint config: Phase 3 stops there too,
+and the ship summary names the line and `/tsr-ldd-setup`. Route every design
 escalation back through the Phase 2 REFACTOR step — invoke @refactoring, in this
 thread, with the routes; **never auto-redesign here, and never delegate the
 escalations to a subagent** (`<skill_invocation>`). Package-size escalations follow

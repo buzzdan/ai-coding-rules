@@ -4,8 +4,8 @@
 
 The lint-setup skill reads this file in the step that names it. It is for ESLint 9
 with a flat config. Before you use a flag, make sure that the project's version has
-it: `npx eslint --help`. `<tmp>` is a temporary directory outside the repository, for
-example from `mktemp -d`. `<rec>` is the recommended config,
+it: `npx --no-install eslint --help`. `<tmp>` is a temporary directory outside the
+repository, for example from `mktemp -d`. `<rec>` is the recommended config,
 `<this skill dir>/../../setup/eslint.config.ldd.mjs`.
 
 ## The doctor's rows
@@ -13,9 +13,9 @@ example from `mktemp -d`. `<rec>` is the recommended config,
 The doctor runs the project's own ESLint with `--print-config` on one source file, so
 the rows show the values on both sides.
 
-Run `npx eslint` only when the doctor checked ESLint for this project (no
-`cannot verify` row). Without a local ESLint, `npx` downloads a package: that is an
-install.
+Run ESLint as `npx --no-install eslint`, and only when the doctor checked ESLint for
+this project (no `cannot verify` row). Without a local ESLint, plain `npx eslint`
+downloads a package, which is an install; with `--no-install`, it fails.
 
 ## Count the findings (step 4)
 
@@ -26,7 +26,7 @@ temporary config.
 **Run A, every recommended value**, from the project root:
 
 ```sh
-npx eslint --format json --output-file <tmp>/a.json \
+npx --no-install eslint --format json --output-file <tmp>/a.json \
   --rule 'max-params: [error, 4]' \
   --rule 'sonarjs/cognitive-complexity: [error, 15]' .
 ```
@@ -46,7 +46,7 @@ two of them.
   that the count can be high.
 
 **Run B, the project's own config:**
-`npx eslint --format json --output-file <tmp>/b.json .`
+`npx --no-install eslint --format json --output-file <tmp>/b.json .`
 
 **The count per rule:** `grep -o '"ruleId":"[^"]*"' <tmp>/a.json | sort | uniq -c`,
 and the same for `<tmp>/b.json`.
@@ -68,9 +68,9 @@ which checks the files of the commit.
 
 Ladder step 2, bulk suppressions (ESLint 9.24 or later):
 
-- `npx eslint --suppress-all` writes `eslint-suppressions.json`: the findings of today.
-  A later run fails only on a finding that the file does not hold.
-- `npx eslint --prune-suppressions` removes the entries of fixed findings.
+- `npx --no-install eslint --suppress-all` writes `eslint-suppressions.json`: the
+  findings of today. A later run fails only on a finding that the file does not hold.
+- `npx --no-install eslint --prune-suppressions` removes the entries of fixed findings.
 - The file lives in the repository, so CI and each teammate obey it with no other
   change. The `--suppress-all` run is an edit: it is a line of the plan, and it runs in
   step 6 after the config edits.
@@ -115,10 +115,10 @@ checks the whole project.
 ## The superset check (step 7)
 
 1. **The rules:** for one source file of each kind (for example `.ts` and `.tsx`),
-   run `npx eslint --config <original> --print-config <file>` and
-   `npx eslint --config eslint.config.strict.mjs --print-config <file>`. Each rule
-   that the original turns on must be on in the strict file, at the same option or a
-   stricter one.
+   run `npx --no-install eslint --config <original> --print-config <file>` and
+   `npx --no-install eslint --config eslint.config.strict.mjs --print-config <file>`.
+   Each rule that the original turns on must be on in the strict file, at the same
+   option or a stricter one.
 2. **The findings on the current tree:** run each config with
    `--format json --output-file <tmp>/<name>.json .`, and add
    `--suppressions-location <tmp>/none.json` when the project has a suppressions file.

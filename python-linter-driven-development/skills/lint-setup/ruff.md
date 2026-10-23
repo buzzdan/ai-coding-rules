@@ -54,27 +54,39 @@ Ladder step 2 has two options. Offer both, and say why:
   install it only when the user agrees to that line of the plan. Recommend option b
   when the project has very large files.
 
-Both live in the lint task. `<base>` is the branch the team merges into. A Taskfile
-with option a:
+Each is a new task; the CI step and the hook call it. `<base>` is the ref of the
+branch the team merges into, for example `origin/main`. Each task first finds the
+merge base, and fails with a message when `<base>` is not there: else a clone without
+that ref passes with no check. `git diff --relative` gives the paths from the
+directory of the task file, so the task also works in a project below the git root.
+`-z` with `xargs -0` keeps a path with a space whole. A Taskfile with option a:
 
 ```yaml
   lint-changed:
     desc: ruff on the Python files changed since the merge base with <base>; paths after -- replace that list
-    vars:
-      FILES:
-        sh: git diff --name-only --diff-filter=d "$(git merge-base HEAD <base>)" -- '*.py' | tr '\n' ' '
     cmds:
-      - files="{{.CLI_ARGS | default .FILES}}"; if [ -z "$files" ]; then echo "lint-changed - no changed Python file"; else ruff check --force-exclude $files; fi
+      - |
+        if [ -n "{{.CLI_ARGS}}" ]; then ruff check --force-exclude {{.CLI_ARGS}}; exit; fi
+        base=$(git merge-base HEAD <base>) || { echo "lint-changed: no merge base with <base>; fetch <base> first" >&2; exit 1; }
+        git diff --relative --name-only -z --diff-filter=d "$base" -- '*.py' \
+          | xargs -0 sh -c '[ "$#" -eq 0 ] || ruff check --force-exclude "$@"' sh
 ```
 
-With option b:
+The `sh` guard keeps an empty list from checking the whole project. With option b:
 
 ```yaml
   lint-new:
     desc: ruff on the lines added since the merge base with <base>; paths after -- narrow the run
     cmds:
-      - ruff check --output-format=rdjson {{.CLI_ARGS}} | reviewdog -f=rdjson -reporter=local -filter-mode=added -fail-level=any -diff="git diff $(git merge-base HEAD <base>)"
+      - |
+        set -o pipefail
+        base=$(git merge-base HEAD <base>) || { echo "lint-new: no merge base with <base>; fetch <base> first" >&2; exit 1; }
+        ruff check --exit-zero --output-format=rdjson {{.CLI_ARGS}} | reviewdog -f=rdjson -reporter=local -filter-mode=added -fail-level=any -diff="git diff --relative $base"
 ```
+
+`--exit-zero` keeps a finding on an old line from failing the task: reviewdog decides.
+`pipefail` makes the task fail when ruff itself fails, for example on a config that
+does not load.
 
 reviewdog exits non-zero on a finding only with `-fail-level=any`; an older version
 uses `-fail-on-error`. Check `reviewdog -help`.
@@ -157,14 +169,18 @@ The known callers:
 A CI step that runs ruff through a task runs the task: compare the task. A caller that
 is not in this list: research it (the research reference).
 
-For example, option a in GitHub Actions:
+For example, option a in GitHub Actions. The `run` shell stops at a failed command,
+so a missing base ref fails the step. `src` splits the list at each space, so a path
+with a space does not pass through it:
 
 ```yaml
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - id: changed
-        run: echo "files=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }}...HEAD -- '*.py' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+        run: |
+          base=$(git merge-base HEAD "origin/${{ github.base_ref }}")
+          echo "files=$(git diff --name-only --diff-filter=d "$base" -- '*.py' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
       - uses: astral-sh/ruff-action@v4
         if: steps.changed.outputs.files != ''
         with:

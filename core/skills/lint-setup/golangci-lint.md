@@ -20,6 +20,29 @@ A `revive <rule>` row comes from a presence check: the doctor found the rule nam
 the config. Its value is the `arguments` of the entry with `name: <rule>` under
 `linters.settings.revive.rules`.
 
+**Compare the two values yourself (step 5).** The doctor gives a rule that runs the
+state `runs` at any value. For each row whose `recommended` is `see <rec>: <key>`:
+
+1. Read each setting under `<key>` in `<rec>`.
+2. Read the same settings at the place that `current` names. A setting that is not
+   there has the default of that linter. When `current` is `the linter's default`,
+   use the defaults. When `current` starts with `<other> runs in its place`, read
+   the setting of `<other>` that holds the same limit (for `cyclop`:
+   `max-complexity`).
+3. Compare each setting. A larger number lets more code pass for `min-complexity`,
+   `lines`, `statements`, `threshold`, `min-len` and `min-occurrences`. For
+   `maintidx` `under`, a smaller number lets more code pass. For a boolean or a list,
+   find which value lets more code pass; when you are not sure, give the rule a row.
+4. The project's value lets more code pass: the rule gets a row. The values are
+   equal, or the project's value is stricter: the rule gets no row.
+
+**The version of the linter.** The `doctor:` note names the golangci-lint binary that
+the doctor ran (the one on PATH) and its version. Compare the version with each
+version that the project pins: the `version:` of golangci-lint-action in CI, a binary
+in the project (for example `.bin/golangci-lint-v2.4.0`), a tool entry in `go.mod`,
+or a version in the task file. When they differ, tell the user that the rows come
+from the version on PATH, and that the pinned version can enable other linters.
+
 ## Count the findings (step 4)
 
 **Run A, every recommended value:**

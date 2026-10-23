@@ -41,9 +41,10 @@ the review keeps the limits of the rules.
 
 <paths>
 - The script: `<this skill dir>/../../scripts/ldd-lint.sh`. Call it as one direct
-  command, for example
+  command, with the path not in quotes, for example
   `bash <this skill dir>/../../scripts/ldd-lint.sh doctor --root <dir> --tsv`.
-  Do not put a variable, a `cd` or a pipe around it: the allowed pattern then does
+  The allowed pattern is `bash *ldd-lint.sh *`. Do not put quotes around the path, and
+  do not put a variable, a `cd` or a pipe around the command: the pattern then does
   not match, and each call asks the user.
 - The recommended configs: `<this skill dir>/../../setup/`.
 - The linter reference: `<this skill dir>/<linter>.md`, where `<linter>` is column 2
@@ -154,15 +155,21 @@ the review keeps the limits of the rules.
 
 ## 5. Agree, per project, in one table
 
-1. **Show one table per project.** One row per rule that needs a decision: a rule that
-   is not agreed and is in the state `missing`, `limit looser`, `options differ` or
-   `named`; and each agreed rule with drift (a drift row), whatever its state. A drift
-   row also shows the value the team agreed and the value now. Say each row in plain
-   words: what the rule limits, the
-   project's value, the recommended value, and the finding count at each. For
-   example: "Function complexity — your limit: 10; recommended: 8; 214 functions fail
-   at 8; 31 at 10." When a value is `see <file>: <key>`, read the value at that
-   place. A key that is not there means the linter's default.
+1. **Show one table per project.** One row per rule that needs a decision:
+   - a rule that is not agreed and is in the state `missing`, `limit looser`,
+     `options differ` or `named`;
+   - a rule that is not agreed and whose recommended value is `see <file>: <key>`,
+     whatever its state. The doctor cannot compare these values. Read the value at
+     both places: the linter reference says how. Leave the rule out only when the two
+     values are equal, or when the project's value is stricter;
+   - each agreed rule with drift (a drift row), whatever its state. A drift row also
+     shows the value the team agreed and the value now.
+
+   Say each row in plain words: what the rule limits, the project's value, the
+   recommended value, and the finding count at each. For example: "Function
+   complexity — your limit: 10; recommended: 8; 214 functions fail at 8; 31 at 10."
+   When a value is `see <file>: <key>`, read the value at that place. A key that is
+   not there means the linter's default.
 2. **Give a default choice per row.** The choices are:
    - `recommended`: take the recommended value;
    - `keep`: keep the project's value;
@@ -174,8 +181,9 @@ the review keeps the limits of the rules.
      stays.
 
    The default is `accept` for a drift row, and `recommended` for each other row. A
-   rule in the state `runs`, `limit stricter` or `agreed` with no drift needs no row:
-   list those rules in one line under the table.
+   rule that item 1 gives no row needs no decision: a rule in the state `runs` or
+   `limit stricter` whose values you know, or a rule in the state `agreed` with no
+   drift. List those rules in one line under the table.
 3. The user answers the exceptions by rule in one reply, for example "all defaults;
    complexity keep; arguments org". Ask for a short reason for each `keep`,
    `<value>`, `off` and `org`: the record keeps it.
@@ -229,10 +237,16 @@ the review keeps the limits of the rules.
       on a drift row, it removes the old line. `keep` on a drift row keeps the old
       line. With a new
       strict file (the record has no `lint_config` item for it yet), add
-      `--config <strict file>`, relative to the project root.
+      `--config <strict file>`, relative to the project root. The `--linter` of the
+      line also names the linter of the strict file.
    3. The fingerprint lines, after the last config edit:
-      `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --fingerprint`,
-      with `--config <strict file>` when the strict file is new.
+      `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --fingerprint`.
+      When the strict file is new, add `--config <strict file>`. When the doctor
+      reports two or more linters for the project, also add `--linter <linter>`: the
+      linter of the strict file. `agree` prints a line only for a linter whose rows
+      show `see <file>: <key>` in place of a value. The rows of each other linter show
+      a changed value, so that linter needs no fingerprint. An empty output is not an
+      error.
    4. With a strict file, its line:
       `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --lint-config <linter> <strict file>`.
    5. **Write the record last.** Copy each line that `agree` printed unchanged, under
@@ -245,6 +259,10 @@ the review keeps the limits of the rules.
       report: another plugin owns them.
 9. `agree` changes each ` | ` in a reason to ` / `. When a printed line is not the
    line in the plan, show the difference before you write the record.
+10. When `agree` exits 2 after the edits, stop before you write the record. For
+    example, an edit can break a config, so that the linter cannot verify it. Show
+    the line that `agree` printed on stderr. Do not write a record line by hand. Fix
+    the edit with the user, or revert it with the user, and then run `agree` again.
 
 The record, for example:
 
