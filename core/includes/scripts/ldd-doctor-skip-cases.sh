@@ -42,6 +42,16 @@ else
   expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
   finish
 
+  begin "doctor --config: a language left to an installed plugin is not a second linter"
+  mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
+  write_src "src/a.go" 1
+  ROW=python; fake_doctor_row; write_src "src/a.py" 1; fake_doctor missing; fake_doctor_strict strict-cfg; ROW=""
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_doctor --config strict-cfg
+  r1=0; expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_has "the chosen config strict-cfg" && r1=1
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --config strict-cfg --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "kept"
+  (( r1 )) && expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE = " && ok
+  finish
+
   begin "--brief says nothing for a project whose every language is left to an installed plugin"
   mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
   write_src "src/a.go" 1

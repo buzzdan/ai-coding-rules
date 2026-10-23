@@ -45,9 +45,10 @@
 #                                     config TAB <linter> TAB <path>
 #                                     row TAB <linter> TAB <rule> TAB <state> TAB <recommended> TAB <current> TAB <source>
 #                                   A config record names the repository's own
-#                                   config file the linter read, relative to the
-#                                   working directory; there is none when the
-#                                   linter read no file.
+#                                   config file the linter read; there is none
+#                                   when the linter read no file. The caller
+#                                   writes its path relative to the working
+#                                   directory (root_relative of ldd-lint.sh).
 #                                   The rules: the ones the recommended config
 #                                   enables, as the linter resolves it, beyond
 #                                   the linter's default set, and the default
@@ -314,21 +315,32 @@ _lint_golangci_default() {
   golangci-lint config path --json 2>/dev/null | sed -n 's/.*"path":"\([^"]*\)".*/\1/p'
 }
 
+# _lint_golangci_who — the binary on PATH and its version, as the doctor's
+# note names them, so a reader can compare them with a version the project pins
+_lint_golangci_who() {
+  local v
+  v=$(golangci-lint version --short 2>/dev/null | head -1)
+  printf 'golangci-lint %s, version %s' "$(command -v golangci-lint)" "${v:-unknown}"
+}
+
 _lint_doctor_golangci() { # <recommended config> <work dir> [chosen config]
-  local rec="$1" t="$2" chosen="${3:-}" out cfg dflt="" r re state tuned rv cv here alt held why which="the repository config"
+  local rec="$1" t="$2" chosen="${3:-}" out cfg dflt="" r re state tuned rv cv here alt held why who which="the repository config"
   command -v golangci-lint >/dev/null 2>&1 || { _lint_doctor_cannot golangci-lint "golangci-lint is not installed"; return 0; }
+  who=$(_lint_golangci_who)
   golangci-lint linters --json -c "$rec" > "$t/rec.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "golangci-lint cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
   golangci-lint linters --json --no-config > "$t/def.json" 2> "$t/err" \
     || { _lint_doctor_cannot golangci-lint "the linter fails with no config: $(_lint_first_error "$t/err")"; return 0; }
   if [[ -n "$chosen" ]]; then
     cfg="$chosen"; which="the chosen config"; dflt=$(_lint_golangci_default)
+    [[ -z "$dflt" ]] || dflt=$(root_relative "$dflt")
   else
     # "path" is "" when the linter finds no config from this directory up
     out=$(golangci-lint config path --json 2>/dev/null) \
       || { _lint_doctor_cannot golangci-lint "the linter cannot say which config it reads"; return 0; }
     case "$out" in
-      *'"path":'*) cfg=$(printf '%s' "$out" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p') ;;
+      *'"path":'*) cfg=$(printf '%s' "$out" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p')
+                   [[ -z "$cfg" ]] || cfg=$(root_relative "$cfg") ;;
       *) _lint_doctor_cannot golangci-lint "cannot read the linter's answer to which config it reads"; return 0 ;;
     esac
   fi
@@ -344,11 +356,11 @@ _lint_doctor_golangci() { # <recommended config> <work dir> [chosen config]
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }
     [[ -f "$cfg" ]] && printf 'config\tgolangci-lint\t%s\n' "$cfg"
     [[ -n "$dflt" && "$dflt" != "$cfg" && -f "$dflt" ]] && printf 'config\tgolangci-lint\t%s\n' "$dflt"
-    printf 'note\tgolangci-lint, %s %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$which" "$cfg"
+    printf 'note\t%s, %s %s; the linter reports which linters run, not their settings; revive rules are found by name, so enable-all-rules and a disabled rule are not seen\n' "$who" "$which" "$cfg"
     here="see $cfg"
   else
     cp "$t/def.json" "$t/repo.json"
-    printf 'note\tgolangci-lint, no repository config: the linter runs its default set\n'
+    printf 'note\t%s, no repository config: the linter runs its default set\n' "$who"
     here="the linter's default"
   fi
   _lint_golangci_names "$t/rec.json" > "$t/rec"
@@ -426,36 +438,52 @@ _lint_limit_state() {
   else printf 'limit stricter'; fi
 }
 
-# _lint_ruff_show <chosen config> <file> — the settings ruff resolves for the
-# file, with --config <chosen config> when there is one
+# _lint_ruff_bin — the project's ruff: .venv/bin/ruff or venv/bin/ruff in this
+# directory, or in a directory above it up to the top of the git work tree
+# (a project that runs ruff through its virtual environment); else ruff on PATH
+_lint_ruff_bin() {
+  local d top v
+  d=$(pwd -P); top=$(git rev-parse --show-toplevel 2>/dev/null) || top="$d"
+  top=$(cd "$top" && pwd -P)
+  while :; do
+    for v in .venv venv; do
+      [[ -x "$d/$v/bin/ruff" ]] && { printf '%s' "$d/$v/bin/ruff"; return 0; }
+    done
+    [[ "$d" == "$top" || "$d" == / ]] && break
+    d=$(dirname "$d")
+  done
+  command -v ruff
+}
+
+# _lint_ruff_show <bin> <chosen config> <file> — the settings ruff resolves for
+# the file, with --config <chosen config> when there is one
 _lint_ruff_show() {
-  if [[ -n "$1" ]]; then ruff check --no-cache --color never --show-settings --config "$1" "$2"
-  else ruff check --no-cache --color never --show-settings "$2"; fi
+  if [[ -n "$2" ]]; then "$1" check --no-cache --color never --show-settings --config "$2" "$3"
+  else "$1" check --no-cache --color never --show-settings "$3"; fi
 }
 
 # _lint_ruff_path <show-settings output> — its settings path, relative to the
-# working directory when it is inside it; nothing when ruff names none
+# working directory (root_relative of ldd-lint.sh); nothing when ruff names none
 _lint_ruff_path() {
   local p
   p=$(sed -n 's/^Settings path: "\(.*\)"$/\1/p' "$1")
-  p="${p#"$(pwd -P)"/}"; p="${p#"$(pwd)"/}"
-  printf '%s' "$p"
+  [[ -z "$p" ]] || root_relative "$p"
 }
 
 _lint_doctor_ruff() { # <recommended config> <file> <work dir> [chosen config]
-  local rec="$1" f="./$2" t="$3" chosen="${4:-}" sp dflt="" from which="the repository's config" r state key rv cv a b
-  command -v ruff >/dev/null 2>&1 || { _lint_doctor_cannot ruff "ruff is not installed"; return 0; }
+  local rec="$1" f="./$2" t="$3" chosen="${4:-}" bin sp dflt="" from which="the repository's config" r state key rv cv a b
+  bin=$(_lint_ruff_bin) || { _lint_doctor_cannot ruff "ruff is not installed: not on PATH, and not in .venv/bin or venv/bin of the project"; return 0; }
   [[ -n "$2" ]] || { _lint_doctor_cannot ruff "no source file to resolve the settings for"; return 0; }
-  ruff check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
+  "$bin" check --no-cache --color never --show-settings --config "$rec" "$f" > "$t/rec.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "ruff cannot run with the recommended config: $(_lint_first_error "$t/err")"; return 0; }
-  ruff check --no-cache --color never --show-settings --isolated "$f" > "$t/def.txt" 2> "$t/err" \
+  "$bin" check --no-cache --color never --show-settings --isolated "$f" > "$t/def.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "the linter fails with no config: $(_lint_first_error "$t/err")"; return 0; }
   [[ -n "$chosen" ]] && which="the chosen config $chosen"
-  _lint_ruff_show "$chosen" "$f" > "$t/repo.txt" 2> "$t/err" \
+  _lint_ruff_show "$bin" "$chosen" "$f" > "$t/repo.txt" 2> "$t/err" \
     || { _lint_doctor_cannot ruff "the linter rejects $which: $(_lint_first_error "$t/err")"; return 0; }
   if [[ -n "$chosen" ]]; then
     sp="$chosen"; from="the chosen config $chosen"
-    _lint_ruff_show "" "$f" > "$t/dflt.txt" 2>/dev/null && dflt=$(_lint_ruff_path "$t/dflt.txt")
+    _lint_ruff_show "$bin" "" "$f" > "$t/dflt.txt" 2>/dev/null && dflt=$(_lint_ruff_path "$t/dflt.txt")
   else
     sp=$(_lint_ruff_path "$t/repo.txt")
     [[ -n "$sp" ]] || sp="no config file, the linter's defaults"
@@ -463,7 +491,7 @@ _lint_doctor_ruff() { # <recommended config> <file> <work dir> [chosen config]
   fi
   [[ -f "$sp" ]] && printf 'config\truff\t%s\n' "$sp"
   [[ -n "$dflt" && "$dflt" != "$sp" && -f "$dflt" ]] && printf 'config\truff\t%s\n' "$dflt"
-  printf 'note\truff, the settings resolved for %s from %s\n' "$2" "$from"
+  printf 'note\truff %s, the settings resolved for %s from %s\n' "$bin" "$2" "$from"
   _lint_ruff_rules "$t/rec.txt" > "$t/rec"
   _lint_ruff_rules "$t/def.txt" > "$t/def"
   _lint_ruff_rules "$t/repo.txt" > "$t/repo"

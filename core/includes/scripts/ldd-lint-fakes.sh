@@ -33,6 +33,9 @@
 #                            the linter reports on as on the recommended
 #                            config; the golangci-lint fake logs its calls in
 #                            $REPO/.bin/calls.log
+#   fake_doctor_config_above  after fake_doctor: move the repository config to
+#                            the directory above $REPO, and make the fake linter
+#                            name it by its absolute path
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
@@ -68,8 +71,12 @@
 #                    such rule exists
 #   FAKE_SEE_RULE    a rule whose recommended side is a place to read, though
 #                    the linter reports the current setting; "" if none
-#   FAKE_LEGACY_CONFIG an older config file name the doctor also compares (the
-#                    fixture writes it in place of FAKE_CONFIG); "" if none
+#   FAKE_BIN_NOTE    the text the doctor's note gives for the linter binary it
+#                    ran (and its version, where the doctor names one)
+#   FAKE_VENV        the directory of a project's virtual environment where the
+#                    doctor also finds the linter; "" when it looks elsewhere
+#   FAKE_ABOVE       "yes" when the linter finds a config in the directory above
+#                    the project (fake_doctor_config_above); "" if not
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
 #                    which the invalid and noschema modes fail; "" if not
 
@@ -78,14 +85,16 @@ fake_doctor_row() {
     go)
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
-      FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''; FAKE_LEGACY_CONFIG=''
+      FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
+      FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
-      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''; FAKE_LEGACY_CONFIG=''
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
+      FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
@@ -97,7 +106,8 @@ fake_doctor_row() {
       FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
-      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'; FAKE_LEGACY_CONFIG='.eslintrc.json'
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
+      FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
@@ -175,6 +185,7 @@ fake_doctor() { # <mode>
 echo "$*" >> "$d/calls.log"
 cfg=""; prev=""
 for a in "$@"; do [ "$prev" = -c ] && cfg=$a; prev=$a; done
+if [ "$1" = version ] && [ "$2" = --short ]; then echo 2.8.0; exit 0; fi
 if [ "$1" = config ] && [ "$2" = verify ]; then
   if [ -f "$d/verify.txt" ] && [ -z "$cfg" ]; then cat "$d/verify.txt" >&2; exit 3; fi
   exit 0
@@ -271,6 +282,16 @@ fake_doctor_strict() {
     go)         cp "$(_fake_setup golangci.yaml)" "$REPO/$p"; cp "$b/recommended.json" "$b/$n.out" ;;
     python)     cp "$(_fake_setup ruff.toml)" "$REPO/$p"; cp "$b/recommended.txt" "$b/$n.out" ;;
     typescript) cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/$p"; _fake_eslint_json adopt > "$REPO/node_modules/.bin/$n.out" ;;
+  esac
+}
+
+fake_doctor_config_above() {
+  local up b="$REPO/.bin"; up=$(cd "$REPO/.." && pwd -P)
+  case "$ROW" in
+    go)     mv "$REPO/.golangci.yaml" "$up/.golangci.yaml"
+            printf '{"absolutePath":"%s/.golangci.yaml","path":"%s/.golangci.yaml"}\n' "$up" "$up" > "$b/path.json" ;;
+    python) mv "$REPO/pyproject.toml" "$up/pyproject.toml"
+            _fake_ruff_settings ../pyproject.toml 4 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
   esac
 }
 

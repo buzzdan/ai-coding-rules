@@ -131,6 +131,10 @@ record_item() {
   printf '  - "%s"\n' "$t"
 }
 
+# names_linter — an item of "agreed" that names the row's linter and agrees no
+# row, so a --brief run counts the linter's rows and nothing else changes
+names_linter() { record_item "$FAKE_LINTER" "ldd-test-no-rule" "org" "the record names the linter"; }
+
 # doctor_field <rule> <field number> — one field of the doctor's TSV row
 doctor_field() { printf '%s\n' "$OUT" | awk -F'\t' -v r="$1" -v n="$2" '$3 == r { print $n; exit }'; }
 
@@ -699,32 +703,15 @@ run_doctor
 expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
 finish
 
-begin "agree --fingerprint names a legacy config file"
-if [[ -z "$FAKE_LEGACY_CONFIG" ]]; then skip "the linter has no older config file name"; finish
-else
-  write_src "src/a$FX_EXT" 1; fake_doctor adopt
-  rm -f "$REPO/$FAKE_CONFIG"; printf '{}\n' > "$REPO/$FAKE_LEGACY_CONFIG"
-  run_agree --fingerprint
-  expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_LEGACY_CONFIG $(git hash-object "$REPO/$FAKE_LEGACY_CONFIG")\"" && ok
-  finish
-fi
-
-begin "agree --fingerprint names package.json when it holds the linter's config"
-if [[ -z "$FAKE_LEGACY_CONFIG" ]]; then skip "the linter has no older config file name"; finish
-else
-  write_src "src/a$FX_EXT" 1; fake_doctor adopt
-  rm -f "$REPO/$FAKE_CONFIG"; printf '{"eslintConfig": {}}\n' > "$REPO/package.json"
-  run_agree --fingerprint
-  expect_exit 0 && expect_out "  - \"$FAKE_LINTER package.json $(git hash-object "$REPO/package.json")\"" && ok
-  finish
-fi
-
 begin "agree --fingerprint notes a linter with no compared config file and exits 0"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-rm -f "$REPO/$FAKE_CONFIG"
-run_agree --fingerprint
-expect_exit 0 && [[ -z "$OUT" ]] && expect_has "no config file of $FAKE_LINTER was compared" && ok
-finish
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  rm -f "$REPO/$FAKE_CONFIG"
+  run_agree --fingerprint
+  expect_exit 0 && [[ -z "$OUT" ]] && expect_has "no config file of $FAKE_LINTER was compared" && ok
+  finish
+fi
 
 begin "agree for a rule with no row is a usage error (exit 2)"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
@@ -759,18 +746,24 @@ expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_RULE = off | a / / b / c\"
 finish
 
 begin "agree --fingerprint prints one hash per compared config"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint
-expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\"" && ok
-finish
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_agree --fingerprint
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\"" && ok
+  finish
+fi
 
 begin "agree --fingerprint falls back to the checksum when git cannot hash"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-mkdir -p "$REPO/.bin"; printf '#!/bin/sh\nexit 1\n' > "$REPO/.bin/git"; chmod +x "$REPO/.bin/git"
-run_agree --fingerprint
-sum=$(cksum < "$REPO/$FAKE_CONFIG" | cut -d' ' -f1)
-expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $sum\"" && ok
-finish
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  mkdir -p "$REPO/.bin"; printf '#!/bin/sh\nexit 1\n' > "$REPO/.bin/git"; chmod +x "$REPO/.bin/git"
+  run_agree --fingerprint
+  sum=$(cksum < "$REPO/$FAKE_CONFIG" | cut -d' ' -f1)
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $sum\"" && ok
+  finish
+fi
 
 begin "agree --fingerprint for a linter that cannot verify is exit 2"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
@@ -842,56 +835,74 @@ expect_exit 0 && expect_out "$(record_item "$FAKE_LINTER" "$FAKE_RULE" "$cur" "t
 finish
 
 begin "agree --fingerprint prints the chosen file and the repository's own config"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_strict strict-cfg
-run_agree --fingerprint --config strict-cfg
-want="  - \"$FAKE_LINTER strict-cfg $(git hash-object "$REPO/strict-cfg")\"
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_strict strict-cfg
+  run_agree --fingerprint --config strict-cfg
+  want="  - \"$FAKE_LINTER strict-cfg $(git hash-object "$REPO/strict-cfg")\"
   - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\""
-expect_exit 0 && expect_out "$want" && ok
-finish
+  expect_exit 0 && expect_out "$want" && ok
+  finish
+fi
 
 begin "agree --fingerprint with a lint_config item prints both files too"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_strict strict-cfg
-write_record "lint_config:
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_strict strict-cfg
+  write_record "lint_config:
   - \"$FAKE_LINTER strict-cfg\""
-run_agree --fingerprint
-expect_exit 0 && expect_out "$want" && ok
-finish
+  run_agree --fingerprint
+  expect_exit 0 && expect_out "$want" && ok
+  finish
+fi
 
 begin "agree --fingerprint prints one line when the chosen file is the repository's own config"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint --config "$FAKE_CONFIG"
-expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\"" && ok
-finish
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_agree --fingerprint --config "$FAKE_CONFIG"
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_CONFIG $(git hash-object "$REPO/$FAKE_CONFIG")\"" && ok
+  finish
+fi
 
 begin "doctor: a config changed since the agreement is named"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint
-write_record "lint_fingerprint:
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_agree --fingerprint
+  write_record "lint_fingerprint:
 $OUT"
-printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
-run_doctor
-expect_exit 0 && { printf '%s\n' "$ERR" | grep -qx "doctor: $FAKE_CONFIG changed since the setup was agreed" \
-  || bad "no change line on stderr"; } && ok
-finish
+  printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
+  run_doctor
+  expect_exit 0 && { printf '%s\n' "$ERR" | grep -qx "doctor: $FAKE_CONFIG changed since the setup was agreed" \
+    || bad "no change line on stderr"; } && ok
+  finish
+fi
 
 begin "doctor: a config that is gone since the agreement is named"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint
-write_record "lint_fingerprint:
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_agree --fingerprint
+  write_record "lint_fingerprint:
 $OUT"
-rm -f "$REPO/$FAKE_CONFIG"
-run_doctor
-expect_exit 0 && expect_has "doctor: $FAKE_CONFIG changed since the setup was agreed" && ok
-finish
+  rm -f "$REPO/$FAKE_CONFIG"
+  run_doctor
+  expect_exit 0 && expect_has "doctor: $FAKE_CONFIG changed since the setup was agreed" && ok
+  finish
+fi
 
 begin "doctor: an unchanged config prints no change line"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint
-write_record "lint_fingerprint:
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_agree --fingerprint
+  write_record "lint_fingerprint:
 $OUT"
-run_doctor
-expect_exit 0 && expect_not "changed since" && ok
-finish
+  run_doctor
+  expect_exit 0 && expect_not "changed since" && ok
+  finish
+fi
 
 begin "doctor: a fingerprint of a linter the run does not report is ignored"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
@@ -900,6 +911,32 @@ write_record "lint_fingerprint:
 run_doctor
 expect_exit 0 && expect_not "changed since" && ok
 finish
+
+begin "agree --fingerprint prints no line for a linter that reports its settings"
+if [[ -n "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports no setting, so its drift shows through the fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_strict strict-cfg
+  run_agree --fingerprint
+  r1=0; expect_exit 0 && expect_out "" && expect_not "no config file of" && r1=1
+  run_agree --fingerprint --config strict-cfg
+  (( r1 )) && expect_exit 0 && expect_out "" && expect_not "no config file of" && ok
+  finish
+fi
+
+begin "doctor: a fingerprint item of a linter that reports its settings is ignored"
+if [[ -n "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports no setting, so its drift shows through the fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  write_record "lint_fingerprint:
+  - \"$FAKE_LINTER $FAKE_CONFIG 0000\"
+agreed: []"
+  printf '\n' >> "$REPO/$FAKE_CONFIG"
+  run_doctor
+  r1=0; expect_exit 0 && expect_not "changed since" && r1=1
+  run_brief
+  (( r1 )) && expect_exit 0 && expect_out "" && ok
+  finish
+fi
 
 begin "doctor: a record line that matches no row is named in a warning"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
@@ -988,6 +1025,50 @@ expect_exit 0 && expect_has "doctor: " \
   && { printf '%s\n' "$ERR" | grep -q '^doctor: ' || bad "the doctor line is not on stderr"; } && ok
 finish
 
+begin "doctor: a config above the project is named relative to the project"
+if [[ -z "$FAKE_ABOVE" ]]; then skip "the linter looks for its config in the project only"; finish
+else
+  real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt; fake_doctor_config_above
+  up=$(cd "$real" && pwd -P)
+  run_doctor
+  r1=0; expect_exit 0 && expect_has "../$FAKE_CONFIG" && expect_not "$up/$FAKE_CONFIG" && r1=1
+  if (( r1 )) && [[ -n "$FAKE_NO_SETTINGS" ]]; then
+    run_agree --fingerprint
+    expect_exit 0 && expect_out "  - \"$FAKE_LINTER ../$FAKE_CONFIG $(git hash-object "$real/$FAKE_CONFIG")\"" || r1=0
+  fi
+  (( r1 )) && ok
+  REPO=$real; finish
+fi
+
+begin "doctor: the note names the linter binary the doctor ran"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_doctor
+expect_exit 0 && expect_has "$FAKE_BIN_NOTE" && ok
+finish
+
+begin "doctor: a linter in the project's virtual environment is found"
+if [[ -z "$FAKE_VENV" ]]; then skip "the doctor does not look for the linter in a virtual environment"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  mkdir -p "$REPO/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$REPO/$FAKE_VENV"
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "/$FAKE_VENV/$FAKE_BIN," && expect_not "cannot verify" && ok
+  finish
+fi
+
+begin "doctor: a virtual environment at the top of the git work tree serves a project below"
+if [[ -z "$FAKE_VENV" ]]; then skip "the doctor does not look for the linter in a virtual environment"; finish
+else
+  real=$REPO; REPO="$real/svc"; mkdir -p "$REPO"
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  mkdir -p "$real/$(dirname "$FAKE_VENV")" && mv "$REPO/.bin" "$real/$FAKE_VENV"
+  ( cd "$real" && git init -q . ) >/dev/null 2>&1
+  run_doctor
+  expect_exit 0 && expect_has "$FAKE_RULE: $FAKE_RUNS;" && expect_has "/$FAKE_VENV/$FAKE_BIN," && ok
+  REPO=$real; finish
+fi
+
 begin "doctor never edits a file"
 write_src "src/a$FX_EXT" 1; fake_doctor relaxed
 before=$(tree_sum)
@@ -1024,42 +1105,52 @@ finish
 
 begin "--brief names the count of rules not agreed"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
-write_record "agreed: []"
+write_record "agreed:
+$(names_linter)"
 run_brief
 expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
 finish
 
 begin "--brief counts a missing rule and a changed config as two differences"
-write_src "src/a$FX_EXT" 1; fake_doctor missing
-run_agree --fingerprint
-write_record "agreed: []
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor missing
+  run_agree --fingerprint
+  write_record "agreed: []
 lint_fingerprint:
 $OUT"
-printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
-run_brief
-expect_exit 0 && expect_out "$(brief_line . "2 rules differ from what the team agreed")" && ok
-finish
+  printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "2 rules differ from what the team agreed")" && ok
+  finish
+fi
 
 begin "--brief counts a changed config"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint
-write_record "agreed: []
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_agree --fingerprint
+  write_record "agreed: []
 lint_fingerprint:
 $OUT"
-printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
-run_brief
-expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
-finish
+  printf '# edited\n' >> "$REPO/$FAKE_CONFIG"
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+  finish
+fi
 
 begin "--brief says nothing for an unchanged config"
-write_src "src/a$FX_EXT" 1; fake_doctor adopt
-run_agree --fingerprint
-write_record "agreed: []
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  run_agree --fingerprint
+  write_record "agreed: []
 lint_fingerprint:
 $OUT"
-run_brief
-expect_exit 0 && expect_out "" && ok
-finish
+  run_brief
+  expect_exit 0 && expect_out "" && ok
+  finish
+fi
 
 begin "--brief does not count a missing rule that is agreed off"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
@@ -1090,7 +1181,8 @@ begin "--brief does not count limit stricter"
 if [[ -z "$FAKE_TIGHTENED" ]]; then skip "the linter reports no setting to compare"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor tightened
-  write_record "agreed: []"
+  write_record "agreed:
+$(names_linter)"
   run_doctor
   expect_has "$FAKE_TIGHTENED" && { run_brief; expect_exit 0 && expect_out ""; } && ok
   finish
@@ -1100,7 +1192,8 @@ begin "--brief does not count options that differ"
 if [[ -z "$FAKE_OPTIONS" ]]; then skip "the linter reports no such options"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor optsdiffer
-  write_record "agreed: []"
+  write_record "agreed:
+$(names_linter)"
   run_doctor
   expect_has "$FAKE_OPTIONS" && { run_brief; expect_exit 0 && expect_out ""; } && ok
   finish
@@ -1129,7 +1222,8 @@ write_src "src/a$FX_EXT" 1; fake_doctor missing
 REPO=$real
 [[ ! -d "$real/sub/.bin" ]] || mv "$real/sub/.bin" "$real/.bin"
 write_src "src/b$FX_EXT" 1
-write_record "agreed: []" ; mv "$REPO/.ldd-lint.yaml" "$REPO/sub/.ldd-lint.yaml"
+write_record "agreed:
+$(names_linter)"; mv "$REPO/.ldd-lint.yaml" "$REPO/sub/.ldd-lint.yaml"
 ( cd "$REPO" && git init -q . && git add -A ) >/dev/null 2>&1
 run_brief
 expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok
@@ -1140,7 +1234,7 @@ real=$REPO; REPO="$real/sub"; mkdir -p "$REPO"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 REPO=$real
 [[ ! -d "$real/sub/.bin" ]] || mv "$real/sub/.bin" "$real/.bin"
-printf 'agreed: []\n' > "$REPO/sub/.ldd-lint.yaml"
+printf 'agreed:\n%s\n' "$(names_linter)" > "$REPO/sub/.ldd-lint.yaml"
 run_brief
 expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok
 finish
@@ -1149,7 +1243,8 @@ begin "--brief with no linter on PATH names the project and exits 0"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
 else
   write_src "src/a$FX_EXT" 1
-  write_record "agreed: []"
+  write_record "agreed:
+$(names_linter)"
   run_brief
   expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
   finish
@@ -1159,11 +1254,51 @@ begin "--brief names a linter that cannot check before it counts rules"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor reject
-  write_record "agreed: []"
+  write_record "agreed:
+$(names_linter)"
   run_brief
   expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
   finish
 fi
+
+begin "--brief says nothing for a record with no item of the linter"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []"
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief says nothing for a record that names only another linter"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item other-linter some-rule off "another plugin's decision")
+lint_fingerprint:
+  - \"other-linter other.cfg 0000\"
+lint_config:
+  - \"other-linter other.cfg\""
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief says nothing about a linter that cannot check when no item names it"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1
+  write_record "agreed:
+$(record_item other-linter some-rule off "another plugin's decision")"
+  run_brief
+  expect_exit 0 && expect_out "" && ok
+  finish
+fi
+
+begin "--brief counts the rows of a linter that only a lint_config item names"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []
+lint_config:
+  - \"$FAKE_LINTER $FAKE_CONFIG\""
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+finish
 
 begin "--brief says nothing for a .ldd-lint.yaml that holds only file_max_lines"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
@@ -1172,9 +1307,10 @@ run_brief
 expect_exit 0 && expect_out "" && linter_not_called && ok
 finish
 
-begin "--brief reads agreed: [] as a record with no differences"
+begin "--brief reads a record with no difference as no line"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
-write_record "agreed: []"
+write_record "agreed:
+$(names_linter)"
 run_brief
 expect_exit 0 && expect_out "" && ok
 finish
@@ -1194,7 +1330,8 @@ finish
 
 begin "--brief never edits a file"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
-write_record "agreed: []"
+write_record "agreed:
+$(names_linter)"
 before=$(tree_sum)
 run_brief
 expect_exit 0 && { [[ "$(tree_sum)" == "$before" ]] || bad "the tree changed"; } && ok
@@ -1228,15 +1365,83 @@ run_bounded() {
   OUT=$(cat "$outf"); ERR=""; rm -f "$outf"
 }
 
-begin "--config with a run of two linters is a usage error (exit 2)"
-if (( $(printf '%s\n' $FX_ROWS | wc -l) < 2 )); then skip "the plugin reports one linter"
+# rows_linters — the distinct linters of the fixture rows, one per line
+rows_linters() {
+  local r
+  for r in $FX_ROWS; do ROW=$r; fake_doctor_row; printf '%s\n' "$FAKE_LINTER"; done | awk '!seen[$0]++'
+  ROW=""
+}
+
+# two_linters <mode> — every row's source file and fake linter in that mode;
+# FIRST_LINTER and FIRST_RULE name the first row's linter and rule, and the
+# FAKE_* variables are the last row's
+two_linters() {
+  local r; FIRST_LINTER=""
+  for r in $FX_ROWS; do
+    use_row "$r"; ROW=$r; fake_doctor_row; write_src "src/a$FX_EXT" 1; fake_doctor "$1"
+    [[ -n "$FIRST_LINTER" ]] || { FIRST_LINTER=$FAKE_LINTER; FIRST_RULE=$FAKE_RULE; }
+  done
+}
+
+begin "--config with a run of two linters and no --linter is a usage error (exit 2)"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
 else
   for r in $FX_ROWS; do use_row "$r"; write_src "src/a$FX_EXT" 1; done
   : > "$REPO/x.cfg"
   run_doctor --config x.cfg
-  expect_exit 2 && expect_has "--config" && expect_has "one linter" && ok
+  expect_exit 2 && expect_has "--config" && expect_has "--linter" && ok
 fi
 finish
+
+begin "--config with --linter compares that file for that linter only"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  two_linters missing; fake_doctor_strict strict-cfg
+  run_doctor --config strict-cfg --linter "$FAKE_LINTER"
+  r1=0; expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE: $FAKE_RUNS;" && expect_has "$FIRST_LINTER $FIRST_RULE: missing;" \
+    && expect_has "the chosen config strict-cfg" && r1=1
+  run_agree --config strict-cfg --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "kept"
+  r2=0; (( r1 )) && expect_exit 0 && expect_has "$FAKE_LINTER $FAKE_RULE = " && r2=1
+  run_agree --fingerprint --config strict-cfg --linter "$FAKE_LINTER"
+  (( r2 )) && expect_exit 0 && ok
+fi
+ROW=""; finish
+
+begin "--linter that names a linter the run does not report is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1; : > "$REPO/x.cfg"
+run_doctor --config x.cfg --linter no-such-linter
+expect_exit 2 && expect_has "--linter no-such-linter" && ok
+finish
+
+begin "doctor --linter without --config is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1
+run_doctor --linter a-linter
+expect_exit 2 && expect_has "--linter" && expect_has "--config" && ok
+finish
+
+begin "--brief counts only the rows of the linters the record names"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  two_linters missing
+  write_record "agreed:
+$(names_linter)"
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+fi
+ROW=""; finish
+
+begin "--brief says nothing about a linter that cannot check when the record names only another"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  for r in $FX_ROWS; do use_row "$r"; write_src "src/a$FX_EXT" 1; done
+  # only the last row's linter is installed; the record names only that one
+  ROW=$r; fake_doctor_row; fake_doctor adopt
+  write_record "agreed:
+$(names_linter)"
+  run_brief
+  expect_exit 0 && expect_out "" && ok
+fi
+ROW=""; finish
 
 begin "--config with a path that is not a file is a usage error (exit 2)"
 write_src "src/a$FX_EXT" 1
@@ -1287,6 +1492,27 @@ record_read record_has lint_config; b=$?
 record_read record_has lint_fingerprint; c=$?
 rm -f "$REPO/.ldd-lint.yaml"; record_read record_has agreed; d=$?
 (( a == 0 && b == 0 && c != 0 && d != 0 )) && [[ -z "$(record_read record_items agreed)" ]] && ok || bad "has: $a $b $c $d"
+finish
+
+begin "the record readers: an item with no indent is read"
+write_record 'agreed:
+- "a-linter r1 = 3 | at column zero"
+  - "a-linter r2 = off | indented"'
+got=$(record_read record_items agreed); val=$(record_read record_agreed a-linter r1)
+[[ "$got" == "a-linter r1 = 3 | at column zero
+a-linter r2 = off | indented" && "$val" == 3 ]] && ok || bad "read: $got; value: $val"
+finish
+
+# root_relative <path> — runs the script's path helper from $REPO/svc
+root_relative() {
+  ( cd "$REPO/svc" && eval "$(sed -n '/^root_relative() {/,/^}/p' "$LINT")" && root_relative "$1" )
+}
+
+begin "a config path above the project is written relative to the project"
+mkdir -p "$REPO/svc/sub"; : > "$REPO/a.cfg"; : > "$REPO/svc/sub/b.cfg"
+up=$(cd "$REPO" && pwd -P)
+r1=$(root_relative "$up/a.cfg"); r2=$(root_relative "$up/svc/sub/b.cfg"); r3=$(root_relative "sub/b.cfg"); r4=$(root_relative "../a.cfg")
+[[ "$r1" == ../a.cfg && "$r2" == sub/b.cfg && "$r3" == sub/b.cfg && "$r4" == ../a.cfg ]] && ok || bad "got: $r1 | $r2 | $r3 | $r4"
 finish
 
 begin "--brief on another subcommand is a usage error (exit 2)"
