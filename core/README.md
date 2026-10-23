@@ -26,7 +26,7 @@ differs from its rendering.
 
 ## Templating
 
-Go `text/template` with the default delimiters. Core files use only two constructs:
+Go `text/template` with the default delimiters. Core files use only three constructs:
 
 - `{{.Plugin}}`, `{{.Lang}}`, `{{.CmdPrefix}}`, `{{.SrcGlob}}`, `{{.TestGlob}}`,
   `{{.ProjectMarker}}`, `{{.Nolint}}`, `{{.CommentPrefix}}`, `{{.DefaultTest}}`,
@@ -50,6 +50,10 @@ Go `text/template` with the default delimiters. Core files use only two construc
   but it may not include another file. An include sits at a block boundary — a bullet, paragraph,
   fence or table row — never inside a sentence; which text is an include and which is
   reworded in core is decided in `docs/language-residue.md`.
+- `{{"{{"}}` — a literal `{{` in the rendered file. A core file that shows another
+  tool's template text writes it this way: `{{"{{"}}.CLI_ARGS}}` renders to
+  `{{.CLI_ARGS}}` (a Taskfile variable), and `${{"{{"}} github.base_ref }}` renders to
+  `${{ github.base_ref }}` (a GitHub Actions expression). A closing `}}` needs no escape.
 
 File-level rules the generator applies without template syntax:
 
@@ -206,6 +210,13 @@ differently from the other bindings:
   `ldd-lint` matrix checks that the file sets that rule at the scalar's value; when
   `golangci-lint`, `ruff` or `node` is on PATH, the matrix also has each tool check
   its file.
+- `skills/lint-setup/` renders the same in every plugin. Its `SKILL.md` names no
+  linter; the per-linter recipes are in `golangci-lint.md`, `ruff.md` and
+  `eslint.md` beside it, each with a `residue-exempt:` marker, so the generic plugin
+  carries all three. Its `allowed-tools` list names the linters' check commands, so it
+  is the include `skills/lint-setup/allowed-tools.md` under `core/includes/`, with its
+  own marker. The trigger clause of its description is a binding include,
+  `skills/lint-setup/description-scope.md`, with no core default.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The
