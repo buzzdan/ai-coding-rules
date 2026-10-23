@@ -42,6 +42,21 @@ else
   expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
   finish
 
+  begin "agree --linters: a language left to an installed plugin gives no line"
+  mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
+  write_src "src/a.go" 1
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --linters
+  expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
+  finish
+
+  begin "agree --linters: a language left to an installed plugin is not printed beside another language"
+  mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
+  write_src "src/a.go" 1
+  ROW=python; fake_doctor_row; write_src "src/a.py" 1; fake_doctor adopt; ROW=""
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --linters
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && ok
+  finish
+
   begin "doctor --config: a language left to an installed plugin is not a second linter"
   mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
   write_src "src/a.go" 1

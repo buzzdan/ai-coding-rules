@@ -224,8 +224,9 @@ the review keeps the limits of the rules.
    now on, a commit fails on a new complexity finding in the files it changes."
 5. An install (a linter, a linter plugin, a helper tool) is a line in the plan. Do the
    install only when the user agrees to that line.
-6. The record: show the keys and one line per decision. The fingerprint lines come
-   from the edited files, so the plan says "written after the edits" for them.
+6. The record: show the keys and one line per decision. The fingerprint lines and the
+   linters lines come from the edited files, so the plan says "written after the
+   edits" for them.
 7. **Edit only after an explicit yes to this plan.** A question or a change request is
    not a yes: show the changed plan and ask again.
 8. After the yes, edit in this order:
@@ -250,15 +251,23 @@ the review keeps the limits of the rules.
       show `see <file>: <key>` in place of a value. The rows of each other linter show
       a changed value, so that linter needs no fingerprint. An empty output is not an
       error.
-   4. With a strict file, its line:
+   4. The linters lines, for every project that gets a record, after the last config
+      edit: `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --linters`.
+      It prints one line for each linter that this plugin reports and checked. The
+      status line counts the rows of these linters only. A setup that took every
+      recommended value has no other item that names its linter. When `agree` prints
+      no line and a note on stderr, show the note: write `agreed: []` and no
+      `linters:` key, and say that the status line stays silent for this project.
+   5. With a strict file, its line:
       `bash <this skill dir>/../../scripts/ldd-lint.sh agree --root <dir> --lint-config <linter> <strict file>`.
-   5. **Write the record last.** Copy each line that `agree` printed unchanged, under
-      its key: `agreed:`, `lint_config:` or `lint_fingerprint:`. With no `agreed`
-      line, write `agreed: []`. Write only the key lines and the copied lines. Keep
-      the other keys of the file (for example `file_max_lines`). Keep the line of
-      each agreed rule that this run did not ask about, and replace the line of each
-      rule that the user decided again. Replace the fingerprint lines of the linters
-      that this run checked. Keep the items of a linter that this plugin does not
+   6. **Write the record last.** Copy each line that `agree` printed unchanged, under
+      its key: `agreed:`, `lint_config:`, `lint_fingerprint:` or `linters:`. With no
+      `agreed` line, write `agreed: []`. Write only the key lines and the copied
+      lines. Keep the other keys of the file (for example `file_max_lines`). Keep the
+      line of each agreed rule that this run did not ask about, and replace the line
+      of each rule that the user decided again. Replace the fingerprint lines of the
+      linters that this run checked. Replace the `linters:` items of the linters that
+      this plugin reports. Keep the items of a linter that this plugin does not
       report: another plugin owns them.
 9. `agree` changes each ` | ` in a reason to ` / `. When a printed line is not the
    line in the plan, show the difference before you write the record.
@@ -274,6 +283,8 @@ lint_config:
   - "<linter> <strict file>"
 lint_fingerprint:
   - "<linter> <config file> <hash>"
+linters:
+  - "<linter>"
 agreed:
   - "<linter> <rule> = <value> | <reason>"
 ```

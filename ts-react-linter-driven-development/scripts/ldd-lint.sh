@@ -38,6 +38,8 @@
 #   --reason <text>        agree: why the team agreed
 #   --fingerprint          agree: one line per config file the doctor compared,
 #                          for each linter that reports no setting
+#   --linters              agree: one line per linter this run reports and
+#                          checked
 #   --config <file>        doctor and agree: compare this config file in place of
 #                          the repository's own, for one linter: the one that
 #                          --linter names, else the one linter of the run (the
@@ -96,7 +98,7 @@
 # A backslash and a quote in it are escaped. The value is the setting as the
 # doctor shows it in current, or "off", or "org" (the organization owns it). The
 # keys "lint_config" and "lint_fingerprint" hold the config files the agreement
-# was made against:
+# was made against, and the key "linters" names the linters the setup covers:
 #   lint_config       "<linter> <path>": the doctor compares that file for that
 #                     linter, in place of the repository's own config, and the
 #                     linter's own config check reads it too. --config overrides
@@ -111,6 +113,11 @@
 #                     stderr, once per file. It ignores an item of a linter the
 #                     run does not report, and an item of a linter that reports
 #                     its settings: the rows of that linter show a changed value.
+#   linters           "<linter>", one item per linter the setup covers, also a
+#                     linter with no item in another key (a setup that took every
+#                     recommended value has none). doctor --brief counts the rows
+#                     of these linters, and of the linters that an item of the
+#                     other keys names.
 # A path in a record line is relative to the project root, also for a file
 # above it ("../"), so the line reads the same in every clone.
 #
@@ -145,16 +152,23 @@
 #       compared gets a note on stderr and no line
 #   agree --lint-config <linter> <path>
 #       "<linter> <path>"; the path must be a file
+#   agree --linters
+#       "<linter>" for each linter this run reports and checked, one line each.
+#       A linter whose doctor row is cannot verify gets no line. When no linter
+#       gets a line, a note on stderr says why, and the exit is 0. A language
+#       left to another installed plugin gives no line. It takes no value, and
+#       it cannot combine with the rule options, --fingerprint or --lint-config
 # A linter that cannot verify gives no row and no config: agree with the rule
 # options exits 2 when that linter cannot verify, and agree --fingerprint exits 2
-# when any linter in scope cannot verify. Each names the cause.
+# when any linter in scope cannot verify. Each names the cause. agree --linters
+# leaves that linter out and exits 0.
 #
 # doctor --brief prints the status nudge. It finds the projects itself: the
 # root and each directory with a tracked .ldd-lint.yaml (a find outside git).
 # A project gets no line and no linter run when its .ldd-lint.yaml has no
-# "agreed" key, or when no item of the record names a linter. For the other
-# projects, it runs "doctor --tsv" there and counts the rows of each linter
-# that an item of agreed, lint_fingerprint or lint_config names. The other
+# "agreed" key, or when the record names no linter. For the other projects, it
+# runs "doctor --tsv" there and counts the rows of each linter that the record
+# names: an item of linters, agreed, lint_fingerprint or lint_config. The other
 # linters belong to a plugin whose setup did not run. It prints one line per
 # project when the doctor finds a difference:
 #   ⚙️ Lint setup (<dir>): 1 rule differs from what the team agreed — run /tsr-ldd-setup
@@ -211,6 +225,7 @@ AGREE_RULE=""
 AGREE_DECISION=""
 AGREE_REASON=""
 AGREE_FINGERPRINT=0
+AGREE_LINTERS=0
 AGREE_CONFIG_LINTER=""
 AGREE_CONFIG_PATH=""
 AGREE_SET=""
@@ -236,6 +251,7 @@ while (( $# > 0 )); do
     --decision) value "$1" $#; AGREE_DECISION="$2"; AGREE_SET="$AGREE_SET $1"; shift 2 ;;
     --reason)   value "$1" $#; AGREE_REASON="$2"; AGREE_SET="$AGREE_SET $1"; shift 2 ;;
     --fingerprint) AGREE_FINGERPRINT=1; AGREE_SET="$AGREE_SET $1"; shift ;;
+    --linters)     AGREE_LINTERS=1; AGREE_SET="$AGREE_SET $1"; shift ;;
     --lint-config) (( $# >= 3 )) || die "$1 needs a linter and a path"
                    AGREE_CONFIG_LINTER="$2"; AGREE_CONFIG_PATH="$3"; AGREE_SET="$AGREE_SET $1"; shift 3 ;;
     --config)  value "$1" $#; OPT_CONFIG="$2"; shift 2 ;;
@@ -1142,10 +1158,11 @@ record_items() {
   ' "$OVERRIDE_FILE"
 }
 
-# record_linters — the linters the items of agreed, lint_fingerprint and
-# lint_config name, one per line
+# record_linters — the linters the record names, one per line: each item of
+# linters, and the first word of each item of agreed, lint_fingerprint and
+# lint_config
 record_linters() {
-  { record_items agreed; record_items lint_fingerprint; record_items lint_config; } \
+  { record_items linters; record_items agreed; record_items lint_fingerprint; record_items lint_config; } \
     | awk 'NF { print $1 }' | LC_ALL=C sort -u
 }
 
@@ -1225,10 +1242,9 @@ brief_projects() {
 }
 
 # brief_line <dir> — the nudge line of one project; nothing when the project
-# has no record, when no item of the record names a linter, when its doctor
-# does not exit 0, or when nothing differs. Only the rows of a linter that an
-# item names count: the other linters belong to a plugin whose setup did not
-# run. The changed-config count reads the doctor's own stderr line, so the text
+# has no record, when the record names no linter, when its doctor does not exit
+# 0, or when nothing differs. Only the rows of a linter that the record names
+# count: the other linters belong to a plugin whose setup did not run. The changed-config count reads the doctor's own stderr line, so the text
 # of that line and the pattern below stay equal.
 brief_line() {
   local d="$1" out code differ cannot changed label what named err="$LINT_TMP/brief-err"
@@ -1589,11 +1605,27 @@ run_agree_fingerprint() {
   return 0
 }
 
+# run_agree_linters — one line per linter that has rows in this run and no row
+# that cannot verify; a note on stderr when there is none
+run_agree_linters() {
+  local linter named=0 skipped=""
+  if [[ -s "$DOCTOR_ROWS" ]]; then
+    while IFS= read -r linter; do
+      if L="$linter" awk -F'\t' '$1 == ENVIRON["L"] && $3 ~ /^cannot verify/ { f = 1 } END { exit !f }' "$DOCTOR_ROWS"; then
+        skipped="$skipped $linter"; continue
+      fi
+      record_line "$linter"; named=1
+    done < <(cut -f1 "$DOCTOR_ROWS" | LC_ALL=C sort -u)
+  fi
+  (( named )) || echo "agree: no linter of this run could be checked, so there is no linters line${skipped:+ (cannot verify:$skipped)}" >&2
+  return 0
+}
+
 # ---------- run ----------
 if [[ "$SUBCOMMAND" == agree ]]; then
   # with --config, --linter names the linter of that file, so alone it is no
   # rule option
-  modes=$AGREE_FINGERPRINT
+  modes=$(( AGREE_FINGERPRINT + AGREE_LINTERS ))
   [[ -n "$AGREE_CONFIG_LINTER" ]] && modes=$(( modes + 1 ))
   rule_opts=0
   (( LINTER_SET )) && [[ -z "$OPT_CONFIG" ]] && rule_opts=1
@@ -1601,7 +1633,7 @@ if [[ "$SUBCOMMAND" == agree ]]; then
     case " $AGREE_SET " in *" $o "*) rule_opts=1 ;; esac
   done
   modes=$(( modes + rule_opts ))
-  (( modes <= 1 )) || die "agree takes one of --fingerprint, --lint-config or the rule options"
+  (( modes <= 1 )) || die "agree takes one of --fingerprint, --lint-config, --linters or the rule options"
   [[ -z "$AGREE_CONFIG_LINTER" ]] || (( ! LINTER_SET )) || die "agree --lint-config takes no --linter"
   if [[ -n "$AGREE_CONFIG_LINTER" ]]; then
     [[ -f "$AGREE_CONFIG_PATH" ]] || die "agree --lint-config: not a file: $AGREE_CONFIG_PATH"
@@ -1668,7 +1700,9 @@ if [[ "$SUBCOMMAND" == agree ]]; then
     (( left && ! no_config )) && die "agree: every language in scope belongs to an installed plugin; run its setup command"
     die "agree: no language in scope has a recommended linter config"
   fi
-  if (( AGREE_FINGERPRINT )); then run_agree_fingerprint; else run_agree_rule; fi
+  if (( AGREE_LINTERS )); then run_agree_linters
+  elif (( AGREE_FINGERPRINT )); then run_agree_fingerprint
+  else run_agree_rule; fi
   exit 0
 fi
 if [[ "$SUBCOMMAND" == doctor ]]; then warn_unmatched; report_changed; fi

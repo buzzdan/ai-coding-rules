@@ -1248,7 +1248,7 @@ run_agree() {
 # the record in $REPO, so a test reads a line back as the doctor reads it
 record_read() {
   ( cd "$REPO" && OVERRIDE_FILE=.ldd-lint.yaml \
-    && eval "$(sed -n '/^record_has() {/,/^}/p;/^record_items() {/,/^}/p;/^record_agreed() {/,/^}/p' "$LINT")" \
+    && eval "$(sed -n '/^record_has() {/,/^}/p;/^record_items() {/,/^}/p;/^record_agreed() {/,/^}/p;/^record_linters() {/,/^}/p' "$LINT")" \
     && "$@" )
 }
 
@@ -1811,6 +1811,76 @@ else
   expect_exit 0 && [[ -z "$OUT" ]] && expect_has "no config file of $FAKE_LINTER was compared" && ok
   finish
 fi
+
+begin "agree --linters prints the linter of the run as one item"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linters
+expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && ok
+finish
+
+begin "agree --linters prints the line although the repository drifts from the recommended config"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+run_agree --linters
+expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && ok
+finish
+
+begin "agree --linters skips a linter that cannot verify, with a note, and exits 0"
+if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
+else
+  write_src "src/a$FX_EXT" 1
+  run_agree --linters
+  expect_exit 0 && [[ -z "$OUT" ]] && expect_has "agree: no linter of this run could be checked, so there is no linters line" \
+    && expect_has "$FAKE_LINTER" && ok
+  finish
+fi
+
+begin "agree --linters never edits a file"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+before=$(tree_sum)
+run_agree --linters
+expect_exit 0 && { [[ "$(tree_sum)" == "$before" ]] || bad "the tree changed"; } && ok
+finish
+
+begin "agree --linters does not combine with the other agree options (exit 2)"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+: > "$REPO/x.cfg"
+r1=1
+run_agree --linters --fingerprint; expect_exit 2 && expect_has "agree takes one of" && [[ -z "$OUT" ]] || r1=0
+run_agree --linters --lint-config "$FAKE_LINTER" x.cfg; expect_exit 2 && expect_has "agree takes one of" || r1=0
+run_agree --linters --rule "$FAKE_RULE"; expect_exit 2 && expect_has "agree takes one of" || r1=0
+run_agree --linters --linter "$FAKE_LINTER"; expect_exit 2 && expect_has "agree takes one of" || r1=0
+run_agree --linters --decision off --reason why; expect_exit 2 && expect_has "agree takes one of" || r1=0
+(( r1 )) && ok
+finish
+
+begin "doctor --linters is a usage error (exit 2)"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_doctor --linters
+expect_exit 2 && expect_has "only agree takes: --linters" && ok
+finish
+
+begin "the linters record key is read back by record_linters"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linters
+write_record "agreed: []
+linters:
+$OUT"
+got=$(record_read record_linters)
+[[ "$got" == "$FAKE_LINTER" ]] && ok || bad "read: $got"
+finish
+
+begin "record_linters reads the linters key with the items of the other keys, once each"
+write_record "agreed:
+  - \"b-linter r = 1 | why\"
+lint_fingerprint:
+  - \"a-linter x.cfg 0000\"
+linters:
+  - \"c-linter\"
+  - \"a-linter\"
+  - \"b-linter\""
+got=$(record_read record_linters | tr '\n' ' ')
+[[ "$got" == "a-linter b-linter c-linter " ]] && ok || bad "read: $got"
+finish
 
 begin "agree for a rule with no row is a usage error (exit 2)"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
@@ -2388,6 +2458,61 @@ run_brief
 expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
 finish
 
+begin "--brief says nothing when the record names the linter and every row runs"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linters
+write_record "agreed: []
+linters:
+$OUT"
+run_brief
+expect_exit 0 && expect_out "" && expect_not "doctor:" && ok
+finish
+
+begin "--brief counts a missing rule when the record names the linter and agrees no rule"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []
+linters:
+  - \"$FAKE_LINTER\""
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+finish
+
+begin "--brief counts a looser limit when the record names the linter and agrees no rule"
+if [[ -z "$FAKE_RELAXED" || -n "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+  write_record "agreed: []
+linters:
+  - \"$FAKE_LINTER\""
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+  finish
+fi
+
+begin "--brief says nothing for a record that agrees no rule and has no linters key"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []"
+run_brief
+expect_exit 0 && expect_out "" && linter_not_called && ok
+finish
+
+begin "--brief says nothing for a linters key with no agreed key"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "linters:
+  - \"$FAKE_LINTER\""
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief says nothing about a linter that the linters key leaves out"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed: []
+linters:
+  - \"other-linter\""
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
 begin "--brief says nothing for a .ldd-lint.yaml that holds only file_max_lines"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 write_record "file_max_lines: 500"
@@ -2484,6 +2609,21 @@ else
   expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
   finish
 
+  begin "agree --linters: a language left to an installed plugin gives no line"
+  mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
+  write_src "src/a.go" 1
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --linters
+  expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
+  finish
+
+  begin "agree --linters: a language left to an installed plugin is not printed beside another language"
+  mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
+  write_src "src/a.go" 1
+  ROW=python; fake_doctor_row; write_src "src/a.py" 1; fake_doctor adopt; ROW=""
+  LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --linters
+  expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && ok
+  finish
+
   begin "doctor --config: a language left to an installed plugin is not a second linter"
   mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
   write_src "src/a.go" 1
@@ -2575,6 +2715,41 @@ else
   two_linters missing
   write_record "agreed:
 $(names_linter)"
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
+fi
+ROW=""; finish
+
+begin "agree --linters prints each linter of a run of two linters"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  two_linters adopt
+  run_agree --linters
+  want=$(rows_linters | LC_ALL=C sort | while IFS= read -r l; do printf '  - "%s"\n' "$l"; done)
+  expect_exit 0 && expect_out "${want%$'\n'}" && ok
+fi
+ROW=""; finish
+
+begin "--brief counts the rows of every linter that agree --linters named, with no rule agreed"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  two_linters missing
+  run_agree --linters
+  write_record "agreed: []
+linters:
+$OUT"
+  run_brief
+  expect_exit 0 && expect_out "$(brief_line . "2 rules differ from what the team agreed")" && ok
+fi
+ROW=""; finish
+
+begin "--brief counts only the linters the linters key names, with no rule agreed"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  two_linters missing
+  write_record "agreed: []
+linters:
+  - \"$FAKE_LINTER\""
   run_brief
   expect_exit 0 && expect_out "$(brief_line . "1 rule differs from what the team agreed")" && ok
 fi

@@ -59,10 +59,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   names an agreed rule that has no row in a warning on stderr. `ldd-lint.sh agree`
   prints the record lines for `.ldd-lint.yaml`, escaped and ready to copy: a rule
   with the doctor's current value, `off` or `org`; a fingerprint of each
-  golangci-lint config file the doctor compared (`--fingerprint`); and the line
-  that names a config file (`--lint-config`). golangci-lint reports no setting,
-  so its drift shows through the fingerprint; ruff and ESLint get no fingerprint,
-  because their rows show a changed value. A path in a record line is relative to
+  golangci-lint config file the doctor compared (`--fingerprint`); the line that
+  names a config file (`--lint-config`); and one line for each linter the run
+  checked (`--linters`). The record key `linters` holds those lines, so the status
+  line counts the rows of a setup that took every recommended value.
+  golangci-lint reports no setting, so its drift shows through the fingerprint;
+  ruff and ESLint get no fingerprint, because their rows show a changed value. A path in a record line is relative to
   the project root, also for a config above it (`../`). A `lint_config` item of
   the record, or `--config <file>`, makes the doctor compare another config file
   for one linter, and the linter's own config check reads that file too. In a run
@@ -74,7 +76,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `ldd-lint.sh doctor --brief` finds the projects with a record (the root and each
   directory with a tracked `.ldd-lint.yaml`) and prints one line for each project
   whose agreed setup differs from what the linter does, or whose linter cannot
-  check it. It counts only the linters that an item of the record names, so a
+  check it. It counts only the linters that the record names, so a
   plugin whose setup did not run gives no line. It prints nothing for a project
   with no `agreed` key.
   The generic plugin's doctor skips a language when the plugin written for it is
