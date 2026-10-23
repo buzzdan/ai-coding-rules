@@ -292,7 +292,14 @@ fx_write_linter_config_other() {
 #                                   source: linter (the linter said whether the
 #                                   rule runs) or presence check (the rule was
 #                                   found by name). An output the doctor cannot
-#                                   read is "cannot verify", never an empty list
+#                                   read is "cannot verify", never an empty list.
+#                                   A "cannot verify" row of rule "-" says that
+#                                   the doctor cannot check the linter at all;
+#                                   a row of a named rule says that it cannot
+#                                   check that rule only
+#   lint_cannot_local <state>       exit 0 when a "cannot verify" state names a
+#                                   cause on this machine only: the linter is
+#                                   not installed, or not on PATH
 
 lint_comment_style() {
   case "$1" in
@@ -465,6 +472,19 @@ _lint_doctor_cannot() { # <linter> <why>
   printf 'row\t%s\t-\tcannot verify: %s\t-\t-\tlinter\n' "$1" "$2"
 }
 
+# lint_cannot_local <state> — exit 0 when a "cannot verify" state names a cause
+# on this machine only: the linter is not installed, or not on PATH. The other
+# causes (the linter rejects a config, the agreed config is gone) are the same
+# in every clone.
+lint_cannot_local() {
+  case "$1" in
+    "cannot verify: golangci-lint is not installed"*) return 0 ;;
+    "cannot verify: ruff is not on PATH"*)            return 0 ;;
+    "cannot verify: eslint is not installed"*)        return 0 ;;
+  esac
+  return 1
+}
+
 # _lint_first_error <file> — the first line of a linter's stderr that names an
 # error, else its first line, on one line
 _lint_first_error() {
@@ -569,12 +589,16 @@ _lint_doctor_golangci() { # <recommended config> <work dir> [chosen config]
     esac
   fi
   if [[ -n "$cfg" ]]; then
-    # A schema failure is a rejection; any other failure (no network for the
-    # schema, for example) leaves the check unanswered and the doctor goes on.
-    if ! _lint_golangci "$chosen" config verify > /dev/null 2> "$t/err" && grep -q '^jsonschema:' "$t/err"; then
-      why=$(grep -m1 '^jsonschema:' "$t/err" | tr '\t' ' ')
-      _lint_doctor_cannot golangci-lint "$which fails the linter's check: $why"
-      return 0
+    # A schema failure is a rejection. Any other failure (no network for the
+    # schema, for example) leaves the check unanswered: a note says so, with
+    # the linter's message, and the doctor goes on.
+    if ! _lint_golangci "$chosen" config verify > /dev/null 2> "$t/err"; then
+      if grep -q '^jsonschema:' "$t/err"; then
+        why=$(grep -m1 '^jsonschema:' "$t/err" | tr '\t' ' ')
+        _lint_doctor_cannot golangci-lint "$which fails the linter's check: $why"
+        return 0
+      fi
+      printf 'note\tgolangci-lint did not check the config: %s\n' "$(_lint_first_error "$t/err")"
     fi
     _lint_golangci "$chosen" linters --json > "$t/repo.json" 2> "$t/err" \
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }
@@ -935,8 +959,10 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
 #                            config loads and sets no rule), toml and json (the
 #                            repository's config is in that format and names
 #                            FAKE_NAMED_RULE), invalid (the linter's own
-#                            config check fails on a schema error) and
-#                            noschema (that check cannot fetch the schema)
+#                            config check fails on a schema error),
+#                            noschema (that check cannot fetch the schema) and
+#                            nokey (the repository runs every recommended rule,
+#                            and the linter reports no FAKE_NOKEY_KEY)
 #   fake_doctor_strict <path>  write a second config file at $REPO/<path>, which
 #                            the linter reports on as on the recommended
 #                            config; the golangci-lint fake logs its calls in
@@ -988,6 +1014,10 @@ _lint_doctor_eslint() { # <recommended config> <file> <work dir> [chosen config]
 #                    the project (fake_doctor_config_above); "" if not
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
 #                    which the invalid and noschema modes fail; "" if not
+#   FAKE_NOKEY_RULE  a rule whose setting the nokey mode leaves out of the
+#                    linter's report, and FAKE_NOKEY_KEY that setting; both ""
+#                    when the linter reports no setting or the fake has no
+#                    such mode
 
 fake_doctor_row() {
   case "$ROW" in
@@ -995,6 +1025,7 @@ fake_doctor_row() {
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
       FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
       FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
@@ -1003,6 +1034,7 @@ fake_doctor_row() {
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
+      FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'
       FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
@@ -1016,6 +1048,7 @@ fake_doctor_row() {
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
       FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
@@ -1033,7 +1066,8 @@ _fake_golangci_json() {
 }
 
 # _fake_ruff_settings <settings path or ""> <max_args> <code>... — a
-# "--show-settings" output enabling those codes
+# "--show-settings" output enabling those codes; max_args "-" leaves that
+# setting out
 _fake_ruff_settings() {
   local sp="$1" args="$2" root c; shift 2
   root=$(cd "$REPO" && pwd -P)
@@ -1042,7 +1076,9 @@ _fake_ruff_settings() {
   printf '\n# Linter Settings\nlinter.exclude = []\nlinter.rules.enabled = [\n'
   for c in "$@"; do printf '\tsome-rule (%s),\n' "$c"; done
   printf ']\nlinter.rules.should_fix = [\n\tsome-rule (B006),\n]\n'
-  printf 'linter.mccabe.max_complexity = 8\nlinter.pylint.max_args = %s\nlinter.pylint.max_nested_blocks = 2\n' "$args"
+  printf 'linter.mccabe.max_complexity = 8\n'
+  [[ "$args" == - ]] || printf 'linter.pylint.max_args = %s\n' "$args"
+  printf 'linter.pylint.max_nested_blocks = 2\n'
 }
 
 _fake_bin() { # <name> <script body> [<dir>]
@@ -1156,6 +1192,7 @@ cat "$d/repo.txt"'
         missing) _fake_ruff_settings pyproject.toml 4 B006 C901 E401 F401 PLR1702 > "$b/repo.txt" ;;
         relaxed) _fake_ruff_settings pyproject.toml 7 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         tightened) _fake_ruff_settings pyproject.toml 3 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
+        nokey)   _fake_ruff_settings pyproject.toml - B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         reject)  printf 'ruff failed\n  Cause: Failed to parse pyproject.toml\n' > "$b/reject.txt" ;;
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
@@ -2200,12 +2237,13 @@ else
   finish
 fi
 
-begin "doctor: a config check that cannot fetch the schema is not a rejection"
+begin "doctor: a config check that cannot fetch the schema is not a rejection, and a note says the check did not run"
 if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter has no config check of its own"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor noschema
   run_doctor
-  expect_exit 0 && expect_not "cannot verify" && expect_has "$FAKE_RULE: $FAKE_RUNS;" && ok
+  expect_exit 0 && expect_not "cannot verify" && expect_has "$FAKE_RULE: $FAKE_RUNS;" \
+    && expect_has "doctor: $ROW — $FAKE_LINTER did not check the config: Error: failed to get schema" && ok
   finish
 fi
 
@@ -2422,14 +2460,14 @@ run_brief
 expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok
 finish
 
-begin "--brief with no linter on PATH names the project and exits 0"
+begin "--brief says nothing when the linter is not installed on this machine, and exits 0"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
 else
   write_src "src/a$FX_EXT" 1
   write_record "agreed:
 $(names_linter)"
   run_brief
-  expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+  expect_exit 0 && expect_out "" && ok
   finish
 fi
 
@@ -2441,6 +2479,44 @@ else
 $(names_linter)"
   run_brief
   expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+  finish
+fi
+
+begin "--brief names a project whose agreed config is gone"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed: []
+lint_config:
+  - \"$FAKE_LINTER no-such.cfg\""
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+finish
+
+begin "a rule whose setting the linter cannot report blocks only that rule"
+if [[ -z "$FAKE_NOKEY_RULE" ]]; then skip "the linter reports every setting it has"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor nokey
+  run_doctor --tsv
+  other=$(printf '%s\n' "$OUT" | awk -F'\t' '$4 == "runs" { print $3; exit }')
+  r1=0; expect_exit 0 && { [[ "$(doctor_field "$FAKE_NOKEY_RULE" 4)" == "cannot verify: "* ]] || bad "no per-rule cannot verify row"; } \
+    && { [[ -n "$other" ]] || bad "no other rule runs"; } && r1=1
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_NOKEY_RULE" --decision off --reason "why"
+  r2=0; (( r1 )) && expect_exit 2 && expect_has "$FAKE_NOKEY_KEY" && expect_has "upgrade the linter" \
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r2=1
+  run_agree --linter "$FAKE_LINTER" --rule "$other" --decision off --reason "why"
+  r3=0; (( r2 )) && expect_exit 0 && expect_has "$other = off" && r3=1
+  run_agree --linters
+  r4=0; (( r3 )) && expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && r4=1
+  run_agree --fingerprint
+  r5=0; (( r4 )) && expect_exit 0 && r5=1
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "no-such-rule" "off" "a typo")"
+  run_doctor
+  r6=0; (( r5 )) && expect_has "no row for $FAKE_LINTER no-such-rule" && r6=1
+  write_record "agreed: []
+linters:
+  - \"$FAKE_LINTER\""
+  run_brief
+  (( r6 )) && expect_exit 0 && expect_out "" && ok
   finish
 fi
 

@@ -1102,12 +1102,13 @@ else
   finish
 fi
 
-begin "doctor: a config check that cannot fetch the schema is not a rejection"
+begin "doctor: a config check that cannot fetch the schema is not a rejection, and a note says the check did not run"
 if [[ -z "$FAKE_CONFIG_CHECK" ]]; then skip "the linter has no config check of its own"; finish
 else
   write_src "src/a$FX_EXT" 1; fake_doctor noschema
   run_doctor
-  expect_exit 0 && expect_not "cannot verify" && expect_has "$FAKE_RULE: $FAKE_RUNS;" && ok
+  expect_exit 0 && expect_not "cannot verify" && expect_has "$FAKE_RULE: $FAKE_RUNS;" \
+    && expect_has "doctor: $ROW — $FAKE_LINTER did not check the config: Error: failed to get schema" && ok
   finish
 fi
 
@@ -1324,14 +1325,14 @@ run_brief
 expect_exit 0 && expect_out "$(brief_line sub/ "1 rule differs from what the team agreed")" && ok
 finish
 
-begin "--brief with no linter on PATH names the project and exits 0"
+begin "--brief says nothing when the linter is not installed on this machine, and exits 0"
 if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"; finish
 else
   write_src "src/a$FX_EXT" 1
   write_record "agreed:
 $(names_linter)"
   run_brief
-  expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+  expect_exit 0 && expect_out "" && ok
   finish
 fi
 
@@ -1343,6 +1344,44 @@ else
 $(names_linter)"
   run_brief
   expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+  finish
+fi
+
+begin "--brief names a project whose agreed config is gone"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+write_record "agreed: []
+lint_config:
+  - \"$FAKE_LINTER no-such.cfg\""
+run_brief
+expect_exit 0 && expect_out "$(brief_line . "the linter cannot check this project")" && ok
+finish
+
+begin "a rule whose setting the linter cannot report blocks only that rule"
+if [[ -z "$FAKE_NOKEY_RULE" ]]; then skip "the linter reports every setting it has"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor nokey
+  run_doctor --tsv
+  other=$(printf '%s\n' "$OUT" | awk -F'\t' '$4 == "runs" { print $3; exit }')
+  r1=0; expect_exit 0 && { [[ "$(doctor_field "$FAKE_NOKEY_RULE" 4)" == "cannot verify: "* ]] || bad "no per-rule cannot verify row"; } \
+    && { [[ -n "$other" ]] || bad "no other rule runs"; } && r1=1
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_NOKEY_RULE" --decision off --reason "why"
+  r2=0; (( r1 )) && expect_exit 2 && expect_has "$FAKE_NOKEY_KEY" && expect_has "upgrade the linter" \
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && r2=1
+  run_agree --linter "$FAKE_LINTER" --rule "$other" --decision off --reason "why"
+  r3=0; (( r2 )) && expect_exit 0 && expect_has "$other = off" && r3=1
+  run_agree --linters
+  r4=0; (( r3 )) && expect_exit 0 && expect_out "  - \"$FAKE_LINTER\"" && r4=1
+  run_agree --fingerprint
+  r5=0; (( r4 )) && expect_exit 0 && r5=1
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "no-such-rule" "off" "a typo")"
+  run_doctor
+  r6=0; (( r5 )) && expect_has "no row for $FAKE_LINTER no-such-rule" && r6=1
+  write_record "agreed: []
+linters:
+  - \"$FAKE_LINTER\""
+  run_brief
+  (( r6 )) && expect_exit 0 && expect_out "" && ok
   finish
 fi
 

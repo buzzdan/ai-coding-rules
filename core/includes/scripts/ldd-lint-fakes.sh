@@ -27,8 +27,10 @@
 #                            config loads and sets no rule), toml and json (the
 #                            repository's config is in that format and names
 #                            FAKE_NAMED_RULE), invalid (the linter's own
-#                            config check fails on a schema error) and
-#                            noschema (that check cannot fetch the schema)
+#                            config check fails on a schema error),
+#                            noschema (that check cannot fetch the schema) and
+#                            nokey (the repository runs every recommended rule,
+#                            and the linter reports no FAKE_NOKEY_KEY)
 #   fake_doctor_strict <path>  write a second config file at $REPO/<path>, which
 #                            the linter reports on as on the recommended
 #                            config; the golangci-lint fake logs its calls in
@@ -80,6 +82,10 @@
 #                    the project (fake_doctor_config_above); "" if not
 #   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
 #                    which the invalid and noschema modes fail; "" if not
+#   FAKE_NOKEY_RULE  a rule whose setting the nokey mode leaves out of the
+#                    linter's report, and FAKE_NOKEY_KEY that setting; both ""
+#                    when the linter reports no setting or the fake has no
+#                    such mode
 
 fake_doctor_row() {
   case "$ROW" in
@@ -87,6 +93,7 @@ fake_doctor_row() {
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
       FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
       FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
@@ -95,6 +102,7 @@ fake_doctor_row() {
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
       FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
+      FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'
       FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
@@ -108,6 +116,7 @@ fake_doctor_row() {
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
       FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
       FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''
       FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
@@ -125,7 +134,8 @@ _fake_golangci_json() {
 }
 
 # _fake_ruff_settings <settings path or ""> <max_args> <code>... — a
-# "--show-settings" output enabling those codes
+# "--show-settings" output enabling those codes; max_args "-" leaves that
+# setting out
 _fake_ruff_settings() {
   local sp="$1" args="$2" root c; shift 2
   root=$(cd "$REPO" && pwd -P)
@@ -134,7 +144,9 @@ _fake_ruff_settings() {
   printf '\n# Linter Settings\nlinter.exclude = []\nlinter.rules.enabled = [\n'
   for c in "$@"; do printf '\tsome-rule (%s),\n' "$c"; done
   printf ']\nlinter.rules.should_fix = [\n\tsome-rule (B006),\n]\n'
-  printf 'linter.mccabe.max_complexity = 8\nlinter.pylint.max_args = %s\nlinter.pylint.max_nested_blocks = 2\n' "$args"
+  printf 'linter.mccabe.max_complexity = 8\n'
+  [[ "$args" == - ]] || printf 'linter.pylint.max_args = %s\n' "$args"
+  printf 'linter.pylint.max_nested_blocks = 2\n'
 }
 
 _fake_bin() { # <name> <script body> [<dir>]
@@ -248,6 +260,7 @@ cat "$d/repo.txt"'
         missing) _fake_ruff_settings pyproject.toml 4 B006 C901 E401 F401 PLR1702 > "$b/repo.txt" ;;
         relaxed) _fake_ruff_settings pyproject.toml 7 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         tightened) _fake_ruff_settings pyproject.toml 3 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
+        nokey)   _fake_ruff_settings pyproject.toml - B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         reject)  printf 'ruff failed\n  Cause: Failed to parse pyproject.toml\n' > "$b/reject.txt" ;;
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;

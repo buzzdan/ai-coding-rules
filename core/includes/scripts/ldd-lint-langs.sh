@@ -68,7 +68,14 @@
 #                                   source: linter (the linter said whether the
 #                                   rule runs) or presence check (the rule was
 #                                   found by name). An output the doctor cannot
-#                                   read is "cannot verify", never an empty list
+#                                   read is "cannot verify", never an empty list.
+#                                   A "cannot verify" row of rule "-" says that
+#                                   the doctor cannot check the linter at all;
+#                                   a row of a named rule says that it cannot
+#                                   check that rule only
+#   lint_cannot_local <state>       exit 0 when a "cannot verify" state names a
+#                                   cause on this machine only: the linter is
+#                                   not installed, or not on PATH
 
 lint_comment_style() {
   case "$1" in
@@ -241,6 +248,19 @@ _lint_doctor_cannot() { # <linter> <why>
   printf 'row\t%s\t-\tcannot verify: %s\t-\t-\tlinter\n' "$1" "$2"
 }
 
+# lint_cannot_local <state> — exit 0 when a "cannot verify" state names a cause
+# on this machine only: the linter is not installed, or not on PATH. The other
+# causes (the linter rejects a config, the agreed config is gone) are the same
+# in every clone.
+lint_cannot_local() {
+  case "$1" in
+    "cannot verify: golangci-lint is not installed"*) return 0 ;;
+    "cannot verify: ruff is not on PATH"*)            return 0 ;;
+    "cannot verify: eslint is not installed"*)        return 0 ;;
+  esac
+  return 1
+}
+
 # _lint_first_error <file> — the first line of a linter's stderr that names an
 # error, else its first line, on one line
 _lint_first_error() {
@@ -345,12 +365,16 @@ _lint_doctor_golangci() { # <recommended config> <work dir> [chosen config]
     esac
   fi
   if [[ -n "$cfg" ]]; then
-    # A schema failure is a rejection; any other failure (no network for the
-    # schema, for example) leaves the check unanswered and the doctor goes on.
-    if ! _lint_golangci "$chosen" config verify > /dev/null 2> "$t/err" && grep -q '^jsonschema:' "$t/err"; then
-      why=$(grep -m1 '^jsonschema:' "$t/err" | tr '\t' ' ')
-      _lint_doctor_cannot golangci-lint "$which fails the linter's check: $why"
-      return 0
+    # A schema failure is a rejection. Any other failure (no network for the
+    # schema, for example) leaves the check unanswered: a note says so, with
+    # the linter's message, and the doctor goes on.
+    if ! _lint_golangci "$chosen" config verify > /dev/null 2> "$t/err"; then
+      if grep -q '^jsonschema:' "$t/err"; then
+        why=$(grep -m1 '^jsonschema:' "$t/err" | tr '\t' ' ')
+        _lint_doctor_cannot golangci-lint "$which fails the linter's check: $why"
+        return 0
+      fi
+      printf 'note\tgolangci-lint did not check the config: %s\n' "$(_lint_first_error "$t/err")"
     fi
     _lint_golangci "$chosen" linters --json > "$t/repo.json" 2> "$t/err" \
       || { _lint_doctor_cannot golangci-lint "the linter rejects $cfg: $(_lint_first_error "$t/err")"; return 0; }

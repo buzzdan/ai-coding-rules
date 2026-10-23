@@ -81,13 +81,19 @@
 # one), options differ (the two settings differ in a way that is not one
 # limit), named (the rule is named outside comments in the repository's
 # config; the linter was not asked), or cannot verify, with the reason (the
-# linter is not installed, or rejects a config). recommended and current are
+# linter is not installed, or rejects a config). A row of rule "-" that cannot
+# verify is about the whole linter: the doctor cannot check it. A row of a named
+# rule that cannot verify is about that rule only: the installed linter does not
+# report its setting, and the other rows of the linter stay. recommended and current are
 # the setting as the linter reports it; where the linter cannot report it, they
 # are "see <file>: <key>", the place a reader looks the value up; "-" is no
 # setting. source is "linter" when the linter said whether the rule runs, and
 # "presence check" when the rule was found by name. A linter output the doctor
 # cannot read is "cannot verify", never an empty list. A "doctor:" line per
-# language says which config was compared, and which linter binary ran. The
+# language says which config was compared, and which linter binary ran. When
+# the linter's own config check cannot run (for example, with no network for
+# its schema), a "doctor:" line says that the linter did not check the config,
+# with the linter's message, and the rows follow. The
 # doctor runs a linter from PATH only, except a linter that a project installs
 # in its node_modules: that check runs the project's own copy, which loads the
 # project's config file.
@@ -158,7 +164,7 @@
 #       "<linter> <path>"; the path must be a file
 #   agree --linters
 #       "<linter>" for each linter this run reports and checked, one line each.
-#       A linter whose doctor row is cannot verify gets no line. When no linter
+#       A linter whose row of rule "-" is cannot verify gets no line. When no linter
 #       gets a line, a note on stderr says why, and the exit is 0. Each linter
 #       left out gets a note on stderr. A language
 #       left to another installed plugin gives no line. It takes no value, and
@@ -166,7 +172,9 @@
 # A linter that cannot verify gives no row and no config: agree with the rule
 # options exits 2 when that linter cannot verify, and agree --fingerprint exits 2
 # when any linter in scope cannot verify. Each names the cause. agree --linters
-# leaves that linter out and exits 0.
+# leaves that linter out and exits 0. A named rule whose own row cannot verify
+# blocks only that rule: agree with the rule options exits 2 for it, names the
+# setting and says to upgrade the linter. The other forms of agree go on.
 #
 # doctor --brief prints the status nudge. It finds the projects itself: the
 # root and each directory with a tracked .ldd-lint.yaml (a find outside git).
@@ -185,8 +193,12 @@
 #   a row of any state whose agreed value changed: its current ends in
 #     "; agreed: <value>"
 #   a config file that changed since the setup was agreed
-# A row that cannot verify gives the last line in place of a count. The states
-# runs, agreed, limit stricter, options differ and named are no difference. A
+# A row of rule "-" that cannot verify, for a cause that is the same in every
+# clone (the linter rejects the config, the agreed config is gone), gives the
+# last line in place of a count. A linter that is not installed on this machine,
+# or not on PATH, gives no line: the line is about the team's setup, not one
+# machine. The states runs, agreed, limit stricter, options differ and named,
+# and a named rule that cannot verify, are no difference. A
 # project whose doctor exits 2 or 3, or fails, gets no line. Only the lines
 # print. --brief takes no --config and no --files, and always exits 0.
 #
@@ -474,7 +486,9 @@ brief_projects() {
 # brief_line <dir> — the nudge line of one project; nothing when the project
 # has no record, when the record names no linter, when its doctor does not exit
 # 0, or when nothing differs. Only the rows of a linter that the record names
-# count: the other linters belong to a plugin whose setup did not run. The
+# count: the other linters belong to a plugin whose setup did not run. A linter
+# that cannot verify counts only for a cause that is the same in every clone:
+# a linter that is not installed on this machine gives no line. The
 # changed-config count reads the doctor's own stderr line, so the text of that
 # line and the pattern below stay equal.
 brief_line() {
@@ -484,12 +498,18 @@ brief_line() {
   [[ -n "$named" ]] || return 0
   out=$("$BASH" "$SELF" doctor --tsv --root "./$d" 2>"$err"); code=$?
   (( code == 0 )) || return 0
-  read -r differ cannot < <(printf '%s\n' "$out" | NAMED="$named" awk -F'\t' '
+  differ=$(printf '%s\n' "$out" | NAMED="$named" awk -F'\t' '
     BEGIN { n = split(ENVIRON["NAMED"], a, " "); for (i = 1; i <= n; i++) named[a[i]] = 1; n = 0 }
     !($2 in named) { next }
     $4 == "missing" || $4 == "limit looser" || $6 ~ /; agreed: / { n++ }
-    $4 ~ /^cannot verify/ { c++ }
-    END { print n + 0, c + 0 }')
+    END { print n + 0 }')
+  # a linter that cannot verify, for a cause that is the same in every clone
+  cannot=0
+  while IFS= read -r st; do
+    lint_cannot_local "$st" || cannot=$(( cannot + 1 ))
+  done < <(printf '%s\n' "$out" | NAMED="$named" awk -F'\t' '
+    BEGIN { n = split(ENVIRON["NAMED"], a, " "); for (i = 1; i <= n; i++) named[a[i]] = 1 }
+    ($2 in named) && $3 == "-" && $4 ~ /^cannot verify/ { print $4 }')
   changed=$(grep -c '^doctor: .* changed since the setup was agreed$' "$err")
   differ=$(( differ + changed ))
   label="$d"; [[ "$d" == . ]] || label="$d/"
@@ -747,7 +767,7 @@ warn_unmatched() {
     l=${head%% *}; r=${head#* }
     [[ -n "$(L="$l" R="$r" awk -F'\t' '
       $1 == ENVIRON["L"] { seen = 1 }
-      $1 == ENVIRON["L"] && $3 ~ /^cannot verify/ { cannot = 1 }
+      $1 == ENVIRON["L"] && $2 == "-" && $3 ~ /^cannot verify/ { cannot = 1 }
       $1 == ENVIRON["L"] && $2 == ENVIRON["R"] { matched = 1 }
       END { if (seen && !cannot && !matched) print "warn" }' "$DOCTOR_ROWS")" ]] \
       && echo "doctor: $OVERRIDE_FILE: no row for $l $r; the line is ignored" >&2
@@ -790,10 +810,11 @@ fingerprint_line() {
 }
 
 # agree_cannot [<linter>] — dies with the cause when the doctor could not
-# verify that linter, or any linter
+# verify that linter, or any linter: a "cannot verify" row of rule "-". A row
+# of a named rule that cannot verify blocks that rule only.
 agree_cannot() {
   local why
-  why=$(L="${1:-}" awk -F'\t' '$3 ~ /^cannot verify/ && (ENVIRON["L"] == "" || $1 == ENVIRON["L"]) { print $1 " " $3; exit }' "$DOCTOR_ROWS")
+  why=$(L="${1:-}" awk -F'\t' '$2 == "-" && $3 ~ /^cannot verify/ && (ENVIRON["L"] == "" || $1 == ENVIRON["L"]) { print $1 " " $3; exit }' "$DOCTOR_ROWS")
   [[ -z "$why" ]] || die "agree: $why"
 }
 
@@ -811,6 +832,8 @@ run_agree_rule() {
     $1 == ENVIRON["L"] && $2 == ENVIRON["R"] { print $3 "\t" $4; found = 1; exit }
     END { exit !found }' "$DOCTOR_ROWS") || die "agree: no doctor row for $AGREE_LINTER $AGREE_RULE"
   state=${sel%%$'\t'*}; value=${sel#*$'\t'}
+  [[ "$state" != "cannot verify"* ]] \
+    || die "agree: $AGREE_LINTER $AGREE_RULE $state; the installed linter cannot report this setting: upgrade the linter"
   [[ "$AGREE_DECISION" == current && "$state" == missing ]] \
     && die "agree: $AGREE_LINTER $AGREE_RULE does not run, so it has no setting to keep; use --decision off"
   [[ "$AGREE_DECISION" == current ]] || value="$AGREE_DECISION"
@@ -843,7 +866,7 @@ run_agree_linters() {
   local linter named=0 skipped=""
   if [[ -s "$DOCTOR_ROWS" ]]; then
     while IFS= read -r linter; do
-      if L="$linter" awk -F'\t' '$1 == ENVIRON["L"] && $3 ~ /^cannot verify/ { f = 1 } END { exit !f }' "$DOCTOR_ROWS"; then
+      if L="$linter" awk -F'\t' '$1 == ENVIRON["L"] && $2 == "-" && $3 ~ /^cannot verify/ { f = 1 } END { exit !f }' "$DOCTOR_ROWS"; then
         skipped="$skipped $linter"
         echo "agree: $linter cannot be checked, so there is no linters line for it" >&2
         continue
