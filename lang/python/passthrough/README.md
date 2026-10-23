@@ -104,11 +104,13 @@ checker the repository does not use.
   gap linter, `scripts/ldd-lint.sh file-length`, measures it.
 - **The recommended setup makes the design triggers fire.** `setup/ruff.toml` in the
   plugin directory selects every ruff rule the routing table routes to a design
-  rule, at the limits the rules name. The plugin never writes it into your
-  repository: copy it, or the parts you want, into `ruff.toml` or `pyproject.toml`.
-  Limits your configuration already sets stay yours. `scripts/ldd-lint.sh doctor`
-  shows which of its rules your linter already runs, and the setting on each side;
-  it changes no file.
+  rule, at the limits the rules name. `/py-ldd-setup` proposes it, and writes it
+  only after you agree. You can also copy it, or the parts you want, into
+  `ruff.toml` or `pyproject.toml`. Limits your configuration already sets stay
+  yours. `scripts/ldd-lint.sh doctor` shows which of its rules your linter already
+  runs, and the setting on each side; it marks a rule the team agreed to keep as
+  `agreed`, and it changes no file. `/py-ldd-status` shows a lint setup line only
+  after a setup ran and its agreed setup needs attention.
 - **`# noqa`, `# ty: ignore` and `# type: ignore` are all suppressions.** The lint-fixer
   never adds one and never edits `[tool.ruff]`, `[tool.ty]` or `[tool.mypy]`; a new
   one in a diff is itself a review finding.
@@ -120,9 +122,9 @@ python-linter-driven-development/
 ├── maxims.md     the uncompiled layer — named design questions above the rules
 ├── rules/        R1-primitive-obsession … R12-mutation-discipline   (single source of truth)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
-│                 pre-commit-review · testing · documentation   (thin directional views)
+│                 pre-commit-review · testing · documentation · lint-setup   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer
-├── commands/     py-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
+├── commands/     py-ldd-analyze · autopilot · quickfix · prepare · review · status · setup · wire-repo-brain
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Python)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with the Python adapter
@@ -182,6 +184,7 @@ is the meta-orchestrator:
 | `/py-ldd-analyze [files \| --all]` | Tests + lint + review, combined report | ❌ No |
 | `/py-ldd-review [files \| --all]` | Commit-readiness check | ❌ No |
 | `/py-ldd-status` | Show current phase + progress | N/A |
+| `/py-ldd-setup [project dir …]` | Compare the linter setup with the recommended one, agree per rule, edit only after you agree to the plan | ✅ After your yes |
 | `/wire-repo-brain [path]` | Wire the documentation network in one pass | ✅ Wiring only |
 
 `/wire-repo-brain` carries no prefix: the documentation network it wires is a

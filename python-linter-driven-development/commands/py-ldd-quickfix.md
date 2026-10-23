@@ -62,7 +62,9 @@ isolated context, spawned with the package list)
   `FIXED: none` on them; a `no progress` escalation is not respawned. What is left at
   either cutoff is unresolved mechanical lint with no rule route: Phase 3 stops, and
   the ship summary lists each `file:line` under `LINT STATUS: escalations pending` —
-  it never goes to @refactoring. Design escalations are never fixed by hand from this
+  it never goes to @refactoring. An `ESCALATED: … → setup` line says that no task
+  runs the agreed lint config: Phase 3 stops, and the summary names the line and
+  `/py-ldd-setup`. Design escalations are never fixed by hand from this
   command, and never by a subagent:
   @refactoring runs in this thread, whether there are two escalations or twenty. A
   general-purpose agent applying escalations is the failure this line exists to

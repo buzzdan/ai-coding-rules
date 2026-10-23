@@ -26,7 +26,18 @@
 #                            (a rule set with other options), norules (the
 #                            config loads and sets no rule), toml and json (the
 #                            repository's config is in that format and names
-#                            FAKE_NAMED_RULE)
+#                            FAKE_NAMED_RULE), invalid (the linter's own
+#                            config check fails on a schema error),
+#                            noschema (that check cannot fetch the schema) and
+#                            nokey (the repository runs every recommended rule,
+#                            and the linter reports no FAKE_NOKEY_KEY)
+#   fake_doctor_strict <path>  write a second config file at $REPO/<path>, which
+#                            the linter reports on as on the recommended
+#                            config; the golangci-lint fake logs its calls in
+#                            $REPO/.bin/calls.log
+#   fake_doctor_config_above  after fake_doctor: move the repository config to
+#                            the directory above $REPO, and make the fake linter
+#                            name it by its absolute path
 #   real_doctor_adopt        copy the plugin's recommended config into $REPO as
 #                            the repository's own config
 #
@@ -55,18 +66,52 @@
 #                    reports no such options
 #   FAKE_FORMATS     the other config formats the toml and json modes write;
 #                    "" when the language has one
+#   FAKE_NO_SETTINGS "yes" when the linter reports only which rules run, never
+#                    a setting, so an agreed rule is matched by name; "" if not
+#   FAKE_BARE_RULE   a rule that runs in the adopted config and has no setting
+#                    in its row (recommended and current are "-"); "" when no
+#                    such rule exists
+#   FAKE_SEE_RULE    a rule whose recommended side is a place to read, though
+#                    the linter reports the current setting; "" if none
+#   FAKE_BIN_NOTE    the text the doctor's note gives for the linter binary it
+#                    ran (and its version, where the doctor names one)
+#   FAKE_VENV        the directory of a project's virtual environment, which
+#                    the doctor does not search: the linter must be on PATH;
+#                    "" when the language has none
+#   FAKE_ABOVE       "yes" when the linter finds a config in the directory above
+#                    the project (fake_doctor_config_above); "" if not
+#   FAKE_CONFIG_CHECK "yes" when the linter has a config check of its own,
+#                    which the invalid and noschema modes fail; "" if not
+#   FAKE_NEARER_CONFIG a config file name the linter reads for the files of its
+#                    directory and below; "" when the linter reads one config
+#                    for the whole project
+#   FAKE_SHARED_CONFIG a config file name that other tools share: it is a config
+#                    of the linter only with the section FAKE_SHARED_SECTION;
+#                    both "" when the linter has no such file
+#   FAKE_NOKEY_RULE  a rule whose setting the nokey mode leaves out of the
+#                    linter's report, and FAKE_NOKEY_KEY that setting; both ""
+#                    when the linter reports no setting or the fake has no
+#                    such mode
 
 fake_doctor_row() {
   case "$ROW" in
     go)
       FAKE_LINTER='golangci-lint'; FAKE_BIN='golangci-lint'; FAKE_REAL='golangci-lint'; FAKE_RULE='funlen'; FAKE_RUNS='runs'; FAKE_TIGHTENED=''
-      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS='toml json'; FAKE_CONFIG_CHECK='yes'
+      FAKE_NO_SETTINGS='yes'; FAKE_BARE_RULE='gochecknoglobals'; FAKE_SEE_RULE=''
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG=''
+      FAKE_SHARED_CONFIG=''; FAKE_SHARED_SECTION=''
+      FAKE_BIN_NOTE='/.bin/golangci-lint, version 2.8.0,'; FAKE_VENV=''; FAKE_ABOVE='yes'
       FAKE_ALTERNATIVE="gocyclo: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.gocyclo; current: cyclop runs in its place; see .golangci.yaml: linters.settings.cyclop"
       FAKE_RELAXED="funlen: runs; recommended: see $(_fake_setup golangci.yaml): linters.settings.funlen; current: see .golangci.yaml: linters.settings.funlen, the linter's default when absent"
       FAKE_NAMED_RULE='revive file-length-limit'; FAKE_CONFIG='.golangci.yaml' ;;
     python)
       FAKE_LINTER='ruff'; FAKE_BIN='ruff'; FAKE_REAL='ruff'; FAKE_RULE='PLR0913'; FAKE_RUNS='runs'; FAKE_ALTERNATIVE=''
-      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''
+      FAKE_WARN=''; FAKE_IGNORED=''; FAKE_NORULES=''; FAKE_OPTIONS=''; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE=''
+      FAKE_NOKEY_RULE='PLR0913'; FAKE_NOKEY_KEY='pylint.max_args'; FAKE_NEARER_CONFIG='ruff.toml'
+      FAKE_SHARED_CONFIG='pyproject.toml'; FAKE_SHARED_SECTION='[tool.ruff.lint]'
+      FAKE_BIN_NOTE='/.bin/ruff,'; FAKE_VENV='.venv/bin'; FAKE_ABOVE='yes'
       FAKE_RELAXED='PLR0913: limit looser; recommended: pylint.max_args = 4; current: pylint.max_args = 7'
       FAKE_TIGHTENED='PLR0913: limit stricter; recommended: pylint.max_args = 4; current: pylint.max_args = 3'
       FAKE_NAMED_RULE=''; FAKE_CONFIG='pyproject.toml' ;;
@@ -77,7 +122,11 @@ fake_doctor_row() {
       FAKE_OPTIONS='no-param-reassign: options differ; recommended: { props: true }; current: {"props": false}'
       FAKE_WARN='sonarjs/elseif-without-else: runs; recommended: -; current: warn; -'
       FAKE_IGNORED='cannot verify: ESLint ignores src/a'
-      FAKE_NORULES=1; FAKE_FORMATS=''
+      FAKE_NORULES=1; FAKE_FORMATS=''; FAKE_CONFIG_CHECK=''
+      FAKE_NO_SETTINGS=''; FAKE_BARE_RULE=''; FAKE_SEE_RULE='no-magic-numbers'
+      FAKE_NOKEY_RULE=''; FAKE_NOKEY_KEY=''; FAKE_NEARER_CONFIG=''
+      FAKE_SHARED_CONFIG=''; FAKE_SHARED_SECTION=''
+      FAKE_BIN_NOTE='/node_modules/.bin/eslint,'; FAKE_VENV=''; FAKE_ABOVE=''
       FAKE_NAMED_RULE=''; FAKE_CONFIG='eslint.config.mjs' ;;
   esac
 }
@@ -94,7 +143,8 @@ _fake_golangci_json() {
 }
 
 # _fake_ruff_settings <settings path or ""> <max_args> <code>... — a
-# "--show-settings" output enabling those codes
+# "--show-settings" output enabling those codes; max_args "-" leaves that
+# setting out
 _fake_ruff_settings() {
   local sp="$1" args="$2" root c; shift 2
   root=$(cd "$REPO" && pwd -P)
@@ -103,7 +153,9 @@ _fake_ruff_settings() {
   printf '\n# Linter Settings\nlinter.exclude = []\nlinter.rules.enabled = [\n'
   for c in "$@"; do printf '\tsome-rule (%s),\n' "$c"; done
   printf ']\nlinter.rules.should_fix = [\n\tsome-rule (B006),\n]\n'
-  printf 'linter.mccabe.max_complexity = 8\nlinter.pylint.max_args = %s\nlinter.pylint.max_nested_blocks = 2\n' "$args"
+  printf 'linter.mccabe.max_complexity = 8\n'
+  [[ "$args" == - ]] || printf 'linter.pylint.max_args = %s\n' "$args"
+  printf 'linter.pylint.max_nested_blocks = 2\n'
 }
 
 _fake_bin() { # <name> <script body> [<dir>]
@@ -152,6 +204,14 @@ fake_doctor() { # <mode>
   case "$ROW" in
     go)
       _fake_bin golangci-lint '
+echo "$*" >> "$d/calls.log"
+cfg=""; prev=""
+for a in "$@"; do [ "$prev" = -c ] && cfg=$a; prev=$a; done
+if [ "$1" = version ] && [ "$2" = --short ]; then echo 2.8.0; exit 0; fi
+if [ "$1" = config ] && [ "$2" = verify ]; then
+  if [ -f "$d/verify.txt" ] && [ -z "$cfg" ]; then cat "$d/verify.txt" >&2; exit 3; fi
+  exit 0
+fi
 if [ "$1" = config ]; then cat "$d/path.json"; exit 0; fi
 [ "$1" = linters ] || exit 9
 for a in "$@"; do
@@ -160,6 +220,10 @@ for a in "$@"; do
     */setup/golangci.yaml) cat "$d/recommended.json"; exit 0 ;;
   esac
 done
+if [ -n "$cfg" ]; then
+  [ -f "$cfg" ] || { echo "Error: no such config file: $cfg" >&2; exit 3; }
+  if [ -f "$d/$(basename "$cfg").out" ]; then cat "$d/$(basename "$cfg").out"; exit 0; fi
+fi
 if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 3; fi
 cat "$d/repo.json"'
       printf '{"absolutePath":"/r/.golangci.yaml","path":".golangci.yaml"}\n' > "$b/path.json"
@@ -178,17 +242,23 @@ cat "$d/repo.json"'
         json)      rm -f "$REPO/.golangci.yaml"
                    printf '{"absolutePath":"/r/.golangci.json","path":".golangci.json"}\n' > "$b/path.json"
                    printf '{"version": "2", "linters": {"settings": {"revive": {"rules": [{"name": "file-length-limit", "arguments": [{"max": 450}]}]}}}}\n' > "$REPO/.golangci.json" ;;
+        invalid)   printf 'jsonschema: "" does not validate with "/additionalProperties": additional properties '"'"'linters-settings'"'"' not allowed\nThe command is terminated due to an error: the configuration contains invalid elements\n' > "$b/verify.txt" ;;
+        noschema)  printf 'Error: failed to get schema: Get "https://golangci-lint.run/jsonschema/golangci.jsonschema.json": dial tcp: lookup golangci-lint.run: no such host\n' > "$b/verify.txt" ;;
         reject)    printf 'Error: can'"'"'t load config: unsupported version of the configuration: ""\n' > "$b/reject.txt" ;;
         garbled)   for f in path default recommended repo; do printf 'Enabled by your configuration linters:\nfunlen: Checks for long functions.\n' > "$b/$f.json"; done ;;
       esac ;;
     python)
       _fake_bin ruff '
+cfg=""; prev=""
 for a in "$@"; do
   case "$a" in
     --isolated) cat "$d/default.txt"; exit 0 ;;
     */setup/ruff.toml) cat "$d/recommended.txt"; exit 0 ;;
   esac
+  [ "$prev" = --config ] && cfg=$a
+  prev=$a
 done
+if [ -n "$cfg" ] && [ -f "$d/$(basename "$cfg").out" ]; then cat "$d/$(basename "$cfg").out"; exit 0; fi
 if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 2; fi
 cat "$d/repo.txt"'
       _fake_ruff_settings '' 5 E401 F401 > "$b/default.txt"
@@ -199,12 +269,16 @@ cat "$d/repo.txt"'
         missing) _fake_ruff_settings pyproject.toml 4 B006 C901 E401 F401 PLR1702 > "$b/repo.txt" ;;
         relaxed) _fake_ruff_settings pyproject.toml 7 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         tightened) _fake_ruff_settings pyproject.toml 3 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
+        nokey)   _fake_ruff_settings pyproject.toml - B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
         reject)  printf 'ruff failed\n  Cause: Failed to parse pyproject.toml\n' > "$b/reject.txt" ;;
         garbled) for f in default recommended repo; do printf 'linter.rules.enabled = 3 rules\n' > "$b/$f.txt"; done ;;
       esac ;;
     typescript)
       b="$REPO/node_modules/.bin"
       _fake_bin eslint '
+cfg=""; prev=""
+for a in "$@"; do [ "$prev" = -c ] && cfg=$a; prev=$a; done
+if [ -n "$cfg" ] && [ -f "$d/$(basename "$cfg").out" ]; then cat "$d/$(basename "$cfg").out"; exit 0; fi
 if [ -f "$d/reject.txt" ]; then cat "$d/reject.txt" >&2; exit 2; fi
 cat "$d/repo.json"' "$b"
       cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/eslint.config.mjs"
@@ -216,6 +290,31 @@ cat "$d/repo.json"' "$b"
         norules) printf '{\n  "languageOptions": {\n    "parser": "x"\n  },\n  "rules": {}\n}\n' > "$b/repo.json" ;;
         ignored) printf 'undefined\n' > "$b/repo.json" ;;
       esac ;;
+  esac
+}
+
+# fake_doctor_strict <path> — a config file the doctor compares in place of the
+# repository's own, written at $REPO/<path> after fake_doctor: the linter
+# reports on it as it reports on the recommended config. The report is the
+# file's name plus ".out" in the fake's directory; a file with no report is
+# read as the repository's config.
+fake_doctor_strict() {
+  local p="$1" n b="$REPO/.bin"; n=$(basename "$p")
+  mkdir -p "$REPO/$(dirname "$p")"
+  case "$ROW" in
+    go)         cp "$(_fake_setup golangci.yaml)" "$REPO/$p"; cp "$b/recommended.json" "$b/$n.out" ;;
+    python)     cp "$(_fake_setup ruff.toml)" "$REPO/$p"; cp "$b/recommended.txt" "$b/$n.out" ;;
+    typescript) cp "$(_fake_setup eslint.config.ldd.mjs)" "$REPO/$p"; _fake_eslint_json adopt > "$REPO/node_modules/.bin/$n.out" ;;
+  esac
+}
+
+fake_doctor_config_above() {
+  local up b="$REPO/.bin"; up=$(cd "$REPO/.." && pwd -P)
+  case "$ROW" in
+    go)     mv "$REPO/.golangci.yaml" "$up/.golangci.yaml"
+            printf '{"absolutePath":"%s/.golangci.yaml","path":"%s/.golangci.yaml"}\n' "$up" "$up" > "$b/path.json" ;;
+    python) mv "$REPO/pyproject.toml" "$up/pyproject.toml"
+            _fake_ruff_settings ../pyproject.toml 4 B006 C901 E401 F401 PLR0913 PLR1702 > "$b/repo.txt" ;;
   esac
 }
 

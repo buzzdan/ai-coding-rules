@@ -11,10 +11,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `setup/eslint.config.ldd.mjs` enable every linter rule the routing table routes to
   a design rule, at the limits the rules name, with a way to adopt each on an
   existing codebase: golangci-lint's merge-base ratchet, ESLint's bulk
-  suppressions, and ruff on changed files. The plugin never writes them into a
-  repository. The gap linter's threshold line names the file and rule that would
-  hold a file-length limit; for Python, where ruff has no file-length rule, it says
-  that the gap linter holds it.
+  suppressions, and ruff on changed files. `/ldd-setup` proposes them,
+  and writes them only after the user agrees. The gap linter's threshold line names
+  the file and rule that would hold a file-length limit; for Python, where ruff has
+  no file-length rule, it says that the gap linter holds it.
+
+- **`/ldd-setup` and the `lint-setup` skill agree a linter setup per rule.** The
+  command loads the skill. The skill compares the linter setup of each project with
+  the recommended setup. It finds the lint task, the CI steps and the hooks by the
+  commands they run, and counts the findings at the recommended values and at the
+  project's own values. It shows one table per project: for each rule that needs a
+  decision, the project's value, the recommended value and the finding count at
+  each. You decide per rule: `recommended`, `keep`, another value, `off` or `org`
+  (the organization owns the value). The skill proposes a step for the old
+  findings: tighten the config, tighten it and check new issues only, or a strict
+  file that only the plugin uses. It shows the whole edit plan as one diff per file,
+  and the hooks that change for each teammate's commit. It edits only after you
+  agree to the plan. No step before it changes a file. Then the skill writes the
+  agreement into `.ldd-lint.yaml` and runs the doctor again. A headless run prints
+  the tables and the plan and stops.
 
 - **`ldd-lint.sh doctor` compares the repository's linter with the recommended
   setup.** For each language of the repository, it lists each rule of the
@@ -25,15 +40,83 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   Each row shows the recommended setting and the repository's own. The doctor asks
   the installed linter: ruff and the project's own ESLint (`eslint --print-config`,
   shared configs included) report every rule and limit, golangci-lint reports
-  which linters run. Where the linter cannot report a setting, the row names the
+  which linters run. The doctor runs ruff from PATH only: when ruff is not on
+  PATH, the row says to put the project's ruff on PATH (for example, to
+  activate the project's virtual environment). Its note names the
+  golangci-lint binary on PATH and its version, so a reader can compare it with
+  the version that the project pins. Where the linter cannot report a setting, the row names the
   file and key to read. An ESLint that is not installed in the project, or that
   cannot load its config, is "cannot verify": install the packages, then run the
   doctor again. `--tsv` writes the rows as seven fields; the last says whether the
   linter or a search by name gave the state. A linter output the doctor cannot
-  read is "cannot verify". `--root <dir>`
+  read is "cannot verify". A golangci-lint config that fails the linter's own
+  `config verify` is "cannot verify", with the linter's message. When
+  `config verify` cannot run (for example, with no network for its schema), a note
+  says that golangci-lint did not check the config, and why. A rule whose setting
+  the installed linter does not report is "cannot verify" for that rule only: the
+  other rules of that linter keep their rows. The doctor resolves the ruff
+  settings for a source file with no ruff config nearer than the project root (a
+  `pyproject.toml` counts only with a `[tool.ruff` section); when each file has
+  one, a note names it. When the linter reads a config outside the
+  git work tree (for example, in the home directory), a note names that file.
+  `--root <dir>`
   points the doctor at one project of a monorepo, such as a front end with its own
   ESLint config. golangci-lint's cyclop counts as gocyclo. The doctor never edits
-  a file.
+  a file. The doctor also reads the agreement record in `.ldd-lint.yaml`: a row
+  whose rule the team agreed to keep gets the state agreed, and a row whose value
+  differs from the agreed one shows the agreed value beside its own. A missing
+  rule is agreed only when the team agreed it off, or the organization owns it. The
+  record reads items in double quotes, in single quotes and plain, skips blank
+  lines and comment lines in a list, and warns once about each other line under a
+  key. The doctor
+  names an agreed rule that has no row in a warning on stderr. `ldd-lint.sh agree`
+  prints the record lines for `.ldd-lint.yaml`, escaped and ready to copy: a rule
+  with the doctor's current value, `off` or `org`; a fingerprint of each
+  golangci-lint config file the doctor compared (`--fingerprint`); the line that
+  names a config file (`--lint-config`); and one line for each linter the run
+  checked (`--linters`). `agree` refuses a rule whose row cannot verify, with the
+  advice to upgrade the linter, and refuses a rule line of a linter that reads a
+  config outside the repository; `--linters` and `--fingerprint` leave that linter
+  out with a note. `--lint-config` takes only a linter of the plugin
+  and a file inside the repository. The record key `linters` holds those lines, so the status
+  line counts the rows of a setup that took every recommended value.
+  golangci-lint reports no setting, so its drift shows through the fingerprint;
+  ruff and ESLint get no fingerprint, because their rows show a changed value.
+  A path in a record line is relative to the project root, also for a config above
+  it (`../`). A `lint_config` item of the record, or `--config <file>`, makes the
+  doctor compare another config file for one linter, and the linter's own config
+  check reads that file too. In a run with two or more linters, `--linter <name>`
+  names the linter of `--config`.
+  `agree --fingerprint` then prints a line for that file and one for the
+  repository's own config. A golangci-lint `lint_fingerprint` item whose file
+  changed, or is gone, makes the doctor print
+  `doctor: <path> changed since the setup was agreed` on stderr.
+  `ldd-lint.sh doctor --brief` finds the projects with a record (the root and each
+  directory with a tracked `.ldd-lint.yaml`) and prints one line for each project
+  whose agreed setup differs from what the linter does, or whose linter cannot
+  check it for a cause that is the same in every clone (the linter rejects the
+  config, or the agreed config is gone). A linter that is not installed on this
+  machine gives no line. It counts only the linters that the record names, so a
+  plugin whose setup did not run gives no line. It prints nothing for a project
+  with no `agreed` key. For each project, it lists the files of each language with
+  a recommended config by extension, without a language lookup per file.
+  The generic plugin's doctor skips a language when the plugin written for it is
+  installed. It prints `doctor: <language> — <plugin> is installed and checks this
+  language; run /<prefix>-setup`, gives that language no row, and exits 3 when
+  every language in scope is skipped this way. Exit 2 stays for a run that has a
+  language with no recommended config.
+
+- **`/ldd-status` shows the lint setup line, and the lint-fixer runs the agreed
+  lint task.** The status command runs `ldd-lint.sh doctor --brief`. It shows a
+  "Lint setup" part only when a project with an agreed setup needs attention. The
+  lint-fixer reads the project's task file, finds the lint-fix task by the command it
+  runs, and uses the task that runs the `lint_config` file when the record names one
+  for the linter it runs. The record is the `.ldd-lint.yaml` nearest to the scope,
+  up to the repository root. It passes a package scope to the task only when the
+  task accepts one. Else, with no `lint_config` item, it runs the plugin's default
+  command for a package scope. With a `lint_config` item, it never runs the part of
+  the default command that runs that linter: when no task runs
+  that file, it stops and names `/ldd-setup`.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory
@@ -48,6 +131,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **House rule A1 names the lint-setup skill.** The skill is the one place that
+  adds a tool or a linter rule, and it adds one only after the user agrees.
 - **One set of thresholds.** The skills and routing tables name the same limits the
   gap linter applies: the repository linter's rule where it has one, else 450
   code lines per file and 8 and 13 files per directory. The package-size

@@ -26,7 +26,7 @@ differs from its rendering.
 
 ## Templating
 
-Go `text/template` with the default delimiters. Core files use only two constructs:
+Go `text/template` with the default delimiters. Core files use only three constructs:
 
 - `{{.Plugin}}`, `{{.Lang}}`, `{{.CmdPrefix}}`, `{{.SrcGlob}}`, `{{.TestGlob}}`,
   `{{.ProjectMarker}}`, `{{.Nolint}}`, `{{.CommentPrefix}}`, `{{.DefaultTest}}`,
@@ -50,6 +50,10 @@ Go `text/template` with the default delimiters. Core files use only two construc
   but it may not include another file. An include sits at a block boundary — a bullet, paragraph,
   fence or table row — never inside a sentence; which text is an include and which is
   reworded in core is decided in `docs/language-residue.md`.
+- `{{"{{"}}` — a literal `{{` in the rendered file. A core file that shows another
+  tool's template text writes it this way: `{{"{{"}}.CLI_ARGS}}` renders to
+  `{{.CLI_ARGS}}` (a Taskfile variable), and `${{"{{"}} github.base_ref }}` renders to
+  `${{ github.base_ref }}` (a GitHub Actions expression). A closing `}}` needs no escape.
 
 File-level rules the generator applies without template syntax:
 
@@ -206,6 +210,14 @@ differently from the other bindings:
   `ldd-lint` matrix checks that the file sets that rule at the scalar's value; when
   `golangci-lint`, `ruff` or `node` is on PATH, the matrix also has each tool check
   its file.
+- `skills/lint-setup/` renders the same in every plugin. Its `SKILL.md` names no
+  linter; the per-linter recipes are in `golangci-lint.md`, `ruff.md` and
+  `eslint.md` beside it, each with a `residue-exempt:` marker, so the generic plugin
+  carries all three. Its `allowed-tools` list names the linters' check commands, so it
+  is the include `skills/lint-setup/allowed-tools.md` under `core/includes/`, with its
+  own marker. The `/<prefix>-setup` command reads the same include, so the command
+  grants no tool that the skill does not. The trigger clause of its description is a binding include,
+  `skills/lint-setup/description-scope.md`, with no core default.
 - `scripts/check-repo-brain_test.sh` is a core template whose cases read one include,
   `scripts/repo-brain-fixture.sh`: the fixture rows (marker, code file, second
   package, sub-project) for every language the rendered gate's adapter serves. The
@@ -236,21 +248,22 @@ Hard residue: none. No plugin-name or command-prefix literal, golangci
 reference, source-file glob, nolint directive, scalar word or retired Go idiom is
 left in core/.
 
-Soft residue by token (131 lines):
+Soft residue by token (136 lines):
 
 | Token | Lines | Files |
 |---|---:|---:|
 | interface | 86 | 25 |
-| Go (the word) | 13 | 8 |
+| Go (the word) | 15 | 9 |
 | Go code fence | 12 | 1 |
 | Go stdlib | 9 | 5 |
 | struct | 6 | 4 |
 | func | 4 | 2 |
-| go.mod | 2 | 1 |
+| go.mod | 3 | 2 |
+| Go linter name | 2 | 1 |
 | race detector | 2 | 2 |
 | sync. | 1 | 1 |
 
-Soft residue by file (131 lines):
+Soft residue by file (136 lines):
 
 | File | Lines | Tokens |
 |---|---:|---:|
@@ -268,8 +281,10 @@ Soft residue by file (131 lines):
 | `skills/testing/SKILL.md` | 4 | 1 |
 | `includes/handbook/R6/example.md` | 3 | 1 |
 | `includes/skills/documentation/reference/doc-comment-menus.md` | 3 | 1 |
+| `skills/lint-setup/golangci-lint.md` | 3 | 2 |
 | `includes/handbook/R11/example.md` | 2 | 1 |
 | `includes/rules/R10/falsifying-questions.md` | 2 | 2 |
+| `includes/scripts/ldd-doctor-skip-cases.sh` | 2 | 1 |
 | `skills/pre-commit-review/SKILL.md` | 2 | 1 |
 | `skills/pre-commit-review/reference.md` | 2 | 1 |
 | `agents/overabstraction-skeptic.md` | 1 | 1 |
