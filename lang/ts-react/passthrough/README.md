@@ -144,11 +144,14 @@ adds a checker the repository does not use.
   `.prettierrc*`; a new one in a diff is itself a review finding.
 - **The recommended setup makes the design triggers fire.** `setup/eslint.config.ldd.mjs`
   in the plugin directory is a flat-config fragment with every rule the routing
-  table routes to a design rule, at the limits the rules name. The plugin never
-  writes it into your repository: copy it beside `eslint.config.js` and spread it
-  before your own entries, so every limit your configuration already sets stays
-  yours. `scripts/ldd-lint.sh doctor` asks your project's ESLint which of its rules
-  run, and at which settings; it changes no file.
+  table routes to a design rule, at the limits the rules name. `/tsr-ldd-setup`
+  proposes it, and writes it only after you agree. You can also copy it beside
+  `eslint.config.js` and spread it before your own entries, so every limit your
+  configuration already sets stays yours. `scripts/ldd-lint.sh doctor` asks your
+  project's ESLint which of its rules run, and at which settings; it marks a rule
+  the team agreed to keep as `agreed`, and it changes no file. `/tsr-ldd-status`
+  shows a lint setup line only after a setup ran and its agreed setup needs
+  attention.
 - **What it does not review.** Accessibility beyond what `jsx-a11y` flags —
   contrast, heading order, focus management, live regions — is the repository's
   axe run, which this plugin does not replace. Error-boundary placement and
@@ -162,9 +165,9 @@ ts-react-linter-driven-development/
 ├── maxims.md     the uncompiled layer — named design questions above the rules
 ├── rules/        R1-primitive-obsession … R12-mutation-discipline   (single source of truth)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
-│                 pre-commit-review · testing · documentation   (thin directional views)
+│                 pre-commit-review · testing · documentation · lint-setup   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer
-├── commands/     tsr-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
+├── commands/     tsr-ldd-analyze · autopilot · quickfix · prepare · review · status · setup · wire-repo-brain
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in TypeScript)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with the TypeScript adapter
@@ -235,6 +238,7 @@ is the meta-orchestrator:
 | `/tsr-ldd-analyze [files \| --all]` | Tests + lint + review, combined report | ❌ No |
 | `/tsr-ldd-review [files \| --all]` | Commit-readiness check | ❌ No |
 | `/tsr-ldd-status` | Show current phase + progress | N/A |
+| `/tsr-ldd-setup [project dir …]` | Compare the linter setup with the recommended one, agree per rule, edit only after you agree to the plan | ✅ After your yes |
 | `/wire-repo-brain [path]` | Wire the documentation network in one pass | ✅ Wiring only |
 
 On a repository larger than a few dozen source files, `--all` reports `PARTIAL

@@ -11,10 +11,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   `setup/eslint.config.ldd.mjs` enable every linter rule the routing table routes to
   a design rule, at the limits the rules name, with a way to adopt each on an
   existing codebase: golangci-lint's merge-base ratchet, ESLint's bulk
-  suppressions, and ruff on changed files. The plugin never writes them into a
-  repository. The gap linter's threshold line names the file and rule that would
-  hold a file-length limit; for Python, where ruff has no file-length rule, it says
-  that the gap linter holds it.
+  suppressions, and ruff on changed files. `/go-ldd-setup` proposes them,
+  and writes them only after the user agrees. The gap linter's threshold line names
+  the file and rule that would hold a file-length limit; for Python, where ruff has
+  no file-length rule, it says that the gap linter holds it.
+
+- **`/go-ldd-setup` and the `lint-setup` skill agree a linter setup per rule.** The
+  command loads the skill. The skill compares the linter setup of each project with
+  the recommended setup. It finds the lint task, the CI steps and the hooks by the
+  commands they run, and counts the findings at the recommended values and at the
+  project's own values. It shows one table per project: for each rule that needs a
+  decision, the project's value, the recommended value and the finding count at
+  each. You decide per rule: `recommended`, `keep`, another value, `off` or `org`
+  (the organization owns the value). The skill proposes a step for the old
+  findings: tighten the config, tighten it and check new issues only, or a strict
+  file that only the plugin uses. It shows the whole edit plan as one diff per file,
+  and the hooks that change for each teammate's commit. It edits only after you
+  agree to the plan. No step before it changes a file. Then the skill writes the
+  agreement into `.ldd-lint.yaml` and runs the doctor again. A headless run prints
+  the tables and the plan and stops.
 
 - **`ldd-lint.sh doctor` compares the repository's linter with the recommended
   setup.** For each language of the repository, it lists each rule of the

@@ -1,10 +1,10 @@
 # Recommended ruff configuration of the linter-driven-development plugins:
 # every rule the plugin's routing table routes to one of the twelve design
 # rules, at the limits the rules name. Each rule says which rule its failures
-# feed. The plugin never writes this file into a repository: the repository's
-# owners copy it, or the parts they want, into ruff.toml, or into
-# pyproject.toml with each table name prefixed by "tool.ruff." ([lint] becomes
-# [tool.ruff.lint]).
+# feed. The lint-setup skill proposes it, and writes it only after the user
+# agrees. The repository's owners can also copy it, or the parts they want, into
+# ruff.toml, or into pyproject.toml with each table name prefixed by
+# "tool.ruff." ([lint] becomes [tool.ruff.lint]).
 # residue-exempt: a ruff configuration names its rule codes on purpose.
 #
 # Limits a repository already sets stay the repository's: the linter is the

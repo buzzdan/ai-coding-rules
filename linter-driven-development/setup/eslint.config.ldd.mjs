@@ -1,10 +1,11 @@
 // Recommended ESLint flat-config fragment of the linter-driven-development
 // plugins: every rule the plugin's routing table routes to one of the twelve
 // design rules, at the limits the rules name. Each rule line says which rule its
-// failures feed. The plugin never writes this file into a repository: the
-// repository's owners copy it, or the parts they want, beside eslint.config.js
-// and spread it before their own entries. Later entries win, so every limit the
-// repository's config already sets stays the repository's:
+// failures feed. The lint-setup skill proposes it, and writes it only after the
+// user agrees. The repository's owners can also copy it, or the parts they want,
+// beside eslint.config.js and spread it before their own entries. Later entries
+// win, so every limit the repository's config already sets stays the
+// repository's:
 //
 //   import ldd from './eslint.config.ldd.mjs'
 //   export default [...ldd, ...yourConfig]
