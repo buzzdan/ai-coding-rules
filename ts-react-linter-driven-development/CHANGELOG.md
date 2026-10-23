@@ -40,7 +40,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   Each row shows the recommended setting and the repository's own. The doctor asks
   the installed linter: ruff and the project's own ESLint (`eslint --print-config`,
   shared configs included) report every rule and limit, golangci-lint reports
-  which linters run. Where the linter cannot report a setting, the row names the
+  which linters run. The doctor runs the ruff of the project's `.venv/bin` or
+  `venv/bin` when there is one, else the ruff on PATH. Its note names the
+  golangci-lint binary on PATH and its version, so a reader can compare it with
+  the version that the project pins. Where the linter cannot report a setting, the row names the
   file and key to read. An ESLint that is not installed in the project, or that
   cannot load its config, is "cannot verify": install the packages, then run the
   doctor again. `--tsv` writes the rows as seven fields; the last says whether the
@@ -54,18 +57,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   differs from the agreed one shows the agreed value beside its own. The doctor
   names an agreed rule that has no row in a warning on stderr. `ldd-lint.sh agree`
   prints the record lines for `.ldd-lint.yaml`, escaped and ready to copy: a rule
-  with the doctor's current value, `off` or `org`; a fingerprint of each config
-  file the doctor compared (`--fingerprint`); and the line that names a config
-  file (`--lint-config`). A `lint_config` item of the record, or `--config <file>`,
-  makes the doctor compare another config file for the one linter of the run, and
-  the linter's own config check reads that file too. `agree --fingerprint` then
-  prints a line for that file and one for the repository's own config. A
-  `lint_fingerprint` item whose file changed, or is gone, makes the doctor print
+  with the doctor's current value, `off` or `org`; a fingerprint of each
+  golangci-lint config file the doctor compared (`--fingerprint`); and the line
+  that names a config file (`--lint-config`). golangci-lint reports no setting,
+  so its drift shows through the fingerprint; ruff and ESLint get no fingerprint,
+  because their rows show a changed value. A path in a record line is relative to
+  the project root, also for a config above it (`../`). A `lint_config` item of
+  the record, or `--config <file>`, makes the doctor compare another config file
+  for one linter, and the linter's own config check reads that file too. In a run
+  with two or more linters, `--linter <name>` names the linter of `--config`.
+  `agree --fingerprint` then prints a line for that file and one for the
+  repository's own config. A golangci-lint `lint_fingerprint` item whose file
+  changed, or is gone, makes the doctor print
   `doctor: <path> changed since the setup was agreed` on stderr.
   `ldd-lint.sh doctor --brief` finds the projects with a record (the root and each
   directory with a tracked `.ldd-lint.yaml`) and prints one line for each project
   whose agreed setup differs from what the linter does, or whose linter cannot
-  check it. It prints nothing for a project with no `agreed` key.
+  check it. It counts only the linters that an item of the record names, so a
+  plugin whose setup did not run gives no line. It prints nothing for a project
+  with no `agreed` key.
   The generic plugin's doctor skips a language when the plugin written for it is
   installed. It prints `doctor: <language> — <plugin> is installed and checks this
   language; run /<prefix>-setup`, gives that language no row, and exits 3 when
@@ -77,8 +87,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   "Lint setup" part only when a project with an agreed setup needs attention. The
   lint-fixer reads the project's task file, finds the lint-fix task by the command it
   runs, and uses the task that runs the `lint_config` file when the record names one.
-  It passes a package scope to the task only when the task accepts one. Else it runs
-  the plugin's default command for a package scope.
+  It passes a package scope to the task only when the task accepts one. Else, with
+  no `lint_config` item, it runs the plugin's default command for a package scope.
+  With a `lint_config` item, it never runs the default command: when no task runs
+  that file, it stops and names `/tsr-ldd-setup`.
 
 - **A gap linter for the design triggers no linter holds.** `scripts/ldd-lint.sh`
   measures lines per source file (`file-length`) and source files per directory
