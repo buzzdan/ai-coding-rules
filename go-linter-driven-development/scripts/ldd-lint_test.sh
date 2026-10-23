@@ -33,14 +33,21 @@ export LDD_INSTALLED_PLUGINS="$NO_PLUGINS"
 
 pass=0 failed=0 skipped=0
 CASE=""
+VERDICT=""
 OUT="" ERR="" CODE=0
 ROW=""
 REPO=""
 TAB=$(printf '\t')
 
 # ---------- harness ----------
-begin() { CASE="$1"; [[ -n "$ROW" ]] && CASE="[$ROW] $1"; REPO=$(mktemp -d); }
-finish() { rm -rf "$REPO"; }
+# Each case gets one verdict: pass, fail or skip. A case counts once, as its
+# verdict says: a bad after an ok turns the pass into a failure, an ok after a
+# bad changes nothing, and a case that ends with no verdict fails.
+begin() { CASE="$1"; [[ -n "$ROW" ]] && CASE="[$ROW] $1"; VERDICT=""; REPO=$(mktemp -d); }
+finish() {
+  [[ -n "$VERDICT" ]] || bad "the case ended with no verdict"
+  rm -rf "$REPO"
+}
 
 run_lint() { # <subcommand> [options...] — runs the script over $REPO
   local errf; errf=$(mktemp)
@@ -48,9 +55,20 @@ run_lint() { # <subcommand> [options...] — runs the script over $REPO
   ERR=$(cat "$errf"); rm -f "$errf"
 }
 
-ok()   { pass=$((pass + 1)); echo "PASS  $CASE"; }
-bad()  { failed=$((failed + 1)); echo "FAIL  $CASE — $1"; echo "      exit=$CODE"; printf '%s\n' "$OUT" "$ERR" | sed 's/^/      | /'; }
-skip() { skipped=$((skipped + 1)); echo "SKIP  $CASE — $1"; }
+ok() {
+  [[ -z "$VERDICT" ]] || return 0
+  VERDICT=pass; pass=$((pass + 1)); echo "PASS  $CASE"
+}
+# bad <why> — the case fails; exit 1, so a chain "{ check || bad …; } && ok"
+# stops before ok
+bad() {
+  [[ "$VERDICT" == pass ]] && pass=$((pass - 1))
+  [[ "$VERDICT" == fail ]] || failed=$((failed + 1))
+  VERDICT=fail
+  echo "FAIL  $CASE — $1"; echo "      exit=$CODE"; printf '%s\n' "$OUT" "$ERR" | sed 's/^/      | /'
+  return 1
+}
+skip() { VERDICT=skip; skipped=$((skipped + 1)); echo "SKIP  $CASE — $1"; }
 
 expect_exit() { (( CODE == $1 )) || { bad "expected exit $1"; return 1; }; }
 expect_has() { # <needle> — in stdout or stderr
@@ -1790,7 +1808,7 @@ finish
 begin "agree: current on a rule that does not run is exit 2 and says to use off"
 write_src "src/a$FX_EXT" 1; fake_doctor missing
 run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "the team keeps it"
-expect_exit 2 && expect_has "does not run" && expect_has "--decision off" && [[ -z "$OUT" ]] && ok
+expect_exit 2 && expect_has "does not run" && expect_has "--decision off" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
 finish
 
 begin "agree: off on a rule that does not run turns the row agreed"
@@ -1808,7 +1826,7 @@ else
   write_src "src/a$FX_EXT" 1; fake_doctor adopt
   rm -f "$REPO/$FAKE_CONFIG"
   run_agree --fingerprint
-  expect_exit 0 && [[ -z "$OUT" ]] && expect_has "no config file of $FAKE_LINTER was compared" && ok
+  expect_exit 0 && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && expect_has "no config file of $FAKE_LINTER was compared" && ok
   finish
 fi
 
@@ -1829,7 +1847,7 @@ if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"
 else
   write_src "src/a$FX_EXT" 1
   run_agree --linters
-  expect_exit 0 && [[ -z "$OUT" ]] && expect_has "agree: no linter of this run could be checked, so there is no linters line" \
+  expect_exit 0 && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && expect_has "agree: no linter of this run could be checked, so there is no linters line" \
     && expect_has "$FAKE_LINTER" && ok
   finish
 fi
@@ -1845,7 +1863,7 @@ begin "agree --linters does not combine with the other agree options (exit 2)"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 : > "$REPO/x.cfg"
 r1=1
-run_agree --linters --fingerprint; expect_exit 2 && expect_has "agree takes one of" && [[ -z "$OUT" ]] || r1=0
+run_agree --linters --fingerprint; expect_exit 2 && expect_has "agree takes one of" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } || r1=0
 run_agree --linters --lint-config "$FAKE_LINTER" x.cfg; expect_exit 2 && expect_has "agree takes one of" || r1=0
 run_agree --linters --rule "$FAKE_RULE"; expect_exit 2 && expect_has "agree takes one of" || r1=0
 run_agree --linters --linter "$FAKE_LINTER"; expect_exit 2 && expect_has "agree takes one of" || r1=0
@@ -1885,7 +1903,7 @@ finish
 begin "agree for a rule with no row is a usage error (exit 2)"
 write_src "src/a$FX_EXT" 1; fake_doctor adopt
 run_agree --linter "$FAKE_LINTER" --rule no-such-rule --decision off --reason "typo"
-expect_exit 2 && expect_has "no doctor row for $FAKE_LINTER no-such-rule" && [[ -z "$OUT" ]] && ok
+expect_exit 2 && expect_has "no doctor row for $FAKE_LINTER no-such-rule" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
 finish
 
 begin "agree with an unknown decision, an empty reason or a missing option is a usage error (exit 2)"
@@ -1904,7 +1922,7 @@ if [[ -z "$FAKE_BIN" ]]; then skip "the doctor runs no linter for this language"
 else
   write_src "src/a$FX_EXT" 1
   run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "why"
-  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not " && [[ -z "$OUT" ]] && ok
+  expect_exit 2 && expect_has "cannot verify: $FAKE_BIN is not " && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   finish
 fi
 
@@ -2550,6 +2568,118 @@ run_brief
 expect_exit 0 && { [[ "$(tree_sum)" == "$before" ]] || bad "the tree changed"; } && ok
 finish
 
+begin "agree current on a named rule whose name holds a space turns the row agreed, and a typo of it is warned about"
+case " $FAKE_FORMATS " in
+  *" toml "*)
+    write_src "src/a$FX_EXT" 1; fake_doctor toml
+    run_agree --linter "$FAKE_LINTER" --rule "$FAKE_NAMED_RULE" --decision current --reason "kept"
+    r1=0; expect_exit 0 && r1=1
+    write_record "agreed:
+$OUT
+$(record_item "$FAKE_LINTER" "revive no-such-spaced" "off" "typo")"
+    run_doctor --tsv
+    (( r1 )) && expect_has "doctor: .ldd-lint.yaml: no row for $FAKE_LINTER revive no-such-spaced; the line is ignored" \
+      && expect_not "no row for $FAKE_LINTER $FAKE_NAMED_RULE" \
+      && { [[ "$(doctor_field "$FAKE_NAMED_RULE" 4)" == agreed ]] || bad "named row not agreed: $(doctor_field "$FAKE_NAMED_RULE" 4)"; } && ok ;;
+  *) skip "the language's linter has no named rows" ;;
+esac
+finish
+
+begin "agree current over a record that agrees a missing rule off still refuses: the rule does not run"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "the team does not use it")"
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "again"
+expect_exit 2 && expect_has "does not run" && ok
+finish
+
+begin "agree current over a record with another agreed value prints the linter's current value"
+if [[ -z "$FAKE_RELAXED" || -n "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor relaxed
+  run_doctor --tsv; cur=$(doctor_field "$FAKE_RULE" 6)
+  write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "99" "old")"
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "new"
+  expect_exit 0 && expect_out "$(record_item "$FAKE_LINTER" "$FAKE_RULE" "$cur" "new")" && ok
+  finish
+fi
+
+begin "agree: a reason with a newline, a carriage return and a tab stays one line"
+write_src "src/a$FX_EXT" 1; fake_doctor adopt
+run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason $'a\nb\rc\td'
+expect_exit 0 && expect_out "  - \"$FAKE_LINTER $FAKE_RULE = off | a b c d\"" && ok
+finish
+
+begin "doctor: of two agreed items for one rule, the first wins"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+write_record "agreed:
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "off" "first")
+$(record_item "$FAKE_LINTER" "$FAKE_RULE" "7" "second")"
+run_doctor
+expect_exit 0 && expect_has "$FAKE_RULE: agreed;" && ok
+finish
+
+begin "doctor: a fingerprint item whose path holds a space is checked"
+if [[ -z "$FAKE_NO_SETTINGS" ]]; then skip "the linter reports its settings, so it has no fingerprint"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor adopt
+  mv "$REPO/$FAKE_CONFIG" "$REPO/my $FAKE_CONFIG"
+  write_record "lint_config:
+  - \"$FAKE_LINTER my $FAKE_CONFIG\"
+lint_fingerprint:
+  - \"$FAKE_LINTER my $FAKE_CONFIG 0000\""
+  run_doctor
+  expect_exit 0 && expect_has "doctor: my $FAKE_CONFIG changed since the setup was agreed" && ok
+  finish
+fi
+
+begin "--brief says nothing for a record below the root that git does not track"
+real=$REPO; REPO="$real/sub"; mkdir -p "$REPO"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+REPO=$real
+[[ ! -d "$real/sub/.bin" ]] || mv "$real/sub/.bin" "$real/.bin"
+printf 'agreed:\n%s\n' "$(names_linter)" > "$REPO/sub/.ldd-lint.yaml"
+( cd "$REPO" && git init -q . ) >/dev/null 2>&1
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "--brief says nothing for a record under node_modules outside git"
+mkdir -p "$REPO/node_modules/pkg"
+write_src "src/a$FX_EXT" 1; fake_doctor missing
+printf 'agreed:\n%s\n' "$(names_linter)" > "$REPO/node_modules/pkg/.ldd-lint.yaml"
+run_brief
+expect_exit 0 && expect_out "" && ok
+finish
+
+begin "agree current on a limit stricter row turns the row agreed"
+if [[ -z "$FAKE_TIGHTENED" ]]; then skip "the linter reports no setting to compare"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor tightened
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision current --reason "kept"
+  r1=0; expect_exit 0 && r1=1
+  write_record "agreed:
+$OUT"
+  run_doctor --tsv
+  (( r1 )) && { [[ "$(doctor_field "$FAKE_RULE" 4)" == agreed ]] || bad "stricter row not agreed: $(doctor_field "$FAKE_RULE" 4)"; } && ok
+  finish
+fi
+
+begin "agree current on an options differ row turns the row agreed"
+if [[ -z "$FAKE_OPTIONS" ]]; then skip "the linter reports no such options"; finish
+else
+  write_src "src/a$FX_EXT" 1; fake_doctor optsdiffer
+  orule=${FAKE_OPTIONS%%:*}
+  run_agree --linter "$FAKE_LINTER" --rule "$orule" --decision current --reason "kept"
+  r1=0; expect_exit 0 && r1=1
+  write_record "agreed:
+$OUT"
+  run_doctor --tsv
+  (( r1 )) && { [[ "$(doctor_field "$orule" 4)" == agreed ]] || bad "options row not agreed: $(doctor_field "$orule" 4)"; } && ok
+  finish
+fi
+
 } # run_row_cases
 
 for ROW in $FX_ROWS; do
@@ -2585,7 +2715,7 @@ else
   write_src "src/a.go" 1
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_doctor --tsv
   expect_exit 3 && expect_has "doctor: go — go-linter-driven-development is installed and checks this language; run /go-ldd-setup" \
-    && [[ -z "$OUT" ]] && ok
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   finish
 
   begin "doctor: a language with no recommended config still ends the generic doctor with exit 2"
@@ -2606,14 +2736,14 @@ else
   mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
   write_src "src/a.go" 1
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --fingerprint
-  expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
+  expect_exit 2 && expect_has "belongs to an installed plugin" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   finish
 
   begin "agree --linters: a language left to an installed plugin gives no line"
   mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
   write_src "src/a.go" 1
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --linters
-  expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
+  expect_exit 2 && expect_has "belongs to an installed plugin" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   finish
 
   begin "agree --linters: a language left to an installed plugin is not printed beside another language"
@@ -2783,6 +2913,18 @@ $(names_linter)"
 fi
 ROW=""; finish
 
+begin "agree for a linter that verifies is not blocked by another linter that cannot"
+if (( $(rows_linters | wc -l) < 2 )); then skip "the plugin reports one linter"
+else
+  for r in $FX_ROWS; do use_row "$r"; write_src "src/a$FX_EXT" 1; done
+  ROW=$r; fake_doctor_row; fake_doctor adopt
+  run_agree --linter "$FAKE_LINTER" --rule "$FAKE_RULE" --decision off --reason "kept"
+  r1=0; expect_exit 0 && r1=1
+  run_agree --fingerprint
+  (( r1 )) && expect_exit 2 && ok
+fi
+ROW=""; finish
+
 begin "--config with a path that is not a file is a usage error (exit 2)"
 write_src "src/a$FX_EXT" 1
 run_doctor --config no-such.cfg
@@ -2804,7 +2946,7 @@ finish
 begin "agree --lint-config for a path that is not a file is exit 2"
 mkdir -p "$REPO/sub"
 run_lint agree --lint-config a-linter sub
-expect_exit 2 && expect_has "not a file: sub" && [[ -z "$OUT" ]] && ok
+expect_exit 2 && expect_has "not a file: sub" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
 finish
 
 begin "agree --lint-config escapes a quote and a backslash in the path"
@@ -2878,7 +3020,7 @@ run_lint file-length --files no-such-list.txt
 expect_exit 2 && expect_has "no such file list" && ok
 finish
 
-for opt in --root --files --glob --test-re; do
+for opt in --root --files --glob --test-re --linter --rule --decision --reason --config; do
   begin "$opt without its value is a usage error (exit 2)"
   run_bounded file-length "$opt"
   expect_exit 2 && expect_has "$opt needs a value" && ok

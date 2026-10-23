@@ -18,7 +18,7 @@ else
   write_src "src/a.go" 1
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_doctor --tsv
   expect_exit 3 && expect_has "doctor: go — go-linter-driven-development is installed and checks this language; run /go-ldd-setup" \
-    && [[ -z "$OUT" ]] && ok
+    && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   finish
 
   begin "doctor: a language with no recommended config still ends the generic doctor with exit 2"
@@ -39,14 +39,14 @@ else
   mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
   write_src "src/a.go" 1
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --fingerprint
-  expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
+  expect_exit 2 && expect_has "belongs to an installed plugin" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   finish
 
   begin "agree --linters: a language left to an installed plugin gives no line"
   mkdir -p "$REPO/plugin"; installed_fixture go-linter-driven-development
   write_src "src/a.go" 1
   LDD_INSTALLED_PLUGINS="$REPO/installed.json" run_agree --linters
-  expect_exit 2 && expect_has "belongs to an installed plugin" && [[ -z "$OUT" ]] && ok
+  expect_exit 2 && expect_has "belongs to an installed plugin" && { [[ -z "$OUT" ]] || bad "stdout is not empty"; } && ok
   finish
 
   begin "agree --linters: a language left to an installed plugin is not printed beside another language"
