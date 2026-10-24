@@ -82,9 +82,10 @@ function emit(identifier) {
   if (module != "") print module "." identifier
   if (package_dir != "" && package_dir != module) print package_dir "." identifier
 }
-function ident(text) {
-  if (match(text, /^[A-Za-z_$][A-Za-z0-9_$]*/)) return substr(text, RSTART, RLENGTH)
-  return ""
+function ident(text, found) {
+  if (!match(text, /^[A-Za-z_$][A-Za-z0-9_$]*/)) return 0
+  found["name"] = substr(text, RSTART, RLENGTH)
+  return 1
 }
 function keyword(word) {
   return word == "if" || word == "else" || word == "for" || word == "while" || word == "do" || word == "switch" || \
@@ -147,12 +148,12 @@ collecting {
 /^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace)[ \t]/ { depth = 0; current_class = "" }
 /^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+[A-Za-z_$]/ {
   text = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+/, "", text)
-  name = ident(text); if (name != "") owner(name)
+  if (ident(text, found)) owner(found["name"])
   advance(); next
 }
 /^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+[A-Za-z_$]/ {
   text = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+/, "", text)
-  name = ident(text); if (name != "") emit(name)
+  if (ident(text, found)) emit(found["name"])
   advance(); next
 }
 /^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/ {
@@ -161,15 +162,15 @@ collecting {
     if (match(text, /[]}][ \t]*=[^=>]/)) names(substr(text, 2, RSTART - 2))
     else { collected = substr(text, 2); collecting = 1 }
   } else if (text ~ /^enum[ \t]+[A-Za-z_$]/) {
-    sub(/^enum[ \t]+/, "", text); name = ident(text); if (name != "") owner(name)
+    sub(/^enum[ \t]+/, "", text); if (ident(text, found)) owner(found["name"])
   } else {
-    name = ident(text); if (name != "") emit(name)
+    if (ident(text, found)) emit(found["name"])
   }
   advance(); next
 }
 /^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+[A-Za-z_$]/ {
   text = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+/, "", text)
-  name = ident(text); if (name != "") owner(name)
+  if (ident(text, found)) owner(found["name"])
   advance(); next
 }
 /^export[ \t]+(type[ \t]+)?\{/ {
@@ -180,7 +181,7 @@ collecting {
 }
 /^export[ \t]+\*[ \t]+as[ \t]+[A-Za-z_$]/ {
   text = line; sub(/^export[ \t]+\*[ \t]+as[ \t]+/, "", text)
-  name = ident(text); if (name != "") emit(name)
+  if (ident(text, found)) emit(found["name"])
   advance(); next
 }
 current_class != "" && depth == class_depth + 1 {
@@ -189,8 +190,8 @@ current_class != "" && depth == class_depth + 1 {
   while (match(text, /^(export|public|private|protected|static|readonly|async|override|abstract|declare|accessor|get|set|const|let|var|function|type|interface|class|enum)[ \t]+[A-Za-z_$*#]/))
     sub(/^[a-z]+[ \t]+/, "", text)
   sub(/^\*[ \t]*/, "", text)
-  name = ident(text)
-  if (name != "") {
+  if (ident(text, found)) {
+    name = found["name"]
     rest = substr(text, length(name) + 1)
     if (rest ~ /^[ \t]*([(<:=?!;,]|$)/ && !keyword(name)) { emit(name); print current_class "." name }
   }

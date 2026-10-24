@@ -206,6 +206,9 @@ function emit(identifier) {
   print identifier
   if (package_name != "") print package_name "." identifier
 }
+function is_identifier(text) {
+  return text ~ /^[A-Za-z_][A-Za-z0-9_]*$/
+}
 FNR == 1 { package_name = ""; in_group = "" }
 in_group != "" {
   if ($0 ~ /^\)/) { in_group = ""; next }
@@ -215,7 +218,7 @@ in_group != "" {
     count = split(names, parts, ",")
     for (i = 1; i <= count; i++) {
       name = parts[i]; gsub(/[ \t]/, "", name)
-      if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(name)
+      if (is_identifier(name)) emit(name)
     }
   }
   next
@@ -232,15 +235,15 @@ in_group != "" {
   receiver_type = receiver_words[word_count]
   sub(/\[.*$/, "", receiver_type)
   name = $0; sub(/^func \([^)]*\)[ \t]*/, "", name); sub(/[ \t([].*$/, "", name)
-  if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) {
+  if (is_identifier(name)) {
     emit(name)
-    if (receiver_type ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print receiver_type "." name
+    if (is_identifier(receiver_type)) print receiver_type "." name
   }
   next
 }
 /^func [A-Za-z_]/ {
   name = $0; sub(/^func /, "", name); sub(/[ \t([].*$/, "", name)
-  if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(name)
+  if (is_identifier(name)) emit(name)
   next
 }
 /^(type|var|const) [A-Za-z_]/ {
@@ -249,7 +252,7 @@ in_group != "" {
   count = split(names, parts, ",")
   for (i = 1; i <= count; i++) {
     name = parts[i]; gsub(/[ \t]/, "", name)
-    if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(name)
+    if (is_identifier(name)) emit(name)
   }
   next
 }
