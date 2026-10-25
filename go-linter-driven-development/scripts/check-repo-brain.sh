@@ -174,56 +174,65 @@ lang_has_code() {
     -print -quit 2>/dev/null | grep -q .
 }
 
-# Go declarations: package names (pkg:<name>), every declared identifier, and
-# ownership pairs — pkg.Ident for the declaring package, Type.Method for the
-# receiver — from single-line and grouped type/var/const declarations,
-# functions, and methods. The pairs let a qualified doc token resolve only
-# against its actual owner, never against a same-named member elsewhere.
+# LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
+# variables. It reads each line on its own and does not parse Go. It prints
+# "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
+# one per line. Inside a grouped declaration it takes the first word of every
+# line, so the program also prints a struct field there as "<package>.<name>".
+# From a list such as "x, y" it takes only "x". A receiver with two or more type
+# parameters gets no "<Type>.<method>" line.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (curpkg != "") print curpkg "." id
+function emit(identifier) {
+  print identifier
+  if (package_name != "") print package_name "." identifier
 }
-FNR == 1 { curpkg = ""; inblock = "" }
-inblock != "" {
-  if ($0 ~ /^\)/) { inblock = ""; next }
-  s = $0; sub(/^[ \t]+/, "", s)
-  if (s ~ /^[A-Za-z_]/) {
-    t = s; sub(/[ \t=([].*$/, "", t)
-    n = split(t, parts, ",")
-    for (i = 1; i <= n; i++) {
-      p = parts[i]; gsub(/[ \t]/, "", p)
-      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
+function is_identifier(text) {
+  return text ~ /^[A-Za-z_][A-Za-z0-9_]*$/
+}
+FNR == 1 { package_name = ""; in_group = "" }
+in_group != "" {
+  if ($0 ~ /^\)/) { in_group = ""; next }
+  text = $0; sub(/^[ \t]+/, "", text)
+  if (text ~ /^[A-Za-z_]/) {
+    names = text; sub(/[ \t=([].*$/, "", names)
+    count = split(names, parts, ",")
+    for (i = 1; i <= count; i++) {
+      name = parts[i]; gsub(/[ \t]/, "", name)
+      if (is_identifier(name)) emit(name)
     }
   }
   next
 }
-/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); curpkg = s; print "pkg:" s; next }
-/^(type|var|const) \(/ { inblock = "y"; next }
+/^package [A-Za-z_]/ {
+  name = $0; sub(/^package /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  package_name = name; print "pkg:" name; next
+}
+/^(type|var|const) \(/ { in_group = "y"; next }
 /^func \(/ {
-  r = $0; sub(/^func \(/, "", r); sub(/\).*$/, "", r)
-  gsub(/\*/, "", r); sub(/^[ \t]+/, "", r); sub(/[ \t]+$/, "", r)
-  nr = split(r, rp, /[ \t]+/); rt = rp[nr]
-  sub(/\[.*$/, "", rt)
-  s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) {
-    emit(s)
-    if (rt ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print rt "." s
+  receiver = $0; sub(/^func \(/, "", receiver); sub(/\).*$/, "", receiver)
+  gsub(/\*/, "", receiver); sub(/^[ \t]+/, "", receiver); sub(/[ \t]+$/, "", receiver)
+  word_count = split(receiver, receiver_words, /[ \t]+/)
+  receiver_type = receiver_words[word_count]
+  sub(/\[.*$/, "", receiver_type)
+  name = $0; sub(/^func \([^)]*\)[ \t]*/, "", name); sub(/[ \t([].*$/, "", name)
+  if (is_identifier(name)) {
+    emit(name)
+    if (is_identifier(receiver_type)) print receiver_type "." name
   }
   next
 }
 /^func [A-Za-z_]/ {
-  s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(s)
+  name = $0; sub(/^func /, "", name); sub(/[ \t([].*$/, "", name)
+  if (is_identifier(name)) emit(name)
   next
 }
 /^(type|var|const) [A-Za-z_]/ {
-  s = $0; sub(/^(type|var|const) /, "", s)
-  t = s; sub(/[ \t=([].*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
+  text = $0; sub(/^(type|var|const) /, "", text)
+  names = text; sub(/[ \t=([].*$/, "", names)
+  count = split(names, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (is_identifier(name)) emit(name)
   }
   next
 }

@@ -150,7 +150,7 @@ mk_doc() { # <name> <description> [body...]
 #   fx_append_missing_edge             add a symbol whose docstring cites docs/backoff.md
 #   fx_write_subproject_code <dir>     write <dir>'s code file: Thing, citing docs/thing.md
 #   fx_write_other_package             write other/: a module declaring Nope
-#   fx_adapter_cases                   detection cases; this adapter detects nothing
+#   fx_adapter_cases                   Python-only cases: module-level assignment shapes
 FX_ROWS="python"
 
 use_row() {
@@ -231,7 +231,24 @@ def Nope():
 PY
 }
 
-fx_adapter_cases() { :; }
+fx_adapter_cases() {
+  py_assignment_case
+}
+
+# py_assignment_case — a module-level assignment declares its name for the
+# module and the package, with or without spaces and a type annotation.
+py_assignment_case() {
+  ROW=python; use_row python
+  begin "module-level assignments declare module-qualified names"
+  mk_conformant
+  printf '\nMaxDelay: float = 2.0\nmin_delay=0.1\n' >> "$REPO/retry/policy.py"
+  mk_doc consts "module constants" \
+    "Defaults: \`policy.DefaultAttempts\`, \`policy.MaxDelay\` and \`retry.min_delay\`."
+  append_index "- [consts.md](consts.md) — module constants"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+}
 
 # ========================= cases =========================
 run_row_cases() { # runs every case against the current row
@@ -343,6 +360,14 @@ begin "Q2 grouped declarations and methods resolve"
 mk_conformant
 mk_doc decls "declaration shapes" "Constants \`DefaultAttempts\`; sentinels \`ErrExhausted\` and \`ErrCancelled\`; method \`Policy.Do\`; bare method \`Do\`."
 append_index "- [decls.md](decls.md) — declaration shapes"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a package-qualified constant resolves"
+mk_conformant
+mk_doc pkgconst "package constants" "Retries default to \`retry.DefaultAttempts\`."
+append_index "- [pkgconst.md](pkgconst.md) — package constants"
 run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish

@@ -243,6 +243,14 @@ run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish
 
+begin "Q2 a package-qualified constant resolves"
+mk_conformant
+mk_doc pkgconst "package constants" "Retries default to \`retry.DefaultAttempts\`."
+append_index "- [pkgconst.md](pkgconst.md) — package constants"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
 begin "Q2 package-qualified tokens: repo package resolves, external package exempt"
 mk_conformant
 mk_doc qual "qualified tokens" "Call \`retry.ParsePolicy\`, then \`$FX_EXTERNAL1\` and \`$FX_EXTERNAL2\` are library types; \`retry.Nope\` is not declared."
