@@ -175,11 +175,12 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
-# variables. It prints "pkg:<package>", each name it finds, "<package>.<name>"
-# and, for a method, "<Type>.<method>", one per line. Inside a grouped
-# declaration it takes the first word of every line, so a struct field or an
-# interface method there also comes out as "<package>.<name>". From a list such
-# as "x, y" it takes only the first name.
+# variables. It reads each line on its own and does not parse Go. It prints
+# "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
+# one per line. Inside a grouped declaration it takes the first word of every
+# line, so the program also prints a struct field there as "<package>.<name>".
+# From a list such as "x, y" it takes only "x". A receiver with two or more type
+# parameters gets no "<Type>.<method>" line.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier

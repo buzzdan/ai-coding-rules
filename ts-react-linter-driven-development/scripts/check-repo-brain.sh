@@ -193,15 +193,17 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the TypeScript files that lang_declarations lists and
-# takes no -v variables. It prints "pkg:<module>" and "pkg:<directory>" when the
-# file has them. Then it prints each name it finds, also qualified by the module
-# and by the directory, and "<Owner>.<member>" for a member, one per line. A
-# line at column 0 is top level, because Prettier indents every body. A member
-# is a line one level inside the braces of a class, interface, object type, enum
-# or namespace. The brace count skips strings and comments that stay on one
-# line. A destructuring pattern or an export list can span lines, and the
-# program collects its names until the closing bracket. A missed name causes a
-# false report, so the program prints a name when it is not sure.
+# takes no -v variables. It reads each line on its own and does not parse
+# TypeScript. For a file that has lines, it prints "pkg:<module>" and
+# "pkg:<directory>" when the path has them. It prints the names it finds, also
+# qualified by the module and by the directory, and "<Owner>.<member>" for a
+# member, one per line. A line at column 0 is top level, because Prettier
+# indents every body. A member is a line one level inside the braces of a class,
+# interface, object type, enum or namespace. The brace count skips a line that
+# starts with "//", "/*" or "*", and skips strings on one line. A destructuring
+# pattern or an export list can span lines. The program collects its names until
+# a line that starts with "]" or "}". A missed name causes a false report, so
+# the program prints a name when it is not sure.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier

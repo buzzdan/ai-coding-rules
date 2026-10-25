@@ -188,11 +188,12 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the Python files that lang_declarations lists and takes no
-# -v variables. It prints "pkg:<module>" and "pkg:<package directory>" when the
-# file has them. Then it prints each name it finds, also qualified by the module
-# and by the package directory, one per line. After a class, it prints
-# "<Class>.<name>" for each indented def, until the next column-0 class, def or
-# assignment.
+# -v variables. It reads each line on its own and does not parse Python. For a
+# file that has lines, it prints "pkg:<module>" and "pkg:<package directory>"
+# when the path has them. It prints the names it finds, also qualified by the
+# module and by the package directory, one per line. After a class, it prints
+# "<Class>.<name>" for each indented def, until a column-0 class, def or
+# assignment to a plain name.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier

@@ -72,11 +72,12 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
-# variables. It prints "pkg:<package>", each name it finds, "<package>.<name>"
-# and, for a method, "<Type>.<method>", one per line. Inside a grouped
-# declaration it takes the first word of every line, so a struct field or an
-# interface method there also comes out as "<package>.<name>". From a list such
-# as "x, y" it takes only the first name.
+# variables. It reads each line on its own and does not parse Go. It prints
+# "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
+# one per line. Inside a grouped declaration it takes the first word of every
+# line, so the program also prints a struct field there as "<package>.<name>".
+# From a list such as "x, y" it takes only "x". A receiver with two or more type
+# parameters gets no "<Type>.<method>" line.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
@@ -185,11 +186,12 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the Python files that lang_declarations lists and takes no
-# -v variables. It prints "pkg:<module>" and "pkg:<package directory>" when the
-# file has them. Then it prints each name it finds, also qualified by the module
-# and by the package directory, one per line. After a class, it prints
-# "<Class>.<name>" for each indented def, until the next column-0 class, def or
-# assignment.
+# -v variables. It reads each line on its own and does not parse Python. For a
+# file that has lines, it prints "pkg:<module>" and "pkg:<package directory>"
+# when the path has them. It prints the names it finds, also qualified by the
+# module and by the package directory, one per line. After a class, it prints
+# "<Class>.<name>" for each indented def, until a column-0 class, def or
+# assignment to a plain name.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
