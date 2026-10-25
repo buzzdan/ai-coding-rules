@@ -21,9 +21,9 @@ go-linter-driven-development/
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism   (case law)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
-│                 pre-commit-review · testing · documentation   (thin directional views)
+│                 pre-commit-review · testing · documentation · lint-setup   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · lint-fixer   (isolated workers)
-├── commands/     go-ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
+├── commands/     go-ldd-analyze · autopilot · quickfix · prepare · review · status · setup · wire-repo-brain
 ├── scripts/      check-repo-brain.sh — repo-brain conformance gate, installed into target repos by /wire-repo-brain
 │                 ldd-scope.sh · ldd-detect.sh — the review's scope bundle and detection pass
 │                 ldd-lint.sh — the gap linter: file length and package size where no linter holds them; its doctor compares your linter with setup/
@@ -111,6 +111,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`@pre-commit-review`](skills/pre-commit-review/SKILL.md) | Orchestrates the hunter/skeptic review (Phase 4); reports, never edits |
 | [`@testing`](skills/testing/SKILL.md) | The composition ladder — test each behavior at the lowest rung that contains it |
 | [`@documentation`](skills/documentation/SKILL.md) | Repo-brain author (R9) — behavior docs + network wiring, OKF conformance + conventions self-hosting; FEATURE mode (Phase 5) / BOOTSTRAP mode |
+| [`@lint-setup`](skills/lint-setup/SKILL.md) | Compares the linter setup with the recommended one, agrees per rule, edits only after you agree to the plan (`/go-ldd-setup`) |
 
 **Agents → spawned by** (reference-fed, isolated):
 
@@ -130,6 +131,7 @@ Isolated contexts matter: the `lint-fixer` loop's token noise stays out of your 
 | [`/go-ldd-analyze [files | --all]`](commands/go-ldd-analyze.md) | 🔍 Tests + lint + review, combined report | ❌ No | ✅ Optional |
 | [`/go-ldd-review [files | --all]`](commands/go-ldd-review.md) | 🔍 Commit-readiness check | ❌ No | ✅ Optional |
 | [`/go-ldd-status`](commands/go-ldd-status.md) | Show current phase + progress | N/A | — |
+| [`/go-ldd-setup [project dir …]`](commands/go-ldd-setup.md) | Compare the linter setup with the recommended one, agree per rule, edit only after you agree to the plan | ✅ After your yes | ✅ Optional |
 | [`/wire-repo-brain [path]`](commands/wire-repo-brain.md) | Wire the documentation network in one pass: frontmatter → upward edges → docs → index.md → CLAUDE.md/AGENTS.md + conventions.md + conformance script (@documentation BOOTSTRAP) | ✅ Wiring only | ✅ Optional |
 
 ## How Auto-Detection Works
@@ -211,7 +213,7 @@ The scenario guide — the easiest start first, then code you already wrote, a p
 
 **Zero configuration to run.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
 
-**The recommended setup makes the design triggers fire.** `setup/golangci.yaml` in the plugin directory enables every linter the routing table routes to a design rule, at the limits the rules name, with a ratchet so only new code fails at first. The plugin never writes it into your repository: copy it, or the parts you want, into `.golangci.yaml`. Limits your configuration already sets stay yours. `scripts/ldd-lint.sh doctor` shows which of its rules your linter already runs, and the setting on each side; it changes no file.
+**The recommended setup makes the design triggers fire.** `setup/golangci.yaml` in the plugin directory enables every linter the routing table routes to a design rule, at the limits the rules name, with a ratchet so only new code fails at first. `/go-ldd-setup` proposes it, and writes it only after you agree. You can also copy it, or the parts you want, into `.golangci.yaml`. Limits your configuration already sets stay yours. `scripts/ldd-lint.sh doctor` shows which of its rules your linter already runs, and the setting on each side; it marks a rule the team agreed to keep as `agreed`, and it changes no file. `/go-ldd-status` shows a lint setup line only after a setup ran and its agreed setup needs attention.
 
 ### The Easiest Way: Just Talk to It
 

@@ -1,0 +1,15 @@
+  # residue-exempt: the check commands of the linters that the plugins ship recommended configs for.
+  - Read
+  - Grep
+  - Glob
+  - Edit
+  - Write
+  - WebSearch
+  - WebFetch
+  - Bash(bash *ldd-lint.sh *)
+  - Bash(git *)
+  - Bash(golangci-lint run *)
+  - Bash(golangci-lint linters *)
+  - Bash(golangci-lint config *)
+  - Bash(ruff check *)
+  - Bash(npx --no-install eslint *)

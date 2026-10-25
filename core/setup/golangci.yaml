@@ -1,8 +1,9 @@
 # Recommended golangci-lint v2 configuration of the linter-driven-development
 # plugins: every linter rule the plugin's routing table routes to one of the
 # twelve design rules, at the limits the rules name. Each linter line says which
-# rule its failures feed. The plugin never writes this file into a repository:
-# the repository's owners copy it, or the parts they want, into .golangci.yaml.
+# rule its failures feed. The lint-setup skill proposes it, and writes it only
+# after the user agrees. The repository's owners can also copy it, or the parts
+# they want, into .golangci.yaml.
 # residue-exempt: a golangci-lint configuration names its linters on purpose.
 #
 # Limits a repository already sets stay the repository's: the linter is the

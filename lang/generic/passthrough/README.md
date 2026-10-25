@@ -50,10 +50,12 @@ phase is exactly as strong as your repository's own linter configuration:
 - **It ships a recommended setup for Go, Python and TypeScript.** `setup/` in the
   plugin directory holds `golangci.yaml`, `ruff.toml` and `eslint.config.ldd.mjs`:
   every linter rule the routing table routes to a design rule, at the limits the
-  rules name. The plugin never writes them into your repository: copy one, or the
-  parts you want. Limits your configuration already sets stay yours.
-  `scripts/ldd-lint.sh doctor` shows which of their rules your linter already runs,
-  and the setting on each side; it changes no file.
+  rules name. `/ldd-setup` proposes them, and writes them only after you agree. You can also
+  copy one, or the parts you want. Limits your configuration already sets stay
+  yours. `scripts/ldd-lint.sh doctor` shows which of their rules your linter
+  already runs, and the setting on each side; it marks a rule the team agreed to
+  keep as `agreed`, and it changes no file. `/ldd-status` shows a lint setup line
+  only after a setup ran and its agreed setup needs attention.
 - **It routes findings by what they are about.** The refactoring skill's routing
   table is keyed by finding family — complexity, function length, nesting,
   duplicated code, non-exhaustive switch, globals, single-implementation interfaces,
@@ -74,9 +76,9 @@ linter-driven-development/
 ├── maxims.md     the uncompiled layer — named design questions above the rules
 ├── rules/        R1-primitive-obsession … R12-mutation-discipline   (single source of truth)
 ├── skills/       linter-driven-development · code-designing · refactoring ·
-│                 pre-commit-review · testing · documentation   (thin directional views)
+│                 pre-commit-review · testing · documentation · lint-setup   (thin directional views)
 ├── agents/       rule-hunter · overabstraction-skeptic · comment-critic · lint-fixer
-├── commands/     ldd-analyze · autopilot · quickfix · prepare · review · status · wire-repo-brain
+├── commands/     ldd-analyze · autopilot · quickfix · prepare · review · status · setup · wire-repo-brain
 ├── examples/     storify-leaf-type · overabstraction-cidr · dependency-rejection ·
 │                 anti-if-dispatch · switch-to-polymorphism · private-comment-noise   (case law, in Go for demonstration)
 └── scripts/      check-repo-brain.sh — repo-brain conformance gate with a detected language adapter
@@ -166,6 +168,7 @@ is the meta-orchestrator:
 | `/ldd-analyze [files \| --all]` | Tests + lint + review, combined report | ❌ No |
 | `/ldd-review [files \| --all]` | Commit-readiness check | ❌ No |
 | `/ldd-status` | Show current phase + progress | N/A |
+| `/ldd-setup [project dir …]` | Compare the linter setup with the recommended one, agree per rule, edit only after you agree to the plan | ✅ After your yes |
 | `/wire-repo-brain [path]` | Wire the documentation network in one pass | ✅ Wiring only |
 
 `/wire-repo-brain` carries no prefix: the documentation network it wires is a
