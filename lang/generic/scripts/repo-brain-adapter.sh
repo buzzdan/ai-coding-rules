@@ -72,10 +72,11 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
-# variables. It prints "pkg:<package>", each declared name, "<package>.<name>"
-# and, for a method, "<Type>.<method>", one per line. The qualified forms make a
-# qualified doc token resolve only against its real owner, never against a
-# same-named member elsewhere.
+# variables. It prints "pkg:<package>", each name it finds, "<package>.<name>"
+# and, for a method, "<Type>.<method>", one per line. Inside a grouped
+# declaration it takes the first word of every line, so a struct field or an
+# interface method there also comes out as "<package>.<name>". From a list such
+# as "x, y" it takes only the first name.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
@@ -184,11 +185,11 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the Python files that lang_declarations lists and takes no
-# -v variables. For a file, it prints "pkg:<module>" and, when the file has one,
-# "pkg:<package directory>". For each declared name, it prints the name,
-# "<module>.<name>", "<package directory>.<name>" when that directory differs
-# from the module, and "<Class>.<method>" for a method. It prints one entry per
-# line.
+# -v variables. It prints "pkg:<module>" and "pkg:<package directory>" when the
+# file has them. Then it prints each name it finds, also qualified by the module
+# and by the package directory, one per line. After a class, it prints
+# "<Class>.<name>" for each indented def, until the next column-0 class, def or
+# assignment.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier

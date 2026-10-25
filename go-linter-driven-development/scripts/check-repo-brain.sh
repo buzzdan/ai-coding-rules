@@ -175,10 +175,11 @@ lang_has_code() {
 }
 
 # LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
-# variables. It prints "pkg:<package>", each declared name, "<package>.<name>"
-# and, for a method, "<Type>.<method>", one per line. The qualified forms make a
-# qualified doc token resolve only against its real owner, never against a
-# same-named member elsewhere.
+# variables. It prints "pkg:<package>", each name it finds, "<package>.<name>"
+# and, for a method, "<Type>.<method>", one per line. Inside a grouped
+# declaration it takes the first word of every line, so a struct field or an
+# interface method there also comes out as "<package>.<name>". From a list such
+# as "x, y" it takes only the first name.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
