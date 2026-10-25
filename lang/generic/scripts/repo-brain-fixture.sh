@@ -232,4 +232,15 @@ fx_adapter_cases() {
   run_gate
   expect_exit 0 && expect_not "does not resolve" && ok
   finish
+
+  ROW=python; use_row python
+  begin "module-level assignments declare module-qualified names"
+  mk_conformant
+  printf '\nMaxDelay: float = 2.0\nmin_delay=0.1\n' >> "$REPO/retry/policy.py"
+  mk_doc consts "module constants" \
+    "Defaults: \`policy.DefaultAttempts\`, \`policy.MaxDelay\` and \`retry.min_delay\`."
+  append_index "- [consts.md](consts.md) — module constants"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
 }

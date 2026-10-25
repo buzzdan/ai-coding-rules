@@ -361,6 +361,17 @@ fx_adapter_cases() {
   run_gate
   expect_exit 0 && expect_not "does not resolve" && ok
   finish
+
+  ROW=python; use_row python
+  begin "module-level assignments declare module-qualified names"
+  mk_conformant
+  printf '\nMaxDelay: float = 2.0\nmin_delay=0.1\n' >> "$REPO/retry/policy.py"
+  mk_doc consts "module constants" \
+    "Defaults: \`policy.DefaultAttempts\`, \`policy.MaxDelay\` and \`retry.min_delay\`."
+  append_index "- [consts.md](consts.md) — module constants"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
 }
 
 # ========================= cases =========================
@@ -473,6 +484,14 @@ begin "Q2 grouped declarations and methods resolve"
 mk_conformant
 mk_doc decls "declaration shapes" "Constants \`DefaultAttempts\`; sentinels \`ErrExhausted\` and \`ErrCancelled\`; method \`Policy.Do\`; bare method \`Do\`."
 append_index "- [decls.md](decls.md) — declaration shapes"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a package-qualified constant resolves"
+mk_conformant
+mk_doc pkgconst "package constants" "Retries default to \`retry.DefaultAttempts\`."
+append_index "- [pkgconst.md](pkgconst.md) — package constants"
 run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish

@@ -353,7 +353,7 @@ FNR == 1 {
   name = $0; sub(/^[ \t]+(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
   emit(name); print current_class "." name; next
 }
-/^[A-Za-z_][A-Za-z0-9_]*([ \t]*,[ \t]*[A-Za-z_][A-Za-z0-9_]*)*[ \t]*(:[^=]*)?=[^=]/ {
+/^[A-Za-z_][A-Za-z0-9_]*[ \t]*(,[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*)*(:[^=]*)?=[^=]/ {
   targets = $0; sub(/[ \t]*(:[^=]*)?=.*$/, "", targets)
   count = split(targets, parts, ",")
   for (i = 1; i <= count; i++) {
