@@ -21,7 +21,7 @@
 #   fx_append_missing_edge             add a symbol whose JSDoc cites docs/backoff.md
 #   fx_write_subproject_code <dir>     write <dir>'s code file: Thing, citing docs/thing.md
 #   fx_write_other_package             write other/: a module declaring Nope
-#   fx_adapter_cases                   detection cases; this adapter detects nothing
+#   fx_adapter_cases                   TypeScript-only cases: member and destructuring shapes
 FX_ROWS="ts-react"
 
 use_row() {
@@ -113,4 +113,42 @@ export function Nope(): void {}
 TS
 }
 
-fx_adapter_cases() { :; }
+fx_adapter_cases() {
+  ts_shape_case "a class member after a generator method resolves" members "class members" \
+    "Read \`Feed.latest\`."
+  ts_shape_case "a name after a nested destructuring pattern resolves" settings "settings" \
+    "Wait \`shapes.timeoutMs\`."
+}
+
+# ts_shape_case <title> <doc> <description> <body> — a case over retry/shapes.ts
+ts_shape_case() {
+  ROW=ts-react; use_row ts-react
+  begin "Q2 $1"
+  mk_conformant; ts_write_shapes
+  mk_doc "$2" "$3" "$4"
+  append_index "- [$2.md]($2.md) — $3"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+}
+
+# ts_write_shapes — write retry/shapes.ts: a generator method before a field, and a
+# nested destructuring pattern across lines.
+ts_write_shapes() {
+  cat > "$REPO/retry/shapes.ts" <<'TS'
+export class Feed {
+  *entries() {
+    yield 1
+  }
+
+  latest = 1
+}
+
+export const {
+  config: {
+    region,
+  },
+  timeoutMs,
+} = loadSettings()
+TS
+}

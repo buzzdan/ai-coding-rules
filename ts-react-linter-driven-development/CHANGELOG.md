@@ -157,6 +157,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Fixed
 
+- **The TypeScript declaration scan finds more declarations.** The repo-brain
+  gate no longer reports these correct citations as "does not resolve":
+  - a class member after a generator method such as `*entries() {`
+  - a name after a nested destructuring pattern that spans lines
+
 - **The repo-brain gate does not read installed dependencies.** The symbol
   fallback looked for a backticked token in every untracked file that git does not
   ignore. A token found only in a local `node_modules/` passed on a developer's

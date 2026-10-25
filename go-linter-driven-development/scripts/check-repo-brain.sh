@@ -70,10 +70,12 @@
 #   - resolution is against a declaration set built ONCE per run from the
 #     language's code files (adapter: lang_declarations), which carries
 #     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
-#     against its declaring package or receiver — never against a same-named
-#     member elsewhere. A token missing from the set still resolves when it
-#     appears as a whole word in any non-markdown repo file (config keys,
-#     alert names, test helpers): in a git work tree the tracked and
+#     when the set holds that pair, so it never rides on a same-named member of
+#     another package or receiver. The adapters scan code line by line, so the
+#     set can also hold a pair the language does not declare. A token missing
+#     from the set still resolves when it appears as a whole word in any
+#     non-markdown repo file (config keys, alert names, test helpers): in a
+#     git work tree the tracked and
 #     untracked-but-not-ignored files outside the language's dependency and
 #     build-output directories (adapter: LANG_PRUNE_DIRS); elsewhere every file
 #     outside those directories and the common ones (bazel-*, vendor, …).
@@ -177,10 +179,9 @@ lang_has_code() {
 # LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
 # variables. It reads each line on its own and does not parse Go. It prints
 # "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
-# one per line. Inside a grouped declaration it takes the first word of every
-# line, so the program also prints a struct field there as "<package>.<name>".
-# From a list such as "x, y" it takes only "x". A receiver with two or more type
-# parameters gets no "<Type>.<method>" line.
+# one per line. It takes every name of a list such as "x, y". Inside a grouped
+# declaration it takes the names at the start of every line, so the program also
+# prints a struct field there as "<package>.<name>".
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
@@ -189,31 +190,42 @@ function emit(identifier) {
 function is_identifier(text) {
   return text ~ /^[A-Za-z_][A-Za-z0-9_]*$/
 }
+function emit_names(text,   list, count, parts, i, name) {
+  list = text
+  gsub(/[ \t]*,[ \t]*/, ",", list)
+  if (match(list, /^[A-Za-z_][A-Za-z0-9_]*(,[A-Za-z_][A-Za-z0-9_]*)*([ \t=([]|$)/)) {
+    list = substr(list, 1, RLENGTH)
+    sub(/[ \t=([]$/, "", list)
+  } else {
+    list = text; sub(/[ \t=([].*$/, "", list)
+  }
+  count = split(list, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (is_identifier(name)) emit(name)
+  }
+}
 FNR == 1 { package_name = ""; in_group = "" }
 in_group != "" {
   if ($0 ~ /^\)/) { in_group = ""; next }
   text = $0; sub(/^[ \t]+/, "", text)
-  if (text ~ /^[A-Za-z_]/) {
-    names = text; sub(/[ \t=([].*$/, "", names)
-    count = split(names, parts, ",")
-    for (i = 1; i <= count; i++) {
-      name = parts[i]; gsub(/[ \t]/, "", name)
-      if (is_identifier(name)) emit(name)
-    }
-  }
+  if (text ~ /^[A-Za-z_]/) emit_names(text)
   next
 }
 /^package [A-Za-z_]/ {
   name = $0; sub(/^package /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
   package_name = name; print "pkg:" name; next
 }
-/^(type|var|const) \(/ { in_group = "y"; next }
+/^(type|var|const) \(/ {
+  if ($0 !~ /^(type|var|const) \([ \t]*\)/) in_group = "y"
+  next
+}
 /^func \(/ {
   receiver = $0; sub(/^func \(/, "", receiver); sub(/\).*$/, "", receiver)
+  sub(/\[.*$/, "", receiver)
   gsub(/\*/, "", receiver); sub(/^[ \t]+/, "", receiver); sub(/[ \t]+$/, "", receiver)
   word_count = split(receiver, receiver_words, /[ \t]+/)
   receiver_type = receiver_words[word_count]
-  sub(/\[.*$/, "", receiver_type)
   name = $0; sub(/^func \([^)]*\)[ \t]*/, "", name); sub(/[ \t([].*$/, "", name)
   if (is_identifier(name)) {
     emit(name)
@@ -228,12 +240,7 @@ in_group != "" {
 }
 /^(type|var|const) [A-Za-z_]/ {
   text = $0; sub(/^(type|var|const) /, "", text)
-  names = text; sub(/[ \t=([].*$/, "", names)
-  count = split(names, parts, ",")
-  for (i = 1; i <= count; i++) {
-    name = parts[i]; gsub(/[ \t]/, "", name)
-    if (is_identifier(name)) emit(name)
-  }
+  emit_names(text)
   next
 }
 '

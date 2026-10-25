@@ -70,10 +70,12 @@
 #   - resolution is against a declaration set built ONCE per run from the
 #     language's code files (adapter: lang_declarations), which carries
 #     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
-#     against its declaring package or receiver — never against a same-named
-#     member elsewhere. A token missing from the set still resolves when it
-#     appears as a whole word in any non-markdown repo file (config keys,
-#     alert names, test helpers): in a git work tree the tracked and
+#     when the set holds that pair, so it never rides on a same-named member of
+#     another package or receiver. The adapters scan code line by line, so the
+#     set can also hold a pair the language does not declare. A token missing
+#     from the set still resolves when it appears as a whole word in any
+#     non-markdown repo file (config keys, alert names, test helpers): in a
+#     git work tree the tracked and
 #     untracked-but-not-ignored files outside the language's dependency and
 #     build-output directories (adapter: LANG_PRUNE_DIRS); elsewhere every file
 #     outside those directories and the common ones (bazel-*, vendor, …).

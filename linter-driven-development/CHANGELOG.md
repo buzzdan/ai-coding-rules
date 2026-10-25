@@ -159,6 +159,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Fixed
 
+- **The Go declaration scan finds more declarations.** The repo-brain gate no
+  longer reports these correct citations as "does not resolve":
+  - every name of a list such as `var ErrFirst, ErrSecond = …`, also inside a
+    grouped declaration
+  - a method on a type with two or more type parameters, such as `Cache.Lookup`
+    for `func (c *Cache[K, V]) Lookup`
+  - a declaration after an empty group such as `var ()`
+
 - **The Python declaration scan finds single-name assignments under every mawk.**
   mawk 1.3.4 20200120 is the default awk of Debian bookworm and bullseye and of
   Ubuntu 20.04. Its regex engine did not match `NAME = 1`, `NAME: int = 1` or
