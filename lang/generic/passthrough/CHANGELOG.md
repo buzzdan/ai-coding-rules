@@ -72,6 +72,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Fixed
 
+- **The Python declaration scan finds single-name assignments under every mawk.**
+  mawk 1.3.4 20200120 is the default awk of Debian bookworm and bullseye and of
+  Ubuntu 20.04. Its regex engine did not match `NAME = 1`, `NAME: int = 1` or
+  `NAME=1` in the Python declaration program, so the repo-brain gate reported a
+  correct `module.NAME` citation as "does not resolve". The program now matches
+  these assignments under BWK awk, gawk and every mawk.
+
 - **The repo-brain gate does not read installed dependencies.** The symbol
   fallback looked for a backticked token in every untracked file that git does not
   ignore. A token found only in a local `node_modules/` passed on a developer's
