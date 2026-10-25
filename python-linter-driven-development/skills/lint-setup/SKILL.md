@@ -9,6 +9,8 @@ allowed-tools:
   - Read
   - Grep
   - Glob
+  - Edit
+  - Write
   - WebSearch
   - WebFetch
   - Bash(bash *ldd-lint.sh *)
@@ -36,11 +38,10 @@ the review keeps the limits of the rules.
 - An edit is any change to a file in the repository: a linter config, a task file, a
   CI workflow, a hook config, a suppressions file, `.ldd-lint.yaml`. A temporary file
   outside the repository is not an edit.
-- `allowed-tools` lets you read, search, run the doctor, run `git` and run the check
-  commands of the linters with no prompt. Edit, Write, installs and all other Bash
-  calls ask the user first. A linter run with a fix flag, or a run that writes a file,
-  still matches a check-command pattern. Thus this text also guards the edits. In an
-  auto permission mode, no call asks the user: only this text guards the edits.
+- `allowed-tools` lets you read, search, edit, write, run the doctor, run `git` and
+  run the check commands of the linters with no prompt. Installs and all other Bash
+  calls ask the user first. Thus only this text guards the edits: the user's yes to
+  the full plan in step 6 is the one approval of every edit.
 - Before step 6, do not run a linter with a fix flag. A fix setting in a config (for
   example `fix = true` or `issues.fix: true`) counts as a fix flag: turn it off on the
   command line, as the linter reference shows. Do not run a command that writes
@@ -256,8 +257,10 @@ the review keeps the limits of the rules.
    linters lines come from the edited files, so the plan says "written after the
    edits" for them.
 7. **Edit only after an explicit yes to this plan.** A question or a change request is
-   not a yes: show the changed plan and ask again.
-8. After the yes, edit in this order:
+   not a yes: show the changed plan and ask again. Every change goes into the plan
+   before the yes, so the user agrees once, to the whole plan.
+8. After the yes, apply the whole plan in one pass: do items 1 to 7 below and step 7,
+   and ask no new question. Stop only when a step fails (item 10). Edit in this order:
    1. The linter configs, the tasks, the CI and the hooks, and the agreed installs.
    2. **The config that `agree` compares.** When the plan changes the `lint_config` of
       a linter (a new strict file, a strict file with another name, or a return from
@@ -314,10 +317,14 @@ the review keeps the limits of the rules.
       linter that this plugin does not report.
 9. `agree` changes each ` | ` in a reason to ` / `. When a printed line is not the
    line in the plan, show the difference before you write the record.
-10. When `agree` exits 2 after the edits, stop before you write the record. For
-    example, an edit can break a config, so that the linter cannot verify it. Show
-    the line that `agree` printed on stderr. Do not write a record line by hand. Fix
-    the edit with the user, or revert it with the user, and then run `agree` again.
+10. **When an `agree` call exits 2 or is refused, stop, and write no record.** Never
+    create or change `.ldd-lint.yaml` with a line that `agree` did not print: not
+    with Write, not with Edit, not with a shell command. A line that you write
+    yourself can differ by one character from what the doctor compares, and then the
+    status line fires forever or stays silent forever. Show the command and the line
+    that `agree` printed on stderr, or the refusal. For example, an edit can break a
+    config, so that the linter cannot verify it: fix the edit with the user, or revert
+    it with the user, and then run `agree` again.
 
 The record, for example:
 

@@ -27,9 +27,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   findings: tighten the config, tighten it and check new issues only, or a strict
   file that only the plugin uses. It shows the whole edit plan as one diff per file,
   and the hooks that change for each teammate's commit. It edits only after you
-  agree to the plan. No step before it changes a file. Then the skill writes the
-  agreement into `.ldd-lint.yaml` and runs the doctor again. A headless run prints
-  the tables and the plan and stops.
+  agree to the plan. No step before it changes a file. You agree once, to the whole
+  plan: after that yes, the skill applies every edit in one pass with no further
+  prompt, writes the agreement into `.ldd-lint.yaml` from the lines that `agree`
+  prints, and runs the doctor again. When `agree` fails, it stops and writes no
+  record. A headless run prints the tables and the plan and stops.
 
 - **`ldd-lint.sh doctor` compares the repository's linter with the recommended
   setup.** For each language of the repository, it lists each rule of the

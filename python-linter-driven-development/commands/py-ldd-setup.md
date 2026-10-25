@@ -7,6 +7,8 @@ allowed-tools:
   - Read
   - Grep
   - Glob
+  - Edit
+  - Write
   - WebSearch
   - WebFetch
   - Bash(bash *ldd-lint.sh *)
