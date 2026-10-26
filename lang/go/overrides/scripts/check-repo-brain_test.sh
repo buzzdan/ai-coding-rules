@@ -168,6 +168,13 @@ var (
 	handler = func() {
 		FuncFirst, FuncSecond = 1, 2
 	}
+	AfterHandler = 3
+	brace        = "{"
+	AfterBrace   = 4
+	usage        = `
+RawLine {
+`
+	AfterRaw = 5
 )
 
 type (
@@ -186,6 +193,10 @@ type Cache[K comparable, V any] struct{ items map[K]V }
 func (c *Cache[K, V]) Lookup(key K) V { return c.items[key] }
 
 var ()
+
+type AfterEmpty struct {
+	AfterField string
+}
 
 func reset() {
 	EmptyFirst, EmptySecond = 1, 2
@@ -354,6 +365,33 @@ expect_exit 1 && expect_has "\`retry.FieldSecond\` does not resolve" \
   && expect_has "\`retry.FuncSecond\` does not resolve" \
   && expect_has "\`retry.EmptySecond\` does not resolve" && ok
 finish
+
+begin "Q2 the first field of a struct in a type group, or a line in a raw string, gives no package name"
+mk_conformant; go_write_shapes
+mk_doc nofirst "not package names" "Not \`retry.FieldFirst\` or \`retry.RawLine\`."
+append_index "- [nofirst.md](nofirst.md) — not package names"
+run_gate
+expect_exit 1 && expect_has "\`retry.FieldFirst\` does not resolve" \
+  && expect_has "\`retry.RawLine\` does not resolve" && ok
+finish
+
+begin "Q2 a declaration after an empty group resolves, and its struct field does not"
+mk_conformant; go_write_shapes
+mk_doc afterempty "after an empty group" "Real: \`retry.AfterEmpty\`. Fake: \`retry.AfterField\`."
+append_index "- [afterempty.md](afterempty.md) — after an empty group"
+run_gate
+expect_exit 1 && expect_has "\`retry.AfterField\` does not resolve" \
+  && expect_not "\`retry.AfterEmpty\` does not resolve" && ok
+finish
+
+begin "Q2 a group entry after a func literal, a brace in a string or a raw string resolves"
+mk_conformant; go_write_shapes
+mk_doc aftergroup "group entries" "Entries \`retry.AfterHandler\`, \`retry.AfterBrace\` and \`retry.AfterRaw\`."
+append_index "- [aftergroup.md](aftergroup.md) — group entries"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
 begin "Q2 package-qualified tokens: repo package resolves, external package exempt"
 mk_conformant
 mk_doc qual "qualified tokens" "Call \`retry.ParsePolicy\`, then \`time.Duration\` and \`http.Client\` are stdlib; \`retry.Nope\` is not declared."

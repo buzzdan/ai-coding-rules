@@ -155,7 +155,32 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - **`comments.txt` skips string literals.** A `#` or `//` inside a string literal
   is not a comment line.
 
+- **The Python declaration scan prints `<Class>.<name>` only for a method.** The
+  scan prints `<Class>.<name>` only for a def at the indent of the class body.
+  The class ends at the next column-0 line that is not blank, a comment or a
+  decorator. The scan skips a line that starts inside a string or inside
+  brackets. A doc that cites one of these names now fails with "does not
+  resolve":
+  - `<Class>.<name>` for a def nested in a method or in a nested class
+  - `<Class>.<name>` for a def under a column-0 `if` or `try` after the class
+  - `<module>.<name>` for a def nested in a method
+  - a name from a column-0 line inside a string or inside brackets, such as
+    `ROOT={root}` in a shell script in a triple-quoted string
+
+  To fix such a doc, cite the name that the code declares, or remove the
+  backticks.
+
+  The scan also prints no name for a def under a column-0 `if` or `try` after a
+  class. This is the same result as for such a def in a file with no class. A doc
+  that cites that def as `<module>.<name>` now fails. Cite it as `<name>`: the
+  gate finds the bare name as a whole word in the code.
+
 ### Fixed
+
+- **A method after a column-0 line in a string resolves.** A column-0 line such as
+  `ROOT={root}` inside a triple-quoted string ended the class, so the repo-brain
+  gate reported each later method of the class as "does not resolve". A line
+  inside a string or inside brackets does not end a class now.
 
 - **The Python declaration scan finds single-name assignments under every mawk.**
   mawk 1.3.4 20200120 is the default awk of Debian bookworm and bullseye and of

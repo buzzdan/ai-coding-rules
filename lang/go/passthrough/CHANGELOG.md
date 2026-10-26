@@ -155,6 +155,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - **`comments.txt` skips string literals.** A `#` or `//` inside a string literal
   is not a comment line.
 
+- **The Go declaration scan takes no name from inside a value in a grouped
+  declaration.** In a `type (`, `var (` or `const (` group, the scan counts the
+  brackets that are not in a string, a rune or a comment. It takes names only
+  from a line that starts at bracket depth 0 and not in a raw string or a block
+  comment. A group such as `var ()` closes on its own line. A doc that cites one
+  of these names as `<package>.<name>` now fails with "does not resolve":
+  - the first field of a struct in a `type (` group, such as `retry.FieldFirst`
+  - the first name of a line in an interface in a `type (` group
+  - the first word of a line in a func literal, a composite literal, a call or a
+    multi-line raw string in a group
+  - the first word of a struct field or of a func body after an empty group
+
+  To fix such a doc, cite the name that the code declares, or remove the
+  backticks.
+
 ### Removed
 
 - **`hooks/check-package-sizes.sh`.** The hook was never registered, so it never
@@ -171,6 +186,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
     `ErrFirst, ErrSecond = …` or `SizeKB, SizeMB int64 = 1, 2`
   - a method on a type with two or more type parameters, such as `Cache.Lookup`
     for `func (c *Cache[K, V]) Lookup`
+  - a declaration after an empty group such as `var ()`
 
 - **The repo-brain gate does not read installed dependencies.** The symbol
   fallback looked for a backticked token in every untracked file that git does not
