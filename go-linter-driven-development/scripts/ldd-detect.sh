@@ -34,6 +34,12 @@
 #                           limit); on expiry the gate is stopped and its
 #                           questions are counted "inconclusive", never 0
 #
+# A gate that fails — an exit other than 0 or 1, or an exit 1 with no
+# violation summary — makes its questions "inconclusive" the same way. The
+# "R9 gate:" line and stderr name why: the gate's own error message, else its
+# first other unindented line. The rest of the pass runs. Alone,
+# check-repo-brain.sh still exits 2 on a failure.
+#
 # The scope's language is the bundle's language.txt; without it, the files in
 # files.txt tell it by extension, and a list that spans several languages is
 # refused: ldd-scope.sh writes one bundle per language.
@@ -65,17 +71,17 @@
 #               excerpt "+<n> more hit(s) not listed"
 #   hits-all.tsv  the same columns, every hit, no cap and no overflow row
 #   counts.tsv  rule  question  kind  hits      (judgment rows carry "-", gate
-#               rows "inconclusive" when the gate ran out of --gate-budget)
+#               rows "inconclusive" when the gate ran out of --gate-budget
+#               or failed)
 #               the last row is SUPPRESS  -  grep  <n>: suppression directives
 #               on the diff's added lines when the bundle has a diff.patch,
 #               else over every scope file
 # Two runs over one tree write byte-identical counts.tsv.
 #
-# Exit codes: 0 tables written · 2 usage error, a detect line that does not
-#             parse, a pattern grep rejects, a gate run that failed
-#             (inconclusive, never silently clean), or a non-empty scope in
-#             which no file matches the source glob (a glob mismatch, never
-#             an empty table)
+# Exit codes: 0 tables written (a failed gate's rows "inconclusive") ·
+#             2 usage error, a detect line that does not parse, a pattern
+#             grep rejects, or a non-empty scope in which no file matches the
+#             source glob (a glob mismatch, never an empty table)
 #
 # Uses only POSIX-portable tools: grep, sed, awk, sort, wc, head. GNU grep's
 # \b and \s are assumed, as the rules already assume them.
@@ -144,6 +150,8 @@ fi
 #                             source (a manifest, a doc, a build file)
 #   dedicated_plugin_for <id> the plugin written for that language, or ""
 #   GENERIC_PLUGIN            the plugin that reviews any language
+#   plugin_cmd_prefix <name>  the prefix of that plugin's commands, as in
+#                             /<prefix>-setup
 #   installed_plugin_dir <n>  where plugin <n> is installed, from the
 #                             installed-plugins file, or "" when it is not;
 #                             LDD_INSTALLED_PLUGINS names another file
@@ -190,6 +198,16 @@ dedicated_plugin_for() {
   case "$1" in
     go|python)              printf '%s-linter-driven-development' "$1" ;;
     typescript|javascript)  printf 'ts-react-linter-driven-development' ;;
+  esac
+  return 0
+}
+
+plugin_cmd_prefix() {
+  case "$1" in
+    go-linter-driven-development)        printf 'go-ldd' ;;
+    python-linter-driven-development)    printf 'py-ldd' ;;
+    ts-react-linter-driven-development)  printf 'tsr-ldd' ;;
+    *)                                   printf 'ldd' ;;
   esac
   return 0
 }
@@ -545,9 +563,26 @@ gate_scope_lists() {
   rm -f "$words.removed"
 }
 
+# gate_error_line — why the gate failed: its own first error line when it wrote
+# one, else the first line that is neither a report line (those are indented)
+# nor its scope line, such as the shell's or a tool's message.
+gate_error_line() {
+  LC_ALL=C awk '
+    /^[ \t]/ || /^check-repo-brain: scope — / { next }
+    /^check-repo-brain: / { own = $0; exit }
+    other == "" { other = $0 }
+    END {
+      line = (own != "") ? own : other
+      if (line == "") line = "no error message"
+      gsub(/\t/, " ", line); print substr(line, 1, 200)
+    }' "$gate_out"
+}
+
 # The R9 gate runs once, lazily; its [Q<n>] lines are split by question. With
 # --gate-budget the gate runs as its own process group, so expiry stops every
-# process it started, not only its shell.
+# process it started, not only its shell. The gate exits 0 clean and 1 after
+# its violation summary; any other end is a failure, and its questions are
+# inconclusive, never clean.
 GATE_STATE="whole repository"
 run_gate_once() {
   [[ -n "$gate_out" ]] && return 0
@@ -579,9 +614,11 @@ run_gate_once() {
     done
     wait "$pid" || code=$?
   fi
-  if (( code == 2 )); then
+  if (( code > 1 )) || { (( code == 1 )) && ! grep -qE '^check-repo-brain: [0-9]+ violation' "$gate_out"; }; then
+    GATE_STATE="inconclusive — the gate failed (exit $code): $(gate_error_line)"
     head -5 "$gate_out" >&2
-    die "the R9 gate failed to run (exit 2); its questions are inconclusive"
+    echo "$SCRIPT_NAME: R9 gate: $GATE_STATE" >&2
+    return 0
   fi
   scope_line=$(grep -m1 '^check-repo-brain: scope — ' "$gate_out")
   [[ -n "$scope_line" ]] && GATE_STATE="scoped, ${scope_line#check-repo-brain: scope — }"

@@ -156,6 +156,16 @@ func TestRender_IncludesAreTemplates(t *testing.T) {
 	assert.Equal(t, "files end in .p\n", string(tree["rules/R1.md"].Data))
 }
 
+func TestRender_LiteralBracesEscape(t *testing.T) {
+	t.Parallel()
+	core := fstest.MapFS{"skills/s/ref.md": {Data: []byte(
+		"task lint -- {{\"{{\"}}.CLI_ARGS}}\nbase: ${{\"{{\"}} github.base_ref }}\nprefix {{.CmdPrefix}}\n")}}
+	tree, err := render.Render(core, lang(t, nil))
+	require.NoError(t, err)
+	assert.Equal(t, "task lint -- {{.CLI_ARGS}}\nbase: ${{ github.base_ref }}\nprefix p-ldd\n",
+		string(tree["skills/s/ref.md"].Data), "{{\"{{\"}} prints a literal {{ that the generator does not read as an action")
+}
+
 func TestRender_MissingCoreIsAnError(t *testing.T) {
 	t.Parallel()
 	missing := os.DirFS(filepath.Join(t.TempDir(), "nope"))

@@ -1,6 +1,6 @@
 ---
 type: guide
-description: how to start working with a linter-driven-development plugin — from the one-line prompt that runs the whole workflow, through reviewing and fixing code you already wrote, to feeding it a plan, running it from a subagent, and sharing a repository between two language plugins
+description: how to start working with a linter-driven-development plugin — from setting up the linter and the one-line prompt that runs the whole workflow, through reviewing and fixing code you already wrote, to feeding it a plan, running it from a subagent, and sharing a repository between two language plugins
 ---
 # Quick Start
 
@@ -27,10 +27,30 @@ they share it.
 
 No configuration to run. The plugin finds your test and lint commands in the
 Taskfile, Makefile, README or CLAUDE.md. The plugin's `setup/` directory holds a
-recommended linter configuration for Go, Python and TypeScript; copying it, or the
-parts you want, makes the design triggers fire. The plugin never writes it into
-your repository. The first time the workflow starts, Claude asks for
+recommended linter configuration for Go, Python and TypeScript; the next section
+shows how to adopt it. The first time the workflow starts, Claude asks for
 permission to use the skill. Choose "Yes, and don't ask again for this directory".
+
+## Set up the linter
+
+Run `/go-ldd-setup` on a project before its first workflow run, or when you want a
+tighter linter. The recommended linter configuration makes the design triggers
+fire. The command does this:
+
+1. It compares the linter setup of the project with the recommended one.
+2. It shows each rule that needs a decision, with the recommended value, the
+   project's value and the finding count at each.
+3. You agree per rule: take the recommended value, keep your own, give another
+   value, turn the rule off, or leave the value to your organization.
+4. It shows the edit plan as one diff per file, and the hooks that change for each
+   teammate's commit.
+5. It edits only after you say yes to the plan. Then it records the agreement in
+   `.ldd-lint.yaml`.
+
+An agreed rule is not asked about again. `/go-ldd-status` shows a "Lint setup" line
+only after a setup ran and the linter no longer matches what you agreed. Run
+`/go-ldd-setup` again to agree the change or to restore the agreed value. A repository
+with more than one project takes a directory per project: `/go-ldd-setup web/ api/`.
 
 ## 1. A feature or a bug fix, from zero
 

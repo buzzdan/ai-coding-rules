@@ -460,7 +460,12 @@ coupling point, whether or not it looks like language:
   code change" collides when the generic plugin's description also matches a Go
   repository. The language clause of the orchestrator, code-designing and testing
   descriptions is an include; the generic one says it applies when no
-  language-specific plugin is installed for the detected language.
+  language-specific plugin is installed for the detected language. The lint-setup
+  skill works the same way: its whole trigger clause is an include, and the generic
+  one says it applies to the languages that no installed language plugin covers.
+- **Skill names are shared by every installed plugin.** A skill named `setup`
+  collides with other plugins' skills, so the linter setup skill is `lint-setup`, and
+  its command carries the prefix: `/<prefix>-setup`.
 - **Commands** carry `{{.CmdPrefix}}` in their file names. `wire-repo-brain` keeps
   no prefix: the documentation network it wires is a property of the repository, not
   of a language, and the only language-shaped part — the gate's declaration parser —

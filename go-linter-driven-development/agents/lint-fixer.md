@@ -22,9 +22,35 @@ No scope in the prompt means the whole repository (the workflow's Phase 3 on a f
 slice).
 
 **Loop:**
-1. Run the linter over the scope: `task lintwithfix` if a Taskfile/Makefile defines it
-   and the scope is the whole repository, else `golangci-lint run --fix` with the scope's
-   package paths in place of `./...`.
+1. Run the linter over the scope. Read the task file of the project (Taskfile, Makefile,
+   `package.json` scripts, justfile, or what the project uses). Find each task by the
+   command it runs, not by its name. A lint-fix task runs the linter with its fix
+   option; `task lintwithfix` is one. A check task runs the linter without it.
+
+   **The agreed config.** The record is the `.ldd-lint.yaml` of the project that the
+   scope is in: the nearest one in a directory of the scope or above it, up to the
+   repository root. A `lint_config` item in it, `"<linter> <path>"`, names the agreed
+   config only when `<linter>` is the linter that you run; an item of another linter
+   belongs to another plugin. The path is relative to the directory of that
+   `.ldd-lint.yaml`. With an agreed config, only a task that runs that file counts.
+   Never run the part of `golangci-lint run --fix` that runs that linter, and never add a
+   config flag to it. The other commands of `golangci-lint run --fix` (for example a type
+   check or a formatter) still run.
+   Use the first rule that fits:
+   1. A lint-fix task accepts a package argument (`{{.CLI_ARGS}}` in a Taskfile, `ARGS` in
+      a Makefile, a script argument): pass the package paths of the scope.
+   2. A lint-fix task does not, and the scope is the whole repository: run it.
+   3. With an agreed config, a check task runs that file: run the check task. Pass
+      the package paths when it accepts them. Keep only the findings inside the scope.
+      Fix those by hand, then run the check task again. Never use another config.
+   4. With no agreed config, a lint-fix task does not accept a package argument,
+      and the scope is a package list: run `golangci-lint run --fix` with the package paths
+      in place of `./...`.
+   5. With no agreed config, there is no lint-fix task: run `golangci-lint run --fix`
+      the same way.
+   6. With an agreed config, no rule above fits: stop, and fix nothing. Report
+      `ESCALATED: <linter> → setup, no task runs the agreed config at <config file>; run /go-ldd-setup`
+      and `LINT STATUS: escalations pending (1)`.
 2. Read the remaining issues. Classify each: mechanical → fix it; design → escalate.
 3. Apply targeted mechanical fixes (Read the site first, Edit minimally).
 4. Re-run. Repeat until green or only escalations remain. If two consecutive runs
@@ -84,7 +110,8 @@ LINT STATUS: green | escalations pending (<N>)
 One `ESCALATED:` line per failure, each carrying its own `file:line` and its route from
 the table above (`<linter> → rules/R3-storifying.md (via @refactoring) at
 <path>:<line>`) — except the `mechanical, budget spent` and `mechanical, no progress`
-lines, whose route is the respawn or its refusal, not a rule. A `FIXED:` line lists every linter whose
+lines, whose route is the respawn or its refusal, not a rule, and the `setup` line of
+rule 6, whose route is the setup command. A `FIXED:` line lists every linter whose
 issues are gone; nothing fixed → `FIXED: none`.
 
 FIXED counts every issue resolved since the first run — including those the

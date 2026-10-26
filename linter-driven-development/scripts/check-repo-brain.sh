@@ -68,15 +68,20 @@
 #     constant); other backticks (paths, flags, ALL-CAPS initialisms such as
 #     `API`, <placeholders>) are skipped.
 #   - resolution is against a declaration set built ONCE per run from the
-#     language's code files (adapter: lang_declarations), which carries
-#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
-#     against its declaring package or receiver — never against a same-named
-#     member elsewhere. A token missing from the set still resolves when it
-#     appears as a whole word in any non-markdown repo file (config keys,
-#     alert names, test helpers): in a git work tree the tracked and
-#     untracked-but-not-ignored files outside the language's dependency and
-#     build-output directories (adapter: LANG_PRUNE_DIRS); elsewhere every file
-#     outside those directories and the common ones (bazel-*, vendor, …).
+#     language's code files (adapter: lang_declarations). The set holds
+#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves through
+#     the set only when the set holds that pair. A same-named member of another
+#     package or receiver does not count. The adapters scan code line by line
+#     and do not parse it. So the set can hold a pair that the language does
+#     not declare, and can miss a pair that it declares.
+#   - a token missing from the set still resolves when it appears as a whole
+#     word in a non-markdown repo file (config keys, alert names, test
+#     helpers). A dotted token matches a run of whole dot-separated parts of a
+#     word. In a git work tree the gate searches every tracked file outside
+#     vendor/, and every untracked file that git does not ignore outside the
+#     language's dependency and build-output directories (adapter:
+#     LANG_PRUNE_DIRS). Elsewhere it searches every file outside those
+#     directories and the common ones (bazel-*, vendor, …).
 #     A `pkg.Sym` whose package is not declared in this repo is external
 #     (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
@@ -94,6 +99,10 @@
 #             1 one or more violations (details on stderr, summary last)
 #             2 usage error, or an internal scanner failure (a failed scan is
 #               inconclusive, never silently clean)
+#
+# CHECK_REPO_BRAIN_FAULT=<reason> makes the run an internal scanner failure
+# before any check: one stderr line naming the reason, exit 2. Tests and evals
+# set it to prove that a caller treats a failed gate as inconclusive.
 #
 # Uses only POSIX-portable tools: find, grep, sed, awk, head, sort, wc, tr, xargs,
 # plus git when the repository is a git work tree. No jq/python.
@@ -124,6 +133,10 @@ if [[ ! -d "$REPO_ROOT" ]]; then
   exit 2
 fi
 cd "$REPO_ROOT" || exit 2
+if [[ -n "${CHECK_REPO_BRAIN_FAULT:-}" ]]; then
+  echo "check-repo-brain: internal scanner error — CHECK_REPO_BRAIN_FAULT is set ($CHECK_REPO_BRAIN_FAULT); treating the run as inconclusive" >&2
+  exit 2
+fi
 SCOPED=0
 [[ -n "$SCOPE_LIST" ]] && SCOPED=1
 
@@ -209,56 +222,102 @@ lang_has_code() {
     -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
-# Go declarations: package names (pkg:<name>), every declared identifier, and
-# ownership pairs — pkg.Ident for the declaring package, Type.Method for the
-# receiver — from single-line and grouped type/var/const declarations,
-# functions, and methods.
+# LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
+# variables. It reads each line on its own and does not parse Go. It prints
+# "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
+# one per line. It takes every name of a list such as "x, y" on a declaration
+# line. Inside a grouped declaration it counts the brackets that are not in a
+# string, a rune or a comment. It takes names only from a line that starts at
+# bracket depth 0 and not in a raw string or a block comment: every name of a
+# list on a line indented by one tab, and the first name of a deeper line. A
+# group such as "var ()" closes on its own line.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (curpkg != "") print curpkg "." id
+function emit(identifier) {
+  print identifier
+  if (package_name != "") print package_name "." identifier
 }
-FNR == 1 { curpkg = ""; inblock = "" }
-inblock != "" {
-  if ($0 ~ /^\)/) { inblock = ""; next }
-  s = $0; sub(/^[ \t]+/, "", s)
-  if (s ~ /^[A-Za-z_]/) {
-    t = s; sub(/[ \t=([].*$/, "", t)
-    n = split(t, parts, ",")
-    for (i = 1; i <= n; i++) {
-      p = parts[i]; gsub(/[ \t]/, "", p)
-      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
-    }
+function is_identifier(text) {
+  return text ~ /^[A-Za-z_][A-Za-z0-9_]*$/
+}
+function emit_names(text, whole_list,   joined, list, count, parts, i, name) {
+  joined = text
+  gsub(/[ \t]*,[ \t]*/, ",", joined)
+  list = ""
+  if (whole_list && match(joined, /^[A-Za-z_][A-Za-z0-9_]*(,[A-Za-z_][A-Za-z0-9_]*)*,?([ \t=([]|$)/)) {
+    list = substr(joined, 1, RLENGTH)
+    sub(/,?[ \t=([]?$/, "", list)
   }
+  if (list == "") {
+    list = text; sub(/[ \t=([].*$/, "", list)
+  }
+  count = split(list, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (is_identifier(name)) emit(name)
+  }
+}
+function scan_brackets(text,   count, i, character, quote) {
+  count = length(text); quote = ""
+  for (i = 1; i <= count; i++) {
+    character = substr(text, i, 1)
+    if (in_raw) { if (character == "`") in_raw = 0; continue }
+    if (in_block) {
+      if (character == "*" && substr(text, i + 1, 1) == "/") { in_block = 0; i++ }
+      continue
+    }
+    if (quote != "") {
+      if (character == "\\") i++
+      else if (character == quote) quote = ""
+      continue
+    }
+    if (character == "`") in_raw = 1
+    else if (character == "\"" || character == "\047") quote = character
+    else if (character == "/" && substr(text, i + 1, 1) == "/") break
+    else if (character == "/" && substr(text, i + 1, 1) == "*") { in_block = 1; i++ }
+    else if (character == "{" || character == "(" || character == "[") depth++
+    else if (character == "}" || character == ")" || character == "]") { if (depth > 0) depth-- }
+  }
+}
+FNR == 1 { package_name = ""; in_group = 0; depth = 0; in_raw = 0; in_block = 0 }
+in_group {
+  inside_literal = in_raw || in_block
+  if (!inside_literal && $0 ~ /^\)/) { in_group = 0; depth = 0; next }
+  entry_depth = depth
+  scan_brackets($0)
+  if (inside_literal || entry_depth > 0) next
+  text = $0; sub(/^[ \t]+/, "", text)
+  if (text ~ /^[A-Za-z_]/) emit_names(text, $0 ~ /^\t[A-Za-z_]/)
   next
 }
-/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); curpkg = s; print "pkg:" s; next }
-/^(type|var|const) \(/ { inblock = "y"; next }
+/^package [A-Za-z_]/ {
+  name = $0; sub(/^package /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  package_name = name; print "pkg:" name; next
+}
+/^(type|var|const) \(/ {
+  if ($0 !~ /^(type|var|const) \([ \t]*\)/) { in_group = 1; depth = 0; in_raw = 0; in_block = 0 }
+  next
+}
 /^func \(/ {
-  r = $0; sub(/^func \(/, "", r); sub(/\).*$/, "", r)
-  gsub(/\*/, "", r); sub(/^[ \t]+/, "", r); sub(/[ \t]+$/, "", r)
-  nr = split(r, rp, /[ \t]+/); rt = rp[nr]
-  sub(/\[.*$/, "", rt)
-  s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) {
-    emit(s)
-    if (rt ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print rt "." s
+  receiver = $0; sub(/^func \(/, "", receiver); sub(/\).*$/, "", receiver)
+  sub(/\[.*$/, "", receiver)
+  gsub(/\*/, "", receiver); sub(/^[ \t]+/, "", receiver); sub(/[ \t]+$/, "", receiver)
+  word_count = split(receiver, receiver_words, /[ \t]+/)
+  receiver_type = receiver_words[word_count]
+  name = $0; sub(/^func \([^)]*\)[ \t]*/, "", name); sub(/[ \t([].*$/, "", name)
+  if (is_identifier(name)) {
+    emit(name)
+    if (is_identifier(receiver_type)) print receiver_type "." name
   }
   next
 }
 /^func [A-Za-z_]/ {
-  s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(s)
+  name = $0; sub(/^func /, "", name); sub(/[ \t([].*$/, "", name)
+  if (is_identifier(name)) emit(name)
   next
 }
 /^(type|var|const) [A-Za-z_]/ {
-  s = $0; sub(/^(type|var|const) /, "", s)
-  t = s; sub(/[ \t=([].*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
-  }
+  text = $0; sub(/^(type|var|const) /, "", text)
+  emit_names(text, 1)
   next
 }
 '
@@ -320,50 +379,96 @@ lang_has_code() {
   find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
+# LANG_DECL_AWK reads the Python files that lang_declarations lists and takes no
+# -v variables. It reads each line on its own and does not parse Python. For a
+# file that has lines, it prints "pkg:<module>" and "pkg:<package directory>"
+# when the path has them. It prints the names it finds, also qualified by the
+# module and by the package directory, one per line. It skips a line that starts
+# inside a string or inside brackets. After a class, it prints "<Class>.<name>"
+# for each def at the indent of the class body. The class ends at the next
+# column-0 line that is not blank, a comment or a decorator.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (mod != "") print mod "." id
-  if (pkgdir != "" && pkgdir != mod) print pkgdir "." id
+function emit(identifier) {
+  print identifier
+  if (module != "") print module "." identifier
+  if (package_dir != "" && package_dir != module) print package_dir "." identifier
 }
-function keyword(w) {
-  return w == "if" || w == "else" || w == "elif" || w == "try" || w == "except" || w == "finally" || \
-         w == "for" || w == "while" || w == "with" || w == "return" || w == "import" || w == "from" || \
-         w == "class" || w == "def" || w == "pass" || w == "raise" || w == "del" || w == "global" || \
-         w == "nonlocal" || w == "assert" || w == "lambda" || w == "yield" || w == "match" || w == "case"
+function keyword(word) {
+  return word == "if" || word == "else" || word == "elif" || word == "try" || word == "except" || word == "finally" || \
+         word == "for" || word == "while" || word == "with" || word == "return" || word == "import" || word == "from" || \
+         word == "class" || word == "def" || word == "pass" || word == "raise" || word == "del" || word == "global" || \
+         word == "nonlocal" || word == "assert" || word == "lambda" || word == "yield" || word == "match" || word == "case"
+}
+function count_brackets(text,   copy) {
+  copy = text; depth += gsub(/[[({]/, "", copy)
+  copy = text; depth -= gsub(/[])}]/, "", copy)
+  if (depth < 0) depth = 0
+}
+function scan_line(text,   at, character) {
+  while (text != "") {
+    if (in_string != "") {
+      at = index(text, in_string)
+      if (at == 0) return
+      text = substr(text, at + 3); in_string = ""; continue
+    }
+    if (in_quote != "") {
+      if (!match(text, in_quote == "\"" ? "[\\\\\"]" : "[\\\\\047]")) return
+      if (substr(text, RSTART, 1) != in_quote) text = substr(text, RSTART + 2)
+      else { text = substr(text, RSTART + 1); in_quote = "" }
+      continue
+    }
+    if (!match(text, "[\"#\047]")) { count_brackets(text); return }
+    count_brackets(substr(text, 1, RSTART - 1))
+    character = substr(text, RSTART, 1); text = substr(text, RSTART)
+    if (character == "#") return
+    if (substr(text, 1, 3) == character character character) { in_string = substr(text, 1, 3); text = substr(text, 4) }
+    else { in_quote = character; text = substr(text, 2) }
+  }
 }
 FNR == 1 {
-  curclass = ""
-  f = FILENAME; sub(/^\.\//, "", f)
-  n = split(f, parts, "/")
-  mod = parts[n]; sub(/\.py$/, "", mod)
-  pkgdir = ""
-  if (n >= 2) pkgdir = parts[n - 1]
-  if (mod == "__init__") { mod = pkgdir; pkgdir = "" }
-  if (mod != "") print "pkg:" mod
-  if (pkgdir != "") print "pkg:" pkgdir
+  current_class = ""; body_indent = ""; in_string = ""; in_quote = ""; depth = 0
+  path = FILENAME; sub(/^\.\//, "", path)
+  count = split(path, parts, "/")
+  module = parts[count]; sub(/\.py$/, "", module)
+  package_dir = ""
+  if (count >= 2) package_dir = parts[count - 1]
+  if (module == "__init__") { module = package_dir; package_dir = "" }
+  if (module != "") print "pkg:" module
+  if (package_dir != "") print "pkg:" package_dir
+}
+{
+  if (in_string == "" && in_quote == "" && $0 ~ /^(class|(async )?def) [A-Za-z_]/) depth = 0
+  continued = in_string != "" || in_quote != "" || depth > 0
+  scan_line($0)
+  if (in_quote != "" && substr($0, length($0), 1) != "\\") in_quote = ""
+  if (continued) next
+}
+current_class != "" && $0 ~ /^[^ \t\r\f#@]/ { current_class = "" }
+current_class != "" && body_indent == "" && $0 ~ /^[ \t]+[^ \t\r\f#]/ {
+  body_indent = $0; sub(/[^ \t].*$/, "", body_indent)
 }
 /^class [A-Za-z_]/ {
-  s = $0; sub(/^class /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); curclass = s; next
+  name = $0; sub(/^class /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); current_class = name; body_indent = ""; next
 }
 /^(async )?def [A-Za-z_]/ {
-  s = $0; sub(/^(async )?def /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); curclass = ""; next
+  name = $0; sub(/^(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); next
 }
 /^[ \t]+(async )?def [A-Za-z_]/ {
-  if (curclass == "") next
-  s = $0; sub(/^[ \t]+(async )?def /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); print curclass "." s; next
+  indent = $0; sub(/[^ \t].*$/, "", indent)
+  if (current_class == "" || indent != body_indent) next
+  name = $0; sub(/^[ \t]+(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); print current_class "." name; next
 }
-/^[A-Za-z_][A-Za-z0-9_]*([ \t]*,[ \t]*[A-Za-z_][A-Za-z0-9_]*)*[ \t]*(:[^=]*)?=[^=]/ {
-  t = $0; sub(/[ \t]*(:[^=]*)?=.*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && !keyword(p)) emit(p)
+/^[A-Za-z_][A-Za-z0-9_]*[ \t]*(,[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*)*(:[^=]*)?=[^=]/ {
+  targets = $0; sub(/[ \t]*(:[^=]*)?=.*$/, "", targets)
+  count = split(targets, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && !keyword(name)) emit(name)
   }
-  curclass = ""; next
+  next
 }
 '
 
@@ -455,13 +560,21 @@ done < <(for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md' -path "$NL_PA
          lang_newline_files)
 
 fixed=0
+# FIX_INDEX_LINE_AWK reads one index file and prints it whole. On line
+# `lineno` it replaces the text after the first " — " with the NEWDESC
+# environment variable. It reads NEWDESC from ENVIRON and not from -v,
+# because -v decodes backslash escapes.
+FIX_INDEX_LINE_AWK='
+NR == lineno {
+  separator = index($0, " — ")
+  if (separator > 0) $0 = substr($0, 1, separator - 1) " — " ENVIRON["NEWDESC"]
+}
+{ print }
+'
 # fix_index_line <file> <lineno> <new-tail> — rewrite the text after " — " on one line
 fix_index_line() {
   local f="$1" n="$2" tmp="$1.repobrain.tmp"
-  NEWDESC="$3" awk -v n="$n" '
-    NR == n { i = index($0, " — "); if (i > 0) $0 = substr($0, 1, i - 1) " — " ENVIRON["NEWDESC"] }
-    { print }
-  ' "$f" > "$tmp" && mv "$tmp" "$f"
+  NEWDESC="$3" awk -v lineno="$n" "$FIX_INDEX_LINE_AWK" "$f" > "$tmp" && mv "$tmp" "$f"
 }
 
 # canon <path> -> physical path with .. resolved (empty if parent dir missing)
@@ -490,8 +603,17 @@ resolve_link() {
 }
 
 # frontmatter helpers -----------------------------------------------------
+# FM_CLOSE_AWK reads one doc. It prints the number of the first "---" line
+# after line 1, the line that closes the frontmatter, and stops. It prints
+# nothing when the doc has no such line.
+FM_CLOSE_AWK='
+NR > 1 && /^---$/ {
+  print NR
+  exit
+}
+'
 fm_close_line() { # <file> -> line number of closing --- (or '')
-  awk 'NR > 1 && /^---$/ { print NR; exit }' "$1"
+  awk "$FM_CLOSE_AWK" "$1"
 }
 fm_block() { # <file> <close-line> -> frontmatter body
   sed -n "2,$(( $2 - 1 ))p" "$1"
@@ -608,6 +730,28 @@ repo_words() {
   cat "$REPO_WORDS"
 }
 
+# RESOLVE_WORDS_AWK reads the repository's words, one per line, and takes
+# -v list, the path of the tokens file. It prints each token that a word
+# matches, once.
+RESOLVE_WORDS_AWK='
+BEGIN { while ((getline token < list) > 0) if (token != "") wanted[token] = 1 }
+{
+  count = split($0, parts, ".")
+  for (i = 1; i <= count; i++) {
+    candidate = parts[i]
+    if (candidate in wanted) { print candidate; delete wanted[candidate] }
+    for (j = i + 1; j <= count; j++) {
+      candidate = candidate "." parts[j]
+      if (candidate in wanted) { print candidate; delete wanted[candidate] }
+    }
+  }
+  if (index($0, "$") > 0) {
+    count = split($0, parts, /[$.]/)
+    for (i = 1; i <= count; i++)
+      if (parts[i] in wanted) { print parts[i]; delete wanted[parts[i]] }
+  }
+}
+'
 # resolve_words <tokens-file> — the tokens that occur as a whole word in any
 # non-markdown repository file, one per line. A dotted token such as
 # `Type.Method` matches any run of whole dot-separated parts of a word, as
@@ -615,23 +759,7 @@ repo_words() {
 # also offers its $-free parts. A lookup in the word set is linear in the
 # repository's size, where a fixed-string grep for hundreds of tokens is not.
 resolve_words() {
-  repo_words | LC_ALL=C awk -v list="$1" '
-      BEGIN { while ((getline t < list) > 0) if (t != "") want[t] = 1 }
-      {
-        n = split($0, p, ".")
-        for (i = 1; i <= n; i++) {
-          s = p[i]
-          if (s in want) { print s; delete want[s] }
-          for (j = i + 1; j <= n; j++) {
-            s = s "." p[j]
-            if (s in want) { print s; delete want[s] }
-          }
-        }
-        if (index($0, "$") > 0) {
-          n = split($0, p, /[$.]/)
-          for (i = 1; i <= n; i++) if (p[i] in want) { print p[i]; delete want[p[i]] }
-        }
-      }'
+  repo_words | LC_ALL=C awk -v list="$1" "$RESOLVE_WORDS_AWK"
   return 0
 }
 
@@ -713,6 +841,36 @@ SCOPE_DOCS="$WORK/scope-docs"      # every doc a scoped run reads
 FULL_DOCS="$WORK/full-docs"        # the listed docs: every check
 SCOPE_PATHS="$WORK/scope-paths"
 BASENAMES="$WORK/basenames"
+# CITES_WORD_AWK defines cites_word(token, word_set). It returns 1 when the
+# token, or one of its dot-separated parts, is a key of the word_set array,
+# and 0 otherwise.
+CITES_WORD_AWK='
+function cites_word(token, word_set,   parts, count, i) {
+  if (token in word_set) return 1
+  count = split(token, parts, ".")
+  for (i = 1; i <= count; i++) if (parts[i] in word_set) return 1
+  return 0
+}'
+# SCOPE_WORDS_AWK reads the tab-separated records of DOCSCAN_AWK and takes
+# -v list, the path of the --words list. It prints the doc path of each S
+# record whose token cites a word on the list.
+SCOPE_WORDS_AWK="$CITES_WORD_AWK"'
+BEGIN { while ((getline word < list) > 0) removed[word] = 1 }
+$1 == "S" && cites_word($4, removed) { print $2 }
+'
+# SCOPE_SCAN_AWK reads the tab-separated records of DOCSCAN_AWK. It takes
+# -v full, the path of the list of docs that get every check, and -v words,
+# the path of the --words list or /dev/null. It prints each record of a doc
+# on the full list, and each S record whose token cites a word on the words
+# list.
+SCOPE_SCAN_AWK="$CITES_WORD_AWK"'
+BEGIN {
+  while ((getline path < full) > 0) full_docs[path] = 1
+  while ((getline word < words) > 0) removed[word] = 1
+}
+($2 in full_docs) { print; next }
+$1 == "S" && cites_word($4, removed) { print }
+'
 if (( SCOPED )); then
   sed -e 's|^\./||' -e '/^$/d' "$SCOPE_LIST" | LC_ALL=C sort -u > "$SCOPE_PATHS"
   sed 's|.*/||' "$SCOPE_PATHS" | LC_ALL=C sort -u > "$BASENAMES"
@@ -727,10 +885,7 @@ if (( SCOPED )); then
       tr '\n' '\0' < "$WORK/all-docs" \
         | xargs -0 awk -v file_ext="$LANG_FILE_EXT" -v file_re="$LANG_FILE_RE" \
                        -v sym_re="$LANG_SYMBOL_RE" -v qual_re="$LANG_QUALIFIED_RE" "$DOCSCAN_AWK" \
-        | awk -F'\t' -v list="$WORDS_LIST" '
-            BEGIN { while ((getline w < list) > 0) want[w] = 1 }
-            $1 == "S" { if ($4 in want) { print $2; next }
-                        n = split($4, part, "."); for (i = 1; i <= n; i++) if (part[i] in want) { print $2; next } }'
+        | awk -F'\t' -v list="$WORDS_LIST" "$SCOPE_WORDS_AWK"
     fi
   } | LC_ALL=C sort -u > "$SCOPE_DOCS"
   if [[ -s "$SCOPE_DOCS" ]]; then
@@ -759,6 +914,22 @@ bundle_docs() {
 # full_doc <doc> — exit 0 iff the doc gets every check
 full_doc() { (( ! SCOPED )) || grep -qxF -- "$1" "$FULL_DOCS"; }
 
+# LINK_PATH_AWK reads one path, with "/" as the field separator. It prints the
+# path without its empty and "." parts, and with each ".." folded into the
+# part before it. A ".." that has no such part to fold into stays.
+LINK_PATH_AWK='
+{
+  depth = 0
+  for (i = 1; i <= NF; i++) {
+    if ($i == "" || $i == ".") continue
+    if ($i == ".." && depth > 0 && kept[depth] != "..") { depth--; continue }
+    kept[++depth] = $i
+  }
+  path = ""
+  for (i = 1; i <= depth; i++) path = path (i > 1 ? "/" : "") kept[i]
+  print path
+}
+'
 # link_path <containing-file> <target> <docroot> — the link's target as a
 # repository-relative path, the title and anchor stripped and . and .. folded
 # by text, so a target whose directory does not exist still has a path
@@ -766,15 +937,7 @@ link_path() {
   local t="${2%%#*}"
   t="${t%% *}"
   if [[ "$t" == /* ]]; then t="$3/${t#/}"; else t="$(dirname "$1")/$t"; fi
-  printf '%s\n' "$t" | awk -F/ '{
-    n = 0
-    for (i = 1; i <= NF; i++) {
-      if ($i == "" || $i == ".") continue
-      if ($i == ".." && n > 0 && st[n] != "..") { n--; continue }
-      st[++n] = $i
-    }
-    o = ""; for (i = 1; i <= n; i++) o = o (i > 1 ? "/" : "") st[i]; print o
-  }'
+  printf '%s\n' "$t" | awk -F/ "$LINK_PATH_AWK"
 }
 
 # in_list <path> <list-file> — exit 0 iff the path is a line of the list
@@ -811,6 +974,19 @@ url_only() { # <file> <lineno> <target>
 # unique_lines — stdin to stdout, every distinct line once, in first-seen order
 unique_lines() { awk '!seen[$0]++'; }
 
+# SCOPE_EDGES_AWK reads the code edges of lang_code_edges, one
+# "<file>:<line>:<target>" hit per line, and takes -v list, the path of the
+# scope's path list. It prints each hit whose file, without a leading "./",
+# is on the list.
+SCOPE_EDGES_AWK='
+BEGIN { while ((getline path < list) > 0) in_scope[path] = 1 }
+{
+  file = substr($0, 1, index($0, ":") - 1)
+  sub(/^\.\//, "", file)
+  if (file in in_scope) print
+}
+'
+
 if (( have_code )); then
   while IFS= read -r hit; do
     file="${hit%%:*}"; rest="${hit#*:}"; line="${rest%%:*}"; target="${rest#*:}"
@@ -825,9 +1001,7 @@ if (( have_code )); then
     CUR_DOCROOT=$(docroot_for_file "$file")
     fail "[Q2] $file:$line — code edge points at missing $target"
   done < <(if (( SCOPED )); then
-             lang_code_edges | awk -v list="$SCOPE_PATHS" '
-               BEGIN { while ((getline l < list) > 0) s[l] = 1 }
-               { f = substr($0, 1, index($0, ":") - 1); sub(/^\.\//, "", f); if (f in s) print }'
+             lang_code_edges | awk -v list="$SCOPE_PATHS" "$SCOPE_EDGES_AWK"
            else
              lang_code_edges
            fi | unique_lines)
@@ -904,11 +1078,8 @@ check_bundle() { # <project-dir> <docroot>
     exit 2
   fi
   if (( SCOPED )); then
-    awk -F'\t' -v full="$FULL_DOCS" -v words="${WORDS_LIST:-/dev/null}" '
-      BEGIN { while ((getline l < full) > 0) f[l] = 1; while ((getline l < words) > 0) w[l] = 1 }
-      ($2 in f) { print; next }
-      $1 == "S" { if ($4 in w) { print; next }
-                  n = split($4, part, "."); for (i = 1; i <= n; i++) if (part[i] in w) { print; next } }' "$scan" > "$scan.kept"
+    awk -F'\t' -v full="$FULL_DOCS" -v words="${WORDS_LIST:-/dev/null}" "$SCOPE_SCAN_AWK" \
+      "$scan" > "$scan.kept"
     mv -f "$scan.kept" "$scan"
   fi
   local f ln

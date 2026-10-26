@@ -68,15 +68,20 @@
 #     constant); other backticks (paths, flags, ALL-CAPS initialisms such as
 #     `API`, <placeholders>) are skipped.
 #   - resolution is against a declaration set built ONCE per run from the
-#     language's code files (adapter: lang_declarations), which carries
-#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
-#     against its declaring package or receiver — never against a same-named
-#     member elsewhere. A token missing from the set still resolves when it
-#     appears as a whole word in any non-markdown repo file (config keys,
-#     alert names, test helpers): in a git work tree the tracked and
-#     untracked-but-not-ignored files outside the language's dependency and
-#     build-output directories (adapter: LANG_PRUNE_DIRS); elsewhere every file
-#     outside those directories and the common ones (bazel-*, vendor, …).
+#     language's code files (adapter: lang_declarations). The set holds
+#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves through
+#     the set only when the set holds that pair. A same-named member of another
+#     package or receiver does not count. The adapters scan code line by line
+#     and do not parse it. So the set can hold a pair that the language does
+#     not declare, and can miss a pair that it declares.
+#   - a token missing from the set still resolves when it appears as a whole
+#     word in a non-markdown repo file (config keys, alert names, test
+#     helpers). A dotted token matches a run of whole dot-separated parts of a
+#     word. In a git work tree the gate searches every tracked file outside
+#     vendor/, and every untracked file that git does not ignore outside the
+#     language's dependency and build-output directories (adapter:
+#     LANG_PRUNE_DIRS). Elsewhere it searches every file outside those
+#     directories and the common ones (bazel-*, vendor, …).
 #     A `pkg.Sym` whose package is not declared in this repo is external
 #     (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
@@ -94,6 +99,10 @@
 #             1 one or more violations (details on stderr, summary last)
 #             2 usage error, or an internal scanner failure (a failed scan is
 #               inconclusive, never silently clean)
+#
+# CHECK_REPO_BRAIN_FAULT=<reason> makes the run an internal scanner failure
+# before any check: one stderr line naming the reason, exit 2. Tests and evals
+# set it to prove that a caller treats a failed gate as inconclusive.
 #
 # Uses only POSIX-portable tools: find, grep, sed, awk, head, sort, wc, tr, xargs,
 # plus git when the repository is a git work tree. No jq/python.
@@ -124,6 +133,10 @@ if [[ ! -d "$REPO_ROOT" ]]; then
   exit 2
 fi
 cd "$REPO_ROOT" || exit 2
+if [[ -n "${CHECK_REPO_BRAIN_FAULT:-}" ]]; then
+  echo "check-repo-brain: internal scanner error — CHECK_REPO_BRAIN_FAULT is set ($CHECK_REPO_BRAIN_FAULT); treating the run as inconclusive" >&2
+  exit 2
+fi
 SCOPED=0
 [[ -n "$SCOPE_LIST" ]] && SCOPED=1
 
@@ -205,131 +218,181 @@ lang_has_code() {
   find . "${TS_CODE_FILES[@]}" "${TS_PRUNE[@]}" -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
-# TypeScript declarations. Column-0 declarations are top level (Prettier indents
-# every body). Brace depth is tracked outside strings and comments so that the
-# members of a class, interface, object type, enum or namespace — the lines one
-# level inside its braces — are emitted as `Owner.member`, while lines deeper
-# than that (method bodies, object literals, nested blocks) are skipped. A
-# destructuring pattern or an export list may span lines; its names are
-# collected until the closing bracket. Misses cost a false report, so the
-# heuristics lean toward emitting.
+# LANG_DECL_AWK reads the TypeScript files that lang_declarations lists and
+# takes no -v variables. It reads each line on its own and does not parse
+# TypeScript. For a file that has lines, it prints "pkg:<module>" and
+# "pkg:<directory>" when the path has them. It prints the names it finds, also
+# qualified by the module and by the directory, and "<Owner>.<member>" for a
+# member, one per line. A line at column 0 is top level, because Prettier
+# indents every body. A member is a line one level inside the braces of a class,
+# interface, object type, enum or namespace. The brace count skips strings on
+# one line and lines that start with "//", "/*" or "*". Outside a block comment,
+# a generator method such as "*entries() {" or "*[Symbol.iterator]() {" is not a
+# comment line. A destructuring pattern or an export list can span lines. The
+# program collects its names until a closing bracket at column 0, or until the
+# closing bracket that balances the pattern. A missed name causes a false
+# report, so the program prints a name when it is not sure.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (mod != "") print mod "." id
-  if (pkgdir != "" && pkgdir != mod) print pkgdir "." id
+function emit(identifier) {
+  print identifier
+  if (module != "") print module "." identifier
+  if (package_dir != "" && package_dir != module) print package_dir "." identifier
 }
-function ident(s) {
-  if (match(s, /^[A-Za-z_$][A-Za-z0-9_$]*/)) return substr(s, RSTART, RLENGTH)
-  return ""
+function ident(text, found) {
+  if (!match(text, /^[A-Za-z_$][A-Za-z0-9_$]*/)) return 0
+  found["name"] = substr(text, RSTART, RLENGTH)
+  return 1
 }
-function keyword(w) {
-  return w == "if" || w == "else" || w == "for" || w == "while" || w == "do" || w == "switch" || \
-         w == "case" || w == "default" || w == "return" || w == "break" || w == "continue" || \
-         w == "try" || w == "catch" || w == "finally" || w == "throw" || w == "new" || w == "await" || \
-         w == "yield" || w == "typeof" || w == "void" || w == "delete" || w == "import" || w == "export" || \
-         w == "function" || w == "class" || w == "const" || w == "let" || w == "var" || w == "this" || \
-         w == "super" || w == "constructor"
+function keyword(word) {
+  return word == "if" || word == "else" || word == "for" || word == "while" || word == "do" || word == "switch" || \
+         word == "case" || word == "default" || word == "return" || word == "break" || word == "continue" || \
+         word == "try" || word == "catch" || word == "finally" || word == "throw" || word == "new" || word == "await" || \
+         word == "yield" || word == "typeof" || word == "void" || word == "delete" || word == "import" || word == "export" || \
+         word == "function" || word == "class" || word == "const" || word == "let" || word == "var" || word == "this" || \
+         word == "super" || word == "constructor"
 }
-function names(list,   n, parts, i, p) {
-  n = split(list, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]
-    sub(/^[ \t]+/, "", p); sub(/[ \t]+$/, "", p)
-    sub(/^\.\.\./, "", p)
-    sub(/^type[ \t]+/, "", p)
-    if (p ~ /[ \t]as[ \t]/) sub(/^.*[ \t]as[ \t]+/, "", p)
-    else if (index(p, ":") > 0) sub(/^[^:]*:[ \t]*/, "", p)
-    sub(/[ \t]*=.*$/, "", p)
-    gsub(/[][{}() \t]/, "", p)
-    if (p == "default") continue
-    if (p ~ /^[A-Za-z_$][A-Za-z0-9_$]*$/ && !keyword(p)) emit(p)
+function names(list,   count, parts, i, entry) {
+  count = split(list, parts, ",")
+  for (i = 1; i <= count; i++) {
+    entry = parts[i]
+    sub(/^[ \t]+/, "", entry); sub(/[ \t]+$/, "", entry)
+    sub(/^\.\.\./, "", entry)
+    sub(/^type[ \t]+/, "", entry)
+    sub(/[ \t]*=.*$/, "", entry)
+    if (entry ~ /[ \t]as[ \t]/) sub(/^.*[ \t]as[ \t]+/, "", entry)
+    else if (index(entry, ":") > 0) sub(/^[^:]*:[ \t]*/, "", entry)
+    gsub(/[][{}() \t]/, "", entry)
+    if (entry == "default") continue
+    if (entry ~ /^[A-Za-z_$][A-Za-z0-9_$]*$/ && !keyword(entry)) emit(entry)
   }
 }
-function braces(t,   o, c) {
-  if (t ~ /^[ \t]*(\/\/|\/\*|\*)/) return 0
-  gsub(/"[^"]*"/, "", t)
-  gsub(sq "[^" sq "]*" sq, "", t)
-  gsub(/`[^`]*`/, "", t)
-  sub(/\/\/.*$/, "", t)
-  gsub(/\/\*.*\*\//, "", t)
-  gsub(/[^{}]/, "", t)
-  o = gsub(/\{/, "", t); c = gsub(/\}/, "", t)
-  return o - c
+function generator(text) {
+  return text ~ /^[ \t]*\*([A-Za-z_$#][A-Za-z0-9_$]*[(<]|\[)/
 }
-function owner(name) { emit(name); curclass = name; classdepth = depth }
+function comment_line(text) {
+  return text ~ /^[ \t]*(\/\/|\/\*|\*)/ && (inside_comment || !generator(text))
+}
+function comment_open_after(text, open,   at) {
+  while (1) {
+    if (open) {
+      at = index(text, "*/")
+      if (at == 0) return 1
+      text = substr(text, at + 2); open = 0
+    } else {
+      text = code_only(text)
+      at = index(text, "/*")
+      if (at == 0) return 0
+      text = substr(text, at + 2); open = 1
+    }
+  }
+}
+function flush_collected() {
+  names(collected)
+  collected = ""; collecting = 0
+}
+function code_only(text) {
+  gsub(/"[^"]*"/, "", text)
+  gsub(sq "[^" sq "]*" sq, "", text)
+  gsub(/`[^`]*`/, "", text)
+  sub(/\/\/.*$/, "", text)
+  gsub(/\/\*.*\*\//, "", text)
+  return text
+}
+function brackets(text,   opens, closes) {
+  if (comment_line(text)) return 0
+  text = code_only(text)
+  opens = gsub(/[[{]/, "", text); closes = gsub(/[]}]/, "", text)
+  return opens - closes
+}
+function braces(text,   opens, closes) {
+  if (comment_line(text)) return 0
+  text = code_only(text)
+  gsub(/[^{}]/, "", text)
+  opens = gsub(/\{/, "", text); closes = gsub(/\}/, "", text)
+  return opens - closes
+}
+function owner(name) { emit(name); current_class = name; class_depth = depth }
 function advance() {
-  depth += d
-  if (curclass != "" && depth <= classdepth) curclass = ""
+  depth += delta
+  if (current_class != "" && depth <= class_depth) current_class = ""
 }
 BEGIN { sq = sprintf("%c", 39) }
 FNR == 1 {
-  curclass = ""; classdepth = 0; depth = 0; destr = 0; buf = ""
-  f = FILENAME; sub(/^\.\//, "", f)
-  n = split(f, parts, "/")
-  mod = parts[n]; sub(/\.tsx?$/, "", mod)
-  pkgdir = ""
-  if (n >= 2) pkgdir = parts[n - 1]
-  if (mod == "index") { mod = pkgdir; pkgdir = "" }
-  if (mod != "") print "pkg:" mod
-  if (pkgdir != "") print "pkg:" pkgdir
+  collecting = 0; collected = ""
+  current_class = ""; class_depth = 0; depth = 0; collect_depth = 0; open_comment = 0
+  path = FILENAME; sub(/^\.\//, "", path)
+  count = split(path, parts, "/")
+  module = parts[count]; sub(/\.tsx?$/, "", module)
+  package_dir = ""
+  if (count >= 2) package_dir = parts[count - 1]
+  if (module == "index") { module = package_dir; package_dir = "" }
+  if (module != "") print "pkg:" module
+  if (package_dir != "") print "pkg:" package_dir
 }
-{ line = $0; d = braces(line) }
-destr {
-  if (line ~ /^[ \t]*[]}]/) { names(buf); buf = ""; destr = 0; advance(); next }
+{
+  line = $0
+  inside_comment = open_comment
+  open_comment = comment_open_after(line, open_comment)
+  delta = braces(line)
+}
+collecting {
+  collect_depth += brackets(line)
+  if (line ~ /^[]}]/ || (line ~ /^[ \t]*[]}]/ && collect_depth <= 0)) {
+    flush_collected(); advance(); next
+  }
   if (line ~ /^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace|import)[ \t]/) {
-    names(buf); buf = ""; destr = 0
-  } else { buf = buf "," line; advance(); next }
+    flush_collected()
+  } else { collected = collected "," line; advance(); next }
 }
-/^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace)[ \t]/ { depth = 0; curclass = "" }
+/^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace)[ \t]/ { depth = 0; current_class = "" }
 /^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+[A-Za-z_$]/ {
-  s = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+/, "", s)
-  name = ident(s); if (name != "") owner(name)
+  text = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+/, "", text)
+  if (ident(text, found)) owner(found["name"])
   advance(); next
 }
 /^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+[A-Za-z_$]/ {
-  s = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+/, "", s)
-  name = ident(s); if (name != "") emit(name)
+  text = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+/, "", text)
+  if (ident(text, found)) emit(found["name"])
   advance(); next
 }
 /^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/ {
-  s = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/, "", s)
-  if (s ~ /^[[{]/) {
-    if (match(s, /[]}][ \t]*=[^=>]/)) names(substr(s, 2, RSTART - 2))
-    else { buf = substr(s, 2); destr = 1 }
-  } else if (s ~ /^enum[ \t]+[A-Za-z_$]/) {
-    sub(/^enum[ \t]+/, "", s); name = ident(s); if (name != "") owner(name)
+  text = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/, "", text)
+  if (text ~ /^[[{]/) {
+    if (match(text, /[]}][ \t]*(:[^=]*)?=[^=>]/)) names(substr(text, 2, RSTART - 2))
+    else { collected = substr(text, 2); collecting = 1; collect_depth = 1 + brackets(collected) }
+  } else if (text ~ /^enum[ \t]+[A-Za-z_$]/) {
+    sub(/^enum[ \t]+/, "", text); if (ident(text, found)) owner(found["name"])
   } else {
-    name = ident(s); if (name != "") emit(name)
+    if (ident(text, found)) emit(found["name"])
   }
   advance(); next
 }
 /^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+[A-Za-z_$]/ {
-  s = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+/, "", s)
-  name = ident(s); if (name != "") owner(name)
+  text = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+/, "", text)
+  if (ident(text, found)) owner(found["name"])
   advance(); next
 }
 /^export[ \t]+(type[ \t]+)?\{/ {
-  s = line; sub(/^export[ \t]+(type[ \t]+)?\{/, "", s)
-  if (index(s, "}") > 0) { sub(/\}.*$/, "", s); names(s) }
-  else { buf = s; destr = 1 }
+  text = line; sub(/^export[ \t]+(type[ \t]+)?\{/, "", text)
+  if (index(text, "}") > 0) { sub(/\}.*$/, "", text); names(text) }
+  else { collected = text; collecting = 1; collect_depth = 1 + brackets(collected) }
   advance(); next
 }
 /^export[ \t]+\*[ \t]+as[ \t]+[A-Za-z_$]/ {
-  s = line; sub(/^export[ \t]+\*[ \t]+as[ \t]+/, "", s)
-  name = ident(s); if (name != "") emit(name)
+  text = line; sub(/^export[ \t]+\*[ \t]+as[ \t]+/, "", text)
+  if (ident(text, found)) emit(found["name"])
   advance(); next
 }
-curclass != "" && depth == classdepth + 1 {
-  s = line; sub(/^[ \t]+/, "", s)
-  if (s == "" || s ~ /^(\/\/|\/\*|\*|\}|@|#|\[)/) { advance(); next }
-  while (match(s, /^(export|public|private|protected|static|readonly|async|override|abstract|declare|accessor|get|set|const|let|var|function|type|interface|class|enum)[ \t]+[A-Za-z_$*#]/))
-    sub(/^[a-z]+[ \t]+/, "", s)
-  sub(/^\*[ \t]*/, "", s)
-  name = ident(s)
-  if (name != "") {
-    rest = substr(s, length(name) + 1)
-    if (rest ~ /^[ \t]*([(<:=?!;,]|$)/ && !keyword(name)) { emit(name); print curclass "." name }
+current_class != "" && depth == class_depth + 1 {
+  text = line; sub(/^[ \t]+/, "", text)
+  if (text == "" || comment_line(text) || text ~ /^(\}|@|#|\[)/) { advance(); next }
+  while (match(text, /^(export|public|private|protected|static|readonly|async|override|abstract|declare|accessor|get|set|const|let|var|function|type|interface|class|enum)[ \t]+[A-Za-z_$*#]/))
+    sub(/^[a-z]+[ \t]+/, "", text)
+  sub(/^\*[ \t]*/, "", text)
+  if (ident(text, found)) {
+    name = found["name"]
+    rest = substr(text, length(name) + 1)
+    if (rest ~ /^[ \t]*([(<:=?!;,]|$)/ && !keyword(name)) { emit(name); print current_class "." name }
   }
   advance(); next
 }
@@ -404,13 +467,21 @@ done < <(for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md' -path "$NL_PA
          lang_newline_files)
 
 fixed=0
+# FIX_INDEX_LINE_AWK reads one index file and prints it whole. On line
+# `lineno` it replaces the text after the first " — " with the NEWDESC
+# environment variable. It reads NEWDESC from ENVIRON and not from -v,
+# because -v decodes backslash escapes.
+FIX_INDEX_LINE_AWK='
+NR == lineno {
+  separator = index($0, " — ")
+  if (separator > 0) $0 = substr($0, 1, separator - 1) " — " ENVIRON["NEWDESC"]
+}
+{ print }
+'
 # fix_index_line <file> <lineno> <new-tail> — rewrite the text after " — " on one line
 fix_index_line() {
   local f="$1" n="$2" tmp="$1.repobrain.tmp"
-  NEWDESC="$3" awk -v n="$n" '
-    NR == n { i = index($0, " — "); if (i > 0) $0 = substr($0, 1, i - 1) " — " ENVIRON["NEWDESC"] }
-    { print }
-  ' "$f" > "$tmp" && mv "$tmp" "$f"
+  NEWDESC="$3" awk -v lineno="$n" "$FIX_INDEX_LINE_AWK" "$f" > "$tmp" && mv "$tmp" "$f"
 }
 
 # canon <path> -> physical path with .. resolved (empty if parent dir missing)
@@ -439,8 +510,17 @@ resolve_link() {
 }
 
 # frontmatter helpers -----------------------------------------------------
+# FM_CLOSE_AWK reads one doc. It prints the number of the first "---" line
+# after line 1, the line that closes the frontmatter, and stops. It prints
+# nothing when the doc has no such line.
+FM_CLOSE_AWK='
+NR > 1 && /^---$/ {
+  print NR
+  exit
+}
+'
 fm_close_line() { # <file> -> line number of closing --- (or '')
-  awk 'NR > 1 && /^---$/ { print NR; exit }' "$1"
+  awk "$FM_CLOSE_AWK" "$1"
 }
 fm_block() { # <file> <close-line> -> frontmatter body
   sed -n "2,$(( $2 - 1 ))p" "$1"
@@ -557,6 +637,28 @@ repo_words() {
   cat "$REPO_WORDS"
 }
 
+# RESOLVE_WORDS_AWK reads the repository's words, one per line, and takes
+# -v list, the path of the tokens file. It prints each token that a word
+# matches, once.
+RESOLVE_WORDS_AWK='
+BEGIN { while ((getline token < list) > 0) if (token != "") wanted[token] = 1 }
+{
+  count = split($0, parts, ".")
+  for (i = 1; i <= count; i++) {
+    candidate = parts[i]
+    if (candidate in wanted) { print candidate; delete wanted[candidate] }
+    for (j = i + 1; j <= count; j++) {
+      candidate = candidate "." parts[j]
+      if (candidate in wanted) { print candidate; delete wanted[candidate] }
+    }
+  }
+  if (index($0, "$") > 0) {
+    count = split($0, parts, /[$.]/)
+    for (i = 1; i <= count; i++)
+      if (parts[i] in wanted) { print parts[i]; delete wanted[parts[i]] }
+  }
+}
+'
 # resolve_words <tokens-file> — the tokens that occur as a whole word in any
 # non-markdown repository file, one per line. A dotted token such as
 # `Type.Method` matches any run of whole dot-separated parts of a word, as
@@ -564,23 +666,7 @@ repo_words() {
 # also offers its $-free parts. A lookup in the word set is linear in the
 # repository's size, where a fixed-string grep for hundreds of tokens is not.
 resolve_words() {
-  repo_words | LC_ALL=C awk -v list="$1" '
-      BEGIN { while ((getline t < list) > 0) if (t != "") want[t] = 1 }
-      {
-        n = split($0, p, ".")
-        for (i = 1; i <= n; i++) {
-          s = p[i]
-          if (s in want) { print s; delete want[s] }
-          for (j = i + 1; j <= n; j++) {
-            s = s "." p[j]
-            if (s in want) { print s; delete want[s] }
-          }
-        }
-        if (index($0, "$") > 0) {
-          n = split($0, p, /[$.]/)
-          for (i = 1; i <= n; i++) if (p[i] in want) { print p[i]; delete want[p[i]] }
-        }
-      }'
+  repo_words | LC_ALL=C awk -v list="$1" "$RESOLVE_WORDS_AWK"
   return 0
 }
 
@@ -662,6 +748,36 @@ SCOPE_DOCS="$WORK/scope-docs"      # every doc a scoped run reads
 FULL_DOCS="$WORK/full-docs"        # the listed docs: every check
 SCOPE_PATHS="$WORK/scope-paths"
 BASENAMES="$WORK/basenames"
+# CITES_WORD_AWK defines cites_word(token, word_set). It returns 1 when the
+# token, or one of its dot-separated parts, is a key of the word_set array,
+# and 0 otherwise.
+CITES_WORD_AWK='
+function cites_word(token, word_set,   parts, count, i) {
+  if (token in word_set) return 1
+  count = split(token, parts, ".")
+  for (i = 1; i <= count; i++) if (parts[i] in word_set) return 1
+  return 0
+}'
+# SCOPE_WORDS_AWK reads the tab-separated records of DOCSCAN_AWK and takes
+# -v list, the path of the --words list. It prints the doc path of each S
+# record whose token cites a word on the list.
+SCOPE_WORDS_AWK="$CITES_WORD_AWK"'
+BEGIN { while ((getline word < list) > 0) removed[word] = 1 }
+$1 == "S" && cites_word($4, removed) { print $2 }
+'
+# SCOPE_SCAN_AWK reads the tab-separated records of DOCSCAN_AWK. It takes
+# -v full, the path of the list of docs that get every check, and -v words,
+# the path of the --words list or /dev/null. It prints each record of a doc
+# on the full list, and each S record whose token cites a word on the words
+# list.
+SCOPE_SCAN_AWK="$CITES_WORD_AWK"'
+BEGIN {
+  while ((getline path < full) > 0) full_docs[path] = 1
+  while ((getline word < words) > 0) removed[word] = 1
+}
+($2 in full_docs) { print; next }
+$1 == "S" && cites_word($4, removed) { print }
+'
 if (( SCOPED )); then
   sed -e 's|^\./||' -e '/^$/d' "$SCOPE_LIST" | LC_ALL=C sort -u > "$SCOPE_PATHS"
   sed 's|.*/||' "$SCOPE_PATHS" | LC_ALL=C sort -u > "$BASENAMES"
@@ -676,10 +792,7 @@ if (( SCOPED )); then
       tr '\n' '\0' < "$WORK/all-docs" \
         | xargs -0 awk -v file_ext="$LANG_FILE_EXT" -v file_re="$LANG_FILE_RE" \
                        -v sym_re="$LANG_SYMBOL_RE" -v qual_re="$LANG_QUALIFIED_RE" "$DOCSCAN_AWK" \
-        | awk -F'\t' -v list="$WORDS_LIST" '
-            BEGIN { while ((getline w < list) > 0) want[w] = 1 }
-            $1 == "S" { if ($4 in want) { print $2; next }
-                        n = split($4, part, "."); for (i = 1; i <= n; i++) if (part[i] in want) { print $2; next } }'
+        | awk -F'\t' -v list="$WORDS_LIST" "$SCOPE_WORDS_AWK"
     fi
   } | LC_ALL=C sort -u > "$SCOPE_DOCS"
   if [[ -s "$SCOPE_DOCS" ]]; then
@@ -708,6 +821,22 @@ bundle_docs() {
 # full_doc <doc> — exit 0 iff the doc gets every check
 full_doc() { (( ! SCOPED )) || grep -qxF -- "$1" "$FULL_DOCS"; }
 
+# LINK_PATH_AWK reads one path, with "/" as the field separator. It prints the
+# path without its empty and "." parts, and with each ".." folded into the
+# part before it. A ".." that has no such part to fold into stays.
+LINK_PATH_AWK='
+{
+  depth = 0
+  for (i = 1; i <= NF; i++) {
+    if ($i == "" || $i == ".") continue
+    if ($i == ".." && depth > 0 && kept[depth] != "..") { depth--; continue }
+    kept[++depth] = $i
+  }
+  path = ""
+  for (i = 1; i <= depth; i++) path = path (i > 1 ? "/" : "") kept[i]
+  print path
+}
+'
 # link_path <containing-file> <target> <docroot> — the link's target as a
 # repository-relative path, the title and anchor stripped and . and .. folded
 # by text, so a target whose directory does not exist still has a path
@@ -715,15 +844,7 @@ link_path() {
   local t="${2%%#*}"
   t="${t%% *}"
   if [[ "$t" == /* ]]; then t="$3/${t#/}"; else t="$(dirname "$1")/$t"; fi
-  printf '%s\n' "$t" | awk -F/ '{
-    n = 0
-    for (i = 1; i <= NF; i++) {
-      if ($i == "" || $i == ".") continue
-      if ($i == ".." && n > 0 && st[n] != "..") { n--; continue }
-      st[++n] = $i
-    }
-    o = ""; for (i = 1; i <= n; i++) o = o (i > 1 ? "/" : "") st[i]; print o
-  }'
+  printf '%s\n' "$t" | awk -F/ "$LINK_PATH_AWK"
 }
 
 # in_list <path> <list-file> — exit 0 iff the path is a line of the list
@@ -760,6 +881,19 @@ url_only() { # <file> <lineno> <target>
 # unique_lines — stdin to stdout, every distinct line once, in first-seen order
 unique_lines() { awk '!seen[$0]++'; }
 
+# SCOPE_EDGES_AWK reads the code edges of lang_code_edges, one
+# "<file>:<line>:<target>" hit per line, and takes -v list, the path of the
+# scope's path list. It prints each hit whose file, without a leading "./",
+# is on the list.
+SCOPE_EDGES_AWK='
+BEGIN { while ((getline path < list) > 0) in_scope[path] = 1 }
+{
+  file = substr($0, 1, index($0, ":") - 1)
+  sub(/^\.\//, "", file)
+  if (file in in_scope) print
+}
+'
+
 if (( have_code )); then
   while IFS= read -r hit; do
     file="${hit%%:*}"; rest="${hit#*:}"; line="${rest%%:*}"; target="${rest#*:}"
@@ -774,9 +908,7 @@ if (( have_code )); then
     CUR_DOCROOT=$(docroot_for_file "$file")
     fail "[Q2] $file:$line — code edge points at missing $target"
   done < <(if (( SCOPED )); then
-             lang_code_edges | awk -v list="$SCOPE_PATHS" '
-               BEGIN { while ((getline l < list) > 0) s[l] = 1 }
-               { f = substr($0, 1, index($0, ":") - 1); sub(/^\.\//, "", f); if (f in s) print }'
+             lang_code_edges | awk -v list="$SCOPE_PATHS" "$SCOPE_EDGES_AWK"
            else
              lang_code_edges
            fi | unique_lines)
@@ -853,11 +985,8 @@ check_bundle() { # <project-dir> <docroot>
     exit 2
   fi
   if (( SCOPED )); then
-    awk -F'\t' -v full="$FULL_DOCS" -v words="${WORDS_LIST:-/dev/null}" '
-      BEGIN { while ((getline l < full) > 0) f[l] = 1; while ((getline l < words) > 0) w[l] = 1 }
-      ($2 in f) { print; next }
-      $1 == "S" { if ($4 in w) { print; next }
-                  n = split($4, part, "."); for (i = 1; i <= n; i++) if (part[i] in w) { print; next } }' "$scan" > "$scan.kept"
+    awk -F'\t' -v full="$FULL_DOCS" -v words="${WORDS_LIST:-/dev/null}" "$SCOPE_SCAN_AWK" \
+      "$scan" > "$scan.kept"
     mv -f "$scan.kept" "$scan"
   fi
   local f ln

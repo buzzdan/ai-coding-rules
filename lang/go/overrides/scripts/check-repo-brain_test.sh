@@ -156,6 +156,54 @@ mk_doc() { # <name> <description> [body...]
   } > "$REPO/docs/$name.md"
 }
 
+go_write_shapes() {
+  cat > "$REPO/retry/shapes.go" <<'GO'
+package retry
+
+var (
+	ErrFirst, ErrSecond = errString("first"), errString("second")
+	SizeKB, SizeMB int64 = 1, 2
+	GroupFirst, GroupSecond,
+	GroupThird int
+	handler = func() {
+		FuncFirst, FuncSecond = 1, 2
+	}
+	AfterHandler = 3
+	brace        = "{"
+	AfterBrace   = 4
+	usage        = `
+RawLine {
+`
+	AfterRaw = 5
+)
+
+type (
+	Outcome struct {
+		FieldFirst, FieldSecond string
+	}
+)
+
+var LimitFirst, LimitSecond, LimitThird = 1, 2, 3
+
+var SplitFirst, SplitSecond,
+	SplitThird int
+
+type Cache[K comparable, V any] struct{ items map[K]V }
+
+func (c *Cache[K, V]) Lookup(key K) V { return c.items[key] }
+
+var ()
+
+type AfterEmpty struct {
+	AfterField string
+}
+
+func reset() {
+	EmptyFirst, EmptySecond = 1, 2
+}
+GO
+}
+
 # ========================= cases =========================
 
 # --- baseline ---
@@ -276,10 +324,89 @@ run_gate
 expect_exit 1 && expect_has "backticked \`SnapshotRunner\` does not resolve" && expect_not "\`Policy\` does not resolve" && ok
 finish
 
+begin "CHECK_REPO_BRAIN_FAULT makes the run an internal error (exit 2), never clean"
+mk_conformant
+OUT=$(cd "$REPO" && CHECK_REPO_BRAIN_FAULT="a test" bash "$GATE" . 2>"$REPO/.stderr"); CODE=$?
+ERR=$(cat "$REPO/.stderr"); rm -f "$REPO/.stderr"
+expect_exit 2 && expect_has "internal scanner error — CHECK_REPO_BRAIN_FAULT is set (a test)" && expect_not "check-repo-brain: clean" && ok
+finish
+
+begin "a failed declaration scan is an internal error (exit 2), never clean"
+mk_conformant
+mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\` and \`Policy\`."
+append_index "- [ghost.md](ghost.md) — a ghost symbol"
+fakebin=$(mktemp -d)
+printf '#!/bin/sh\n[ "$*" = "-u" ] && { cat >/dev/null; exit 3; }\nexec %s "$@"\n' "$(command -v sort)" > "$fakebin/sort"
+chmod +x "$fakebin/sort"
+OUT=$(cd "$REPO" && PATH="$fakebin:$PATH" bash "$GATE" . 2>"$REPO/.stderr"); CODE=$?
+ERR=$(cat "$REPO/.stderr"); rm -f "$REPO/.stderr"; rm -rf "$fakebin"
+expect_exit 2 && expect_has "internal scanner error" && expect_not "check-repo-brain: clean" && ok
+finish
+
 begin "Q2 grouped var/const declarations and methods resolve"
 mk_conformant
 mk_doc decls "declaration shapes" "Constants \`DefaultAttempts\`; sentinels \`ErrExhausted\` and \`ErrCancelled\`; method \`Policy.Do\`; bare method \`Do\`."
 append_index "- [decls.md](decls.md) — declaration shapes"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a package-qualified constant resolves"
+mk_conformant
+mk_doc pkgconst "package constants" "Retries default to \`retry.DefaultAttempts\`."
+append_index "- [pkgconst.md](pkgconst.md) — package constants"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 every name of a Go name list resolves"
+mk_conformant; go_write_shapes
+mk_doc lists "name lists" "Errors \`retry.ErrSecond\`, size \`retry.SizeMB\`, group \`retry.GroupSecond\`, limit \`retry.LimitThird\` and split \`retry.SplitSecond\`."
+append_index "- [lists.md](lists.md) — name lists"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a method on a type with two type parameters resolves"
+mk_conformant; go_write_shapes
+mk_doc generic "generic receivers" "Read with \`Cache.Lookup\` on a \`retry.Cache\`."
+append_index "- [generic.md](generic.md) — generic receivers"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a Go list below a group entry, or after an empty group, gives no package names"
+mk_conformant; go_write_shapes
+mk_doc nonames "not package names" "Not \`retry.FieldSecond\`, \`retry.FuncSecond\` or \`retry.EmptySecond\`."
+append_index "- [nonames.md](nonames.md) — not package names"
+run_gate
+expect_exit 1 && expect_has "\`retry.FieldSecond\` does not resolve" \
+  && expect_has "\`retry.FuncSecond\` does not resolve" \
+  && expect_has "\`retry.EmptySecond\` does not resolve" && ok
+finish
+
+begin "Q2 the first field of a struct in a type group, or a line in a raw string, gives no package name"
+mk_conformant; go_write_shapes
+mk_doc nofirst "not package names" "Not \`retry.FieldFirst\` or \`retry.RawLine\`."
+append_index "- [nofirst.md](nofirst.md) — not package names"
+run_gate
+expect_exit 1 && expect_has "\`retry.FieldFirst\` does not resolve" \
+  && expect_has "\`retry.RawLine\` does not resolve" && ok
+finish
+
+begin "Q2 a declaration after an empty group resolves, and its struct field does not"
+mk_conformant; go_write_shapes
+mk_doc afterempty "after an empty group" "Real: \`retry.AfterEmpty\`. Fake: \`retry.AfterField\`."
+append_index "- [afterempty.md](afterempty.md) — after an empty group"
+run_gate
+expect_exit 1 && expect_has "\`retry.AfterField\` does not resolve" \
+  && expect_not "\`retry.AfterEmpty\` does not resolve" && ok
+finish
+
+begin "Q2 a group entry after a func literal, a brace in a string or a raw string resolves"
+mk_conformant; go_write_shapes
+mk_doc aftergroup "group entries" "Entries \`retry.AfterHandler\`, \`retry.AfterBrace\` and \`retry.AfterRaw\`."
+append_index "- [aftergroup.md](aftergroup.md) — group entries"
 run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish

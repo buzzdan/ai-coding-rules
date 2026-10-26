@@ -375,7 +375,7 @@ defaults carries one **detect line** beside its prose, of one of four kinds.
 |---|---|
 | `Detect-grep: PATTERN [files=src\|test\|all] [exclude-path=ERE,…] [context=n]` — the pattern an ERE in backticks | `grep -nHE` over the scope's source files — the non-test ones unless `files=` says otherwise, minus paths matching an `exclude-path` entry; `context` appends the next n lines to each hit's excerpt |
 | `Detect-path: PATTERN` | the pattern over the scope's relative paths: layer directories, role-named packages |
-| `Detect-gate: Q<n>` | the R9 gate's `[Q<n>]` report lines, from one run of `check-repo-brain.sh` over the repository, or over the scope's docs on a scoped review; `inconclusive` when the run outlives `--gate-budget` |
+| `Detect-gate: Q<n>` | the R9 gate's `[Q<n>]` report lines, from one run of `check-repo-brain.sh` over the repository, or over the scope's docs on a scoped review; `inconclusive` when the run outlives `--gate-budget` or the gate fails (an exit other than 0 or 1, or an exit 1 with no violation summary); the rest of the pass still runs, and the documentation hunter answers those questions from the prose |
 | `Detect: judgment` | no mechanical lead; the hunter runs the prose, as it does for a question whose only procedure depends on an earlier hit (R1's second question) or on a read |
 
 A pattern is a literal: the placeholder forms the prose used to carry — `<changed

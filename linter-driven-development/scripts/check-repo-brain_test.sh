@@ -361,6 +361,200 @@ fx_adapter_cases() {
   run_gate
   expect_exit 0 && expect_not "does not resolve" && ok
   finish
+
+  ROW=python; use_row python
+  begin "module-level assignments declare module-qualified names"
+  mk_conformant
+  printf '\nMaxDelay: float = 2.0\nmin_delay=0.1\n' >> "$REPO/retry/policy.py"
+  mk_doc consts "module constants" \
+    "Defaults: \`policy.DefaultAttempts\`, \`policy.MaxDelay\` and \`retry.min_delay\`."
+  append_index "- [consts.md](consts.md) — module constants"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 every name of a Go name list resolves"
+  mk_conformant; go_write_shapes
+  mk_doc lists "name lists" "Errors \`retry.ErrSecond\`, size \`retry.SizeMB\`, group \`retry.GroupSecond\`, limit \`retry.LimitThird\` and split \`retry.SplitSecond\`."
+  append_index "- [lists.md](lists.md) — name lists"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 a method on a type with two type parameters resolves"
+  mk_conformant; go_write_shapes
+  mk_doc generic "generic receivers" "Read with \`Cache.Lookup\` on a \`retry.Cache\`."
+  append_index "- [generic.md](generic.md) — generic receivers"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 a Go list below a group entry, or after an empty group, gives no package names"
+  mk_conformant; go_write_shapes
+  mk_doc nonames "not package names" "Not \`retry.FieldSecond\`, \`retry.FuncSecond\` or \`retry.EmptySecond\`."
+  append_index "- [nonames.md](nonames.md) — not package names"
+  run_gate
+  expect_exit 1 && expect_has "\`retry.FieldSecond\` does not resolve" \
+    && expect_has "\`retry.FuncSecond\` does not resolve" \
+    && expect_has "\`retry.EmptySecond\` does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 the first field of a struct in a type group, or a line in a raw string, gives no package name"
+  mk_conformant; go_write_shapes
+  mk_doc nofirst "not package names" "Not \`retry.FieldFirst\` or \`retry.RawLine\`."
+  append_index "- [nofirst.md](nofirst.md) — not package names"
+  run_gate
+  expect_exit 1 && expect_has "\`retry.FieldFirst\` does not resolve" \
+    && expect_has "\`retry.RawLine\` does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 a declaration after an empty group resolves, and its struct field does not"
+  mk_conformant; go_write_shapes
+  mk_doc afterempty "after an empty group" "Real: \`retry.AfterEmpty\`. Fake: \`retry.AfterField\`."
+  append_index "- [afterempty.md](afterempty.md) — after an empty group"
+  run_gate
+  expect_exit 1 && expect_has "\`retry.AfterField\` does not resolve" \
+    && expect_not "\`retry.AfterEmpty\` does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 a group entry after a func literal, a brace in a string or a raw string resolves"
+  mk_conformant; go_write_shapes
+  mk_doc aftergroup "group entries" "Entries \`retry.AfterHandler\`, \`retry.AfterBrace\` and \`retry.AfterRaw\`."
+  append_index "- [aftergroup.md](aftergroup.md) — group entries"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+
+  py_class_scope_cases
+}
+
+go_write_shapes() {
+  cat > "$REPO/retry/shapes.go" <<'GO'
+package retry
+
+var (
+	ErrFirst, ErrSecond = errString("first"), errString("second")
+	SizeKB, SizeMB int64 = 1, 2
+	GroupFirst, GroupSecond,
+	GroupThird int
+	handler = func() {
+		FuncFirst, FuncSecond = 1, 2
+	}
+	AfterHandler = 3
+	brace        = "{"
+	AfterBrace   = 4
+	usage        = `
+RawLine {
+`
+	AfterRaw = 5
+)
+
+type (
+	Outcome struct {
+		FieldFirst, FieldSecond string
+	}
+)
+
+var LimitFirst, LimitSecond, LimitThird = 1, 2, 3
+
+var SplitFirst, SplitSecond,
+	SplitThird int
+
+type Cache[K comparable, V any] struct{ items map[K]V }
+
+func (c *Cache[K, V]) Lookup(key K) V { return c.items[key] }
+
+var ()
+
+type AfterEmpty struct {
+	AfterField string
+}
+
+func reset() {
+	EmptyFirst, EmptySecond = 1, 2
+}
+GO
+}
+
+# py_class_scope_cases — "<Class>.<name>" comes only from a def at the indent of
+# the class body. A def nested in a method, or under a column-0 if after the
+# class, gives no such name. A multi-line class header, a column-0 comment, a
+# column-0 docstring line and a column-0 closing bracket keep the class open.
+py_class_scope_cases() {
+  ROW=python; use_row python
+  begin "Q2 a def nested in a method gives no method name"
+  mk_conformant
+  cat > "$REPO/retry/nested.py" <<'PY'
+class Policy:
+    def run(self):
+        def helper():
+            return 1
+
+        return helper()
+
+    def stop(self):
+        return 0
+PY
+  mk_doc nested "nested defs" "Real: \`Policy.stop\`. Fake: \`Policy.helper\`."
+  append_index "- [nested.md](nested.md) — nested defs"
+  run_gate
+  expect_exit 1 && expect_has "\`Policy.helper\` does not resolve" \
+    && expect_not "\`Policy.stop\` does not resolve" && ok
+  finish
+
+  ROW=python; use_row python
+  begin "Q2 a def under a column-0 if after a class gives no method name"
+  mk_conformant
+  cat > "$REPO/retry/cond.py" <<'PY'
+class Policy:
+    def run(self):
+        return 1
+
+
+if True:
+    def helper():
+        return 2
+PY
+  mk_doc cond "conditional defs" "Not \`Policy.helper\`."
+  append_index "- [cond.md](cond.md) — conditional defs"
+  run_gate
+  expect_exit 1 && expect_has "\`Policy.helper\` does not resolve" && ok
+  finish
+
+  ROW=python; use_row python
+  begin "Q2 a class stays open across its header, a column-0 comment, a column-0 docstring line and a column-0 bracket"
+  mk_conformant
+  cat > "$REPO/retry/kept.py" <<'PY'
+class Multi(
+    object,
+):
+    """Multi keeps its methods.
+
+Text at column 0 inside the docstring.
+"""
+
+    def kept_first(self):
+        marker = '"""'
+        return print(
+            marker,
+)
+# a column-0 comment inside the class
+
+    @property
+    def kept_second(self):
+        return 2
+PY
+  mk_doc kept "kept methods" "Methods \`Multi.kept_first\` and \`Multi.kept_second\`."
+  append_index "- [kept.md](kept.md) — kept methods"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
 }
 
 # ========================= cases =========================
@@ -469,10 +663,37 @@ run_gate
 expect_exit 1 && expect_has "backticked \`SnapshotRunner\` does not resolve" && expect_not "\`Policy\` does not resolve" && ok
 finish
 
+begin "CHECK_REPO_BRAIN_FAULT makes the run an internal error (exit 2), never clean"
+mk_conformant
+OUT=$(cd "$REPO" && CHECK_REPO_BRAIN_FAULT="a test" bash "$GATE" . 2>"$REPO/.stderr"); CODE=$?
+ERR=$(cat "$REPO/.stderr"); rm -f "$REPO/.stderr"
+expect_exit 2 && expect_has "internal scanner error — CHECK_REPO_BRAIN_FAULT is set (a test)" && expect_not "check-repo-brain: clean" && ok
+finish
+
+begin "a failed declaration scan is an internal error (exit 2), never clean"
+mk_conformant
+mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\` and \`Policy\`."
+append_index "- [ghost.md](ghost.md) — a ghost symbol"
+fakebin=$(mktemp -d)
+printf '#!/bin/sh\n[ "$*" = "-u" ] && { cat >/dev/null; exit 3; }\nexec %s "$@"\n' "$(command -v sort)" > "$fakebin/sort"
+chmod +x "$fakebin/sort"
+OUT=$(cd "$REPO" && PATH="$fakebin:$PATH" bash "$GATE" . 2>"$REPO/.stderr"); CODE=$?
+ERR=$(cat "$REPO/.stderr"); rm -f "$REPO/.stderr"; rm -rf "$fakebin"
+expect_exit 2 && expect_has "internal scanner error" && expect_not "check-repo-brain: clean" && ok
+finish
+
 begin "Q2 grouped declarations and methods resolve"
 mk_conformant
 mk_doc decls "declaration shapes" "Constants \`DefaultAttempts\`; sentinels \`ErrExhausted\` and \`ErrCancelled\`; method \`Policy.Do\`; bare method \`Do\`."
 append_index "- [decls.md](decls.md) — declaration shapes"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a package-qualified constant resolves"
+mk_conformant
+mk_doc pkgconst "package constants" "Retries default to \`retry.DefaultAttempts\`."
+append_index "- [pkgconst.md](pkgconst.md) — package constants"
 run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish

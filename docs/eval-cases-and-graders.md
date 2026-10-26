@@ -60,6 +60,13 @@ notes: |
   free text for the reader; never shown to the agent
 ```
 
+An optional `env:` map adds variables to the agent's environment; its keys must
+be variable names, and a case's value wins over the runner's. A case uses it to put
+the agent in a state the scaffold cannot plant: `review-gate-failed` sets
+`CHECK_REPO_BRAIN_FAULT`, which makes the repo-brain gate fail before any check, so
+the case measures the review's fallback without a gate bug to lean on. The postcheck
+does not get the map; a postcheck that needs a variable sets it itself.
+
 A suite may add `suite.yaml` beside its cases with `src_glob` and `test_glob`,
 `path.Match` patterns over a file's base name that tell an llm grader's directory
 focus which files are source and which are tests (`*.py` and `test_*.py` for the

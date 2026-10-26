@@ -53,57 +53,102 @@ lang_has_code() {
     -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
-# Go declarations: package names (pkg:<name>), every declared identifier, and
-# ownership pairs — pkg.Ident for the declaring package, Type.Method for the
-# receiver — from single-line and grouped type/var/const declarations,
-# functions, and methods. The pairs let a qualified doc token resolve only
-# against its actual owner, never against a same-named member elsewhere.
+# LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
+# variables. It reads each line on its own and does not parse Go. It prints
+# "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
+# one per line. It takes every name of a list such as "x, y" on a declaration
+# line. Inside a grouped declaration it counts the brackets that are not in a
+# string, a rune or a comment. It takes names only from a line that starts at
+# bracket depth 0 and not in a raw string or a block comment: every name of a
+# list on a line indented by one tab, and the first name of a deeper line. A
+# group such as "var ()" closes on its own line.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (curpkg != "") print curpkg "." id
+function emit(identifier) {
+  print identifier
+  if (package_name != "") print package_name "." identifier
 }
-FNR == 1 { curpkg = ""; inblock = "" }
-inblock != "" {
-  if ($0 ~ /^\)/) { inblock = ""; next }
-  s = $0; sub(/^[ \t]+/, "", s)
-  if (s ~ /^[A-Za-z_]/) {
-    t = s; sub(/[ \t=([].*$/, "", t)
-    n = split(t, parts, ",")
-    for (i = 1; i <= n; i++) {
-      p = parts[i]; gsub(/[ \t]/, "", p)
-      if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
-    }
+function is_identifier(text) {
+  return text ~ /^[A-Za-z_][A-Za-z0-9_]*$/
+}
+function emit_names(text, whole_list,   joined, list, count, parts, i, name) {
+  joined = text
+  gsub(/[ \t]*,[ \t]*/, ",", joined)
+  list = ""
+  if (whole_list && match(joined, /^[A-Za-z_][A-Za-z0-9_]*(,[A-Za-z_][A-Za-z0-9_]*)*,?([ \t=([]|$)/)) {
+    list = substr(joined, 1, RLENGTH)
+    sub(/,?[ \t=([]?$/, "", list)
   }
+  if (list == "") {
+    list = text; sub(/[ \t=([].*$/, "", list)
+  }
+  count = split(list, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (is_identifier(name)) emit(name)
+  }
+}
+function scan_brackets(text,   count, i, character, quote) {
+  count = length(text); quote = ""
+  for (i = 1; i <= count; i++) {
+    character = substr(text, i, 1)
+    if (in_raw) { if (character == "`") in_raw = 0; continue }
+    if (in_block) {
+      if (character == "*" && substr(text, i + 1, 1) == "/") { in_block = 0; i++ }
+      continue
+    }
+    if (quote != "") {
+      if (character == "\\") i++
+      else if (character == quote) quote = ""
+      continue
+    }
+    if (character == "`") in_raw = 1
+    else if (character == "\"" || character == "\047") quote = character
+    else if (character == "/" && substr(text, i + 1, 1) == "/") break
+    else if (character == "/" && substr(text, i + 1, 1) == "*") { in_block = 1; i++ }
+    else if (character == "{" || character == "(" || character == "[") depth++
+    else if (character == "}" || character == ")" || character == "]") { if (depth > 0) depth-- }
+  }
+}
+FNR == 1 { package_name = ""; in_group = 0; depth = 0; in_raw = 0; in_block = 0 }
+in_group {
+  inside_literal = in_raw || in_block
+  if (!inside_literal && $0 ~ /^\)/) { in_group = 0; depth = 0; next }
+  entry_depth = depth
+  scan_brackets($0)
+  if (inside_literal || entry_depth > 0) next
+  text = $0; sub(/^[ \t]+/, "", text)
+  if (text ~ /^[A-Za-z_]/) emit_names(text, $0 ~ /^\t[A-Za-z_]/)
   next
 }
-/^package [A-Za-z_]/ { s = $0; sub(/^package /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s); curpkg = s; print "pkg:" s; next }
-/^(type|var|const) \(/ { inblock = "y"; next }
+/^package [A-Za-z_]/ {
+  name = $0; sub(/^package /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  package_name = name; print "pkg:" name; next
+}
+/^(type|var|const) \(/ {
+  if ($0 !~ /^(type|var|const) \([ \t]*\)/) { in_group = 1; depth = 0; in_raw = 0; in_block = 0 }
+  next
+}
 /^func \(/ {
-  r = $0; sub(/^func \(/, "", r); sub(/\).*$/, "", r)
-  gsub(/\*/, "", r); sub(/^[ \t]+/, "", r); sub(/[ \t]+$/, "", r)
-  nr = split(r, rp, /[ \t]+/); rt = rp[nr]
-  sub(/\[.*$/, "", rt)
-  s = $0; sub(/^func \([^)]*\)[ \t]*/, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) {
-    emit(s)
-    if (rt ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print rt "." s
+  receiver = $0; sub(/^func \(/, "", receiver); sub(/\).*$/, "", receiver)
+  sub(/\[.*$/, "", receiver)
+  gsub(/\*/, "", receiver); sub(/^[ \t]+/, "", receiver); sub(/[ \t]+$/, "", receiver)
+  word_count = split(receiver, receiver_words, /[ \t]+/)
+  receiver_type = receiver_words[word_count]
+  name = $0; sub(/^func \([^)]*\)[ \t]*/, "", name); sub(/[ \t([].*$/, "", name)
+  if (is_identifier(name)) {
+    emit(name)
+    if (is_identifier(receiver_type)) print receiver_type "." name
   }
   next
 }
 /^func [A-Za-z_]/ {
-  s = $0; sub(/^func /, "", s); sub(/[ \t([].*$/, "", s)
-  if (s ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(s)
+  name = $0; sub(/^func /, "", name); sub(/[ \t([].*$/, "", name)
+  if (is_identifier(name)) emit(name)
   next
 }
 /^(type|var|const) [A-Za-z_]/ {
-  s = $0; sub(/^(type|var|const) /, "", s)
-  t = s; sub(/[ \t=([].*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/) emit(p)
-  }
+  text = $0; sub(/^(type|var|const) /, "", text)
+  emit_names(text, 1)
   next
 }
 '

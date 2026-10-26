@@ -71,131 +71,181 @@ lang_has_code() {
   find . "${TS_CODE_FILES[@]}" "${TS_PRUNE[@]}" -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
-# TypeScript declarations. Column-0 declarations are top level (Prettier indents
-# every body). Brace depth is tracked outside strings and comments so that the
-# members of a class, interface, object type, enum or namespace — the lines one
-# level inside its braces — are emitted as `Owner.member`, while lines deeper
-# than that (method bodies, object literals, nested blocks) are skipped. A
-# destructuring pattern or an export list may span lines; its names are
-# collected until the closing bracket. Misses cost a false report, so the
-# heuristics lean toward emitting.
+# LANG_DECL_AWK reads the TypeScript files that lang_declarations lists and
+# takes no -v variables. It reads each line on its own and does not parse
+# TypeScript. For a file that has lines, it prints "pkg:<module>" and
+# "pkg:<directory>" when the path has them. It prints the names it finds, also
+# qualified by the module and by the directory, and "<Owner>.<member>" for a
+# member, one per line. A line at column 0 is top level, because Prettier
+# indents every body. A member is a line one level inside the braces of a class,
+# interface, object type, enum or namespace. The brace count skips strings on
+# one line and lines that start with "//", "/*" or "*". Outside a block comment,
+# a generator method such as "*entries() {" or "*[Symbol.iterator]() {" is not a
+# comment line. A destructuring pattern or an export list can span lines. The
+# program collects its names until a closing bracket at column 0, or until the
+# closing bracket that balances the pattern. A missed name causes a false
+# report, so the program prints a name when it is not sure.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (mod != "") print mod "." id
-  if (pkgdir != "" && pkgdir != mod) print pkgdir "." id
+function emit(identifier) {
+  print identifier
+  if (module != "") print module "." identifier
+  if (package_dir != "" && package_dir != module) print package_dir "." identifier
 }
-function ident(s) {
-  if (match(s, /^[A-Za-z_$][A-Za-z0-9_$]*/)) return substr(s, RSTART, RLENGTH)
-  return ""
+function ident(text, found) {
+  if (!match(text, /^[A-Za-z_$][A-Za-z0-9_$]*/)) return 0
+  found["name"] = substr(text, RSTART, RLENGTH)
+  return 1
 }
-function keyword(w) {
-  return w == "if" || w == "else" || w == "for" || w == "while" || w == "do" || w == "switch" || \
-         w == "case" || w == "default" || w == "return" || w == "break" || w == "continue" || \
-         w == "try" || w == "catch" || w == "finally" || w == "throw" || w == "new" || w == "await" || \
-         w == "yield" || w == "typeof" || w == "void" || w == "delete" || w == "import" || w == "export" || \
-         w == "function" || w == "class" || w == "const" || w == "let" || w == "var" || w == "this" || \
-         w == "super" || w == "constructor"
+function keyword(word) {
+  return word == "if" || word == "else" || word == "for" || word == "while" || word == "do" || word == "switch" || \
+         word == "case" || word == "default" || word == "return" || word == "break" || word == "continue" || \
+         word == "try" || word == "catch" || word == "finally" || word == "throw" || word == "new" || word == "await" || \
+         word == "yield" || word == "typeof" || word == "void" || word == "delete" || word == "import" || word == "export" || \
+         word == "function" || word == "class" || word == "const" || word == "let" || word == "var" || word == "this" || \
+         word == "super" || word == "constructor"
 }
-function names(list,   n, parts, i, p) {
-  n = split(list, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]
-    sub(/^[ \t]+/, "", p); sub(/[ \t]+$/, "", p)
-    sub(/^\.\.\./, "", p)
-    sub(/^type[ \t]+/, "", p)
-    if (p ~ /[ \t]as[ \t]/) sub(/^.*[ \t]as[ \t]+/, "", p)
-    else if (index(p, ":") > 0) sub(/^[^:]*:[ \t]*/, "", p)
-    sub(/[ \t]*=.*$/, "", p)
-    gsub(/[][{}() \t]/, "", p)
-    if (p == "default") continue
-    if (p ~ /^[A-Za-z_$][A-Za-z0-9_$]*$/ && !keyword(p)) emit(p)
+function names(list,   count, parts, i, entry) {
+  count = split(list, parts, ",")
+  for (i = 1; i <= count; i++) {
+    entry = parts[i]
+    sub(/^[ \t]+/, "", entry); sub(/[ \t]+$/, "", entry)
+    sub(/^\.\.\./, "", entry)
+    sub(/^type[ \t]+/, "", entry)
+    sub(/[ \t]*=.*$/, "", entry)
+    if (entry ~ /[ \t]as[ \t]/) sub(/^.*[ \t]as[ \t]+/, "", entry)
+    else if (index(entry, ":") > 0) sub(/^[^:]*:[ \t]*/, "", entry)
+    gsub(/[][{}() \t]/, "", entry)
+    if (entry == "default") continue
+    if (entry ~ /^[A-Za-z_$][A-Za-z0-9_$]*$/ && !keyword(entry)) emit(entry)
   }
 }
-function braces(t,   o, c) {
-  if (t ~ /^[ \t]*(\/\/|\/\*|\*)/) return 0
-  gsub(/"[^"]*"/, "", t)
-  gsub(sq "[^" sq "]*" sq, "", t)
-  gsub(/`[^`]*`/, "", t)
-  sub(/\/\/.*$/, "", t)
-  gsub(/\/\*.*\*\//, "", t)
-  gsub(/[^{}]/, "", t)
-  o = gsub(/\{/, "", t); c = gsub(/\}/, "", t)
-  return o - c
+function generator(text) {
+  return text ~ /^[ \t]*\*([A-Za-z_$#][A-Za-z0-9_$]*[(<]|\[)/
 }
-function owner(name) { emit(name); curclass = name; classdepth = depth }
+function comment_line(text) {
+  return text ~ /^[ \t]*(\/\/|\/\*|\*)/ && (inside_comment || !generator(text))
+}
+function comment_open_after(text, open,   at) {
+  while (1) {
+    if (open) {
+      at = index(text, "*/")
+      if (at == 0) return 1
+      text = substr(text, at + 2); open = 0
+    } else {
+      text = code_only(text)
+      at = index(text, "/*")
+      if (at == 0) return 0
+      text = substr(text, at + 2); open = 1
+    }
+  }
+}
+function flush_collected() {
+  names(collected)
+  collected = ""; collecting = 0
+}
+function code_only(text) {
+  gsub(/"[^"]*"/, "", text)
+  gsub(sq "[^" sq "]*" sq, "", text)
+  gsub(/`[^`]*`/, "", text)
+  sub(/\/\/.*$/, "", text)
+  gsub(/\/\*.*\*\//, "", text)
+  return text
+}
+function brackets(text,   opens, closes) {
+  if (comment_line(text)) return 0
+  text = code_only(text)
+  opens = gsub(/[[{]/, "", text); closes = gsub(/[]}]/, "", text)
+  return opens - closes
+}
+function braces(text,   opens, closes) {
+  if (comment_line(text)) return 0
+  text = code_only(text)
+  gsub(/[^{}]/, "", text)
+  opens = gsub(/\{/, "", text); closes = gsub(/\}/, "", text)
+  return opens - closes
+}
+function owner(name) { emit(name); current_class = name; class_depth = depth }
 function advance() {
-  depth += d
-  if (curclass != "" && depth <= classdepth) curclass = ""
+  depth += delta
+  if (current_class != "" && depth <= class_depth) current_class = ""
 }
 BEGIN { sq = sprintf("%c", 39) }
 FNR == 1 {
-  curclass = ""; classdepth = 0; depth = 0; destr = 0; buf = ""
-  f = FILENAME; sub(/^\.\//, "", f)
-  n = split(f, parts, "/")
-  mod = parts[n]; sub(/\.tsx?$/, "", mod)
-  pkgdir = ""
-  if (n >= 2) pkgdir = parts[n - 1]
-  if (mod == "index") { mod = pkgdir; pkgdir = "" }
-  if (mod != "") print "pkg:" mod
-  if (pkgdir != "") print "pkg:" pkgdir
+  collecting = 0; collected = ""
+  current_class = ""; class_depth = 0; depth = 0; collect_depth = 0; open_comment = 0
+  path = FILENAME; sub(/^\.\//, "", path)
+  count = split(path, parts, "/")
+  module = parts[count]; sub(/\.tsx?$/, "", module)
+  package_dir = ""
+  if (count >= 2) package_dir = parts[count - 1]
+  if (module == "index") { module = package_dir; package_dir = "" }
+  if (module != "") print "pkg:" module
+  if (package_dir != "") print "pkg:" package_dir
 }
-{ line = $0; d = braces(line) }
-destr {
-  if (line ~ /^[ \t]*[]}]/) { names(buf); buf = ""; destr = 0; advance(); next }
+{
+  line = $0
+  inside_comment = open_comment
+  open_comment = comment_open_after(line, open_comment)
+  delta = braces(line)
+}
+collecting {
+  collect_depth += brackets(line)
+  if (line ~ /^[]}]/ || (line ~ /^[ \t]*[]}]/ && collect_depth <= 0)) {
+    flush_collected(); advance(); next
+  }
   if (line ~ /^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace|import)[ \t]/) {
-    names(buf); buf = ""; destr = 0
-  } else { buf = buf "," line; advance(); next }
+    flush_collected()
+  } else { collected = collected "," line; advance(); next }
 }
-/^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace)[ \t]/ { depth = 0; curclass = "" }
+/^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace)[ \t]/ { depth = 0; current_class = "" }
 /^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+[A-Za-z_$]/ {
-  s = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+/, "", s)
-  name = ident(s); if (name != "") owner(name)
+  text = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(abstract[ \t]+)?class[ \t]+/, "", text)
+  if (ident(text, found)) owner(found["name"])
   advance(); next
 }
 /^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+[A-Za-z_$]/ {
-  s = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+/, "", s)
-  name = ident(s); if (name != "") emit(name)
+  text = line; sub(/^(export[ \t]+)?(default[ \t]+)?(declare[ \t]+)?(async[ \t]+)?function[ \t*]+/, "", text)
+  if (ident(text, found)) emit(found["name"])
   advance(); next
 }
 /^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/ {
-  s = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/, "", s)
-  if (s ~ /^[[{]/) {
-    if (match(s, /[]}][ \t]*=[^=>]/)) names(substr(s, 2, RSTART - 2))
-    else { buf = substr(s, 2); destr = 1 }
-  } else if (s ~ /^enum[ \t]+[A-Za-z_$]/) {
-    sub(/^enum[ \t]+/, "", s); name = ident(s); if (name != "") owner(name)
+  text = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/, "", text)
+  if (text ~ /^[[{]/) {
+    if (match(text, /[]}][ \t]*(:[^=]*)?=[^=>]/)) names(substr(text, 2, RSTART - 2))
+    else { collected = substr(text, 2); collecting = 1; collect_depth = 1 + brackets(collected) }
+  } else if (text ~ /^enum[ \t]+[A-Za-z_$]/) {
+    sub(/^enum[ \t]+/, "", text); if (ident(text, found)) owner(found["name"])
   } else {
-    name = ident(s); if (name != "") emit(name)
+    if (ident(text, found)) emit(found["name"])
   }
   advance(); next
 }
 /^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+[A-Za-z_$]/ {
-  s = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+/, "", s)
-  name = ident(s); if (name != "") owner(name)
+  text = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(interface|enum|namespace|type)[ \t]+/, "", text)
+  if (ident(text, found)) owner(found["name"])
   advance(); next
 }
 /^export[ \t]+(type[ \t]+)?\{/ {
-  s = line; sub(/^export[ \t]+(type[ \t]+)?\{/, "", s)
-  if (index(s, "}") > 0) { sub(/\}.*$/, "", s); names(s) }
-  else { buf = s; destr = 1 }
+  text = line; sub(/^export[ \t]+(type[ \t]+)?\{/, "", text)
+  if (index(text, "}") > 0) { sub(/\}.*$/, "", text); names(text) }
+  else { collected = text; collecting = 1; collect_depth = 1 + brackets(collected) }
   advance(); next
 }
 /^export[ \t]+\*[ \t]+as[ \t]+[A-Za-z_$]/ {
-  s = line; sub(/^export[ \t]+\*[ \t]+as[ \t]+/, "", s)
-  name = ident(s); if (name != "") emit(name)
+  text = line; sub(/^export[ \t]+\*[ \t]+as[ \t]+/, "", text)
+  if (ident(text, found)) emit(found["name"])
   advance(); next
 }
-curclass != "" && depth == classdepth + 1 {
-  s = line; sub(/^[ \t]+/, "", s)
-  if (s == "" || s ~ /^(\/\/|\/\*|\*|\}|@|#|\[)/) { advance(); next }
-  while (match(s, /^(export|public|private|protected|static|readonly|async|override|abstract|declare|accessor|get|set|const|let|var|function|type|interface|class|enum)[ \t]+[A-Za-z_$*#]/))
-    sub(/^[a-z]+[ \t]+/, "", s)
-  sub(/^\*[ \t]*/, "", s)
-  name = ident(s)
-  if (name != "") {
-    rest = substr(s, length(name) + 1)
-    if (rest ~ /^[ \t]*([(<:=?!;,]|$)/ && !keyword(name)) { emit(name); print curclass "." name }
+current_class != "" && depth == class_depth + 1 {
+  text = line; sub(/^[ \t]+/, "", text)
+  if (text == "" || comment_line(text) || text ~ /^(\}|@|#|\[)/) { advance(); next }
+  while (match(text, /^(export|public|private|protected|static|readonly|async|override|abstract|declare|accessor|get|set|const|let|var|function|type|interface|class|enum)[ \t]+[A-Za-z_$*#]/))
+    sub(/^[a-z]+[ \t]+/, "", text)
+  sub(/^\*[ \t]*/, "", text)
+  if (ident(text, found)) {
+    name = found["name"]
+    rest = substr(text, length(name) + 1)
+    if (rest ~ /^[ \t]*([(<:=?!;,]|$)/ && !keyword(name)) { emit(name); print current_class "." name }
   }
   advance(); next
 }

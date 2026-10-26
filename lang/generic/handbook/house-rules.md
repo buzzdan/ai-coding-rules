@@ -9,7 +9,8 @@ Test and lint run through the commands the repository already defines: its Taskf
 Makefile, package scripts or CI. A linter, test framework, formatter or type checker
 the repository does not use is never installed or run; a repository with no linter is
 a finding to raise, not a gap to fill in a feature PR. A repository in several
-languages is worked one language at a time.
+languages is worked one language at a time. The lint-setup skill is the one place that
+adds a tool or a linter rule, and it adds one only after the user agrees.
 
 **Review:** Does the diff add a tool, dependency or configuration file the repository did not already use?
 

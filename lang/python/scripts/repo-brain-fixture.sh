@@ -21,7 +21,8 @@
 #   fx_append_missing_edge             add a symbol whose docstring cites docs/backoff.md
 #   fx_write_subproject_code <dir>     write <dir>'s code file: Thing, citing docs/thing.md
 #   fx_write_other_package             write other/: a module declaring Nope
-#   fx_adapter_cases                   detection cases; this adapter detects nothing
+#   fx_adapter_cases                   Python-only cases: module-level assignment shapes
+#                                      and the scope of a class body
 FX_ROWS="python"
 
 use_row() {
@@ -102,4 +103,97 @@ def Nope():
 PY
 }
 
-fx_adapter_cases() { :; }
+fx_adapter_cases() {
+  py_assignment_case
+  py_class_scope_cases
+}
+
+# py_assignment_case — a module-level assignment declares its name for the
+# module and the package, with or without spaces and a type annotation.
+py_assignment_case() {
+  ROW=python; use_row python
+  begin "module-level assignments declare module-qualified names"
+  mk_conformant
+  printf '\nMaxDelay: float = 2.0\nmin_delay=0.1\n' >> "$REPO/retry/policy.py"
+  mk_doc consts "module constants" \
+    "Defaults: \`policy.DefaultAttempts\`, \`policy.MaxDelay\` and \`retry.min_delay\`."
+  append_index "- [consts.md](consts.md) — module constants"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+}
+
+# py_class_scope_cases — "<Class>.<name>" comes only from a def at the indent of
+# the class body. A def nested in a method, or under a column-0 if after the
+# class, gives no such name. A multi-line class header, a column-0 comment, a
+# column-0 docstring line and a column-0 closing bracket keep the class open.
+py_class_scope_cases() {
+  ROW=python; use_row python
+  begin "Q2 a def nested in a method gives no method name"
+  mk_conformant
+  cat > "$REPO/retry/nested.py" <<'PY'
+class Policy:
+    def run(self):
+        def helper():
+            return 1
+
+        return helper()
+
+    def stop(self):
+        return 0
+PY
+  mk_doc nested "nested defs" "Real: \`Policy.stop\`. Fake: \`Policy.helper\`."
+  append_index "- [nested.md](nested.md) — nested defs"
+  run_gate
+  expect_exit 1 && expect_has "\`Policy.helper\` does not resolve" \
+    && expect_not "\`Policy.stop\` does not resolve" && ok
+  finish
+
+  ROW=python; use_row python
+  begin "Q2 a def under a column-0 if after a class gives no method name"
+  mk_conformant
+  cat > "$REPO/retry/cond.py" <<'PY'
+class Policy:
+    def run(self):
+        return 1
+
+
+if True:
+    def helper():
+        return 2
+PY
+  mk_doc cond "conditional defs" "Not \`Policy.helper\`."
+  append_index "- [cond.md](cond.md) — conditional defs"
+  run_gate
+  expect_exit 1 && expect_has "\`Policy.helper\` does not resolve" && ok
+  finish
+
+  ROW=python; use_row python
+  begin "Q2 a class stays open across its header, a column-0 comment, a column-0 docstring line and a column-0 bracket"
+  mk_conformant
+  cat > "$REPO/retry/kept.py" <<'PY'
+class Multi(
+    object,
+):
+    """Multi keeps its methods.
+
+Text at column 0 inside the docstring.
+"""
+
+    def kept_first(self):
+        marker = '"""'
+        return print(
+            marker,
+)
+# a column-0 comment inside the class
+
+    @property
+    def kept_second(self):
+        return 2
+PY
+  mk_doc kept "kept methods" "Methods \`Multi.kept_first\` and \`Multi.kept_second\`."
+  append_index "- [kept.md](kept.md) — kept methods"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+}

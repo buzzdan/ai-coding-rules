@@ -12,6 +12,8 @@
 #                             source (a manifest, a doc, a build file)
 #   dedicated_plugin_for <id> the plugin written for that language, or ""
 #   GENERIC_PLUGIN            the plugin that reviews any language
+#   plugin_cmd_prefix <name>  the prefix of that plugin's commands, as in
+#                             /<prefix>-setup
 #   installed_plugin_dir <n>  where plugin <n> is installed, from the
 #                             installed-plugins file, or "" when it is not;
 #                             LDD_INSTALLED_PLUGINS names another file
@@ -58,6 +60,16 @@ dedicated_plugin_for() {
   case "$1" in
     go|python)              printf '%s-linter-driven-development' "$1" ;;
     typescript|javascript)  printf 'ts-react-linter-driven-development' ;;
+  esac
+  return 0
+}
+
+plugin_cmd_prefix() {
+  case "$1" in
+    go-linter-driven-development)        printf 'go-ldd' ;;
+    python-linter-driven-development)    printf 'py-ldd' ;;
+    ts-react-linter-driven-development)  printf 'tsr-ldd' ;;
+    *)                                   printf 'ldd' ;;
   esac
   return 0
 }

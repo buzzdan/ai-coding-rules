@@ -66,50 +66,96 @@ lang_has_code() {
   find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
+# LANG_DECL_AWK reads the Python files that lang_declarations lists and takes no
+# -v variables. It reads each line on its own and does not parse Python. For a
+# file that has lines, it prints "pkg:<module>" and "pkg:<package directory>"
+# when the path has them. It prints the names it finds, also qualified by the
+# module and by the package directory, one per line. It skips a line that starts
+# inside a string or inside brackets. After a class, it prints "<Class>.<name>"
+# for each def at the indent of the class body. The class ends at the next
+# column-0 line that is not blank, a comment or a decorator.
 LANG_DECL_AWK='
-function emit(id) {
-  print id
-  if (mod != "") print mod "." id
-  if (pkgdir != "" && pkgdir != mod) print pkgdir "." id
+function emit(identifier) {
+  print identifier
+  if (module != "") print module "." identifier
+  if (package_dir != "" && package_dir != module) print package_dir "." identifier
 }
-function keyword(w) {
-  return w == "if" || w == "else" || w == "elif" || w == "try" || w == "except" || w == "finally" || \
-         w == "for" || w == "while" || w == "with" || w == "return" || w == "import" || w == "from" || \
-         w == "class" || w == "def" || w == "pass" || w == "raise" || w == "del" || w == "global" || \
-         w == "nonlocal" || w == "assert" || w == "lambda" || w == "yield" || w == "match" || w == "case"
+function keyword(word) {
+  return word == "if" || word == "else" || word == "elif" || word == "try" || word == "except" || word == "finally" || \
+         word == "for" || word == "while" || word == "with" || word == "return" || word == "import" || word == "from" || \
+         word == "class" || word == "def" || word == "pass" || word == "raise" || word == "del" || word == "global" || \
+         word == "nonlocal" || word == "assert" || word == "lambda" || word == "yield" || word == "match" || word == "case"
+}
+function count_brackets(text,   copy) {
+  copy = text; depth += gsub(/[[({]/, "", copy)
+  copy = text; depth -= gsub(/[])}]/, "", copy)
+  if (depth < 0) depth = 0
+}
+function scan_line(text,   at, character) {
+  while (text != "") {
+    if (in_string != "") {
+      at = index(text, in_string)
+      if (at == 0) return
+      text = substr(text, at + 3); in_string = ""; continue
+    }
+    if (in_quote != "") {
+      if (!match(text, in_quote == "\"" ? "[\\\\\"]" : "[\\\\\047]")) return
+      if (substr(text, RSTART, 1) != in_quote) text = substr(text, RSTART + 2)
+      else { text = substr(text, RSTART + 1); in_quote = "" }
+      continue
+    }
+    if (!match(text, "[\"#\047]")) { count_brackets(text); return }
+    count_brackets(substr(text, 1, RSTART - 1))
+    character = substr(text, RSTART, 1); text = substr(text, RSTART)
+    if (character == "#") return
+    if (substr(text, 1, 3) == character character character) { in_string = substr(text, 1, 3); text = substr(text, 4) }
+    else { in_quote = character; text = substr(text, 2) }
+  }
 }
 FNR == 1 {
-  curclass = ""
-  f = FILENAME; sub(/^\.\//, "", f)
-  n = split(f, parts, "/")
-  mod = parts[n]; sub(/\.py$/, "", mod)
-  pkgdir = ""
-  if (n >= 2) pkgdir = parts[n - 1]
-  if (mod == "__init__") { mod = pkgdir; pkgdir = "" }
-  if (mod != "") print "pkg:" mod
-  if (pkgdir != "") print "pkg:" pkgdir
+  current_class = ""; body_indent = ""; in_string = ""; in_quote = ""; depth = 0
+  path = FILENAME; sub(/^\.\//, "", path)
+  count = split(path, parts, "/")
+  module = parts[count]; sub(/\.py$/, "", module)
+  package_dir = ""
+  if (count >= 2) package_dir = parts[count - 1]
+  if (module == "__init__") { module = package_dir; package_dir = "" }
+  if (module != "") print "pkg:" module
+  if (package_dir != "") print "pkg:" package_dir
+}
+{
+  if (in_string == "" && in_quote == "" && $0 ~ /^(class|(async )?def) [A-Za-z_]/) depth = 0
+  continued = in_string != "" || in_quote != "" || depth > 0
+  scan_line($0)
+  if (in_quote != "" && substr($0, length($0), 1) != "\\") in_quote = ""
+  if (continued) next
+}
+current_class != "" && $0 ~ /^[^ \t\r\f#@]/ { current_class = "" }
+current_class != "" && body_indent == "" && $0 ~ /^[ \t]+[^ \t\r\f#]/ {
+  body_indent = $0; sub(/[^ \t].*$/, "", body_indent)
 }
 /^class [A-Za-z_]/ {
-  s = $0; sub(/^class /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); curclass = s; next
+  name = $0; sub(/^class /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); current_class = name; body_indent = ""; next
 }
 /^(async )?def [A-Za-z_]/ {
-  s = $0; sub(/^(async )?def /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); curclass = ""; next
+  name = $0; sub(/^(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); next
 }
 /^[ \t]+(async )?def [A-Za-z_]/ {
-  if (curclass == "") next
-  s = $0; sub(/^[ \t]+(async )?def /, "", s); sub(/[^A-Za-z0-9_].*$/, "", s)
-  emit(s); print curclass "." s; next
+  indent = $0; sub(/[^ \t].*$/, "", indent)
+  if (current_class == "" || indent != body_indent) next
+  name = $0; sub(/^[ \t]+(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
+  emit(name); print current_class "." name; next
 }
-/^[A-Za-z_][A-Za-z0-9_]*([ \t]*,[ \t]*[A-Za-z_][A-Za-z0-9_]*)*[ \t]*(:[^=]*)?=[^=]/ {
-  t = $0; sub(/[ \t]*(:[^=]*)?=.*$/, "", t)
-  n = split(t, parts, ",")
-  for (i = 1; i <= n; i++) {
-    p = parts[i]; gsub(/[ \t]/, "", p)
-    if (p ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && !keyword(p)) emit(p)
+/^[A-Za-z_][A-Za-z0-9_]*[ \t]*(,[ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*)*(:[^=]*)?=[^=]/ {
+  targets = $0; sub(/[ \t]*(:[^=]*)?=.*$/, "", targets)
+  count = split(targets, parts, ",")
+  for (i = 1; i <= count; i++) {
+    name = parts[i]; gsub(/[ \t]/, "", name)
+    if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && !keyword(name)) emit(name)
   }
-  curclass = ""; next
+  next
 }
 '
 
