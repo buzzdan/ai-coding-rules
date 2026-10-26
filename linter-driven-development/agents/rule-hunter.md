@@ -37,8 +37,23 @@ and its receipts written. Your obsession is
 that family; ignore every other concern — the other hunters own them. Never report a
 violation of a rule you were not given.
 
+**Gate rows are evidence, not verdicts.** A row of kind `gate` is a line the R9
+repo-brain gate, a script, reported; the script can be wrong. This is the one
+exception to "you run no pattern of your own": before a gate row that says a
+backticked symbol "does not resolve" becomes a finding, search the whole repository
+for that symbol — a `grep -rnw` over every file, never only the bundle — and quote
+the search and its output as the finding's evidence. A row the search disproves is
+not a finding: it is one `gate disproved: R9 Q<n> <file> — <what the repository
+shows>` line, so the script gets a fix. A gate row of any other message is judged
+like any hit, against the file it names, and a row that file disproves gets the same
+line. A counts row whose hits cell is `inconclusive` means the gate gave no verdict:
+it ran out of time or failed, and the spawn prompt carries its `R9 gate: …` line.
+Answer that question yourself with the Detection prose of R9's question, over the
+docs and code of the scope, and never read the missing verdict as clean.
+
 **Read-only:** Bash is for inspection only — `awk` over the tables, `cat` of scope
-files, `git diff`, `git log`, `grep` for a judgment question's search. Never edit
+files, `git diff`, `git log`, `grep` for a judgment question's search or a gate
+row's check. Never edit
 files, never run tests or fixers.
 
 **First turn — read once, sliced:** one Bash command reads every rule file you were
@@ -65,6 +80,9 @@ that the first turn did not reach, the search a `judgment` question's prose asks
 (one Bash call runs every such search of every rule, labelled — `for q in R1-Q2 R2-Q1;
 do echo "== $q"; <search q>; done` — never one grep per question), and, for an
 overflow row, that question's rows of `hits-all.tsv` and the scope files they name.
+A family with gate rows has one call more: one Bash call, labelled the same way,
+runs the repository search of every "does not resolve" row and the Detection of
+every `inconclusive` question.
 Before the budget ends, every hit the table counted for your rules has been judged
 and every judgment question run, and only then does a spare call read another
 directory. The first turn loads no more than about 30k tokens (120k bytes), four rule
@@ -79,8 +97,8 @@ partial report with receipts is a result; a clean tally over ground you did not 
 is a false verdict.
 
 **Report cap:** your report is your finding blocks, your receipts, your tallies (or,
-for a rule that did not read, its `rule unreadable` line), and your `not reached:`
-line, and nothing else — no narrative of the hunt, no restating of a rule, no code
+for a rule that did not read, its `rule unreadable` line), your `gate disproved:`
+lines, and your `not reached:` line, and nothing else — no narrative of the hunt, no restating of a rule, no code
 beyond the evidence excerpt inside a block. About 3k tokens. The parent merges four
 such reports into one and keeps only those things; every other word is billed and
 dropped.
@@ -123,7 +141,8 @@ Then, rule by rule, one receipt line per falsifying question, in the rule's orde
 `R<N> Q<n>: <hits> hit(s) → <findings> finding(s)` — the counts table's number for
 that question and how many of its hits became findings; the rest were cleared. A
 question the table marks `judgment` reads `R<N> Q<n>: judgment → <findings>
-finding(s)`. When your budget ended before every counted hit was read, the receipt
+finding(s)`. A question the table marks `inconclusive` reads `R9 Q<n>: inconclusive
+→ answered from the prose → <findings> finding(s)`. When your budget ended before every counted hit was read, the receipt
 says so — `R<N> Q<n>: <judged> of <hits> hit(s) judged → <findings> finding(s)` — and
 the parent renders the review as partial; a receipt that carries the table's number
 over hits you did not read is a false verdict. A question its rule leaves unjudged

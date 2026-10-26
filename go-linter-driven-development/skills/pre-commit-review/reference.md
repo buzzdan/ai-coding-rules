@@ -60,7 +60,12 @@ the table marks `judgment`, and `R<N> Q<n>: <judged> of <hits> hit(s) judged →
 one tally line per rule (`R<N>: <M> finding(s)` or that rule's hunted-clean line) — a
 types hunter given R1, R2 and R11 returns three tallies. A rule file that did not read
 has `R<N>: rule unreadable at <path>` in its tally's place, and the hunter hunts the
-rest; that line is part of the report shape, never dropped and never a tally. The
+rest; that line is part of the report shape, never dropped and never a tally. A gate
+row the table marks `inconclusive` has the receipt `R9 Q<n>: inconclusive → answered
+from the prose → <findings> finding(s)`. A gate verdict the hunter checked and found
+false has one line of its own, `gate disproved: R9 Q<n> <file> — <what the repository
+shows>`; it is not a finding, and it renders verbatim beside the R9 tally, because it
+names a defect of the gate script. The
 receipts are how a hunt is read against the table: the hunter ran no pattern of its
 own (a capped question's remaining hits it read from `hits-all.tsv`), so a receipt's
 number is the table's and the reconciliation in step 4 is mechanical — a question with
@@ -71,10 +76,10 @@ line verbatim beside the tallies of the rules it hunted (step 4), never as a cle
 verdict.
 
 **The report cap.** A hunter's report is its finding blocks, its receipts, its tallies
-(or a rule's `rule unreadable` line in a tally's place) and its `not reached:` line —
-nothing else: no narrative of the hunt, no restating of
+(or a rule's `rule unreadable` line in a tally's place), its `gate disproved:` lines
+and its `not reached:` line — nothing else: no narrative of the hunt, no restating of
 a rule, no code beyond the evidence excerpt inside a finding block. About 3k tokens.
-The parent merges four of these into one report and keeps only those four things, so
+The parent merges four of these into one report and keeps only those things, so
 every other word a hunter writes is billed and dropped.
 
 ## Skeptic verdicts
