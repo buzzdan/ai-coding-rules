@@ -195,7 +195,7 @@ Network edges added:
 
 R9 self-check: Q1–Q3, Q7 clean · Q4–Q6 clean over diff
   (or per hit: <Qn>: <evidence> — fixed by <R9 fix-pattern move>)
-  (when the script failed: gate failed (<its first error line>) — Q1–Q3, Q7 checked by reading)
+  (when the script failed: gate failed (<its error line>) — Q1–Q3, Q7 checked by reading)
   (per gate line a grep disproved: gate disproved: <Qn> <file> — <what the repository shows>)
 
 Comment critic: <N> reviewed — <D> deleted · <T> trimmed · <R> rewritten ·
@@ -216,7 +216,7 @@ Frontmatter: <N> verified, <M> added
 Root wiring: CLAUDE.md @import <added/verified> · AGENTS.md routing block <added/verified>
 Conventions: <docroot>/conventions.md <created/verified>
 Check script: scripts/check-repo-brain.sh <installed/verified> — suggest CI: bash scripts/check-repo-brain.sh
-Confirmation: Q1–Q3, Q7 <clean via the script | checked by reading — gate failed (<its first error line>)>
+Confirmation: Q1–Q3, Q7 <clean via the script | checked by reading — gate failed (<its error line>)>
 Upward edges: <K> wired — <doc> ← <anchor symbol> (<package>), ...
 
 Advisory findings (reported, not fixed — FEATURE mode writes content):

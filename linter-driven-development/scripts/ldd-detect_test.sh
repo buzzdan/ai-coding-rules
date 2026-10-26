@@ -113,6 +113,8 @@ expect_gate_inconclusive() {
     n=$((n + 1))
   done
   (( n > 0 )) || { bad "the plan has no gate question"; return 1; }
+  printf '%s\n' "$OUT" | grep -qE "^documentation .* $n inconclusive" \
+    || { bad "the documentation family line does not count $n inconclusive"; return 1; }
 }
 
 # ---------- fixture builders ----------
@@ -653,6 +655,23 @@ mk_repo; : > "$BUNDLE/dirs.txt"
 run_stub_gate 'echo "check-repo-brain: internal scanner error — the declaration scan failed" >&2; exit 2'
 expect_exit 0 && expect_gate_inconclusive "the gate failed (exit 2): check-repo-brain: internal scanner error — the declaration scan failed" \
   && expect_count R10 5 2 && expect_count R5 1 '>=1' && ok
+finish
+
+begin "the gate's own error line names the failure, not a tool's line before it"
+mk_repo; : > "$BUNDLE/dirs.txt"
+run_stub_gate 'echo "awk: cannot open docs/x" >&2; echo "check-repo-brain: internal scanner error — the doc scan failed in docs" >&2; exit 2'
+expect_exit 0 && expect_gate_inconclusive "the gate failed (exit 2): check-repo-brain: internal scanner error — the doc scan failed in docs" && ok
+finish
+
+begin "a doc whose name holds a newline fails the real gate; the pass marks its questions inconclusive"
+mk_repo; : > "$BUNDLE/dirs.txt"
+printf -- '---\ntype: feature\ndescription: release notes\n---\n# Notes\n' > "$REPO/docs/release
+notes.md"
+gate_alone=$(cd "$REPO" && bash "$(dirname "$DETECT")/check-repo-brain.sh" . 2>&1); gate_code=$?
+run_detect
+expect_exit 0 && { (( gate_code == 2 )) || bad "the gate alone exited $gate_code, not 2: $gate_alone"; } && (( gate_code == 2 )) \
+  && expect_gate_inconclusive "the gate failed (exit 2): check-repo-brain: internal scanner error" \
+  && expect_count R10 5 2 && ok
 finish
 
 begin "a gate that fails under --gate-budget makes its questions inconclusive"

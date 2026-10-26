@@ -35,9 +35,10 @@
 #                           questions are counted "inconclusive", never 0
 #
 # A gate that fails — an exit other than 0 or 1, or an exit 1 with no
-# violation summary — makes its questions "inconclusive" the same way, with
-# the gate's first error line on the "R9 gate:" line and on stderr; the rest
-# of the pass runs. Alone, check-repo-brain.sh still exits 2 on a failure.
+# violation summary — makes its questions "inconclusive" the same way. The
+# "R9 gate:" line and stderr name why: the gate's own error message, else its
+# first other unindented line. The rest of the pass runs. Alone,
+# check-repo-brain.sh still exits 2 on a failure.
 #
 # The scope's language is the bundle's language.txt; without it, the files in
 # files.txt tell it by extension, and a list that spans several languages is
@@ -444,11 +445,19 @@ gate_scope_lists() {
   rm -f "$words.removed"
 }
 
-# gate_error_line — the gate's first line that is neither a report line (those
-# are indented) nor its scope line: its own error message, or the shell's.
+# gate_error_line — why the gate failed: its own first error line when it wrote
+# one, else the first line that is neither a report line (those are indented)
+# nor its scope line, such as the shell's or a tool's message.
 gate_error_line() {
-  LC_ALL=C awk '/^[^ \t]/ && !/^check-repo-brain: scope — / { gsub(/\t/, " "); print substr($0, 1, 200); found = 1; exit }
-       END { if (!found) print "no error message" }' "$gate_out"
+  LC_ALL=C awk '
+    /^[ \t]/ || /^check-repo-brain: scope — / { next }
+    /^check-repo-brain: / { own = $0; exit }
+    other == "" { other = $0 }
+    END {
+      line = (own != "") ? own : other
+      if (line == "") line = "no error message"
+      gsub(/\t/, " ", line); print substr(line, 1, 200)
+    }' "$gate_out"
 }
 
 # The R9 gate runs once, lazily; its [Q<n>] lines are split by question. With

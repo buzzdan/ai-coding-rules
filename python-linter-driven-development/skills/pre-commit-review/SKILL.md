@@ -87,7 +87,7 @@ doc's older drift or an unwired root is the repository's state, for a `--all` re
 `R9 gate: …` under the summary says which docs the gate checked. A gate row whose
 hits cell is `inconclusive` means the gate gave no verdict: it ran out of its
 `--gate-budget`, or it failed, and then the line reads `R9 gate: inconclusive — the
-gate failed (exit <n>): <its first error line>`. An `inconclusive` row is never a
+gate failed (exit <n>): <its error line>`. An `inconclusive` row is never a
 `0` and never clean: the review goes on, and the documentation hunter answers that
 question from R9's prose. When the detection script exits 2 instead — a pattern its
 grep rejects, a scope in which no file matches the source glob — the review did not
@@ -338,7 +338,7 @@ once, now. The contract it spells out, kept whatever the scope:
 - **A gate that failed is named.** When step 1's `R9 gate:` line reads `inconclusive
   — the gate failed …`, the header carries it verbatim after the `Hunters:` line, so
   the script's defect gets a fix: `R9 gate: inconclusive — the gate failed (exit 2):
-  <its first error line> — gate questions answered from the prose`. The hunter's
+  <its error line> — gate questions answered from the prose`. The hunter's
   `inconclusive` receipts and its `gate disproved:` lines render verbatim beside the
   R9 tally.
 - Fix routing cites each rule's **Fix pattern**; out-of-scope observations go under
