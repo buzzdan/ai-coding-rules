@@ -68,17 +68,19 @@
 #     constant); other backticks (paths, flags, ALL-CAPS initialisms such as
 #     `API`, <placeholders>) are skipped.
 #   - resolution is against a declaration set built ONCE per run from the
-#     language's code files (adapter: lang_declarations), which carries
-#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
-#     when the set holds that pair, so it never rides on a same-named member of
-#     another package or receiver. The adapters scan code line by line, so the
-#     set can also hold a pair the language does not declare. A token missing
-#     from the set still resolves when it appears as a whole word in any
-#     non-markdown repo file (config keys, alert names, test helpers): in a
-#     git work tree the tracked and
-#     untracked-but-not-ignored files outside the language's dependency and
-#     build-output directories (adapter: LANG_PRUNE_DIRS); elsewhere every file
-#     outside those directories and the common ones (bazel-*, vendor, …).
+#     language's code files (adapter: lang_declarations). The set holds
+#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves through
+#     the set only when the set holds that pair. A same-named member of another
+#     package or receiver does not count. The adapters scan code line by line,
+#     so the set can also hold a pair the language does not declare.
+#   - a token missing from the set still resolves when it appears as a whole
+#     word in a non-markdown repo file (config keys, alert names, test
+#     helpers). A dotted token matches a run of whole dot-separated parts of a
+#     word. In a git work tree the gate searches every tracked file outside
+#     vendor/, and every untracked file that git does not ignore outside the
+#     language's dependency and build-output directories (adapter:
+#     LANG_PRUNE_DIRS). Elsewhere it searches every file outside those
+#     directories and the common ones (bazel-*, vendor, …).
 #     A `pkg.Sym` whose package is not declared in this repo is external
 #     (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from
@@ -202,11 +204,12 @@ lang_has_code() {
 # member, one per line. A line at column 0 is top level, because Prettier
 # indents every body. A member is a line one level inside the braces of a class,
 # interface, object type, enum or namespace. The brace count skips strings on
-# one line and lines that start with "//", "/*" or "*". A generator method such
-# as "*entries() {" is not a comment line. A destructuring pattern or an export
-# list can span lines, and the program collects its names until the line that
-# closes it. A missed name causes a false report, so the program prints a name
-# when it is not sure.
+# one line and lines that start with "//", "/*" or "*". Outside a block comment,
+# a generator method such as "*entries() {" or "*[Symbol.iterator]() {" is not a
+# comment line. A destructuring pattern or an export list can span lines. The
+# program collects its names until a closing bracket at column 0, or until the
+# closing bracket that balances the pattern. A missed name causes a false
+# report, so the program prints a name when it is not sure.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
@@ -233,19 +236,37 @@ function names(list,   count, parts, i, entry) {
     sub(/^[ \t]+/, "", entry); sub(/[ \t]+$/, "", entry)
     sub(/^\.\.\./, "", entry)
     sub(/^type[ \t]+/, "", entry)
+    sub(/[ \t]*=.*$/, "", entry)
     if (entry ~ /[ \t]as[ \t]/) sub(/^.*[ \t]as[ \t]+/, "", entry)
     else if (index(entry, ":") > 0) sub(/^[^:]*:[ \t]*/, "", entry)
-    sub(/[ \t]*=.*$/, "", entry)
     gsub(/[][{}() \t]/, "", entry)
     if (entry == "default") continue
     if (entry ~ /^[A-Za-z_$][A-Za-z0-9_$]*$/ && !keyword(entry)) emit(entry)
   }
 }
 function generator(text) {
-  return text ~ /^[ \t]*\*[A-Za-z_$][A-Za-z0-9_$]*[(<]/
+  return text ~ /^[ \t]*\*([A-Za-z_$#][A-Za-z0-9_$]*[(<]|\[)/
 }
 function comment_line(text) {
-  return text ~ /^[ \t]*(\/\/|\/\*|\*)/ && !generator(text)
+  return text ~ /^[ \t]*(\/\/|\/\*|\*)/ && (inside_comment || !generator(text))
+}
+function comment_open_after(text, open,   at) {
+  while (1) {
+    if (open) {
+      at = index(text, "*/")
+      if (at == 0) return 1
+      text = substr(text, at + 2); open = 0
+    } else {
+      text = code_only(text)
+      at = index(text, "/*")
+      if (at == 0) return 0
+      text = substr(text, at + 2); open = 1
+    }
+  }
+}
+function flush_collected() {
+  names(collected)
+  collected = ""; collecting = 0
 }
 function code_only(text) {
   gsub(/"[^"]*"/, "", text)
@@ -275,7 +296,8 @@ function advance() {
 }
 BEGIN { sq = sprintf("%c", 39) }
 FNR == 1 {
-  current_class = ""; class_depth = 0; depth = 0; collecting = 0; collected = ""; collect_depth = 0
+  collecting = 0; collected = ""
+  current_class = ""; class_depth = 0; depth = 0; collect_depth = 0; open_comment = 0
   path = FILENAME; sub(/^\.\//, "", path)
   count = split(path, parts, "/")
   module = parts[count]; sub(/\.tsx?$/, "", module)
@@ -285,12 +307,19 @@ FNR == 1 {
   if (module != "") print "pkg:" module
   if (package_dir != "") print "pkg:" package_dir
 }
-{ line = $0; delta = braces(line) }
+{
+  line = $0
+  inside_comment = open_comment
+  open_comment = comment_open_after(line, open_comment)
+  delta = braces(line)
+}
 collecting {
   collect_depth += brackets(line)
-  if (line ~ /^[ \t]*[]}]/ && collect_depth <= 0) { names(collected); collected = ""; collecting = 0; advance(); next }
+  if (line ~ /^[]}]/ || (line ~ /^[ \t]*[]}]/ && collect_depth <= 0)) {
+    flush_collected(); advance(); next
+  }
   if (line ~ /^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace|import)[ \t]/) {
-    names(collected); collected = ""; collecting = 0
+    flush_collected()
   } else { collected = collected "," line; advance(); next }
 }
 /^(export|declare|abstract|async|function|class|interface|type|enum|const|let|var|namespace)[ \t]/ { depth = 0; current_class = "" }
@@ -307,7 +336,7 @@ collecting {
 /^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/ {
   text = line; sub(/^(export[ \t]+)?(declare[ \t]+)?(const|let|var)[ \t]+/, "", text)
   if (text ~ /^[[{]/) {
-    if (match(text, /[]}][ \t]*=[^=>]/)) names(substr(text, 2, RSTART - 2))
+    if (match(text, /[]}][ \t]*(:[^=]*)?=[^=>]/)) names(substr(text, 2, RSTART - 2))
     else { collected = substr(text, 2); collecting = 1; collect_depth = 1 + brackets(collected) }
   } else if (text ~ /^enum[ \t]+[A-Za-z_$]/) {
     sub(/^enum[ \t]+/, "", text); if (ident(text, found)) owner(found["name"])
@@ -334,7 +363,7 @@ collecting {
 }
 current_class != "" && depth == class_depth + 1 {
   text = line; sub(/^[ \t]+/, "", text)
-  if (text == "" || (text ~ /^(\/\/|\/\*|\*|\}|@|#|\[)/ && !generator(text))) { advance(); next }
+  if (text == "" || comment_line(text) || text ~ /^(\}|@|#|\[)/) { advance(); next }
   while (match(text, /^(export|public|private|protected|static|readonly|async|override|abstract|declare|accessor|get|set|const|let|var|function|type|interface|class|enum)[ \t]+[A-Za-z_$*#]/))
     sub(/^[a-z]+[ \t]+/, "", text)
   sub(/^\*[ \t]*/, "", text)

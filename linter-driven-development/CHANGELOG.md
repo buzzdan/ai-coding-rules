@@ -161,11 +161,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 - **The Go declaration scan finds more declarations.** The repo-brain gate no
   longer reports these correct citations as "does not resolve":
-  - every name of a list such as `var ErrFirst, ErrSecond = …`, also inside a
-    grouped declaration
+  - every name of a list on a declaration line, such as
+    `var ErrFirst, ErrSecond = …`
+  - every name of a list on a line of a grouped declaration, such as
+    `ErrFirst, ErrSecond = …` or `SizeKB, SizeMB int64 = 1, 2`
   - a method on a type with two or more type parameters, such as `Cache.Lookup`
     for `func (c *Cache[K, V]) Lookup`
-  - a declaration after an empty group such as `var ()`
 
 - **The Python declaration scan finds single-name assignments under every mawk.**
   mawk 1.3.4 20200120 is the default awk of Debian bookworm and bullseye and of

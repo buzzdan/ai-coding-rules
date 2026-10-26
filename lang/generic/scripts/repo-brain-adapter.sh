@@ -74,9 +74,10 @@ lang_has_code() {
 # LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
 # variables. It reads each line on its own and does not parse Go. It prints
 # "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
-# one per line. It takes every name of a list such as "x, y". Inside a grouped
-# declaration it takes the names at the start of every line, so the program also
-# prints a struct field there as "<package>.<name>".
+# one per line. It takes every name of a list such as "x, y" on a declaration
+# line. Inside a grouped declaration it takes every name of a list on a line
+# indented by one tab, and the first name of a deeper line. So the program also
+# prints the first field of a struct there as "<package>.<name>".
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
@@ -85,13 +86,15 @@ function emit(identifier) {
 function is_identifier(text) {
   return text ~ /^[A-Za-z_][A-Za-z0-9_]*$/
 }
-function emit_names(text,   list, count, parts, i, name) {
-  list = text
-  gsub(/[ \t]*,[ \t]*/, ",", list)
-  if (match(list, /^[A-Za-z_][A-Za-z0-9_]*(,[A-Za-z_][A-Za-z0-9_]*)*([ \t=([]|$)/)) {
-    list = substr(list, 1, RLENGTH)
-    sub(/[ \t=([]$/, "", list)
-  } else {
+function emit_names(text, whole_list,   joined, list, count, parts, i, name) {
+  joined = text
+  gsub(/[ \t]*,[ \t]*/, ",", joined)
+  list = ""
+  if (whole_list && match(joined, /^[A-Za-z_][A-Za-z0-9_]*(,[A-Za-z_][A-Za-z0-9_]*)*,?([ \t=([]|$)/)) {
+    list = substr(joined, 1, RLENGTH)
+    sub(/,?[ \t=([]?$/, "", list)
+  }
+  if (list == "") {
     list = text; sub(/[ \t=([].*$/, "", list)
   }
   count = split(list, parts, ",")
@@ -104,7 +107,7 @@ FNR == 1 { package_name = ""; in_group = "" }
 in_group != "" {
   if ($0 ~ /^\)/) { in_group = ""; next }
   text = $0; sub(/^[ \t]+/, "", text)
-  if (text ~ /^[A-Za-z_]/) emit_names(text)
+  if (text ~ /^[A-Za-z_]/) emit_names(text, in_group == "y" && $0 ~ /^\t[A-Za-z_]/)
   next
 }
 /^package [A-Za-z_]/ {
@@ -112,7 +115,8 @@ in_group != "" {
   package_name = name; print "pkg:" name; next
 }
 /^(type|var|const) \(/ {
-  if ($0 !~ /^(type|var|const) \([ \t]*\)/) in_group = "y"
+  in_group = "y"
+  if ($0 ~ /^(type|var|const) \([ \t]*\)/) in_group = "empty"
   next
 }
 /^func \(/ {
@@ -135,7 +139,7 @@ in_group != "" {
 }
 /^(type|var|const) [A-Za-z_]/ {
   text = $0; sub(/^(type|var|const) /, "", text)
-  emit_names(text)
+  emit_names(text, 1)
   next
 }
 '
