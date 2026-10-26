@@ -53,9 +53,11 @@ lang_has_code() {
 # variables. It reads each line on its own and does not parse Go. It prints
 # "pkg:<package>", the names it finds, "<package>.<name>" and "<Type>.<method>",
 # one per line. It takes every name of a list such as "x, y" on a declaration
-# line. Inside a grouped declaration it takes every name of a list on a line
-# indented by one tab, and the first name of a deeper line. So the program also
-# prints the first field of a struct there as "<package>.<name>".
+# line. Inside a grouped declaration it counts the brackets that are not in a
+# string, a rune or a comment. It takes names only from a line that starts at
+# bracket depth 0 and not in a raw string or a block comment: every name of a
+# list on a line indented by one tab, and the first name of a deeper line. A
+# group such as "var ()" closes on its own line.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
@@ -81,11 +83,37 @@ function emit_names(text, whole_list,   joined, list, count, parts, i, name) {
     if (is_identifier(name)) emit(name)
   }
 }
-FNR == 1 { package_name = ""; in_group = "" }
-in_group != "" {
-  if ($0 ~ /^\)/) { in_group = ""; next }
+function scan_brackets(text,   count, i, character, quote) {
+  count = length(text); quote = ""
+  for (i = 1; i <= count; i++) {
+    character = substr(text, i, 1)
+    if (in_raw) { if (character == "`") in_raw = 0; continue }
+    if (in_block) {
+      if (character == "*" && substr(text, i + 1, 1) == "/") { in_block = 0; i++ }
+      continue
+    }
+    if (quote != "") {
+      if (character == "\\") i++
+      else if (character == quote) quote = ""
+      continue
+    }
+    if (character == "`") in_raw = 1
+    else if (character == "\"" || character == "\047") quote = character
+    else if (character == "/" && substr(text, i + 1, 1) == "/") break
+    else if (character == "/" && substr(text, i + 1, 1) == "*") { in_block = 1; i++ }
+    else if (character == "{" || character == "(" || character == "[") depth++
+    else if (character == "}" || character == ")" || character == "]") { if (depth > 0) depth-- }
+  }
+}
+FNR == 1 { package_name = ""; in_group = 0; depth = 0; in_raw = 0; in_block = 0 }
+in_group {
+  inside_literal = in_raw || in_block
+  if (!inside_literal && $0 ~ /^\)/) { in_group = 0; depth = 0; next }
+  entry_depth = depth
+  scan_brackets($0)
+  if (inside_literal || entry_depth > 0) next
   text = $0; sub(/^[ \t]+/, "", text)
-  if (text ~ /^[A-Za-z_]/) emit_names(text, in_group == "y" && $0 ~ /^\t[A-Za-z_]/)
+  if (text ~ /^[A-Za-z_]/) emit_names(text, $0 ~ /^\t[A-Za-z_]/)
   next
 }
 /^package [A-Za-z_]/ {
@@ -93,8 +121,7 @@ in_group != "" {
   package_name = name; print "pkg:" name; next
 }
 /^(type|var|const) \(/ {
-  in_group = "y"
-  if ($0 ~ /^(type|var|const) \([ \t]*\)/) in_group = "empty"
+  if ($0 !~ /^(type|var|const) \([ \t]*\)/) { in_group = 1; depth = 0; in_raw = 0; in_block = 0 }
   next
 }
 /^func \(/ {

@@ -71,8 +71,9 @@
 #     language's code files (adapter: lang_declarations). The set holds
 #     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves through
 #     the set only when the set holds that pair. A same-named member of another
-#     package or receiver does not count. The adapters scan code line by line,
-#     so the set can also hold a pair the language does not declare.
+#     package or receiver does not count. The adapters scan code line by line
+#     and do not parse it. So the set can hold a pair that the language does
+#     not declare, and can miss a pair that it declares.
 #   - a token missing from the set still resolves when it appears as a whole
 #     word in a non-markdown repo file (config keys, alert names, test
 #     helpers). A dotted token matches a run of whole dot-separated parts of a

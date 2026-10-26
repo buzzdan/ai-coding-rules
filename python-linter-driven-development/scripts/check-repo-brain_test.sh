@@ -254,8 +254,8 @@ py_assignment_case() {
 
 # py_class_scope_cases — "<Class>.<name>" comes only from a def at the indent of
 # the class body. A def nested in a method, or under a column-0 if after the
-# class, gives no such name. A multi-line class header, a column-0 comment and
-# a column-0 docstring line keep the class open.
+# class, gives no such name. A multi-line class header, a column-0 comment, a
+# column-0 docstring line and a column-0 closing bracket keep the class open.
 py_class_scope_cases() {
   ROW=python; use_row python
   begin "Q2 a def nested in a method gives no method name"
@@ -298,7 +298,7 @@ PY
   finish
 
   ROW=python; use_row python
-  begin "Q2 a class stays open across its header, a column-0 comment and a column-0 docstring line"
+  begin "Q2 a class stays open across its header, a column-0 comment, a column-0 docstring line and a column-0 bracket"
   mk_conformant
   cat > "$REPO/retry/kept.py" <<'PY'
 class Multi(
@@ -310,7 +310,10 @@ Text at column 0 inside the docstring.
 """
 
     def kept_first(self):
-        return 1
+        marker = '"""'
+        return print(
+            marker,
+)
 # a column-0 comment inside the class
 
     @property

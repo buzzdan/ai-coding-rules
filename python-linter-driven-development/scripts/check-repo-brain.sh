@@ -71,8 +71,9 @@
 #     language's code files (adapter: lang_declarations). The set holds
 #     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves through
 #     the set only when the set holds that pair. A same-named member of another
-#     package or receiver does not count. The adapters scan code line by line,
-#     so the set can also hold a pair the language does not declare.
+#     package or receiver does not count. The adapters scan code line by line
+#     and do not parse it. So the set can hold a pair that the language does
+#     not declare, and can miss a pair that it declares.
 #   - a token missing from the set still resolves when it appears as a whole
 #     word in a non-markdown repo file (config keys, alert names, test
 #     helpers). A dotted token matches a run of whole dot-separated parts of a
@@ -195,9 +196,10 @@ lang_has_code() {
 # -v variables. It reads each line on its own and does not parse Python. For a
 # file that has lines, it prints "pkg:<module>" and "pkg:<package directory>"
 # when the path has them. It prints the names it finds, also qualified by the
-# module and by the package directory, one per line. After a class, it prints
-# "<Class>.<name>" for each indented def, until a column-0 class, def or
-# assignment to a plain name.
+# module and by the package directory, one per line. It skips a line that starts
+# inside a string or inside brackets. After a class, it prints "<Class>.<name>"
+# for each def at the indent of the class body. The class ends at the next
+# column-0 line that is not blank, a comment or a decorator.
 LANG_DECL_AWK='
 function emit(identifier) {
   print identifier
@@ -210,8 +212,34 @@ function keyword(word) {
          word == "class" || word == "def" || word == "pass" || word == "raise" || word == "del" || word == "global" || \
          word == "nonlocal" || word == "assert" || word == "lambda" || word == "yield" || word == "match" || word == "case"
 }
+function count_brackets(text,   copy) {
+  copy = text; depth += gsub(/[[({]/, "", copy)
+  copy = text; depth -= gsub(/[])}]/, "", copy)
+  if (depth < 0) depth = 0
+}
+function scan_line(text,   at, character) {
+  while (text != "") {
+    if (in_string != "") {
+      at = index(text, in_string)
+      if (at == 0) return
+      text = substr(text, at + 3); in_string = ""; continue
+    }
+    if (in_quote != "") {
+      if (!match(text, in_quote == "\"" ? "[\\\\\"]" : "[\\\\\047]")) return
+      if (substr(text, RSTART, 1) != in_quote) text = substr(text, RSTART + 2)
+      else { text = substr(text, RSTART + 1); in_quote = "" }
+      continue
+    }
+    if (!match(text, "[\"#\047]")) { count_brackets(text); return }
+    count_brackets(substr(text, 1, RSTART - 1))
+    character = substr(text, RSTART, 1); text = substr(text, RSTART)
+    if (character == "#") return
+    if (substr(text, 1, 3) == character character character) { in_string = substr(text, 1, 3); text = substr(text, 4) }
+    else { in_quote = character; text = substr(text, 2) }
+  }
+}
 FNR == 1 {
-  current_class = ""
+  current_class = ""; body_indent = ""; in_string = ""; in_quote = ""; depth = 0
   path = FILENAME; sub(/^\.\//, "", path)
   count = split(path, parts, "/")
   module = parts[count]; sub(/\.py$/, "", module)
@@ -221,16 +249,28 @@ FNR == 1 {
   if (module != "") print "pkg:" module
   if (package_dir != "") print "pkg:" package_dir
 }
+{
+  if (in_string == "" && in_quote == "" && $0 ~ /^(class|(async )?def) [A-Za-z_]/) depth = 0
+  continued = in_string != "" || in_quote != "" || depth > 0
+  scan_line($0)
+  if (in_quote != "" && substr($0, length($0), 1) != "\\") in_quote = ""
+  if (continued) next
+}
+current_class != "" && $0 ~ /^[^ \t\r\f#@]/ { current_class = "" }
+current_class != "" && body_indent == "" && $0 ~ /^[ \t]+[^ \t\r\f#]/ {
+  body_indent = $0; sub(/[^ \t].*$/, "", body_indent)
+}
 /^class [A-Za-z_]/ {
   name = $0; sub(/^class /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
-  emit(name); current_class = name; next
+  emit(name); current_class = name; body_indent = ""; next
 }
 /^(async )?def [A-Za-z_]/ {
   name = $0; sub(/^(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
-  emit(name); current_class = ""; next
+  emit(name); next
 }
 /^[ \t]+(async )?def [A-Za-z_]/ {
-  if (current_class == "") next
+  indent = $0; sub(/[^ \t].*$/, "", indent)
+  if (current_class == "" || indent != body_indent) next
   name = $0; sub(/^[ \t]+(async )?def /, "", name); sub(/[^A-Za-z0-9_].*$/, "", name)
   emit(name); print current_class "." name; next
 }
@@ -241,7 +281,7 @@ FNR == 1 {
     name = parts[i]; gsub(/[ \t]/, "", name)
     if (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && !keyword(name)) emit(name)
   }
-  current_class = ""; next
+  next
 }
 '
 
