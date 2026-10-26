@@ -272,6 +272,37 @@ fx_adapter_cases() {
     && expect_has "\`retry.FuncSecond\` does not resolve" \
     && expect_has "\`retry.EmptySecond\` does not resolve" && ok
   finish
+
+  ROW=go; use_row go
+  begin "Q2 the first field of a struct in a type group, or a line in a raw string, gives no package name"
+  mk_conformant; go_write_shapes
+  mk_doc nofirst "not package names" "Not \`retry.FieldFirst\` or \`retry.RawLine\`."
+  append_index "- [nofirst.md](nofirst.md) — not package names"
+  run_gate
+  expect_exit 1 && expect_has "\`retry.FieldFirst\` does not resolve" \
+    && expect_has "\`retry.RawLine\` does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 a declaration after an empty group resolves, and its struct field does not"
+  mk_conformant; go_write_shapes
+  mk_doc afterempty "after an empty group" "Real: \`retry.AfterEmpty\`. Fake: \`retry.AfterField\`."
+  append_index "- [afterempty.md](afterempty.md) — after an empty group"
+  run_gate
+  expect_exit 1 && expect_has "\`retry.AfterField\` does not resolve" \
+    && expect_not "\`retry.AfterEmpty\` does not resolve" && ok
+  finish
+
+  ROW=go; use_row go
+  begin "Q2 a group entry after a func literal, a brace in a string or a raw string resolves"
+  mk_conformant; go_write_shapes
+  mk_doc aftergroup "group entries" "Entries \`retry.AfterHandler\`, \`retry.AfterBrace\` and \`retry.AfterRaw\`."
+  append_index "- [aftergroup.md](aftergroup.md) — group entries"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
+
+  py_class_scope_cases
 }
 
 go_write_shapes() {
@@ -286,6 +317,13 @@ var (
 	handler = func() {
 		FuncFirst, FuncSecond = 1, 2
 	}
+	AfterHandler = 3
+	brace        = "{"
+	AfterBrace   = 4
+	usage        = `
+RawLine {
+`
+	AfterRaw = 5
 )
 
 type (
@@ -305,8 +343,84 @@ func (c *Cache[K, V]) Lookup(key K) V { return c.items[key] }
 
 var ()
 
+type AfterEmpty struct {
+	AfterField string
+}
+
 func reset() {
 	EmptyFirst, EmptySecond = 1, 2
 }
 GO
+}
+
+# py_class_scope_cases — "<Class>.<name>" comes only from a def at the indent of
+# the class body. A def nested in a method, or under a column-0 if after the
+# class, gives no such name. A multi-line class header, a column-0 comment and
+# a column-0 docstring line keep the class open.
+py_class_scope_cases() {
+  ROW=python; use_row python
+  begin "Q2 a def nested in a method gives no method name"
+  mk_conformant
+  cat > "$REPO/retry/nested.py" <<'PY'
+class Policy:
+    def run(self):
+        def helper():
+            return 1
+
+        return helper()
+
+    def stop(self):
+        return 0
+PY
+  mk_doc nested "nested defs" "Real: \`Policy.stop\`. Fake: \`Policy.helper\`."
+  append_index "- [nested.md](nested.md) — nested defs"
+  run_gate
+  expect_exit 1 && expect_has "\`Policy.helper\` does not resolve" \
+    && expect_not "\`Policy.stop\` does not resolve" && ok
+  finish
+
+  ROW=python; use_row python
+  begin "Q2 a def under a column-0 if after a class gives no method name"
+  mk_conformant
+  cat > "$REPO/retry/cond.py" <<'PY'
+class Policy:
+    def run(self):
+        return 1
+
+
+if True:
+    def helper():
+        return 2
+PY
+  mk_doc cond "conditional defs" "Not \`Policy.helper\`."
+  append_index "- [cond.md](cond.md) — conditional defs"
+  run_gate
+  expect_exit 1 && expect_has "\`Policy.helper\` does not resolve" && ok
+  finish
+
+  ROW=python; use_row python
+  begin "Q2 a class stays open across its header, a column-0 comment and a column-0 docstring line"
+  mk_conformant
+  cat > "$REPO/retry/kept.py" <<'PY'
+class Multi(
+    object,
+):
+    """Multi keeps its methods.
+
+Text at column 0 inside the docstring.
+"""
+
+    def kept_first(self):
+        return 1
+# a column-0 comment inside the class
+
+    @property
+    def kept_second(self):
+        return 2
+PY
+  mk_doc kept "kept methods" "Methods \`Multi.kept_first\` and \`Multi.kept_second\`."
+  append_index "- [kept.md](kept.md) — kept methods"
+  run_gate
+  expect_exit 0 && expect_not "does not resolve" && ok
+  finish
 }
