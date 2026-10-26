@@ -85,10 +85,10 @@
 #     and glob patterns (a span containing `*` is a pattern, not a citation).
 #   - fenced code blocks (``` or ~~~, indented up to 3 spaces; toggle, not
 #     length-matched) are skipped for symbol resolution and the file:line ban.
-#   - a doc, code file or project marker whose path holds a newline is skipped,
-#     and one advisory line names it (the newline shows as \n). The gate's file
-#     lists hold one path per line, and no markdown link can reach such a doc.
-#     A --scope list cannot name such a path.
+#   - the gate skips a doc, code file or project marker whose path holds a
+#     newline, and prints one advisory line for each (the newline shows as \n).
+#     The gate's file lists hold one path per line, and no markdown link can
+#     reach such a doc. A --scope list cannot name such a path.
 #
 # Exit codes: 0 clean (or repo has no doc root yet — advisory no-op)
 #             1 one or more violations (details on stderr, summary last)
