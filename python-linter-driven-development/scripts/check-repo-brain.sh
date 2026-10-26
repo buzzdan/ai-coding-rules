@@ -68,15 +68,19 @@
 #     constant); other backticks (paths, flags, ALL-CAPS initialisms such as
 #     `API`, <placeholders>) are skipped.
 #   - resolution is against a declaration set built ONCE per run from the
-#     language's code files (adapter: lang_declarations), which carries
-#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves only
-#     against its declaring package or receiver — never against a same-named
-#     member elsewhere. A token missing from the set still resolves when it
-#     appears as a whole word in any non-markdown repo file (config keys,
-#     alert names, test helpers): in a git work tree the tracked and
-#     untracked-but-not-ignored files outside the language's dependency and
-#     build-output directories (adapter: LANG_PRUNE_DIRS); elsewhere every file
-#     outside those directories and the common ones (bazel-*, vendor, …).
+#     language's code files (adapter: lang_declarations). The set holds
+#     ownership pairs: a qualified `pkg.Sym` or `Type.Method` resolves through
+#     the set only when the set holds that pair. A same-named member of another
+#     package or receiver does not count. The adapters scan code line by line,
+#     so the set can also hold a pair the language does not declare.
+#   - a token missing from the set still resolves when it appears as a whole
+#     word in a non-markdown repo file (config keys, alert names, test
+#     helpers). A dotted token matches a run of whole dot-separated parts of a
+#     word. In a git work tree the gate searches every tracked file outside
+#     vendor/, and every untracked file that git does not ignore outside the
+#     language's dependency and build-output directories (adapter:
+#     LANG_PRUNE_DIRS). Elsewhere it searches every file outside those
+#     directories and the common ones (bazel-*, vendor, …).
 #     A `pkg.Sym` whose package is not declared in this repo is external
 #     (stdlib, dependencies) and exempt.
 #   - lines carrying the ⚠️ stale flag or a *(planned)* marker are exempt from

@@ -21,7 +21,7 @@
 #   fx_append_missing_edge             add a symbol whose JSDoc cites docs/backoff.md
 #   fx_write_subproject_code <dir>     write <dir>'s code file: Thing, citing docs/thing.md
 #   fx_write_other_package             write other/: a module declaring Nope
-#   fx_adapter_cases                   detection cases; this adapter detects nothing
+#   fx_adapter_cases                   TypeScript-only cases: member and destructuring shapes
 FX_ROWS="ts-react"
 
 use_row() {
@@ -113,4 +113,99 @@ export function Nope(): void {}
 TS
 }
 
-fx_adapter_cases() { :; }
+fx_adapter_cases() {
+  ts_shape_case "member, generator and multi-line destructuring names resolve" names "declaration shapes" 0 \
+    "Read \`Feed.entries\`, \`Feed.latest\`, \`Bag.size\`, \`Doc.real\` and \`AfterGlob.globKept\`; settings \`shapes.tailName\`, \`shapes.one\`, \`shapes.annB\`, \`shapes.retryOpt\`, \`shapes.tailOpt\` and \`regex.afterRe\`; export \`shapes.RenamedFeed\`."
+  ts_shape_case "comment text and call arguments give no declaration" ghosts "names that are not declared" 1 \
+    "Not \`Doc.example\`, \`shapes.hidden\` or \`shapes.maxRetries\`."
+}
+
+# ts_shape_case <title> <doc> <description> <exit> <body> — a case over the
+# files of ts_write_shapes; exit 1 expects each cited token to stay unresolved
+ts_shape_case() {
+  ROW=ts-react; use_row ts-react
+  begin "Q2 $1"
+  mk_conformant; ts_write_shapes
+  mk_doc "$2" "$3" "$5"
+  append_index "- [$2.md]($2.md) — $3"
+  run_gate
+  if (( $4 == 0 )); then
+    expect_exit 0 && expect_not "does not resolve" && ok
+  else
+    expect_exit 1 && expect_has "\`Doc.example\` does not resolve" \
+      && expect_has "\`shapes.hidden\` does not resolve" \
+      && expect_has "\`shapes.maxRetries\` does not resolve" && ok
+  fi
+  finish
+}
+
+ts_write_shapes() {
+  cat > "$REPO/retry/shapes.ts" <<'TS'
+export class Feed {
+  *entries() {
+    yield 1
+  }
+
+  latest = 1
+}
+
+export class Bag {
+  *[Symbol.iterator]() {
+    yield 1
+  }
+
+  size = 0
+}
+
+export class Doc {
+  /**
+   *example(opts) {
+   */
+  real() {
+    return 1
+  }
+}
+
+export const { opts: {
+    deep,
+  },
+  tailName,
+} = loadSettings()
+
+export const {
+  one,
+} = configure({
+  hidden,
+})
+
+export {
+  Feed as RenamedFeed,
+}
+
+export const { annA, annB }: Props = useProps()
+
+export const {
+  outerOpt: {
+    deepOpt,
+  },
+  retryOpt = { count: maxRetries },
+  tailOpt,
+} = cfg
+
+const glob = "src/*"
+
+export class AfterGlob {
+  *items() {
+    yield 1
+  }
+
+  globKept = 1
+}
+TS
+  cat > "$REPO/retry/regex.ts" <<'TS'
+export const {
+  pattern = /\[/,
+  afterRe,
+} = loadSettings()
+TS
+}

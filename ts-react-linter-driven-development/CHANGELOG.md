@@ -157,6 +157,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Fixed
 
+- **The TypeScript declaration scan finds more declarations.** The repo-brain
+  gate no longer reports these correct citations as "does not resolve":
+  - a generator method such as `*entries() {`, and the class members after a
+    generator method, also after `*[Symbol.iterator]() {` and `*#walk() {`
+  - a name after a nested destructuring pattern that spans lines, also when a
+    default value holds an object or a regex
+  - every name of a one-line destructuring pattern with a type annotation, such
+    as `const { a, b }: Props = useProps()`
+
+  The scan no longer prints some words that are not declarations: a local
+  variable in the body of a generator method, and a word after the `:` of an
+  annotation or a default value. A doc that cites such a word as a declaration
+  now fails.
+
 - **The repo-brain gate does not read installed dependencies.** The symbol
   fallback looked for a backticked token in every untracked file that git does not
   ignore. A token found only in a local `node_modules/` passed on a developer's

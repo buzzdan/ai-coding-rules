@@ -156,6 +156,43 @@ mk_doc() { # <name> <description> [body...]
   } > "$REPO/docs/$name.md"
 }
 
+go_write_shapes() {
+  cat > "$REPO/retry/shapes.go" <<'GO'
+package retry
+
+var (
+	ErrFirst, ErrSecond = errString("first"), errString("second")
+	SizeKB, SizeMB int64 = 1, 2
+	GroupFirst, GroupSecond,
+	GroupThird int
+	handler = func() {
+		FuncFirst, FuncSecond = 1, 2
+	}
+)
+
+type (
+	Outcome struct {
+		FieldFirst, FieldSecond string
+	}
+)
+
+var LimitFirst, LimitSecond, LimitThird = 1, 2, 3
+
+var SplitFirst, SplitSecond,
+	SplitThird int
+
+type Cache[K comparable, V any] struct{ items map[K]V }
+
+func (c *Cache[K, V]) Lookup(key K) V { return c.items[key] }
+
+var ()
+
+func reset() {
+	EmptyFirst, EmptySecond = 1, 2
+}
+GO
+}
+
 # ========================= cases =========================
 
 # --- baseline ---
@@ -292,6 +329,31 @@ run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish
 
+begin "Q2 every name of a Go name list resolves"
+mk_conformant; go_write_shapes
+mk_doc lists "name lists" "Errors \`retry.ErrSecond\`, size \`retry.SizeMB\`, group \`retry.GroupSecond\`, limit \`retry.LimitThird\` and split \`retry.SplitSecond\`."
+append_index "- [lists.md](lists.md) — name lists"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a method on a type with two type parameters resolves"
+mk_conformant; go_write_shapes
+mk_doc generic "generic receivers" "Read with \`Cache.Lookup\` on a \`retry.Cache\`."
+append_index "- [generic.md](generic.md) — generic receivers"
+run_gate
+expect_exit 0 && expect_not "does not resolve" && ok
+finish
+
+begin "Q2 a Go list below a group entry, or after an empty group, gives no package names"
+mk_conformant; go_write_shapes
+mk_doc nonames "not package names" "Not \`retry.FieldSecond\`, \`retry.FuncSecond\` or \`retry.EmptySecond\`."
+append_index "- [nonames.md](nonames.md) — not package names"
+run_gate
+expect_exit 1 && expect_has "\`retry.FieldSecond\` does not resolve" \
+  && expect_has "\`retry.FuncSecond\` does not resolve" \
+  && expect_has "\`retry.EmptySecond\` does not resolve" && ok
+finish
 begin "Q2 package-qualified tokens: repo package resolves, external package exempt"
 mk_conformant
 mk_doc qual "qualified tokens" "Call \`retry.ParsePolicy\`, then \`time.Duration\` and \`http.Client\` are stdlib; \`retry.Nope\` is not declared."

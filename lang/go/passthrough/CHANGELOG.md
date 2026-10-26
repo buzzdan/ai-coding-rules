@@ -163,6 +163,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Fixed
 
+- **The Go declaration scan finds more declarations.** The repo-brain gate no
+  longer reports these correct citations as "does not resolve":
+  - every name of a list on a declaration line, such as
+    `var ErrFirst, ErrSecond = …`
+  - every name of a list on a line of a grouped declaration, such as
+    `ErrFirst, ErrSecond = …` or `SizeKB, SizeMB int64 = 1, 2`
+  - a method on a type with two or more type parameters, such as `Cache.Lookup`
+    for `func (c *Cache[K, V]) Lookup`
+
 - **The repo-brain gate does not read installed dependencies.** The symbol
   fallback looked for a backticked token in every untracked file that git does not
   ignore. A token found only in a local `node_modules/` passed on a developer's
