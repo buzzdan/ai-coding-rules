@@ -96,6 +96,10 @@
 #             2 usage error, or an internal scanner failure (a failed scan is
 #               inconclusive, never silently clean)
 #
+# CHECK_REPO_BRAIN_FAULT=<reason> makes the run an internal scanner failure
+# before any check: one stderr line naming the reason, exit 2. Tests and evals
+# set it to prove that a caller treats a failed gate as inconclusive.
+#
 # Uses only POSIX-portable tools: find, grep, sed, awk, head, sort, wc, tr, xargs,
 # plus git when the repository is a git work tree. No jq/python.
 # awk programs avoid interval expressions ({m,n}) — mawk, Debian's default, rejects them.
@@ -125,6 +129,10 @@ if [[ ! -d "$REPO_ROOT" ]]; then
   exit 2
 fi
 cd "$REPO_ROOT" || exit 2
+if [[ -n "${CHECK_REPO_BRAIN_FAULT:-}" ]]; then
+  echo "check-repo-brain: internal scanner error — CHECK_REPO_BRAIN_FAULT is set ($CHECK_REPO_BRAIN_FAULT); treating the run as inconclusive" >&2
+  exit 2
+fi
 SCOPED=0
 [[ -n "$SCOPE_LIST" ]] && SCOPED=1
 

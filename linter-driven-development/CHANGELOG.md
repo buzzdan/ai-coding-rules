@@ -141,6 +141,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   questions from R9's prose, and the report names the failed gate. A gate stopped
   by a signal or by an unbound variable is also a failure; before, such a run
   read as clean. Run alone, the gate still exits 2 on an internal failure.
+  `CHECK_REPO_BRAIN_FAULT=<reason>` makes the gate fail on purpose, for tests
+  and evals of this fallback.
 - **Gate verdicts are evidence to check.** Before the documentation hunter
   reports a "does not resolve" line as a finding, it searches the whole
   repository for the symbol. A verdict the search disproves becomes a

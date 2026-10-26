@@ -433,6 +433,13 @@ run_gate
 expect_exit 1 && expect_has "backticked \`SnapshotRunner\` does not resolve" && expect_not "\`Policy\` does not resolve" && ok
 finish
 
+begin "CHECK_REPO_BRAIN_FAULT makes the run an internal error (exit 2), never clean"
+mk_conformant
+OUT=$(cd "$REPO" && CHECK_REPO_BRAIN_FAULT="a test" bash "$GATE" . 2>"$REPO/.stderr"); CODE=$?
+ERR=$(cat "$REPO/.stderr"); rm -f "$REPO/.stderr"
+expect_exit 2 && expect_has "internal scanner error — CHECK_REPO_BRAIN_FAULT is set (a test)" && expect_not "check-repo-brain: clean" && ok
+finish
+
 begin "a failed declaration scan is an internal error (exit 2), never clean"
 mk_conformant
 mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\` and \`Policy\`."
