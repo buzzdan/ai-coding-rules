@@ -78,6 +78,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Fixed
 
+- **A path that holds a newline does not stop the repo-brain gate.** The gate
+  reads its file lists one path per line. A doc named `docs/release` + newline +
+  `notes.md` split into two paths: the doc scan failed with "internal scanner
+  error", the gate exited 2, and Q1 reported two false orphans. The gate now
+  skips each doc, code file and project marker whose path holds a newline, and
+  prints one advisory line for each, with the newline shown as `\n`. No markdown
+  link can reach such a doc, so the gate cannot check it.
+
 - **The repo-brain gate does not read installed dependencies.** The symbol
   fallback looked for a backticked token in every untracked file that git does not
   ignore. A token found only in a local `node_modules/` passed on a developer's

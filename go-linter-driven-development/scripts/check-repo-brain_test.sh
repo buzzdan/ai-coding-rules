@@ -696,6 +696,16 @@ run_gate --scope "$LISTS/scope.txt"
 expect_exit 1 && expect_has "[Q7] docs/index.md:" && expect_has "drifted from retry-policy.md" && ok
 finish
 
+begin "--scope --words: a doc whose path holds a newline is skipped with one advisory line"
+mk_conformant
+NL=$'\n'
+mk_doc "release${NL}notes" "release notes" "Uses \`SnapshotRunner\`."
+printf '%s\n' retry/policy.go docs/retry-policy.md > "$LISTS/scope.txt"; printf 'SnapshotRunner\n' > "$LISTS/words.txt"
+run_gate --scope "$LISTS/scope.txt" --words "$LISTS/words.txt"
+expect_exit 0 && expect_has "scope — 2 doc(s) to check" && expect_count "the path holds a newline" 1 \
+  && expect_not "can't open" && expect_not "internal scanner error" && expect_not "SnapshotRunner" && ok
+finish
+
 rm -rf "$LISTS"
 
 # --- dependency and build-output directories, URLs in code, quoted descriptions, constants ---
@@ -828,6 +838,18 @@ printf '\n%s See docs/guide.md (https://github.com/x/y/blob/main/docs/guide.md).
   "//" >> "$REPO/retry/policy.go"
 run_gate
 expect_exit 1 && expect_count "code edge points at missing docs/guide.md" 1 && ok
+finish
+
+begin "a doc, a code file and a project marker whose paths hold a newline are skipped with one advisory line each"
+mk_conformant
+NL=$'\n'
+mk_doc "release${NL}notes" "release notes" "Uses \`MissingThing\` at retry/policy.go:12."
+printf '// See docs/missing.md\n' > "$REPO/retry/new${NL}line.go"
+mkdir -p "$REPO/sv${NL}c/docs"; printf 'module example.com/svc\n' > "$REPO/sv${NL}c/go.mod"
+run_gate
+expect_exit 0 && expect_count "the path holds a newline; the gate does not check this file" 3 \
+  && expect_has "docs/release\\nnotes.md — the path holds a newline" && expect_not "internal scanner error" \
+  && expect_not "orphan" && expect_not "[Q2]" && ok
 finish
 
 begin "Q7 a quoted description matches its unquoted index line"

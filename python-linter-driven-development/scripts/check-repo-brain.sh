@@ -85,6 +85,10 @@
 #     and glob patterns (a span containing `*` is a pattern, not a citation).
 #   - fenced code blocks (``` or ~~~, indented up to 3 spaces; toggle, not
 #     length-matched) are skipped for symbol resolution and the file:line ban.
+#   - a doc, code file or project marker whose path holds a newline is skipped,
+#     and one advisory line names it (the newline shows as \n). The gate's file
+#     lists hold one path per line, and no markdown link can reach such a doc.
+#     A --scope list cannot name such a path.
 #
 # Exit codes: 0 clean (or repo has no doc root yet — advisory no-op)
 #             1 one or more violations (details on stderr, summary last)
@@ -123,6 +127,11 @@ cd "$REPO_ROOT" || exit 2
 SCOPED=0
 [[ -n "$SCOPE_LIST" ]] && SCOPED=1
 
+# NL_PATH — a find(1) -path and grep --exclude pattern that matches a path
+# holding a newline. Every walker below and in the adapter skips such paths.
+NL=$'\n'
+NL_PATH="*${NL}*"
+
 # ===================== language adapter: python =====================
 # Everything language-specific lives between these two marker comments. The
 # driver below calls only the lang_* functions and LANG_* variables defined
@@ -148,6 +157,10 @@ SCOPED=0
 #                        class — one per line (duplicates are fine)
 #   lang_code_edges      stdout: "file:line:target" for every docs-path citation
 #                        inside code files (grep -rno shape)
+#   lang_newline_files   stdout: the code files and project markers whose path
+#                        holds a newline, NUL-separated. The four functions above
+#                        skip every path that matches NL_PATH, the driver's
+#                        pattern for a path that holds a newline.
 #
 # Python: sub-projects are pyproject.toml directories; a symbol worth resolving
 # is CamelCase (a class) or snake_case with an underscore (a function or
@@ -180,11 +193,11 @@ lang_project_dirs() {
     p=$(dirname "$m"); p="${p#./}"
     [[ "$p" == "." || -z "$p" ]] && continue
     printf '%s\n' "$p"
-  done < <(find . -name "$LANG_PROJECT_MARKER" "${PY_PRUNE[@]}" 2>/dev/null | sort)
+  done < <(find . -name "$LANG_PROJECT_MARKER" "${PY_PRUNE[@]}" -not -path "$NL_PATH" 2>/dev/null | sort)
 }
 
 lang_has_code() {
-  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -print -quit 2>/dev/null | grep -q .
+  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
 LANG_DECL_AWK='
@@ -235,13 +248,18 @@ FNR == 1 {
 '
 
 lang_declarations() {
-  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -print0 2>/dev/null \
+  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -not -path "$NL_PATH" -print0 2>/dev/null \
     | xargs -0 awk "$LANG_DECL_AWK"
 }
 
 lang_code_edges() {
   grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
-    --include="$LANG_CODE_GLOB" "${PY_EXCLUDE_DIRS[@]}" . 2>/dev/null
+    --include="$LANG_CODE_GLOB" "${PY_EXCLUDE_DIRS[@]}" \
+    --exclude="$NL_PATH" --exclude-dir="$NL_PATH" . 2>/dev/null
+}
+
+lang_newline_files() {
+  find . \( -name "$LANG_CODE_GLOB" -o -name "$LANG_PROJECT_MARKER" \) "${PY_PRUNE[@]}" -path "$NL_PATH" -print0 2>/dev/null
 }
 # =================== end language adapter: python ===================
 
@@ -287,6 +305,13 @@ fail() {
   violations=$((violations + 1))
 }
 note() { echo "  advisory: $1"; }
+
+# ---------- paths that hold a newline: skipped, one advisory line each ----------
+while IFS= read -r -d '' p; do
+  p="${p#./}"
+  note "${p//$NL/\\n} — the path holds a newline; the gate does not check this file"
+done < <(for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md' -path "$NL_PATH" -print0; done
+         lang_newline_files)
 
 fixed=0
 # fix_index_line <file> <lineno> <new-tail> — rewrite the text after " — " on one line
@@ -550,7 +575,7 @@ BASENAMES="$WORK/basenames"
 if (( SCOPED )); then
   sed -e 's|^\./||' -e '/^$/d' "$SCOPE_LIST" | LC_ALL=C sort -u > "$SCOPE_PATHS"
   sed 's|.*/||' "$SCOPE_PATHS" | LC_ALL=C sort -u > "$BASENAMES"
-  for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md'; done | LC_ALL=C sort -u > "$WORK/all-docs"
+  for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md' ! -path "$NL_PATH"; done | LC_ALL=C sort -u > "$WORK/all-docs"
   grep -xF -f "$SCOPE_PATHS" "$WORK/all-docs" > "$FULL_DOCS"
   {
     cat "$FULL_DOCS"
@@ -576,15 +601,16 @@ if (( SCOPED )); then
 fi
 
 # bundle_docs <docroot> [name] [full] — the docs a run checks under one root:
-# every *.md (or every file of that name); on a scoped run only the docs in
-# scope, or with "full" only the docs that get every check
+# every *.md (or every file of that name) whose path holds no newline; on a
+# scoped run only the docs in scope, or with "full" only the docs that get
+# every check
 bundle_docs() {
   local name="${2:-*.md}" list="$SCOPE_DOCS"
   [[ "${3:-}" == full ]] && list="$FULL_DOCS"
   if (( SCOPED )); then
-    find "$1" -type f -name "$name" | grep -xF -f "$list"
+    find "$1" -type f -name "$name" ! -path "$NL_PATH" | grep -xF -f "$list"
   else
-    find "$1" -type f -name "$name"
+    find "$1" -type f -name "$name" ! -path "$NL_PATH"
   fi
   return 0
 }
