@@ -180,12 +180,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   resolve":
   - `<Class>.<name>` for a def nested in a method or in a nested class
   - `<Class>.<name>` for a def under a column-0 `if` or `try` after the class
-  - the name, or `<module>.<name>`, of such a def
+  - `<module>.<name>` for a def nested in a method
   - a name from a column-0 line inside a string or inside brackets, such as
     `ROOT={root}` in a shell script in a triple-quoted string
 
   To fix such a doc, cite the name that the code declares, or remove the
   backticks.
+
+  The scan also prints no name for a def under a column-0 `if` or `try` after a
+  class. This is the same result as for such a def in a file with no class. A doc
+  that cites that def as `<module>.<name>` now fails. Cite it as `<name>`: the
+  gate finds the bare name as a whole word in the code.
 
 ### Fixed
 
