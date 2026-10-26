@@ -92,6 +92,29 @@ expect_count() { # <rule> <question> <value|>=n>
   esac
 }
 
+# run_stub_gate <gate body> [options...] — runs a copy of the script whose
+# check-repo-brain.sh beside it is a stub with that body, over $REPO with $BUNDLE
+run_stub_gate() {
+  local body="$1" fake; shift
+  fake=$(mktemp -d)
+  cp "$DETECT" "$fake/ldd-detect.sh"
+  printf '#!/usr/bin/env bash\n%s\n' "$body" > "$fake/check-repo-brain.sh"
+  OUT=$(cd "$REPO" && bash "$fake/ldd-detect.sh" --rules "$RULES" "$@" --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
+  ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
+  rm -rf "$fake"
+}
+# expect_gate_inconclusive <reason> — every gate question of the plan counts
+# "inconclusive", and the "R9 gate:" line carries the reason
+expect_gate_inconclusive() {
+  local q n=0
+  expect_has "R9 gate: inconclusive — $1" || return 1
+  for q in $(bash "$DETECT" --plan --rules "$RULES" | awk -F'\t' '$3 == "gate" { sub(/^Q/, "", $2); print $2 }'); do
+    expect_count R9 "$q" inconclusive || return 1
+    n=$((n + 1))
+  done
+  (( n > 0 )) || { bad "the plan has no gate question"; return 1; }
+}
+
 # ---------- fixture builders ----------
 # The scope list: every source file of the row's language under $REPO.
 write_scope() {
@@ -296,15 +319,43 @@ expect_exit 0 && { cmp -s "$BUNDLE/first.tsv" "$BUNDLE/counts.tsv" || bad "count
   && cmp -s "$BUNDLE/first.tsv" "$BUNDLE/counts.tsv" && ok
 finish
 
-begin "a gate that fails under --gate-budget fails the run (exit 2)"
+begin "a gate that fails (exit 2) makes its questions inconclusive; the rest of the pass runs"
 mk_repo; : > "$BUNDLE/dirs.txt"
-FAKE=$(mktemp -d)
-cp "$DETECT" "$FAKE/ldd-detect.sh"
-printf '#!/usr/bin/env bash\necho "check-repo-brain: internal scanner error"\nexit 2\n' > "$FAKE/check-repo-brain.sh"
-OUT=$(cd "$REPO" && bash "$FAKE/ldd-detect.sh" --rules "$RULES" --gate-budget 30 --root . "$BUNDLE" 2>"$BUNDLE/.stderr"); CODE=$?
-ERR=$(cat "$BUNDLE/.stderr"); rm -f "$BUNDLE/.stderr"
-expect_exit 2 && expect_has "the R9 gate failed to run" && ok
-rm -rf "$FAKE"
+run_stub_gate 'echo "check-repo-brain: internal scanner error — the declaration scan failed" >&2; exit 2'
+expect_exit 0 && expect_gate_inconclusive "the gate failed (exit 2): check-repo-brain: internal scanner error — the declaration scan failed" \
+  && expect_count R10 5 2 && expect_count R5 1 '>=1' && ok
+finish
+
+begin "a gate that fails under --gate-budget makes its questions inconclusive"
+mk_repo; : > "$BUNDLE/dirs.txt"
+run_stub_gate 'echo "check-repo-brain: internal scanner error" >&2; exit 2' --gate-budget 30
+expect_exit 0 && expect_gate_inconclusive "the gate failed (exit 2): check-repo-brain: internal scanner error" \
+  && expect_count R10 5 2 && ok
+finish
+
+begin "a gate that stops on an unbound variable (exit 1, no summary) makes its questions inconclusive"
+mk_repo
+run_stub_gate 'echo "check-repo-brain: scope — 1 doc(s) to check"; set -u; echo "$no_such_variable"; echo "check-repo-brain: clean"'
+expect_exit 0 && expect_gate_inconclusive "the gate failed (exit 1): " \
+  && expect_has "no_such_variable: unbound variable" && expect_not "R9 gate: scoped" && expect_count R10 5 2 && ok
+finish
+
+begin "a gate killed by a signal makes its questions inconclusive"
+mk_repo; : > "$BUNDLE/dirs.txt"
+run_stub_gate 'kill -TERM $$'
+expect_exit 0 && expect_gate_inconclusive "the gate failed (exit 143): no error message" && expect_count R10 5 2 && ok
+finish
+
+begin "a gate that exits 1 with no violation summary makes its questions inconclusive"
+mk_repo; : > "$BUNDLE/dirs.txt"
+run_stub_gate 'echo "  [Q1] docs/orphan.md — half a report — see docs/conventions.md" >&2; exit 1'
+expect_exit 0 && expect_gate_inconclusive "the gate failed (exit 1): no error message" && expect_count R10 5 2 && ok
+finish
+
+begin "a gate that exits 1 after its violation summary is a result, not a failure"
+mk_repo; : > "$BUNDLE/dirs.txt"
+run_stub_gate 'echo "  [Q1] docs/orphan.md — orphan — see docs/conventions.md" >&2; echo "check-repo-brain: 1 violation(s) — rules: <docroot>/conventions.md" >&2; exit 1'
+expect_exit 0 && expect_count R9 1 1 && expect_not "inconclusive" && ok
 finish
 
 begin "a --gate-budget with no value is a usage error (exit 2)"

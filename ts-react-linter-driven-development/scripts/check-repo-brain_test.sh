@@ -445,6 +445,18 @@ run_gate
 expect_exit 1 && expect_has "backticked \`SnapshotRunner\` does not resolve" && expect_not "\`Policy\` does not resolve" && ok
 finish
 
+begin "a failed declaration scan is an internal error (exit 2), never clean"
+mk_conformant
+mk_doc ghost "a ghost symbol" "Uses \`SnapshotRunner\` and \`Policy\`."
+append_index "- [ghost.md](ghost.md) — a ghost symbol"
+fakebin=$(mktemp -d)
+printf '#!/bin/sh\n[ "$*" = "-u" ] && { cat >/dev/null; exit 3; }\nexec %s "$@"\n' "$(command -v sort)" > "$fakebin/sort"
+chmod +x "$fakebin/sort"
+OUT=$(cd "$REPO" && PATH="$fakebin:$PATH" bash "$GATE" . 2>"$REPO/.stderr"); CODE=$?
+ERR=$(cat "$REPO/.stderr"); rm -f "$REPO/.stderr"; rm -rf "$fakebin"
+expect_exit 2 && expect_has "internal scanner error" && expect_not "check-repo-brain: clean" && ok
+finish
+
 begin "Q2 grouped declarations and methods resolve"
 mk_conformant
 mk_doc decls "declaration shapes" "Constants \`DefaultAttempts\`; sentinels \`ErrExhausted\` and \`ErrCancelled\`; method \`Policy.Do\`; bare method \`Do\`."

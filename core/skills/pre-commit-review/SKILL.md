@@ -85,13 +85,17 @@ or cites a symbol the diff removes it checks only those links and symbols; and i
 checks the code edges of the scope's own files — an orphan doc elsewhere, a citing
 doc's older drift or an unwired root is the repository's state, for a `--all` review or BROADER CONTEXT, never this diff's finding. The line
 `R9 gate: …` under the summary says which docs the gate checked. A gate row whose
-hits cell is `inconclusive` means the gate ran out of its `--gate-budget`: it is not
-a `0`, and the documentation hunter answers that question from the prose. When the
-detection script exits 2 instead — a pattern its grep rejects, the R9 gate failing to
-run, a scope in which no file matches the source glob — the review did not run: report its message, spawn nothing, and never render a
+hits cell is `inconclusive` means the gate gave no verdict: it ran out of its
+`--gate-budget`, or it failed, and then the line reads `R9 gate: inconclusive — the
+gate failed (exit <n>): <its first error line>`. An `inconclusive` row is never a
+`0` and never clean: the review goes on, and the documentation hunter answers that
+question from R9's prose. When the detection script exits 2 instead — a pattern its
+grep rejects, a scope in which no file matches the source glob — the review did not
+run: report its message, spawn nothing, and never render a
 rule as `skipped` or compose the pass by hand. A rule family none of whose rules has
 a hit — `0` on every row of theirs that is not `judgment` — is skipped: no hunter for
-it.
+it. An `inconclusive` row counts as a hit: a family line that reads `0 hit(s) …, 4
+inconclusive` gets its hunter.
 
 {{include "skills/pre-commit-review/nolint-finding.md"}}
 
@@ -137,7 +141,9 @@ families:
 | documentation | R9 | comments and the documentation network — runs beside the comment-critic (step 3b) |
 
 A family none of whose rules had a hit gets no hunter — its `judgment` rows alone
-spawn nothing; step 1's four family lines say which families did. A family with a
+spawn nothing; step 1's four family lines say which families did. An `inconclusive`
+gate row is a hit: the documentation family gets its hunter even when every other
+R9 row is `0`. A family with a
 hit gets one hunter carrying **every rule file of the family**, the hitless ones
 included: their `judgment` questions are read on the ground the family's hits name,
 and their mechanical questions receipt `0 hit(s)`. Each spawn prompt MUST contain:
@@ -156,7 +162,8 @@ and their mechanical questions receipt `0 hit(s)`. Each spawn prompt MUST contai
    rules, pasted from step 1's print (about two dozen lines for a four-rule family).
    The counts are the hunter's receipts: it judges every hit the table counted, runs
    each `judgment` question as its rule's prose says, and returns one receipt per
-   question carrying the table's number.
+   question carrying the table's number. When the family has an `inconclusive` row,
+   the prompt also carries step 1's `R9 gate: …` line, so the hunter knows why.
 4. **The overflow rows**, when the family has any: a row whose file is `-` and whose
    excerpt reads `+N more hit(s) not listed` is a question capped in `hits.tsv`. The
    prompt names each (`R9 Q4: 55 more hits than listed`) and says where the rest are:
@@ -322,6 +329,12 @@ once, now. The contract it spells out, kept whatever the scope:
   verbatim in that rule's place in the header — never as `skipped`, never as a clean
   tally, never dropped — and the Scope line reads `PARTIAL coverage`; a rule that had
   hits and was not hunted is coverage the review did not have.
+- **A gate that failed is named.** When step 1's `R9 gate:` line reads `inconclusive
+  — the gate failed …`, the header carries it verbatim after the `Hunters:` line, so
+  the script's defect gets a fix: `R9 gate: inconclusive — the gate failed (exit 2):
+  <its first error line> — gate questions answered from the prose`. The hunter's
+  `inconclusive` receipts and its `gate disproved:` lines render verbatim beside the
+  R9 tally.
 - Fix routing cites each rule's **Fix pattern**; out-of-scope observations go under
   BROADER CONTEXT; the report ends `Caller decides: commit as-is · fix 🔴 first · fix
   all. Findings are advisory.` **The report is the message** that ends the review —

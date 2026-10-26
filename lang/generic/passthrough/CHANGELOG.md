@@ -133,6 +133,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **A failed documentation gate no longer stops the review.** When
+  `check-repo-brain.sh` fails — an exit other than 0 or 1, or an exit 1 with no
+  violation summary — the detection pass marks the gate's questions
+  `inconclusive`, prints the gate's first error line on its `R9 gate:` line, and
+  runs the rest of the pass. The documentation hunter then answers those
+  questions from R9's prose, and the report names the failed gate. A gate stopped
+  by a signal or by an unbound variable is also a failure; before, such a run
+  read as clean. Run alone, the gate still exits 2 on an internal failure.
+- **Gate verdicts are evidence to check.** Before the documentation hunter
+  reports a "does not resolve" line as a finding, it searches the whole
+  repository for the symbol. A verdict the search disproves becomes a
+  `gate disproved:` line in the report, not a finding. The documentation skill
+  checks the gate's lines the same way, and when the gate fails during its
+  self-check, it does the R9 checks by reading and says so in its report.
 - **House rule A1 names the lint-setup skill.** The skill is the one place that
   adds a tool or a linter rule, and it adds one only after the user agrees.
 - **One set of thresholds.** The skills and routing tables name the same limits the

@@ -99,7 +99,12 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    root, bundle contract — the repo's `scripts/check-repo-brain.sh` runs all four
    in one pass when installed), Q4–Q6 over the diff (WHAT-comments, naked exported
    API, silently-changed doc). The detection commands live in R9; never restate
-   them. Fix every hit before reporting.
+   them. Fix every hit before reporting. The script is evidence, not the last word:
+   before a "does not resolve" line becomes a fix, grep the repository for the
+   symbol, and a line the grep disproves is reported as a gate defect, not fixed.
+   When the script fails — an exit other than 0 or 1, or an exit 1 with no
+   violation summary — its silence is not clean: run Q1–Q3 and Q7 by reading, with
+   R9's Detection prose, and say so in the report.
 7. **Comment critique**: spawn the `go-linter-driven-development:comment-critic` agent (Agent tool) on the full diff —
    not just the comments this run wrote; in-body comments left by earlier phases
    are in scope too. Its spawn prompt MUST contain: (a) the absolute path of
@@ -158,7 +163,9 @@ unless an R9 Q6 check shows a doc citing the reshaped code.
    doc (its ⚠️ index flag is the finding), and skip — as a reported gap — any doc
    whose anchor you cannot identify with confidence.
 7. **Confirm and report**: re-run R9 Q1–Q3 and Q7 as confirmation — via the
-   installed script — a Q1 hit (a doc with no index line) means step 3 didn't land,
+   installed script; when it fails (an exit other than 0 or 1, or an exit 1 with no
+   violation summary), run the four checks by reading, with R9's Detection
+   prose, and report the failure — a Q1 hit (a doc with no index line) means step 3 didn't land,
    a Q3 hit means step 4 didn't, a Q7 hit means step 2 or 5 didn't; repair any
    before reporting, and verify every edge added in step 6 resolves. The ADVISORY
    findings list carries Q2 hits plus rung-2 gaps (two-signal criterion in
@@ -186,6 +193,8 @@ Network edges added:
 
 R9 self-check: Q1–Q3, Q7 clean · Q4–Q6 clean over diff
   (or per hit: <Qn>: <evidence> — fixed by <R9 fix-pattern move>)
+  (when the script failed: gate failed (<its first error line>) — Q1–Q3, Q7 checked by reading)
+  (per gate line a grep disproved: gate disproved: <Qn> <file> — <what the repository shows>)
 
 Comment critic: <N> reviewed — <D> deleted · <T> trimmed · <R> rewritten ·
   clean on re-critique (or: <remaining verdicts, reported as-is>)
@@ -205,6 +214,7 @@ Frontmatter: <N> verified, <M> added
 Root wiring: CLAUDE.md @import <added/verified> · AGENTS.md routing block <added/verified>
 Conventions: <docroot>/conventions.md <created/verified>
 Check script: scripts/check-repo-brain.sh <installed/verified> — suggest CI: bash scripts/check-repo-brain.sh
+Confirmation: Q1–Q3, Q7 <clean via the script | checked by reading — gate failed (<its first error line>)>
 Upward edges: <K> wired — <doc> ← <anchor symbol> (<package>), ...
 
 Advisory findings (reported, not fixed — FEATURE mode writes content):
