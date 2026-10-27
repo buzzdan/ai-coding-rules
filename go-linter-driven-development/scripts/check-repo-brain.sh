@@ -951,7 +951,8 @@ check_bundle() { # <project-dir> <docroot>
     if (( ! wired_claude && ! wired_agents )); then
       local via_root=0
       if [[ "$proj" != "." && -n "$ROOT_BUNDLE" ]]; then
-        grep -rqF -- "$docroot/index.md" "$ROOT_BUNDLE" --include='*.md' 2>/dev/null && via_root=1
+        grep -rqF --include='*.md' --exclude="$NL_PATH" --exclude-dir="$NL_PATH" \
+          -- "$docroot/index.md" "$ROOT_BUNDLE" 2>/dev/null && via_root=1
       fi
       if (( ! via_root )); then
         fail "[Q3] $proj — neither $claude nor $agents references $rel/index.md"

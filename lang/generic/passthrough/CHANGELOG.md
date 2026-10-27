@@ -245,7 +245,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   error", the gate exited 2, and Q1 reported two false orphans. The gate now
   skips each doc, code file and project marker whose path holds a newline, and
   prints one advisory line for each, with the newline shown as `\n`. No markdown
-  link can reach such a doc, so the gate cannot check it. A project marker whose
+  link can reach such a doc, so the gate cannot check it. Such a doc also does
+  not wire a sub-project root for Q3. The Q3 scan of the repo-root doc root reads
+  only its `.md` files: grep read the `--include` option after `--` as a file name. A project marker whose
   path holds a newline also does not select the language of the repository.
 
 - **The repo-brain gate does not read installed dependencies.** The symbol

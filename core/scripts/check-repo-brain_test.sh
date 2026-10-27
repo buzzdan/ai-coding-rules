@@ -330,6 +330,16 @@ run_gate
 expect_exit 0 && expect_not "[Q3] svc" && ok
 finish
 
+begin "Q3 a doc whose path holds a newline does not wire a sub-project root"
+mk_conformant
+mkdir -p "$REPO/svc/docs"
+fx_write_marker "$REPO/svc" svc
+printf -- '---\nokf_version: "0.2"\n---\n# svc map\n' > "$REPO/svc/docs/index.md"
+mk_doc "release"$'\n'"notes" "release notes" "The svc map is svc/docs/index.md."
+run_gate
+expect_exit 1 && expect_has "[Q3] svc — neither" && ok
+finish
+
 # --- Q7 bundle contract ---
 begin "Q7 content doc without frontmatter is reported"
 mk_conformant
