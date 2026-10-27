@@ -377,7 +377,7 @@ finish
 
 begin "a question tag inside a path in a gate line is not a hit for that question"
 mk_repo; : > "$BUNDLE/dirs.txt"
-run_stub_gate 'echo "  advisory: docs/[Q2]release\nnotes.md — the path holds a newline; the gate does not check this file"
+run_stub_gate 'echo "  advisory: skip: [Q2] release\nnotes.md — the path holds a newline; the gate does not check this file"
 echo "  advisory: [Q3] AGENTS.md lacks the docs/index.md routing reference"
 echo "  [Q1] docs/[Q7]old.md — orphan — see docs/conventions.md" >&2
 echo "check-repo-brain: 1 violation(s) — rules: <docroot>/conventions.md" >&2; exit 1'

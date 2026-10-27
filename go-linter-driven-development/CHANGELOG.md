@@ -208,7 +208,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   split the repo-brain gate's output by a `[Qn]` tag anywhere in the line. A file
   named `docs/[Q2]notes.md` therefore added a false Q2 row to `hits.tsv` and
   `counts.tsv`. The detection pass now reads only a tag that opens the line, with
-  or without the `advisory:` prefix.
+  or without the `advisory:` prefix. The gate's advisory line for a skipped path
+  starts with `skip:`, so a path that starts with a tag does not open the line.
 
 - **A path that holds a newline does not stop the repo-brain gate.** The gate
   reads its file lists one path per line. A doc named `docs/release` + newline +

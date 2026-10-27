@@ -193,7 +193,7 @@ note() { echo "  advisory: $1"; }
 # ---------- paths that hold a newline: skipped, one advisory line each ----------
 while IFS= read -r -d '' p; do
   p="${p#./}"
-  note "${p//$NL/\\n} — the path holds a newline; the gate does not check this file"
+  note "skip: ${p//$NL/\\n} — the path holds a newline; the gate does not check this file"
 done < <(for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md' -path "$NL_PATH" -print0; done
          lang_newline_files)
 

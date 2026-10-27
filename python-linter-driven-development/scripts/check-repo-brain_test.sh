@@ -1019,16 +1019,18 @@ run_gate
 expect_exit 1 && expect_count "code edge points at missing docs/guide.md" 1 && ok
 finish
 
-begin "a doc, a code file and a project marker whose paths hold a newline are skipped with one advisory line each"
+begin "a doc, a code file and a project marker whose paths hold a newline are skipped with one advisory line each, and no line opens with a question tag"
 mk_conformant
 NL=$'\n'
 mk_doc "release${NL}notes" "release notes" "Uses \`MissingThing\` at $FX_CODE_FILE:12."
-printf '%s See docs/missing.md\n' "$FX_COMMENT" > "$REPO/$(dirname "$FX_CODE_FILE")/new${NL}line.${FX_CODE_FILE##*.}"
+printf '%s See docs/missing.md\n' "$FX_COMMENT" > "$REPO/[Q2] new${NL}line.${FX_CODE_FILE##*.}"
 mkdir -p "$REPO/sv${NL}c/docs"; fx_write_marker "$REPO/sv${NL}c" svc
 run_gate
 expect_exit 0 && expect_count "the path holds a newline; the gate does not check this file" 3 \
   && expect_has "docs/release\\nnotes.md — the path holds a newline" && expect_not "internal scanner error" \
-  && expect_not "orphan" && expect_not "[Q2]" && ok
+  && expect_has "advisory: skip: [Q2] new\\nline." && expect_not "orphan" \
+  && { ! printf '%s\n%s\n' "$OUT" "$ERR" | grep -qE '^[[:space:]]*(advisory: )?\[Q[0-9]+\] ' || bad "a skipped path opens a line with a question tag"; } \
+  && ! printf '%s\n%s\n' "$OUT" "$ERR" | grep -qE '^[[:space:]]*(advisory: )?\[Q[0-9]+\] ' && ok
 finish
 
 begin "Q7 a quoted description matches its unquoted index line"
