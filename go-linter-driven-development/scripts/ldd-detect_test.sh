@@ -638,6 +638,17 @@ run_stub_gate 'echo "  [Q1] docs/orphan.md — orphan — see docs/conventions.m
 expect_exit 0 && expect_count R9 1 1 && expect_not "inconclusive" && ok
 finish
 
+begin "a question tag inside a path in a gate line is not a hit for that question"
+mk_repo; : > "$BUNDLE/dirs.txt"
+run_stub_gate 'echo "  advisory: docs/[Q2]release\nnotes.md — the path holds a newline; the gate does not check this file"
+echo "  advisory: [Q3] AGENTS.md lacks the docs/index.md routing reference"
+echo "  [Q1] docs/[Q7]old.md — orphan — see docs/conventions.md" >&2
+echo "check-repo-brain: 1 violation(s) — rules: <docroot>/conventions.md" >&2; exit 1'
+expect_exit 0 && expect_count R9 1 1 && expect_count R9 2 0 && expect_count R9 3 1 && expect_count R9 7 0 \
+  && { grep -q "^R9	1	gate	docs/\[Q7\]old.md	" "$BUNDLE/hits.tsv" || bad "no R9 Q1 hit row for docs/[Q7]old.md"; } \
+  && grep -q "^R9	1	gate	docs/\[Q7\]old.md	" "$BUNDLE/hits.tsv" && ok
+finish
+
 begin "a --gate-budget with no value is a usage error (exit 2)"
 mk_repo
 OUT=$(cd "$REPO" && bash "$DETECT" --root . "$BUNDLE" --gate-budget 2>&1); CODE=$?; ERR=""

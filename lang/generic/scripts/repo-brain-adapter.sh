@@ -36,11 +36,11 @@
 detect_language() {
   if [[ -f go.mod ]]; then printf 'go\n'; return; fi
   if [[ -f pyproject.toml || -f setup.cfg || -f setup.py ]]; then printf 'python\n'; return; fi
-  if find . -name go.mod -not -path '*/vendor/*' -not -path './.git/*' -print -quit 2>/dev/null | grep -q .; then
+  if find . -name go.mod -not -path '*/vendor/*' -not -path './.git/*' -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .; then
     printf 'go\n'; return
   fi
   if find . \( -name pyproject.toml -o -name setup.cfg -o -name setup.py \) \
-       -not -path '*/.venv/*' -not -path '*/node_modules/*' -not -path './.git/*' -print -quit 2>/dev/null | grep -q .; then
+       -not -path '*/.venv/*' -not -path '*/node_modules/*' -not -path './.git/*' -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .; then
     printf 'python\n'; return
   fi
   printf 'unknown\n'

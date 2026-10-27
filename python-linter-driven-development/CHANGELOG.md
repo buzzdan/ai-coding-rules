@@ -205,6 +205,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   correct `module.NAME` citation as "does not resolve". The program now matches
   these assignments under BWK awk, gawk and every mawk.
 
+- **A question tag inside a path is not a detection hit.** The detection pass
+  split the repo-brain gate's output by a `[Qn]` tag anywhere in the line. A file
+  named `docs/[Q2]notes.md` therefore added a false Q2 row to `hits.tsv` and
+  `counts.tsv`. The detection pass now reads only a tag that opens the line, with
+  or without the `advisory:` prefix.
+
 - **A path that holds a newline does not stop the repo-brain gate.** The gate
   reads its file lists one path per line. A doc named `docs/release` + newline +
   `notes.md` split into two paths: the doc scan failed with "internal scanner
