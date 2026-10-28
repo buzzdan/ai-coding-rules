@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # evals.sh — run the behavioral evals against this checkout's Go plugin.
 #
-# The evals live in buzzdan/ldd-evals. This script shallow-clones that
+# The evals live in weka/ldd-evals. This script shallow-clones that
 # repository into .evals/ (ignored) or pulls it, then hands off to its
 # Taskfile with PLUGIN set to this checkout's plugin directory — as an
 # environment variable, which every task in the suite sees, unlike a
@@ -12,7 +12,7 @@
 #   e.g. bash scripts/evals.sh TIER=cheap CAP=1 CASE='trigger-*'     # smoke, cents
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
-repo=https://github.com/buzzdan/ldd-evals.git
+repo=https://github.com/weka/ldd-evals.git
 if [[ -d "$root/.evals/.git" ]]; then
   git -C "$root/.evals" pull -q --ff-only
 else

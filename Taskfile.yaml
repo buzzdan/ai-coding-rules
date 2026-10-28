@@ -68,6 +68,6 @@ tasks:
       - bash scripts/check-docs.sh {{.CLI_ARGS}}
 
   evals:run:
-    desc: "Run the behavioral evals from buzzdan/ldd-evals against this checkout. Spends money. Vars after --: TIER= CAP= CASE="
+    desc: "Run the behavioral evals from weka/ldd-evals against this checkout. Spends money. Vars after --: TIER= CAP= CASE="
     cmds:
       - bash scripts/evals.sh {{.CLI_ARGS}}

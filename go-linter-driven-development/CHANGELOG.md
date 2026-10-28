@@ -133,6 +133,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The repository is `weka/linter-driven-development`, and the marketplace is `ldd`.**
+  Install with `/plugin marketplace add weka/linter-driven-development`, then
+  `/plugin install go-linter-driven-development@ldd`. To get updates,
+  remove the `ai-coding-rules` marketplace, then add the new one.
+
 - **A failed documentation gate no longer stops the review.** When
   `check-repo-brain.sh` fails — an exit other than 0 or 1, or an exit 1 with no
   violation summary — the detection pass marks the gate's questions
@@ -822,7 +827,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
   eval cases in the `claude plugin eval` format that run the plugin against a
   deliberately bad Go service planting every R1–R12 falsifying question at least
   once, with a control per rule. The cases, fixture, runner and baselines live in
-  the separate [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)
+  the separate [weka/ldd-evals](https://github.com/weka/ldd-evals)
   repository so an installed plugin carries none of them. This repository keeps
   `evals/README.md` as a pointer, `scripts/evals.sh` to clone and run a tier
   against the current checkout, and `docs/` describing the mechanism. Two
@@ -1274,11 +1279,11 @@ Initial release as a Claude Code plugin: five-phase linter-driven workflow (desi
 
 Notable unversioned improvements between 1.0.0 and 2.0.0: auto-pilot mode and review agent commands, evidence-based review with test-only interface detection, self-validation ownership rule, improved lint-failure flow, and making the package-size hook opt-in.
 
-[2.6.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.6.0
-[2.5.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.5.0
-[2.4.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.4.0
-[2.3.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.3.0
-[2.2.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.2.0
-[2.1.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.1.0
-[2.0.0]: https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0
-[1.0.0]: https://github.com/buzzdan/ai-coding-rules/commit/746ae7d
+[2.6.0]: https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.6.0
+[2.5.0]: https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.5.0
+[2.4.0]: https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.4.0
+[2.3.0]: https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.3.0
+[2.2.0]: https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.2.0
+[2.1.0]: https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.1.0
+[2.0.0]: https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.0.0
+[1.0.0]: https://github.com/weka/linter-driven-development/commit/746ae7d

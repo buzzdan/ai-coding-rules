@@ -13,24 +13,26 @@ and writes each tier to `OUT/<tier>`). Regrade once after calibration so every
 `baselines/<lang>-<plugin version>-<plugin sha>/` in the evals repository (`NAME=`
 overrides the directory when the plugin and the fixture differ in language:
 `generic-gomini-…`, `generic-pymini-…`) with the
-verdicts, every trace in one `traces.tar.zst`, the plugin pin in `plugin.json`, and
-a README stub with the per-case table pre-filled. Finish the README with the
+verdicts, every trace in one local `traces.tar.zst`, the plugin pin in `plugin.json`,
+and a README stub with the per-case table pre-filled. Finish the README with the
 findings, the noise floor and every grader change made after the run, and commit.
-Traces compress well and are what makes later calibration free; the scaffolds are
-not committed, so graders that read the tree cannot be regraded from a clone.
+The trace archive is not committed, because a trace can hold data from the machine
+that ran it: put it at the same path in the private `weka/ldd-evals-traces`
+repository. The traces make later calibration free; the scaffolds are not kept,
+so graders that read the tree cannot be regraded from a clone.
 
 The Go suite's current baseline measures plugin 2.13.2 at b56f79b, the close of the
 token-budget stages, and lives in the evals repository at
-[`baselines/go-2.13.2-b56f79b/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.13.2-b56f79b);
+[`baselines/go-2.13.2-b56f79b/`](https://github.com/weka/ldd-evals/tree/main/baselines/go-2.13.2-b56f79b);
 its README compares it case by case with the earlier
-[`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f),
+[`baselines/go-2.11.0-c78b55f/`](https://github.com/weka/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f),
 carries the first spend section, and names the reading guide for the next comparison:
 one grader on a scoped review is noise and the same grader missing in both runs is a
 signal, the whole-repository review inside 104 to 109 of 114 is noise, a refactor case
 needs a second run before a change of up to three graders is read, and any change on a
 case that has never flipped is a signal. The generic
 plugin's floor on the same fixture is
-[`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
+[`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/weka/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
 compared with it grader by grader. The Python suite's first baseline is that same
 generic plugin over py-mini, and its README adds the parity report: per rule, recall
 on py-mini against recall on go-mini under one plugin, so the rules with a large gap

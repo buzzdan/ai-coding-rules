@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/render"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/binding"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/render"
 )
 
 const profileYAML = `plugin: p-plugin

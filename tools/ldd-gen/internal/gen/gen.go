@@ -15,12 +15,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/check"
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/detect"
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/profile"
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/render"
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/residue"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/binding"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/check"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/detect"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/profile"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/render"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/residue"
 )
 
 const (

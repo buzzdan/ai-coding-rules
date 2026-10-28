@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/check"
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/render"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/check"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/render"
 )
 
 func none(string) bool { return false }

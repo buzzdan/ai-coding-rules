@@ -39,7 +39,7 @@ linters:
     wrapcheck:
       # Errors from this module's own packages already carry their context.
       ignore-package-globs:
-        - github.com/buzzdan/ai-coding-rules/tools/ldd-gen/*
+        - github.com/weka/linter-driven-development/tools/ldd-gen/*
     revive:
       rules:
         - name: argument-limit

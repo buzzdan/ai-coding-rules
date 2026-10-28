@@ -178,13 +178,13 @@ command. Installed side by side, both do the same structural work.
 ## Installation
 
 ```
-/plugin marketplace add buzzdan/ai-coding-rules
-/plugin install linter-driven-development@ai-coding-rules
+/plugin marketplace add weka/linter-driven-development
+/plugin install linter-driven-development@ldd
 ```
 
 Verify with `/plugin list`; it should show `linter-driven-development (enabled)`.
 
-**First steps:** [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) — the scenario guide, easiest start first.
+**First steps:** [docs/quick-start.md](https://github.com/weka/linter-driven-development/blob/main/docs/quick-start.md) — the scenario guide, easiest start first.
 
 ## How Auto-Detection Works
 
@@ -200,7 +200,7 @@ installed, Claude detects that the skill applies and asks for permission. Select
 ## Updating and uninstalling
 
 ```
-/plugin update linter-driven-development@ai-coding-rules
+/plugin update linter-driven-development@ldd
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions. To uninstall,
@@ -209,8 +209,8 @@ run `/plugin`, select "linter-driven-development" and choose "Uninstall".
 ## Need Help or Want to Contribute?
 
 Full details, the generator that renders this plugin from its core, and the Go
-plugin it shares that core with: the [main repository](https://github.com/buzzdan/ai-coding-rules).
-Found a bug or have an idea? [Open an issue](https://github.com/buzzdan/ai-coding-rules/issues).
+plugin it shares that core with: the [main repository](https://github.com/weka/linter-driven-development).
+Found a bug or have an idea? [Open an issue](https://github.com/weka/linter-driven-development/issues).
 
 ## License
 

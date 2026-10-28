@@ -11,7 +11,7 @@ the rules say. Before the plugin's text is restructured (a language-neutral core
 plus per-language bindings) and before its behavior is deliberately changed, there
 has to be a measurement of what it does today.
 
-**Solution**: the [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)
+**Solution**: the [weka/ldd-evals](https://github.com/weka/ldd-evals)
 repository holds behavioral test cases in the `claude plugin eval` file format, one
 suite per language under `<lang>/`. Each case gives a fresh copy of a deliberately
 bad service (go-mini in Go, py-mini in Python, ts-react-mini as its React frontend:
@@ -57,7 +57,7 @@ baselines is in [eval-baseline.md](eval-baseline.md).
 | `<lang>/scaffold/` | `default.sh` copies the fixture into a fresh git repo (and installs its dependencies for ts-react-mini); `red-lint.sh` also strips every suppression (`//nolint`; `# noqa`, `# type: ignore` and `# ty: ignore`; `eslint-disable`, `@ts-expect-error` and the `/* eslint … */` configuration comment); `gate-failed.sh` builds a small repository, not from the fixture, with one orphan doc, one unresolved symbol and an unwired root; its case sets `CHECK_REPO_BRAIN_FAULT`, so the review must find the three by reading |
 | `<lang>/cases/<case>/` | `prompt.md`, `graders/*.md`, `case.yaml`, optional `postcheck.sh`; `py/cases/suite.yaml` names the Python source and test globs |
 | `<lang>/postcheck/` | shared shell helpers, the fixture's original lint config and assertion counts, the hidden black-box suite (a Go test for go-mini, pytest for py-mini, a Vitest render test for ts-react-mini, one shared recording) |
-| `baselines/<lang>-<plugin version>-<plugin sha>/` | committed reference runs: verdicts, one `traces.tar.zst`, the plugin pin, the write-up |
+| `baselines/<lang>-<plugin version>-<plugin sha>/` | committed reference runs: verdicts, the plugin pin, the write-up; each run's `traces.tar.zst` is at the same path in the private `weka/ldd-evals-traces` repository |
 | `results/` | run output, ignored; a run is promoted to `baselines/` by hand |
 
 At run time the `go:cases` or `py:cases` task copies the cases, scaffold, postcheck
@@ -102,17 +102,17 @@ against the rebuilt service so any refactor is judged on preservation.
 ## Results so far
 The Go suite's current baseline measures plugin 2.11.0 at c78b55f, the close of Phase 2, and lives
 in the evals repository under
-[`baselines/go-2.11.0-c78b55f/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f)
+[`baselines/go-2.11.0-c78b55f/`](https://github.com/weka/ldd-evals/tree/main/baselines/go-2.11.0-c78b55f)
 with a write-up: cheap 22 of 29 runs pass, medium 5 of 10 (one pass; the noise floor
 reuses the two-pass measurement of the previous baseline plus the same-head swings
 observed during Phase 2), the whole-repository review at 104 and 103 of 111 in the runs
 that delivered a report. It compares every case with the previous reference,
-[`baselines/go-2.10.0-5828c34/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/go-2.10.0-5828c34)
+[`baselines/go-2.10.0-5828c34/`](https://github.com/weka/ldd-evals/tree/main/baselines/go-2.10.0-5828c34)
 (plugin 2.10.0, before Phase 2), and no case regressed. Both were recorded from a Claude
 Code on the web container so that every baseline shares one environment; the new one's
 findings drive the plugin's next changes, and the comparison procedure is in
 [eval-baseline.md](eval-baseline.md). The generic plugin's floor on go-mini,
-[`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
+[`baselines/generic-gomini-0.1.0-109b0db/`](https://github.com/weka/ldd-evals/tree/main/baselines/generic-gomini-0.1.0-109b0db),
 passes 21 of 29 cheap runs against the Go plugin's 22 with every scoped-review
 difference inside the noise floor. The Python suite has no baseline yet: its first
 run is the generic plugin over py-mini, and its README will carry the parity report,
@@ -121,10 +121,10 @@ first run was the comparison its `neutral` cases exist for: the hand-written 1.x
 plugin and the generated 2.0 plugin on the same fixture, graded only by anchors and
 the generated recall and precision graders, since the 1.x plugin has no commands
 and no report contract; its baseline is
-[`baselines/ts-react-2.0.0-b64f8a8/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/ts-react-2.0.0-b64f8a8),
+[`baselines/ts-react-2.0.0-b64f8a8/`](https://github.com/weka/ldd-evals/tree/main/baselines/ts-react-2.0.0-b64f8a8),
 the cheap tier against the merged plugin, whose README names the recall misses,
 the cluster-header inconsistency and the partial whole-repository coverage. The
 current baseline is
-[`baselines/ts-react-2.1.0-4077431/`](https://github.com/buzzdan/ldd-evals/tree/main/baselines/ts-react-2.1.0-4077431),
+[`baselines/ts-react-2.1.0-4077431/`](https://github.com/weka/ldd-evals/tree/main/baselines/ts-react-2.1.0-4077431),
 the 2.1.0 plugin with those fixes; its README reads each change against 2.0.0 and
 names the three suspects of the remaining coverage loss.

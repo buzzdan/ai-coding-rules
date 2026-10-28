@@ -133,6 +133,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The repository is `weka/linter-driven-development`, and the marketplace is `ldd`.**
+  Install with `/plugin marketplace add weka/linter-driven-development`, then
+  `/plugin install linter-driven-development@ldd`. To get updates,
+  remove the `ai-coding-rules` marketplace, then add the new one.
+
 - **A failed documentation gate no longer stops the review.** When
   `check-repo-brain.sh` fails — an exit other than 0 or 1, or an exit 1 with no
   violation summary — the detection pass marks the gate's questions

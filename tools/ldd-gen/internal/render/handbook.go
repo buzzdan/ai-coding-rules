@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/binding"
 )
 
 // The handbook is the standalone coding-rules document a team reads without

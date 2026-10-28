@@ -48,15 +48,15 @@ The same core rendered for a React single-page application in TypeScript: every 
 
 **Step 1: Add the marketplace**
 ```
-/plugin marketplace add buzzdan/ai-coding-rules
+/plugin marketplace add weka/linter-driven-development
 ```
 
 **Step 2: Install a plugin**
 ```
-/plugin install go-linter-driven-development@ai-coding-rules
-/plugin install python-linter-driven-development@ai-coding-rules
-/plugin install linter-driven-development@ai-coding-rules
-/plugin install ts-react-linter-driven-development@ai-coding-rules
+/plugin install go-linter-driven-development@ldd
+/plugin install python-linter-driven-development@ldd
+/plugin install linter-driven-development@ldd
+/plugin install ts-react-linter-driven-development@ldd
 ```
 
 **Verify:** `/plugin list` should show the plugin as `enabled`.
@@ -65,7 +65,7 @@ The same core rendered for a React single-page application in TypeScript: every 
 
 **Update later:**
 ```
-/plugin update go-linter-driven-development@ai-coding-rules
+/plugin update go-linter-driven-development@ldd
 ```
 
 ## Team Setup
@@ -75,7 +75,7 @@ Add the marketplace to your project's `.claude/settings.json` so it's known team
 ```json
 {
   "extraKnownMarketplaces": [
-    "buzzdan/ai-coding-rules"
+    "weka/linter-driven-development"
   ]
 }
 ```
@@ -87,13 +87,13 @@ Team members then install with the same `/plugin install` commands above.
 1. Clone the repo. All four plugin directories are generated, and so are `coding-rules/go.md`, `coding-rules/python.md`, `coding-rules/ts-react.md` and `coding-rules/generic.md`: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/`, `lang/ts-react/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python`, `task generate BINDING=ts-react` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory or a handbook drifts from its sources. How the pieces fit: [core/README.md](core/README.md), [docs/generator.md](docs/generator.md) and [docs/handbook.md](docs/handbook.md).
 2. Test locally by adding the checkout as a marketplace:
    ```
-   /plugin marketplace add ./ai-coding-rules
-   /plugin install go-linter-driven-development@ai-coding-rules
+   /plugin marketplace add ./linter-driven-development
+   /plugin install go-linter-driven-development@ldd
    ```
    After changes, uninstall/reinstall the plugin to pick them up.
 3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, TypeScript and React material in `lang/ts-react/`, the case studies' doctrine in `core/examples/` and their code sections in `lang/<lang>/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
-4. Behavior changes to the Go, Python and TypeScript + React plugins are measured, not eyeballed: behavioral evals run them on a deliberately bad fixture project (go-mini, py-mini, ts-react-mini) and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals); `scripts/evals.sh` runs them against this checkout.
-5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/buzzdan/ai-coding-rules/releases/tag/go-ldd-v2.0.0)).
+4. Behavior changes to the Go, Python and TypeScript + React plugins are measured, not eyeballed: behavioral evals run them on a deliberately bad fixture project (go-mini, py-mini, ts-react-mini) and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [weka/ldd-evals](https://github.com/weka/ldd-evals); `scripts/evals.sh` runs them against this checkout.
+5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.0.0)).
 
 ## License
 

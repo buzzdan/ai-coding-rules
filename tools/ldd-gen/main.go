@@ -22,7 +22,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/gen"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/gen"
 )
 
 func main() {
