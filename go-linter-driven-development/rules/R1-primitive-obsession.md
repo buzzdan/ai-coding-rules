@@ -20,7 +20,7 @@ into a leaf that unit-tests with literals. Where the extracted type then lives i
 
 ## Canonical example
 
-Real PR code (weka/goweka#951). `kubeService` wraps a Kubernetes Service DTO and must
+Real production code. `kubeService` wraps a Kubernetes Service DTO and must
 pick the management port: prefer the port named `weka-api`, else fall back to the
 first valid port.
 

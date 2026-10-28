@@ -63,7 +63,7 @@ Ready after tests? Run linter: `task lintwithfix`
 - Higher rungs (orchestrating types): cover the delta each rung adds — its seams and emergent behaviors
 - Critical workflows: top-rung (system) tests
 
-**Assertions**: testify is the default, but project convention wins (e.g. goweka uses stdlib assertions) — match the codebase you're in.
+**Assertions**: testify is the default, but project convention wins: if the codebase uses stdlib assertions, use them too.
 </philosophy>
 
 <composition_ladder>

@@ -38,26 +38,26 @@ import (
     pb "myproject/grpc_api/gen/go/traces/v1"
 )
 
-// TaskmonOnCluster is a rich gRPC client mock with DSL for testing gRPC servers.
+// AgentOnCluster is a rich gRPC client mock with DSL for testing gRPC servers.
 // It connects to your gRPC server and provides helper methods for assertions.
-type TaskmonOnCluster struct {
+type AgentOnCluster struct {
     clusterRoutingKey       string
-    taskmonID               string
+    agentID                 string
     stream                  pb.RemoteTracesService_StreamTracesClient
     mu                      sync.RWMutex
     receivedQuery           *pb.TracesQuery
     receivedQueriesPayloads []string
 }
 
-// OpenTaskmonToWekaHomeStream creates a gRPC client mock that connects to your server.
+// OpenAgentStream creates a gRPC client mock that connects to your server.
 // This is the constructor for the mock - returns a rich DSL object.
-func OpenTaskmonToWekaHomeStream(
+func OpenAgentStream(
     ctx context.Context,
     client pb.RemoteTracesServiceClient,
-    clusterRoutingKey, taskmonID string,
-) (*TaskmonOnCluster, error) {
+    clusterRoutingKey, agentID string,
+) (*AgentOnCluster, error) {
     // Inject metadata (like session tokens) into context
-    md := metadata.Pairs("X-Taskmon-session-token", clusterRoutingKey)
+    md := metadata.Pairs("X-Agent-session-token", clusterRoutingKey)
     ctx = metadata.NewOutgoingContext(ctx, md)
 
     // Open streaming connection to the server (your SUT)
@@ -66,21 +66,21 @@ func OpenTaskmonToWekaHomeStream(
         return nil, err
     }
 
-    return &TaskmonOnCluster{
+    return &AgentOnCluster{
         stream:                  stream,
         clusterRoutingKey:       clusterRoutingKey,
-        taskmonID:               taskmonID,
+        agentID:                 agentID,
         receivedQueriesPayloads: []string{},
     }, nil
 }
 
 // SessionToken returns the session token (useful for assertions)
-func (m *TaskmonOnCluster) SessionToken() string {
+func (m *AgentOnCluster) SessionToken() string {
     return m.clusterRoutingKey
 }
 
 // Close closes the stream (idempotent)
-func (m *TaskmonOnCluster) Close() {
+func (m *AgentOnCluster) Close() {
     if m.stream == nil {
         return
     }
@@ -89,7 +89,7 @@ func (m *TaskmonOnCluster) Close() {
 
 // ListenToStreamAndAssert is a helper that listens to server messages and asserts.
 // This makes tests read like documentation!
-func (m *TaskmonOnCluster) ListenToStreamAndAssert(
+func (m *AgentOnCluster) ListenToStreamAndAssert(
     t *testing.T,
     expectedQueryPayload,
     resultPayload string,
@@ -122,14 +122,14 @@ func (m *TaskmonOnCluster) ListenToStreamAndAssert(
 }
 
 // LastReceivedQuery returns the last received query (thread-safe)
-func (m *TaskmonOnCluster) LastReceivedQuery() *pb.TracesQuery {
+func (m *AgentOnCluster) LastReceivedQuery() *pb.TracesQuery {
     m.mu.RLock()
     defer m.mu.RUnlock()
     return m.receivedQuery
 }
 
 // ReceivedQueriesPayloads returns all received payloads (thread-safe)
-func (m *TaskmonOnCluster) ReceivedQueriesPayloads() []string {
+func (m *AgentOnCluster) ReceivedQueriesPayloads() []string {
     m.mu.RLock()
     defer m.mu.RUnlock()
     return m.receivedQueriesPayloads
@@ -214,24 +214,24 @@ func (suite *RemoteTracesTestSuite) TestStreamTraces() {
 
     // Create rich gRPC client mock (testutils DSL!)
     clusterRoutingKey := "test-cluster-123"
-    taskmonMock, err := testutils.OpenTaskmonToWekaHomeStream(
-        suite.ctx, client, clusterRoutingKey, "taskmon-1")
+    agentMock, err := testutils.OpenAgentStream(
+        suite.ctx, client, clusterRoutingKey, "agent-1")
     suite.Require().NoError(err)
-    defer taskmonMock.Close()
+    defer agentMock.Close()
 
     expectedQuery := "fetch_traces_query"
     expectedResult := "traces_result_data"
 
     // Start listening (this makes the test readable!)
-    go taskmonMock.ListenToStreamAndAssert(suite.T(), expectedQuery, expectedResult)
+    go agentMock.ListenToStreamAndAssert(suite.T(), expectedQuery, expectedResult)
 
     // Send query to server (via NATS or HTTP API)
     // ... your test logic here ...
 
     // Assert using helper methods
     suite.Eventually(func() bool {
-        return taskmonMock.LastReceivedQuery() != nil &&
-            string(taskmonMock.LastReceivedQuery().TracesQueryPayload) == expectedQuery
+        return agentMock.LastReceivedQuery() != nil &&
+            string(agentMock.LastReceivedQuery().TracesQueryPayload) == expectedQuery
     }, 5*time.Second, 500*time.Millisecond)
 }
 
@@ -242,7 +242,7 @@ func TestRemoteTracesTestSuite(t *testing.T) {
 
 ## Why This Pattern is Excellent
 
-1. **Rich DSL** - `OpenTaskmonToWekaHomeStream()` returns friendly object with helper methods
+1. **Rich DSL** - `OpenAgentStream()` returns friendly object with helper methods
 2. **Helper Methods** - `ListenToStreamAndAssert()`, `LastReceivedQuery()`, `ReceivedQueriesPayloads()`
 3. **Thread-Safe** - Mutex protects shared state for concurrent access
 4. **Readable Tests** - Tests read like documentation, clear intent
