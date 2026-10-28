@@ -195,7 +195,7 @@ command. Installed side by side, both do the same structural work.
 
 ```
 /plugin marketplace add weka/linter-driven-development
-/plugin install python-linter-driven-development@ldd
+/plugin install python-linter-driven-development@weka-ldd
 ```
 
 Verify with `/plugin list`; it should show `python-linter-driven-development (enabled)`.
@@ -215,7 +215,7 @@ Select "don't ask again for this skill in this directory" on first use.
 ## Updating and uninstalling
 
 ```
-/plugin update python-linter-driven-development@ldd
+/plugin update python-linter-driven-development@weka-ldd
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions. To uninstall,

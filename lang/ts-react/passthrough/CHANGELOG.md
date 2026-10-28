@@ -133,9 +133,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
-- **The repository is `weka/linter-driven-development`, and the marketplace is `ldd`.**
+- **The repository is `weka/linter-driven-development`, and the marketplace is `weka-ldd`.**
   Install with `/plugin marketplace add weka/linter-driven-development`, then
-  `/plugin install ts-react-linter-driven-development@ldd`. To get updates,
+  `/plugin install ts-react-linter-driven-development@weka-ldd`. To get updates,
   remove the `ai-coding-rules` marketplace, then add the new one.
 
 - **A failed documentation gate no longer stops the review.** When

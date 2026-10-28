@@ -53,10 +53,10 @@ The same core rendered for a React single-page application in TypeScript: every 
 
 **Step 2: Install a plugin**
 ```
-/plugin install go-linter-driven-development@ldd
-/plugin install python-linter-driven-development@ldd
-/plugin install linter-driven-development@ldd
-/plugin install ts-react-linter-driven-development@ldd
+/plugin install go-linter-driven-development@weka-ldd
+/plugin install python-linter-driven-development@weka-ldd
+/plugin install linter-driven-development@weka-ldd
+/plugin install ts-react-linter-driven-development@weka-ldd
 ```
 
 **Verify:** `/plugin list` should show the plugin as `enabled`.
@@ -65,7 +65,7 @@ The same core rendered for a React single-page application in TypeScript: every 
 
 **Update later:**
 ```
-/plugin update go-linter-driven-development@ldd
+/plugin update go-linter-driven-development@weka-ldd
 ```
 
 ## Team Setup
@@ -88,7 +88,7 @@ Team members then install with the same `/plugin install` commands above.
 2. Test locally by adding the checkout as a marketplace:
    ```
    /plugin marketplace add ./linter-driven-development
-   /plugin install go-linter-driven-development@ldd
+   /plugin install go-linter-driven-development@weka-ldd
    ```
    After changes, uninstall/reinstall the plugin to pick them up.
 3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, TypeScript and React material in `lang/ts-react/`, the case studies' doctrine in `core/examples/` and their code sections in `lang/<lang>/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).

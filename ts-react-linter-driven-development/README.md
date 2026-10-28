@@ -254,7 +254,7 @@ the same command. Installed side by side, all do the same structural work.
 
 ```
 /plugin marketplace add weka/linter-driven-development
-/plugin install ts-react-linter-driven-development@ldd
+/plugin install ts-react-linter-driven-development@weka-ldd
 ```
 
 Verify with `/plugin list`; it should show `ts-react-linter-driven-development (enabled)`.
@@ -298,7 +298,7 @@ user:
 ## Updating and uninstalling
 
 ```
-/plugin update ts-react-linter-driven-development@ldd
+/plugin update ts-react-linter-driven-development@weka-ldd
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions. To uninstall,

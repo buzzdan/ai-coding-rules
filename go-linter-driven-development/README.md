@@ -198,7 +198,7 @@ Design decisions aren't subjective — they're driven by measurable quality metr
 
 **Step 2: Install the plugin**
 ```
-/plugin install go-linter-driven-development@ldd
+/plugin install go-linter-driven-development@weka-ldd
 ```
 
 **Verify installation:**
@@ -301,7 +301,7 @@ If you have muscle memory for `quality-analyzer` or `go-code-reviewer`, the clos
 ## Updating
 
 ```
-/plugin update go-linter-driven-development@ldd
+/plugin update go-linter-driven-development@weka-ldd
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions — including the v2.0.0 breaking changes and migration notes.

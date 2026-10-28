@@ -179,7 +179,7 @@ command. Installed side by side, both do the same structural work.
 
 ```
 /plugin marketplace add weka/linter-driven-development
-/plugin install linter-driven-development@ldd
+/plugin install linter-driven-development@weka-ldd
 ```
 
 Verify with `/plugin list`; it should show `linter-driven-development (enabled)`.
@@ -200,7 +200,7 @@ installed, Claude detects that the skill applies and asks for permission. Select
 ## Updating and uninstalling
 
 ```
-/plugin update linter-driven-development@ldd
+/plugin update linter-driven-development@weka-ldd
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions. To uninstall,
