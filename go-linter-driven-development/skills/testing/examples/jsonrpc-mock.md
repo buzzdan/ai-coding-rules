@@ -145,7 +145,7 @@ func (m *JrpcTraceServerMock) createHTTPHandlers() *http.ServeMux {
 ### Setup in Test Suite
 
 ```go
-func (suite *TaskmonTestSuite) SetupSuite() {
+func (suite *AgentTestSuite) SetupSuite() {
     // Start in-memory JSON-RPC server mock (Level 1)
     suite.jrpcServerMock = testutils.StartJrpcTraceServerMock()
 
@@ -168,7 +168,7 @@ func (suite *TaskmonTestSuite) SetupSuite() {
     client := jrpc.NewClient(suite.jrpcServerMock.Address() + "/reader")
 }
 
-func (suite *TaskmonTestSuite) TearDownSuite() {
+func (suite *AgentTestSuite) TearDownSuite() {
     suite.jrpcServerMock.Close()
 }
 ```
@@ -176,9 +176,9 @@ func (suite *TaskmonTestSuite) TearDownSuite() {
 ### Test with Assertions
 
 ```go
-func (suite *TaskmonTestSuite) TestProtocolVersion() {
+func (suite *AgentTestSuite) TestProtocolVersion() {
     // Call your code that makes JSON-RPC requests
-    version, err := suite.taskmon.GetProtocolVersion()
+    version, err := suite.agent.GetProtocolVersion()
     suite.Require().NoError(err)
     suite.Equal("3.18.0", version.Version)
 
@@ -188,9 +188,9 @@ func (suite *TaskmonTestSuite) TestProtocolVersion() {
     suite.Equal("protocol", queries[0].Method)
 }
 
-func (suite *TaskmonTestSuite) TestGetTraces() {
+func (suite *AgentTestSuite) TestGetTraces() {
     // Call your code
-    traces, err := suite.taskmon.GetTraces()
+    traces, err := suite.agent.GetTraces()
     suite.Require().NoError(err)
     suite.Equal([]string{"trace1", "trace2"}, traces)
 
