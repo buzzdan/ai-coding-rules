@@ -752,8 +752,9 @@ run_gate() { # <rule> <q> <Qn>
   tab=$(printf '\t')
   # "[Qn] <file>[:line] — <message> — see <conventions>" becomes
   # "<file> TAB line TAB <message>"; the em dashes are split by sed, which
-  # matches bytes, so awk never counts multibyte characters.
-  grep -E "\[$qn\]" "$gate_out" \
+  # matches bytes, so awk never counts multibyte characters. The tag must open
+  # the line: a "[Qn]" inside a path is not a report line for that question.
+  grep -E "^[[:space:]]*(advisory: )?\[$qn\] " "$gate_out" \
     | sed -e 's/^[[:space:]]*//' -e "s/^\(advisory: \)\{0,1\}\[$qn\] /\1/" \
           -e 's/ — see [^—]*$//' -e "s/ — /$tab/" -e 's/^advisory: \([^\t]*\)\t/\1\tadvisory: /' \
     | awk -F'\t' '

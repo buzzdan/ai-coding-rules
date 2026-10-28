@@ -233,6 +233,16 @@ fx_adapter_cases() {
   expect_exit 0 && expect_not "does not resolve" && ok
   finish
 
+  begin "detected adapter: a go.mod whose path holds a newline does not select Go over a Python marker"
+  mkdir -p "$REPO/skip"$'\n'"me" "$REPO/service/docs"
+  printf 'module example.com/skip\n\ngo 1.22\n' > "$REPO/skip"$'\n'"me/go.mod"
+  printf '[project]\nname = "service"\n' > "$REPO/service/pyproject.toml"
+  printf -- '---\nokf_version: "0.2"\n---\n# Service map\n' > "$REPO/service/docs/index.md"
+  printf -- '---\ntype: guide\ndescription: an unlinked doc\n---\n# Orphan\n' > "$REPO/service/docs/orphan.md"
+  run_gate
+  expect_exit 1 && expect_has "[Q1] service/docs/orphan.md — orphan" && ok
+  finish
+
   ROW=python; use_row python
   begin "module-level assignments declare module-qualified names"
   mk_conformant

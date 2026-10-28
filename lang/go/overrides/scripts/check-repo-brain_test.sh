@@ -428,6 +428,15 @@ run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish
 
+begin "Q2 the whole-word fallback does not read a file whose path holds a newline"
+mk_conformant
+printf 'alerts:\n  - name: RetryBudgetExhausted\n' > "$REPO/alerts"$'\n'"old.yaml"
+mk_doc alerts "alert names" "Fires \`RetryBudgetExhausted\` when \`Policy\` gives up."
+append_index "- [alerts.md](alerts.md) — alert names"
+run_gate
+expect_exit 1 && expect_has "backticked \`RetryBudgetExhausted\` does not resolve" && ok
+finish
+
 begin "Q2 ALL-CAPS initialisms, placeholders, and dotted config names are skipped"
 mk_conformant
 mk_doc caps "skipped token shapes" "Set \`TTL\` and \`<docroot>\`; the linter config is \`.golangci.yaml\`; \`HTTP\` is fine."
@@ -469,6 +478,16 @@ printf -- '---\nokf_version: "0.2"\n---\n# svc map\n' > "$REPO/svc/docs/index.md
 append_index "- [svc/docs/index.md](../svc/docs/index.md) — svc sub-project map"
 run_gate
 expect_exit 0 && expect_not "[Q3] svc" && ok
+finish
+
+begin "Q3 a doc whose path holds a newline does not wire a sub-project root"
+mk_conformant
+mkdir -p "$REPO/svc/docs"
+printf 'module example.com/svc\n\ngo 1.22\n' > "$REPO/svc/go.mod"
+printf -- '---\nokf_version: "0.2"\n---\n# svc map\n' > "$REPO/svc/docs/index.md"
+mk_doc "release"$'\n'"notes" "release notes" "The svc map is svc/docs/index.md."
+run_gate
+expect_exit 1 && expect_has "[Q3] svc — neither" && ok
 finish
 
 # --- Q7 bundle contract ---
@@ -823,6 +842,16 @@ run_gate --scope "$LISTS/scope.txt"
 expect_exit 1 && expect_has "[Q7] docs/index.md:" && expect_has "drifted from retry-policy.md" && ok
 finish
 
+begin "--scope --words: a doc whose path holds a newline is skipped with one advisory line"
+mk_conformant
+NL=$'\n'
+mk_doc "release${NL}notes" "release notes" "Uses \`SnapshotRunner\`."
+printf '%s\n' retry/policy.go docs/retry-policy.md > "$LISTS/scope.txt"; printf 'SnapshotRunner\n' > "$LISTS/words.txt"
+run_gate --scope "$LISTS/scope.txt" --words "$LISTS/words.txt"
+expect_exit 0 && expect_has "scope — 2 doc(s) to check" && expect_count "the path holds a newline" 1 \
+  && expect_not "can't open" && expect_not "internal scanner error" && expect_not "SnapshotRunner" && ok
+finish
+
 rm -rf "$LISTS"
 
 # --- dependency and build-output directories, URLs in code, quoted descriptions, constants ---
@@ -955,6 +984,20 @@ printf '\n%s See docs/guide.md (https://github.com/x/y/blob/main/docs/guide.md).
   "//" >> "$REPO/retry/policy.go"
 run_gate
 expect_exit 1 && expect_count "code edge points at missing docs/guide.md" 1 && ok
+finish
+
+begin "a doc, a code file and a project marker whose paths hold a newline are skipped with one advisory line each, and no line opens with a question tag"
+mk_conformant
+NL=$'\n'
+mk_doc "release${NL}notes" "release notes" "Uses \`MissingThing\` at retry/policy.go:12."
+printf '// See docs/missing.md\n' > "$REPO/[Q2] new${NL}line.go"
+mkdir -p "$REPO/sv${NL}c/docs"; printf 'module example.com/svc\n' > "$REPO/sv${NL}c/go.mod"
+run_gate
+expect_exit 0 && expect_count "the path holds a newline; the gate does not check this file" 3 \
+  && expect_has "docs/release\\nnotes.md — the path holds a newline" && expect_not "internal scanner error" \
+  && expect_has "advisory: skip: [Q2] new\\nline." && expect_not "orphan" \
+  && { ! printf '%s\n%s\n' "$OUT" "$ERR" | grep -qE '^[[:space:]]*(advisory: )?\[Q[0-9]+\] ' || bad "a skipped path opens a line with a question tag"; } \
+  && ! printf '%s\n%s\n' "$OUT" "$ERR" | grep -qE '^[[:space:]]*(advisory: )?\[Q[0-9]+\] ' && ok
 finish
 
 begin "Q7 a quoted description matches its unquoted index line"

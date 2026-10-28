@@ -90,6 +90,10 @@
 #     and glob patterns (a span containing `*` is a pattern, not a citation).
 #   - fenced code blocks (``` or ~~~, indented up to 3 spaces; toggle, not
 #     length-matched) are skipped for symbol resolution and the file:line ban.
+#   - the gate skips a doc, code file or project marker whose path holds a
+#     newline, and prints one advisory line for each (the newline shows as \n).
+#     The gate's file lists hold one path per line, and no markdown link can
+#     reach such a doc. A --scope list cannot name such a path.
 #
 # Exit codes: 0 clean (or repo has no doc root yet — advisory no-op)
 #             1 one or more violations (details on stderr, summary last)
@@ -136,6 +140,11 @@ fi
 SCOPED=0
 [[ -n "$SCOPE_LIST" ]] && SCOPED=1
 
+# NL_PATH — a find(1) -path and grep --exclude pattern that matches a path
+# holding a newline. Every walker below and in the adapter skips such paths.
+NL=$'\n'
+NL_PATH="*${NL}*"
+
 {{include "scripts/repo-brain-adapter.sh"}}
 
 # ---------- doc-root discovery: repo root + every sub-project ----------
@@ -180,6 +189,13 @@ fail() {
   violations=$((violations + 1))
 }
 note() { echo "  advisory: $1"; }
+
+# ---------- paths that hold a newline: skipped, one advisory line each ----------
+while IFS= read -r -d '' p; do
+  p="${p#./}"
+  note "skip: ${p//$NL/\\n} — the path holds a newline; the gate does not check this file"
+done < <(for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md' -path "$NL_PATH" -print0; done
+         lang_newline_files)
 
 fixed=0
 # FIX_INDEX_LINE_AWK reads one index file and prints it whole. On line
@@ -342,11 +358,13 @@ repo_files() {
 # repo_words — the repository's distinct words (runs of [A-Za-z0-9_.$]) in
 # its non-markdown text files, one per line, read once per gate run and kept.
 # grep ends every file's last line, so two files never fuse into one word, and
-# skips binary files.
+# skips binary files. A file whose path holds a newline gives no words: the gate
+# does not check it.
 REPO_WORDS="$WORK/repo-words"
 repo_words() {
   if [[ ! -f "$REPO_WORDS" ]]; then
-    repo_files | xargs -0 grep -Ih -e '' -- 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.$' '\n' \
+    repo_files | while IFS= read -r -d '' f; do [[ "$f" == *"$NL"* ]] || printf '%s\0' "$f"; done \
+      | xargs -0 grep -Ih -e '' -- 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.$' '\n' \
       | LC_ALL=C awk '!seen[$0]++' > "$REPO_WORDS"
   fi
   cat "$REPO_WORDS"
@@ -496,7 +514,7 @@ $1 == "S" && cites_word($4, removed) { print }
 if (( SCOPED )); then
   sed -e 's|^\./||' -e '/^$/d' "$SCOPE_LIST" | LC_ALL=C sort -u > "$SCOPE_PATHS"
   sed 's|.*/||' "$SCOPE_PATHS" | LC_ALL=C sort -u > "$BASENAMES"
-  for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md'; done | LC_ALL=C sort -u > "$WORK/all-docs"
+  for r in "${ROOTS[@]}"; do find "$r" -type f -name '*.md' ! -path "$NL_PATH"; done | LC_ALL=C sort -u > "$WORK/all-docs"
   grep -xF -f "$SCOPE_PATHS" "$WORK/all-docs" > "$FULL_DOCS"
   {
     cat "$FULL_DOCS"
@@ -519,15 +537,16 @@ if (( SCOPED )); then
 fi
 
 # bundle_docs <docroot> [name] [full] — the docs a run checks under one root:
-# every *.md (or every file of that name); on a scoped run only the docs in
-# scope, or with "full" only the docs that get every check
+# every *.md (or every file of that name) whose path holds no newline; on a
+# scoped run only the docs in scope, or with "full" only the docs that get
+# every check
 bundle_docs() {
   local name="${2:-*.md}" list="$SCOPE_DOCS"
   [[ "${3:-}" == full ]] && list="$FULL_DOCS"
   if (( SCOPED )); then
-    find "$1" -type f -name "$name" | grep -xF -f "$list"
+    find "$1" -type f -name "$name" ! -path "$NL_PATH" | grep -xF -f "$list"
   else
-    find "$1" -type f -name "$name"
+    find "$1" -type f -name "$name" ! -path "$NL_PATH"
   fi
   return 0
 }
@@ -763,7 +782,8 @@ check_bundle() { # <project-dir> <docroot>
     if (( ! wired_claude && ! wired_agents )); then
       local via_root=0
       if [[ "$proj" != "." && -n "$ROOT_BUNDLE" ]]; then
-        grep -rqF -- "$docroot/index.md" "$ROOT_BUNDLE" --include='*.md' 2>/dev/null && via_root=1
+        grep -rqF --include='*.md' --exclude="$NL_PATH" --exclude-dir="$NL_PATH" \
+          -- "$docroot/index.md" "$ROOT_BUNDLE" 2>/dev/null && via_root=1
       fi
       if (( ! via_root )); then
         fail "[Q3] $proj — neither $claude nor $agents references $rel/index.md"

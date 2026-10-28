@@ -23,6 +23,10 @@
 #                        class — one per line (duplicates are fine)
 #   lang_code_edges      stdout: "file:line:target" for every docs-path citation
 #                        inside code files (grep -rno shape)
+#   lang_newline_files   stdout: the code files and project markers whose path
+#                        holds a newline, NUL-separated. The four functions above
+#                        skip every path that matches NL_PATH, the driver's
+#                        pattern for a path that holds a newline.
 #
 # TypeScript + React: sub-projects are package.json directories outside
 # node_modules; code files are *.ts and *.tsx outside node_modules, dist, build,
@@ -60,11 +64,11 @@ lang_project_dirs() {
     p=$(dirname "$m"); p="${p#./}"
     [[ "$p" == "." || -z "$p" ]] && continue
     printf '%s\n' "$p"
-  done < <(find . -name "$LANG_PROJECT_MARKER" "${TS_PRUNE[@]}" 2>/dev/null | sort)
+  done < <(find . -name "$LANG_PROJECT_MARKER" "${TS_PRUNE[@]}" -not -path "$NL_PATH" 2>/dev/null | sort)
 }
 
 lang_has_code() {
-  find . "${TS_CODE_FILES[@]}" "${TS_PRUNE[@]}" -print -quit 2>/dev/null | grep -q .
+  find . "${TS_CODE_FILES[@]}" "${TS_PRUNE[@]}" -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
 # LANG_DECL_AWK reads the TypeScript files that lang_declarations lists and
@@ -249,7 +253,7 @@ current_class != "" && depth == class_depth + 1 {
 '
 
 lang_declarations() {
-  find . "${TS_CODE_FILES[@]}" "${TS_PRUNE[@]}" -print0 2>/dev/null \
+  find . "${TS_CODE_FILES[@]}" "${TS_PRUNE[@]}" -not -path "$NL_PATH" -print0 2>/dev/null \
     | xargs -0 awk "$LANG_DECL_AWK"
 }
 
@@ -257,6 +261,10 @@ lang_code_edges() {
   grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
     --include='*.ts' --include='*.tsx' --exclude='*.d.ts' \
     --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=.next \
-    --exclude-dir=coverage --exclude-dir=.git . 2>/dev/null
+    --exclude-dir=coverage --exclude-dir=.git --exclude="$NL_PATH" --exclude-dir="$NL_PATH" . 2>/dev/null
+}
+
+lang_newline_files() {
+  find . \( "${TS_CODE_FILES[@]}" -o -name "$LANG_PROJECT_MARKER" \) "${TS_PRUNE[@]}" -path "$NL_PATH" -print0 2>/dev/null
 }
 # ================== end language adapter: ts-react ==================

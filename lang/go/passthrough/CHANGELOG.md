@@ -204,6 +204,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
     for `func (c *Cache[K, V]) Lookup`
   - a declaration after an empty group such as `var ()`
 
+- **A question tag inside a path is not a detection hit.** The detection pass
+  split the repo-brain gate's output by a `[Qn]` tag anywhere in the line. A file
+  named `docs/[Q2]notes.md` therefore added a false Q2 row to `hits.tsv` and
+  `counts.tsv`. The detection pass now reads only a tag that opens the line, with
+  or without the `advisory:` prefix. The gate's advisory line for a skipped path
+  starts with `skip:`, so a path that starts with a tag does not open the line.
+
+- **A path that holds a newline does not stop the repo-brain gate.** The gate
+  reads its file lists one path per line. A doc named `docs/release` + newline +
+  `notes.md` split into two paths: the doc scan failed with "internal scanner
+  error", the gate exited 2, and Q1 reported two false orphans. The gate now
+  skips each doc, code file and project marker whose path holds a newline, and
+  prints one advisory line for each, with the newline shown as `\n`. No markdown
+  link can reach such a doc, so the gate cannot check it. Such a doc also does
+  not wire a sub-project root for Q3, and a file whose path holds a newline gives
+  no words to the Q2 whole-word fallback. The Q3 scan of the repo-root doc root reads
+  only its `.md` files: grep read the `--include` option after `--` as a file name.
+
 - **The repo-brain gate does not read installed dependencies.** The symbol
   fallback looked for a backticked token in every untracked file that git does not
   ignore. A token found only in a local `node_modules/` passed on a developer's

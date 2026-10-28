@@ -26,17 +26,21 @@
 #                        receiver — one per line (duplicates are fine)
 #   lang_code_edges      stdout: "file:line:target" for every docs-path citation
 #                        inside code files (grep -rno shape)
+#   lang_newline_files   stdout: the code files and project markers whose path
+#                        holds a newline, NUL-separated. The four functions above
+#                        skip every path that matches NL_PATH, the driver's
+#                        pattern for a path that holds a newline.
 
 # The marker at the repo root wins; a marker below the root is the fallback, so a
 # repository whose only Go module sits in a sub-directory is still checked as Go.
 detect_language() {
   if [[ -f go.mod ]]; then printf 'go\n'; return; fi
   if [[ -f pyproject.toml || -f setup.cfg || -f setup.py ]]; then printf 'python\n'; return; fi
-  if find . -name go.mod -not -path '*/vendor/*' -not -path './.git/*' -print -quit 2>/dev/null | grep -q .; then
+  if find . -name go.mod -not -path '*/vendor/*' -not -path './.git/*' -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .; then
     printf 'go\n'; return
   fi
   if find . \( -name pyproject.toml -o -name setup.cfg -o -name setup.py \) \
-       -not -path '*/.venv/*' -not -path '*/node_modules/*' -not -path './.git/*' -print -quit 2>/dev/null | grep -q .; then
+       -not -path '*/.venv/*' -not -path '*/node_modules/*' -not -path './.git/*' -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .; then
     printf 'python\n'; return
   fi
   printf 'unknown\n'
@@ -63,12 +67,12 @@ lang_project_dirs() {
     p=$(dirname "$m"); p="${p#./}"
     [[ "$p" == "." || -z "$p" ]] && continue
     printf '%s\n' "$p"
-  done < <(find . -name "$LANG_PROJECT_MARKER" -not -path '*/vendor/*' -not -path './.git/*' 2>/dev/null | sort)
+  done < <(find . -name "$LANG_PROJECT_MARKER" -not -path '*/vendor/*' -not -path './.git/*' -not -path "$NL_PATH" 2>/dev/null | sort)
 }
 
 lang_has_code() {
   find . -name "$LANG_CODE_GLOB" -not -path './vendor/*' -not -path '*/vendor/*' -not -path './.git/*' \
-    -print -quit 2>/dev/null | grep -q .
+    -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
 # LANG_DECL_AWK reads the Go files that lang_declarations lists and takes no -v
@@ -172,13 +176,20 @@ in_group {
 '
 
 lang_declarations() {
-  find . -name "$LANG_CODE_GLOB" -not -path '*/vendor/*' -not -path './.git/*' -print0 2>/dev/null \
+  find . -name "$LANG_CODE_GLOB" -not -path '*/vendor/*' -not -path './.git/*' \
+    -not -path "$NL_PATH" -print0 2>/dev/null \
     | xargs -0 awk "$LANG_DECL_AWK"
 }
 
 lang_code_edges() {
   grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
-    --include="$LANG_CODE_GLOB" --exclude-dir=vendor --exclude-dir=.git . 2>/dev/null
+    --include="$LANG_CODE_GLOB" --exclude-dir=vendor --exclude-dir=.git \
+    --exclude="$NL_PATH" --exclude-dir="$NL_PATH" . 2>/dev/null
+}
+
+lang_newline_files() {
+  find . \( -name "$LANG_CODE_GLOB" -o -name "$LANG_PROJECT_MARKER" \) -not -path '*/vendor/*' -not -path './.git/*' \
+    -path "$NL_PATH" -print0 2>/dev/null
 }
 ;;
 
@@ -214,11 +225,11 @@ lang_project_dirs() {
     p=$(dirname "$m"); p="${p#./}"
     [[ "$p" == "." || -z "$p" ]] && continue
     printf '%s\n' "$p"
-  done < <(find . -name "$LANG_PROJECT_MARKER" "${PY_PRUNE[@]}" 2>/dev/null | sort)
+  done < <(find . -name "$LANG_PROJECT_MARKER" "${PY_PRUNE[@]}" -not -path "$NL_PATH" 2>/dev/null | sort)
 }
 
 lang_has_code() {
-  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -print -quit 2>/dev/null | grep -q .
+  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -not -path "$NL_PATH" -print -quit 2>/dev/null | grep -q .
 }
 
 # LANG_DECL_AWK reads the Python files that lang_declarations lists and takes no
@@ -315,13 +326,18 @@ current_class != "" && body_indent == "" && $0 ~ /^[ \t]+[^ \t\r\f#]/ {
 '
 
 lang_declarations() {
-  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -print0 2>/dev/null \
+  find . -name "$LANG_CODE_GLOB" "${PY_PRUNE[@]}" -not -path "$NL_PATH" -print0 2>/dev/null \
     | xargs -0 awk "$LANG_DECL_AWK"
 }
 
 lang_code_edges() {
   grep -rnoE '(docs|\.ai|\.ainav)/[A-Za-z0-9._/-]+\.md' \
-    --include="$LANG_CODE_GLOB" "${PY_EXCLUDE_DIRS[@]}" . 2>/dev/null
+    --include="$LANG_CODE_GLOB" "${PY_EXCLUDE_DIRS[@]}" \
+    --exclude="$NL_PATH" --exclude-dir="$NL_PATH" . 2>/dev/null
+}
+
+lang_newline_files() {
+  find . \( -name "$LANG_CODE_GLOB" -o -name "$LANG_PROJECT_MARKER" \) "${PY_PRUNE[@]}" -path "$NL_PATH" -print0 2>/dev/null
 }
 ;;
 
@@ -341,6 +357,7 @@ lang_project_dirs() { :; }
 lang_has_code() { return 1; }
 lang_declarations() { :; }
 lang_code_edges() { :; }
+lang_newline_files() { :; }
 ;;
 esac
 # ================== end language adapter: detected ==================
