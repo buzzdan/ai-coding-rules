@@ -529,11 +529,13 @@ repo_files() {
 # repo_words — the repository's distinct words (runs of [A-Za-z0-9_.$]) in
 # its non-markdown text files, one per line, read once per gate run and kept.
 # grep ends every file's last line, so two files never fuse into one word, and
-# skips binary files.
+# skips binary files. A file whose path holds a newline gives no words: the gate
+# does not check it.
 REPO_WORDS="$WORK/repo-words"
 repo_words() {
   if [[ ! -f "$REPO_WORDS" ]]; then
-    repo_files | xargs -0 grep -Ih -e '' -- 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.$' '\n' \
+    repo_files | while IFS= read -r -d '' f; do [[ "$f" == *"$NL"* ]] || printf '%s\0' "$f"; done \
+      | xargs -0 grep -Ih -e '' -- 2>/dev/null | LC_ALL=C tr -cs 'A-Za-z0-9_.$' '\n' \
       | LC_ALL=C awk '!seen[$0]++' > "$REPO_WORDS"
   fi
   cat "$REPO_WORDS"

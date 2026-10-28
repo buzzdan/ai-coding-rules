@@ -287,6 +287,15 @@ run_gate
 expect_exit 0 && expect_not "does not resolve" && ok
 finish
 
+begin "Q2 the whole-word fallback does not read a file whose path holds a newline"
+mk_conformant
+printf 'alerts:\n  - name: RetryBudgetExhausted\n' > "$REPO/alerts"$'\n'"old.yaml"
+mk_doc alerts "alert names" "Fires \`RetryBudgetExhausted\` when \`Policy\` gives up."
+append_index "- [alerts.md](alerts.md) — alert names"
+run_gate
+expect_exit 1 && expect_has "backticked \`RetryBudgetExhausted\` does not resolve" && ok
+finish
+
 begin "Q2 ALL-CAPS initialisms, placeholders, and dotted config names are skipped"
 mk_conformant
 mk_doc caps "skipped token shapes" "Set \`TTL\` and \`<docroot>\`; the linter config is \`$FX_DOTTED_CONFIG\`; \`HTTP\` is fine."
