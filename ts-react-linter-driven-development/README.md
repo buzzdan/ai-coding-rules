@@ -253,13 +253,13 @@ the same command. Installed side by side, all do the same structural work.
 ## Installation
 
 ```
-/plugin marketplace add buzzdan/ai-coding-rules
-/plugin install ts-react-linter-driven-development@ai-coding-rules
+/plugin marketplace add weka/linter-driven-development
+/plugin install ts-react-linter-driven-development@weka-ldd
 ```
 
 Verify with `/plugin list`; it should show `ts-react-linter-driven-development (enabled)`.
 
-**First steps:** [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) — the scenario guide, easiest start first.
+**First steps:** [docs/quick-start.md](https://github.com/weka/linter-driven-development/blob/main/docs/quick-start.md) — the scenario guide, easiest start first.
 
 ## How Auto-Detection Works
 
@@ -298,7 +298,7 @@ user:
 ## Updating and uninstalling
 
 ```
-/plugin update ts-react-linter-driven-development@ai-coding-rules
+/plugin update ts-react-linter-driven-development@weka-ldd
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions. To uninstall,
@@ -308,8 +308,8 @@ run `/plugin`, select "ts-react-linter-driven-development" and choose "Uninstall
 
 Full details, the generator that renders this plugin from its core, and the Go,
 Python and generic plugins it shares that core with: the
-[main repository](https://github.com/buzzdan/ai-coding-rules). Found a bug or have
-an idea? [Open an issue](https://github.com/buzzdan/ai-coding-rules/issues).
+[main repository](https://github.com/weka/linter-driven-development). Found a bug or have
+an idea? [Open an issue](https://github.com/weka/linter-driven-development/issues).
 
 ## License
 

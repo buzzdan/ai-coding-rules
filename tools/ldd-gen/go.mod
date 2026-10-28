@@ -1,4 +1,4 @@
-module github.com/buzzdan/ai-coding-rules/tools/ldd-gen
+module github.com/weka/linter-driven-development/tools/ldd-gen
 
 go 1.25
 

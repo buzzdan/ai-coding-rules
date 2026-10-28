@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/gen"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/gen"
 )
 
 const profileYAML = `plugin: out-plugin

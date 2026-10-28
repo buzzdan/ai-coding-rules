@@ -15,7 +15,7 @@ import (
 	"sort"
 	"syscall"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/render"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/render"
 )
 
 // Kind says how a path on disk disagrees with the rendered tree.

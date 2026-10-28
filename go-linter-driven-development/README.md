@@ -193,12 +193,12 @@ Design decisions aren't subjective — they're driven by measurable quality metr
 
 **Step 1: Add the marketplace**
 ```
-/plugin marketplace add buzzdan/ai-coding-rules
+/plugin marketplace add weka/linter-driven-development
 ```
 
 **Step 2: Install the plugin**
 ```
-/plugin install go-linter-driven-development@ai-coding-rules
+/plugin install go-linter-driven-development@weka-ldd
 ```
 
 **Verify installation:**
@@ -209,7 +209,7 @@ Should show: `go-linter-driven-development (enabled)`
 
 ## Quick Start
 
-The scenario guide — the easiest start first, then code you already wrote, a plan you already have, and running the plugin from a subagent — is [docs/quick-start.md](https://github.com/buzzdan/ai-coding-rules/blob/main/docs/quick-start.md) in the main repository.
+The scenario guide — the easiest start first, then code you already wrote, a plan you already have, and running the plugin from a subagent — is [docs/quick-start.md](https://github.com/weka/linter-driven-development/blob/main/docs/quick-start.md) in the main repository.
 
 **Zero configuration to run.** The plugin discovers your project's test and lint commands from `README.md`, `CLAUDE.md`, `Makefile`, or `Taskfile.yaml`. Just install and go.
 
@@ -301,7 +301,7 @@ If you have muscle memory for `quality-analyzer` or `go-code-reviewer`, the clos
 ## Updating
 
 ```
-/plugin update go-linter-driven-development@ai-coding-rules
+/plugin update go-linter-driven-development@weka-ldd
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed between versions — including the v2.0.0 breaking changes and migration notes.
@@ -315,9 +315,9 @@ Select "go-linter-driven-development" and choose "Uninstall".
 
 ## Need Help or Want to Contribute?
 
-**Documentation:** Full details in the [main repository](https://github.com/buzzdan/ai-coding-rules)
+**Documentation:** Full details in the [main repository](https://github.com/weka/linter-driven-development)
 
-**Found a bug or have an idea?** [Open an issue](https://github.com/buzzdan/ai-coding-rules/issues)
+**Found a bug or have an idea?** [Open an issue](https://github.com/weka/linter-driven-development/issues)
 
 **Want to contribute?** PRs welcome — typos, examples, or improvements to the rules and skills.
 

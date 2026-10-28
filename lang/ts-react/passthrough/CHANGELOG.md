@@ -133,6 +133,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ### Changed
 
+- **The repository is `weka/linter-driven-development`, and the marketplace is `weka-ldd`.**
+  Install with `/plugin marketplace add weka/linter-driven-development`, then
+  `/plugin install ts-react-linter-driven-development@weka-ldd`. To get updates,
+  remove the `ai-coding-rules` marketplace, then add the new one.
+
 - **A failed documentation gate no longer stops the review.** When
   `check-repo-brain.sh` fails — an exit other than 0 or 1, or an exit 1 with no
   violation summary — the detection pass marks the gate's questions
@@ -423,7 +428,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ### Measured against 1.x
 
 Both plugins reviewed the `ts-react-mini` eval fixture (164 planted violations and
-controls, in [buzzdan/ldd-evals](https://github.com/buzzdan/ldd-evals)) under the
+controls, in [weka/ldd-evals](https://github.com/weka/ldd-evals)) under the
 same prompt and model (`claude-sonnet-5`): eight review cases whose prompt names no
 slash command and whose graders carry no rule ids, then refereed finding by finding
 against the manifest, by substance.

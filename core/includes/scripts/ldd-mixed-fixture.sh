@@ -143,7 +143,7 @@ write_installed_plugins() { # <file> [<plugin name>...] — names found beside t
     [[ -f "$dir/scripts/ldd-scope.sh" || -d "$dir/skills" ]] || continue
     (( first )) || printf ',\n' >> "$f"
     first=0
-    printf '    "%s@ai-coding-rules": [\n      {\n        "scope": "user",\n        "installPath": "%s",\n        "version": "test"\n      }\n    ]' "$name" "$dir" >> "$f"
+    printf '    "%s@weka-ldd": [\n      {\n        "scope": "user",\n        "installPath": "%s",\n        "version": "test"\n      }\n    ]' "$name" "$dir" >> "$f"
     SIBLINGS="$SIBLINGS $name"
   done
   printf '\n  }\n}\n' >> "$f"

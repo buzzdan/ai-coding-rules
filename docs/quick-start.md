@@ -21,8 +21,8 @@ they share it.
 ## Install once
 
 ```
-/plugin marketplace add buzzdan/ai-coding-rules
-/plugin install go-linter-driven-development@ai-coding-rules
+/plugin marketplace add weka/linter-driven-development
+/plugin install go-linter-driven-development@weka-ldd
 ```
 
 No configuration to run. The plugin finds your test and lint commands in the
@@ -206,8 +206,8 @@ A Go backend and a TypeScript + React frontend in one repository: install both
 plugins. They live side by side; nothing in their names collides.
 
 ```
-/plugin install go-linter-driven-development@ai-coding-rules
-/plugin install ts-react-linter-driven-development@ai-coding-rules
+/plugin install go-linter-driven-development@weka-ldd
+/plugin install ts-react-linter-driven-development@weka-ldd
 ```
 
 Each plugin sees only its own files. The Go plugin scopes, lints and reviews `*.go`

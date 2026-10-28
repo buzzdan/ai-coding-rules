@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/binding"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/binding"
 )
 
 // README.md documents core/ itself; every other core file is a template,

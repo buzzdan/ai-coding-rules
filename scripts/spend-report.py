@@ -22,10 +22,11 @@ context sizes the API reported (prior-turn thinking carried inside tool loops,
 plus estimate error). The per-run totals in table 1 are the API's own numbers.
 
 This is the reference implementation of the spend section of
-docs/token-budget.md; the runner in buzzdan/ldd-evals is where the same report
+docs/token-budget.md; the runner in weka/ldd-evals is where the same report
 belongs once the design lands (ldd-eval spend, planned).
 
     python3 scripts/spend-report.py <dir> [--markdown]
+    # the archive is at the same path in the private weka/ldd-evals-traces repository
     zstd -dc baselines/go-2.11.0-c78b55f/traces.tar.zst | tar -xf - -C /tmp/t
     python3 scripts/spend-report.py /tmp/t --markdown
 """

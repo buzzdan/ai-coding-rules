@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing/fstest"
 
-	"github.com/buzzdan/ai-coding-rules/tools/ldd-gen/internal/profile"
+	"github.com/weka/linter-driven-development/tools/ldd-gen/internal/profile"
 )
 
 const (

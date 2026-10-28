@@ -22,7 +22,7 @@ Thumbs.db
 .ideas/
 .superpowers/
 
-# Behavioral evals live in buzzdan/ldd-evals; a run copies cases here at run time.
+# Behavioral evals live in weka/ldd-evals; a run copies cases here at run time.
 go-linter-driven-development/evals/*
 !go-linter-driven-development/evals/README.md
 .evals/
@@ -32,3 +32,6 @@ go-linter-driven-development/evals/*
 linter-driven-development/evals/
 python-linter-driven-development/evals/
 ts-react-linter-driven-development/evals/
+
+# Python bytecode
+__pycache__/
