@@ -1,6 +1,38 @@
-# Linter-Driven Development
+<p align="center">
+  <img src="assets/logo.png" alt="Linter-Driven Development logo" width="320">
+</p>
 
-A [Claude Code](https://claude.ai/code) plugin marketplace for **linter-driven development** — workflows where quality gates (tests, linters, design review) guide your design instead of slowing you down.
+<h1 align="center">Linter-Driven Development</h1>
+
+<p align="center">
+  A <a href="https://claude.ai/code">Claude Code</a> plugin marketplace for <b>linter-driven development</b> — workflows where quality gates (tests, linters, design review) guide your design instead of slowing you down.
+</p>
+
+## How It Works
+
+Every code change goes through the same steps, in this order:
+
+**Design → Prepare → Implement (TDD) loop → Lint-Refactor loop → Review → Ship**
+
+- **Design** plans the types and the package layout before code exists.
+- **Prepare** reshapes the code the change touches, so the feature lands as an addition.
+- **Implement (TDD) loop** writes one behavior at a time: a failing test, the code that makes it pass, then a refactor.
+- **Lint-Refactor loop** runs the repository's linter and fixes the mechanical findings. A design finding goes to a refactor guided by the rule that covers it, and the loop lints again until the linter is green.
+- **Review** is advisory: it runs parallel reviewers, one per rule family, plus a skeptic that rejects extractions that do not earn their keep.
+- **Ship** writes the docs and commits when the tests and the linter are green.
+
+One prompt runs the whole workflow: `/go-ldd-autopilot`, `/py-ldd-autopilot`, `/tsr-ldd-autopilot` or `/ldd-autopilot`.
+
+## How We Know It Works
+
+Behavior changes are measured, not judged by eye:
+
+- **A bad fixture.** Each language has a small service with planted design violations (go-mini, py-mini, ts-react-mini) and an answer key of what a good run must find and fix.
+- **Headless runs.** Each case gives a fresh copy of the fixture to `claude -p` with the plugin loaded, and records every tool call and the final report.
+- **Graders.** Regex checks on the report and on the files, checks on tool order, a post-check script in the tree, and an LLM judge that votes two of three score each run.
+- **A baseline.** Each baseline is recorded against a named plugin commit. A refactor must keep every case within the noise floor, the graders that flip between runs of the same case. A behavior change names the cases it should flip and runs them again.
+
+The cases, the fixtures, the runner and the baselines are in [weka/ldd-evals](https://github.com/weka/ldd-evals). How it fits together: [docs/eval-harness.md](docs/eval-harness.md).
 
 ## What's Inside
 
@@ -21,7 +53,7 @@ Plus the coding rules as a single document, for a project that does not use the 
 All four are generated from the same sources as the plugins, so they never drift from them; import one from your `CLAUDE.md` or `AGENTS.md`, or read it before your first PR. How they are built: [docs/handbook.md](docs/handbook.md).
 
 
-### Go plugin (v2 — rules as data)
+### Go plugin
 
 The organising idea: **the rule is the unit, not the phase.** Each design principle lives exactly once, as data:
 
@@ -42,7 +74,7 @@ The same core rendered for repositories without a language binding. It detects t
 
 ### TS/React plugin
 
-The same core rendered for a React single-page application in TypeScript: every canonical example is TypeScript or TSX, every detect line runs over `.ts` and `.tsx` files, the linter routing is keyed by ESLint rule ids (SonarJS, react-hooks, typescript-eslint), and the testing skill speaks Vitest, React Testing Library and MSW. Where a Go idiom has no TypeScript twin the plugin takes a position — `undefined` as declared absence, parse at the API boundary, discriminated unions closed by `assertNever`, effects that return their cleanup, context providers over module singletons, MSW over `vi.mock` — recorded in [docs/language-residue.md](docs/language-residue.md). Version 2 replaces the hand-written six-skill plugin; the upgrade notes are in the [plugin README](ts-react-linter-driven-development/README.md).
+The same core rendered for a React single-page application in TypeScript: every canonical example is TypeScript or TSX, every detect line runs over `.ts` and `.tsx` files, the linter routing is keyed by ESLint rule ids (SonarJS, react-hooks, typescript-eslint), and the testing skill speaks Vitest, React Testing Library and MSW. Where a Go idiom has no TypeScript twin the plugin takes a position — `undefined` as declared absence, parse at the API boundary, discriminated unions closed by `assertNever`, effects that return their cleanup, context providers over module singletons, MSW over `vi.mock` — recorded in [docs/language-residue.md](docs/language-residue.md). Details: [plugin README](ts-react-linter-driven-development/README.md).
 
 ## Installation
 
@@ -70,27 +102,36 @@ The same core rendered for a React single-page application in TypeScript: every 
 
 ## Team Setup
 
-Add the marketplace to your project's `.claude/settings.json` so it's known team-wide:
+Add the marketplace and the plugin to your project's `.claude/settings.json`. Claude Code then offers the plugin to each team member who opens the project:
 
 ```json
 {
-  "extraKnownMarketplaces": [
-    "weka/linter-driven-development"
-  ]
+  "extraKnownMarketplaces": {
+    "weka-ldd": {
+      "source": { "source": "github", "repo": "weka/linter-driven-development" }
+    }
+  },
+  "enabledPlugins": {
+    "go-linter-driven-development@weka-ldd": true
+  }
 }
 ```
 
-Team members then install with the same `/plugin install` commands above.
+Use the key of the plugin for your language in `enabledPlugins`.
 
 ## Developing the Plugins
 
 1. Clone the repo. All four plugin directories are generated, and so are `coding-rules/go.md`, `coding-rules/python.md`, `coding-rules/ts-react.md` and `coding-rules/generic.md`: edit the sources under `core/` (language-neutral text, with the neutral defaults under `core/includes/`) and `lang/go/`, `lang/python/`, `lang/ts-react/` or `lang/generic/` (the bindings), then run `task generate`, `task generate BINDING=python`, `task generate BINDING=ts-react` and `task generate BINDING=generic` and commit all of them. `task check` fails when a plugin directory or a handbook drifts from its sources. How the pieces fit: [core/README.md](core/README.md), [docs/generator.md](docs/generator.md) and [docs/handbook.md](docs/handbook.md).
-2. Test locally by adding the checkout as a marketplace:
+2. Test a change on the spot: start a session that loads the plugin straight from your checkout.
+   ```
+   claude --plugin-dir ./linter-driven-development/go-linter-driven-development
+   ```
+   To use your checkout in every session, add it as the marketplace and install the plugin from it:
    ```
    /plugin marketplace add ./linter-driven-development
    /plugin install go-linter-driven-development@weka-ldd
    ```
-   After changes, uninstall/reinstall the plugin to pick them up.
+   Claude Code installs a copy of each plugin, so run `/plugin update <plugin>@weka-ldd` and restart after a change.
 3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, TypeScript and React material in `lang/ts-react/`, the case studies' doctrine in `core/examples/` and their code sections in `lang/<lang>/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
 4. Behavior changes to the Go, Python and TypeScript + React plugins are measured, not eyeballed: behavioral evals run them on a deliberately bad fixture project (go-mini, py-mini, ts-react-mini) and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [weka/ldd-evals](https://github.com/weka/ldd-evals); `scripts/evals.sh` runs them against this checkout.
 5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.0.0)).
