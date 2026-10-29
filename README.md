@@ -12,12 +12,12 @@
 
 Every code change goes through the same steps, in this order:
 
-**Design → Prepare → Implement (TDD) → Lint → Review → Ship**
+**Design → Prepare → Implement (TDD) loop → Lint-Refactor loop → Review → Ship**
 
 - **Design** plans the types and the package layout before code exists.
 - **Prepare** reshapes the code the change touches, so the feature lands as an addition.
-- **Implement** writes one behavior at a time, test first.
-- **Lint** runs the repository's linter and fixes what it finds; a design finding goes back to the rule that covers it.
+- **Implement (TDD) loop** writes one behavior at a time: a failing test, the code that makes it pass, then a refactor.
+- **Lint-Refactor loop** runs the repository's linter and fixes the mechanical findings. A design finding goes to a refactor guided by the rule that covers it, and the loop lints again until the linter is green.
 - **Review** is advisory: it runs parallel reviewers, one per rule family, plus a skeptic that rejects extractions that do not earn their keep.
 - **Ship** writes the docs and commits when the tests and the linter are green.
 
