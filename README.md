@@ -23,6 +23,17 @@ Every code change goes through the same steps, in this order:
 
 One prompt runs the whole workflow: `/go-ldd-autopilot`, `/py-ldd-autopilot`, `/tsr-ldd-autopilot` or `/ldd-autopilot`.
 
+## How We Know It Works
+
+Behavior changes are measured, not judged by eye:
+
+- **A bad fixture.** Each language has a small service with planted design violations (go-mini, py-mini, ts-react-mini) and an answer key of what a good run must find and fix.
+- **Headless runs.** Each case gives a fresh copy of the fixture to `claude -p` with the plugin loaded, and records every tool call and the final report.
+- **Graders.** Regex checks on the report and on the files, checks on tool order, a post-check script in the tree, and an LLM judge that votes two of three score each run.
+- **A baseline.** Each baseline is recorded against a named plugin commit. A refactor must keep every case within the noise floor, the graders that flip between runs of the same case. A behavior change names the cases it should flip and runs them again.
+
+The cases, the fixtures, the runner and the baselines are in [weka/ldd-evals](https://github.com/weka/ldd-evals). How it fits together: [docs/eval-harness.md](docs/eval-harness.md).
+
 ## What's Inside
 
 | | Plugin | Version | For |
