@@ -115,7 +115,12 @@ Use the key of the plugin for your language in `enabledPlugins`.
    ```
    claude --plugin-dir ./linter-driven-development/go-linter-driven-development
    ```
-   To use your checkout in every session, add it as the marketplace (`/plugin marketplace add ./linter-driven-development`). Claude Code installs a copy of each plugin, so run `/plugin update <plugin>@weka-ldd` and restart after a change.
+   To use your checkout in every session, add it as the marketplace and install the plugin from it:
+   ```
+   /plugin marketplace add ./linter-driven-development
+   /plugin install go-linter-driven-development@weka-ldd
+   ```
+   Claude Code installs a copy of each plugin, so run `/plugin update <plugin>@weka-ldd` and restart after a change.
 3. For the generated plugins, follow the architecture contract — each fact lives once: rule content goes in `core/rules/`, language-neutral defaults for a binding slot in `core/includes/`, Go material in `lang/go/`, Python material in `lang/python/`, TypeScript and React material in `lang/ts-react/`, the case studies' doctrine in `core/examples/` and their code sections in `lang/<lang>/examples/`, skills only sequence and route. See the [plugin README](go-linter-driven-development/README.md#architecture-rules-as-data).
 4. Behavior changes to the Go, Python and TypeScript + React plugins are measured, not eyeballed: behavioral evals run them on a deliberately bad fixture project (go-mini, py-mini, ts-react-mini) and compare against a recorded baseline. Start at [docs/index.md](docs/index.md) — the harness, the fixture, how to write a case, the runner, and how to read a baseline. The cases, fixture, runner and baselines live in [weka/ldd-evals](https://github.com/weka/ldd-evals); `scripts/evals.sh` runs them against this checkout.
 5. Open a PR; releases are tagged per plugin (e.g. [`go-ldd-v2.0.0`](https://github.com/weka/linter-driven-development/releases/tag/go-ldd-v2.0.0)).
